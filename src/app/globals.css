@@ -1,0 +1,168 @@
+@import "tailwindcss";
+
+/* Design system Nitido — spec secțiunea 9, v2 „aurora" (mesh gradients + glass) */
+:root {
+  --mist: #f1f5f4;
+  --ink: #142530;
+  --aqua: #17b8a6;
+  --aqua-deep: #0e8f80;
+  --coral: #ff6b5b;
+  --indigo: #6a5cf2;
+  --line: #e1e8e6;
+  --muted: #63767a;
+}
+
+@theme inline {
+  --color-mist: var(--mist);
+  --color-ink: var(--ink);
+  --color-aqua: var(--aqua);
+  --color-aqua-deep: var(--aqua-deep);
+  --color-coral: var(--coral);
+  --color-indigo: var(--indigo);
+  --color-line: var(--line);
+  --color-muted: var(--muted);
+  --font-display: var(--font-sora);
+  --font-body: var(--font-inter);
+}
+
+body {
+  background: #dce4e2;
+  color: var(--ink);
+  font-family: var(--font-body), sans-serif;
+}
+
+/* ---- Aurora mesh gradient system ------------------------------------ */
+
+@keyframes blob-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(4%, -6%) scale(1.08); }
+  66% { transform: translate(-5%, 4%) scale(0.95); }
+}
+
+@keyframes blob-float-slow {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-6%, 5%) scale(1.06); }
+}
+
+@keyframes shimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.animate-blob {
+  animation: blob-float 16s ease-in-out infinite;
+}
+.animate-blob-slow {
+  animation: blob-float-slow 22s ease-in-out infinite;
+}
+.animate-blob-delay {
+  animation-delay: -7s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-blob, .animate-blob-slow {
+    animation: none;
+  }
+}
+
+/* Fundal întunecat cu pete de gradient estompate — folosit pe hero, auth, secțiuni dark */
+.mesh-dark {
+  position: relative;
+  background: #0f1e27;
+  isolation: isolate;
+}
+.mesh-dark::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(38% 45% at 15% 20%, rgba(23, 184, 166, 0.35), transparent 70%),
+    radial-gradient(32% 40% at 85% 15%, rgba(106, 92, 242, 0.28), transparent 70%),
+    radial-gradient(45% 50% at 75% 90%, rgba(255, 107, 91, 0.16), transparent 70%),
+    linear-gradient(180deg, #0f1e27 0%, #142530 100%);
+}
+.mesh-dark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.5;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(ellipse 80% 80% at 50% 0%, black 40%, transparent 100%);
+}
+
+/* Fundal deschis cu urmă discretă de mesh — pentru secțiuni light care nu vor fi plate */
+.mesh-light {
+  position: relative;
+  isolation: isolate;
+}
+.mesh-light::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(40% 60% at 10% 0%, rgba(23, 184, 166, 0.08), transparent 70%),
+    radial-gradient(35% 50% at 100% 30%, rgba(106, 92, 242, 0.06), transparent 70%),
+    var(--mist);
+}
+
+/* Sticlă — navbar-uri și carduri plutitoare peste fundaluri mesh */
+.glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+.glass-dark {
+  background: rgba(15, 30, 39, 0.55);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Text cu gradient de brand — pentru cuvinte-cheie în titluri */
+.text-gradient {
+  background-image: linear-gradient(100deg, var(--aqua) 0%, var(--indigo) 55%, var(--coral) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.text-gradient-animated {
+  animation: shimmer 6s linear infinite;
+}
+
+/* Buton gradient cu glow — variantă „aurora" pentru CTA-uri principale */
+.btn-aurora {
+  background-image: linear-gradient(100deg, var(--aqua) 0%, var(--aqua-deep) 50%, var(--indigo) 100%);
+  box-shadow:
+    0 1px 2px rgba(14, 143, 128, 0.2),
+    0 8px 24px -6px rgba(23, 184, 166, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+}
+.btn-aurora:hover {
+  box-shadow:
+    0 2px 4px rgba(14, 143, 128, 0.25),
+    0 12px 32px -6px rgba(106, 92, 242, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+}
+
+/* Contur cu gradient subtil — pentru carduri „premium" pe fundal deschis */
+.border-gradient {
+  position: relative;
+}
+.border-gradient::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(23, 184, 166, 0.5), rgba(106, 92, 242, 0.3), rgba(255, 107, 91, 0.35));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
