@@ -1,0 +1,26 @@
+services:
+  nitido:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER}
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-https://nitido.ro}
+    volumes:
+      # Persistă baza de date SQLite și pozele încărcate între redeploy-uri —
+      # fără astea, fiecare build nou pornește cu o bază de date goală.
+      - nitido_data:/app/data
+      - nitido_uploads:/app/public/uploads
+
+volumes:
+  nitido_data:
+  nitido_uploads:
