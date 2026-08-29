@@ -1,0 +1,3 @@
+import Link from "next/link";
+import { mobileScreens } from "@/components/MobileScreens";
+export default function MobileIndex(){return <main className="min-h-screen bg-[#f4f3ee] p-8"><div className="max-w-5xl mx-auto"><div className="v2-eyebrow">NITIDO mobile handoff</div><h1 className="text-4xl font-bold mt-3">9 ecrane canonice · 390×844</h1><p className="text-[#5c6660] mt-3">Selectează un ecran pentru verificare high-fidelity.</p><div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">{mobileScreens.map((s,i)=><Link className="v2-card p-5 hover:border-[#1b8a4c] transition" key={s} href={`/mobile/${s}`}><span className="text-xs text-[#14663a] font-bold">0{i+1}</span><b className="block mt-5">{s.replaceAll("-"," ")}</b></Link>)}</div></div></main>}

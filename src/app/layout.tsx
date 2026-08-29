@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import "@fontsource-variable/instrument-sans";
 
 const sora = localFont({
   src: [

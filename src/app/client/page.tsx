@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Logo, Card, Field, inputClass, Button, StatusTrack, StarRating } from "@/components/ui";
 import {
   calcGrossPrice,
@@ -52,11 +51,24 @@ export default function ClientPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [ratingDone, setRatingDone] = useState(false);
+  const [myJobs, setMyJobs] = useState<JobRow[]>([]);
 
   useEffect(() => {
     if (loading) return;
     if (!user || user.role !== "client") router.replace("/login");
   }, [loading, user, router]);
+
+  const refreshMyJobs = useCallback(async () => {
+    const response = await fetch("/api/jobs");
+    if (!response.ok) return;
+    const data = await response.json();
+    setMyJobs(data.jobs ?? []);
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- istoric încărcat după autentificare
+    if (user?.role === "client") refreshMyJobs();
+  }, [user?.id, user?.role, refreshMyJobs]);
 
   async function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []).slice(0, 5 - photos.length);
@@ -130,6 +142,7 @@ export default function ClientPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Eroare la postare");
       setJob(data.job);
+      refreshMyJobs();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Eroare necunoscută");
     } finally {
@@ -185,25 +198,20 @@ export default function ClientPage() {
   }
 
   return (
-    <div className="min-h-screen mesh-light">
-      <header className="glass sticky top-0 z-20">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Logo />
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted">
-              Salut, <b className="text-ink">{user.name}</b>
-            </span>
-            <Link href="/" className="text-sm font-display font-bold text-muted hover:text-ink">
-              Vezi site-ul public →
-            </Link>
-            <button onClick={logout} className="text-sm text-muted hover:text-coral">
-              Ieși din cont
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-md mx-auto px-6 py-10">
+    <div className="min-h-screen bg-[#f4f3ee] flex max-[760px]:block">
+      <aside className="w-[236px] shrink-0 bg-white border-r border-[#e3e2da] p-5 flex flex-col sticky top-0 h-screen max-[760px]:w-full max-[760px]:h-auto max-[760px]:relative max-[760px]:border-r-0 max-[760px]:border-b max-[760px]:p-3">
+        <Logo />
+        <nav className="mt-10 space-y-2 text-sm font-semibold max-[760px]:mt-4 max-[760px]:flex max-[760px]:overflow-x-auto max-[760px]:space-y-0 max-[760px]:gap-2">
+          <span className="block rounded-[10px] bg-[#e9f2ec] text-[#14663a] px-4 py-3 whitespace-nowrap">Acasă</span><span className="block px-4 py-3 text-[#5c6660] whitespace-nowrap">Lucrările mele</span><span className="block px-4 py-3 text-[#5c6660] whitespace-nowrap">Mesaje</span><span className="block px-4 py-3 text-[#5c6660] whitespace-nowrap">Plăți</span><span className="block px-4 py-3 text-[#5c6660] whitespace-nowrap">Cont</span>
+        </nav>
+        <div className="mt-auto max-[760px]:hidden"><div className="text-sm font-semibold">{user.name}</div><div className="text-xs text-[#6b756f] mt-1">{user.email}</div><button onClick={logout} className="text-xs text-[#5c6660] mt-4">Ieși din cont</button></div>
+      </aside>
+      <main className="flex-1 min-w-0 px-8 py-8 max-[760px]:px-[22px]">
+        <header className="flex items-center justify-between gap-4"><div><div className="text-sm text-[#5c6660]">Bună, {user.name.split(" ")[0]}</div><h1 className="text-[26px] font-bold mt-1">Panoul tău NITIDO</h1></div><button onClick={resetToForm} className="v2-btn v2-btn-primary">Postează o lucrare</button></header>
+        <section className="grid grid-cols-4 gap-4 mt-7 max-[1100px]:grid-cols-2"><Kpi value={String(myJobs.filter(j=>["accepted","arrived"].includes(j.status)).length)} label="În lucru"/><Kpi value={String(myJobs.filter(j=>j.status==="waiting").length)} label="În așteptare"/><Kpi value={String(myJobs.filter(j=>j.status==="completed").length)} label="Finalizate"/><Kpi value="4.8★" label="Rating mediu"/></section>
+        <div className="grid grid-cols-[minmax(0,1fr)_360px] gap-5 mt-7 max-[1100px]:grid-cols-1">
+        <div className="min-w-0">
+        {myJobs.length>0&&<section className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold">Lucrările mele</h2><span className="text-xs text-[#6b756f]">{myJobs.length} total</span></div><div className="mt-3 divide-y divide-[#e3e2da]">{myJobs.slice(0,5).map(item=><button key={item.id} onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[#e9f2ec] flex items-center justify-center text-[#14663a] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate">{item.space_type} · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm} m² · {item.status}</span></span><b className="text-sm">{item.price_gross} lei</b></button>)}</div></section>}
         {!job && user?.referral_code && (
           <ReferralCard code={user.referral_code} creditBalance={creditBalance} />
         )}
@@ -477,10 +485,18 @@ export default function ClientPage() {
             </Button>
           </Card>
         )}
+        </div>
+        <aside className="space-y-4">
+          <div className="bg-[#101711] text-white rounded-[18px] p-6"><div className="text-xs text-[#8fd8ae] font-bold">LUCRAREA DE AZI</div><h2 className="text-xl font-bold mt-2">{job?`${job.space_type} · ${job.city}`:"Nicio lucrare activă"}</h2><div className="mt-6 space-y-4 text-sm">{["Firma alocată","Echipa a ajuns","Curățenie în progres","Confirmare finală"].map((x,i)=><div className="flex gap-3" key={x}><span className={`w-3 h-3 rounded-full mt-1 ${job&&i<3?"bg-[#39c97c]":"bg-[#2a332c]"}`}/><span className={i===2?"font-bold":"text-[#a8b2ac]"}>{x}</span></div>)}</div><div className="flex justify-between mt-6 text-sm"><span>Progres</span><b>66%</b></div><div className="h-2 bg-[#2a332c] rounded-full mt-2"><div className="h-full bg-[#39c97c] w-2/3 rounded-full"/></div><div className="text-xs text-[#8b958f] mt-2">6 din 9 pași</div></div>
+          <div className="v2-card p-5"><div className="text-xs text-[#14663a] font-bold">ESCROW</div><div className="text-3xl font-bold mt-2">{job?.price_gross ?? 500} lei</div><p className="text-sm text-[#5c6660] mt-2">Suma rămâne rezervată până confirmi finalizarea.</p><button disabled className="v2-btn w-full mt-5 bg-[#edece6] text-[#9aa39d] cursor-not-allowed">Confirmă finalizarea</button></div>
+        </aside>
+        </div>
       </main>
     </div>
   );
 }
+
+function Kpi({value,label}:{value:string;label:string}) { return <div className="v2-card p-5"><div className="text-[26px] font-bold">{value}</div><div className="text-sm text-[#6b756f] mt-1">{label}</div></div> }
 
 function ReferralCard({ code, creditBalance }: { code: string; creditBalance: number }) {
   const [copied, setCopied] = useState(false);

@@ -2,14 +2,17 @@
 
 /* Design system Nitido — spec secțiunea 9, v2 „aurora" (mesh gradients + glass) */
 :root {
-  --mist: #f1f5f4;
-  --ink: #142530;
-  --aqua: #17b8a6;
-  --aqua-deep: #0e8f80;
-  --coral: #ff6b5b;
-  --indigo: #6a5cf2;
-  --line: #e1e8e6;
-  --muted: #63767a;
+  --mist: #f4f3ee;
+  --ink: #101711;
+  --aqua: #1b8a4c;
+  --aqua-deep: #14663a;
+  --coral: #94620a;
+  --indigo: #1b8a4c;
+  --line: #e3e2da;
+  --muted: #5c6660;
+  --surface: #ffffff;
+  --chip: #edece6;
+  --light-green: #e9f2ec;
 }
 
 @theme inline {
@@ -26,10 +29,33 @@
 }
 
 body {
-  background: #dce4e2;
+  background: var(--mist);
   color: var(--ink);
-  font-family: var(--font-body), sans-serif;
+  font-family: "Instrument Sans Variable", var(--font-body), sans-serif;
 }
+
+.font-display { font-family: "Instrument Sans Variable", sans-serif; }
+.v2-container { width: min(100%, 1440px); margin-inline: auto; padding-inline: 44px; }
+.v2-section { padding-block: 64px; }
+.v2-card { background: #fff; border: 1px solid var(--line); border-radius: 18px; }
+.v2-dark { background: #101711; color: #fff; }
+.v2-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; border-radius:12px; padding:0 18px; font-weight:700; font-size:14px; transition:150ms ease; }
+.v2-btn:active { transform: scale(.98); }
+.v2-btn-primary { background:#1b8a4c; color:white; }
+.v2-btn-primary:hover { background:#14663a; }
+.v2-btn-secondary { background:white; color:#101711; border:1px solid #d8d7d0; }
+.v2-eyebrow { font-size:12px; letter-spacing:.08em; text-transform:uppercase; font-weight:700; color:#14663a; }
+.v2-h2 { font-size:34px; line-height:1.1; letter-spacing:-.025em; font-weight:700; }
+.v2-shadow { box-shadow:0 18px 40px rgba(16,23,17,.16); }
+.phone-frame { width:390px; height:844px; background:#0b0f0c; padding:11px; border-radius:52px; box-shadow:0 24px 60px rgba(16,23,17,.28); }
+.phone-screen { height:100%; overflow:hidden; border-radius:42px; background:#f4f3ee; position:relative; }
+.phone-scroll { height:calc(100% - 100px); overflow:auto; scrollbar-width:none; }
+.phone-scroll::-webkit-scrollbar { display:none; }
+.mobile-tabbar { position:absolute; inset:auto 0 0; height:86px; background:rgba(255,255,255,.96); border-top:1px solid #e3e2da; display:grid; grid-template-columns:repeat(5,1fr); padding:12px 12px 24px; }
+.map-grid { background-color:#e9ece6; background-image:linear-gradient(#d8ddd6 1px,transparent 1px),linear-gradient(90deg,#d8ddd6 1px,transparent 1px); background-size:32px 32px; position:relative; overflow:hidden; }
+.map-grid::before,.map-grid::after { content:""; position:absolute; background:#fff; box-shadow:0 0 0 1px #d8d7d0; transform:rotate(-18deg); }
+.map-grid::before { width:520px; height:18px; left:-70px; top:45%; }
+.map-grid::after { width:420px; height:14px; left:50px; top:22%; transform:rotate(28deg); }
 
 /* ---- Aurora mesh gradient system ------------------------------------ */
 
@@ -63,6 +89,20 @@ body {
   .animate-blob, .animate-blob-slow {
     animation: none;
   }
+}
+
+@media (max-width: 1100px) {
+  .v2-container { padding-inline:32px; }
+  .v2-hero-grid { grid-template-columns:1fr !important; }
+}
+@media (max-width: 760px) {
+  .v2-container { padding-inline:22px; }
+  .v2-section { padding-block:48px; }
+  .v2-h2 { font-size:29px; }
+  .v2-hide-mobile { display:none !important; }
+  .v2-mobile-stack { grid-template-columns:1fr !important; }
+  .v2-mobile-two { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+  .phone-frame { width:390px; max-width:100%; transform-origin:top center; }
 }
 
 /* Fundal întunecat cu pete de gradient estompate — folosit pe hero, auth, secțiuni dark */
