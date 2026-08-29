@@ -1,11 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { JobRow } from "@/lib/types";
+import { isAdmin } from "@/lib/adminAuth";
 
 // Panou minimal de administrare — spec secțiunea 3.3 / 8 (aprobare firme, rapoarte,
 // monitorizare no-show). Nu e un admin complet (fără autentificare), doar o fereastră
 // de verificare pentru acest MVP.
-export async function GET() {
+export async function GET(_req: NextRequest) {
+  void _req;
+  if (!(await isAdmin())) return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
   const jobs = db.prepare("SELECT * FROM jobs ORDER BY created_at DESC").all() as JobRow[];
   const firms = db
     .prepare(
@@ -14,7 +17,7 @@ export async function GET() {
        FROM firms JOIN users ON users.id = firms.user_id`
     )
     .all() as { id: string; name: string; verified: number }[];
-  const payments = db.prepare("SELECT * FROM payments ORDER BY created_at DESC").all();
+  const payments = db.prepare("SELECT id, job_id, amount_gross, commission_amount, amount_net, status, created_at FROM payments ORDER BY created_at DESC").all();
 
   // Statistici agregate — ca platforma să poată fi condusă din cifre reale,
   // nu doar liste brute. Nimic din ce nu poate fi calculat direct din datele

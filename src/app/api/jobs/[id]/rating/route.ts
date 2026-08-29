@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, newId } from "@/lib/db";
 import { JobRow } from "@/lib/types";
+import { getCurrentUser } from "@/lib/auth";
+import { canRateJob } from "@/lib/authorization";
 
 // Sistem de rating firmă — spec secțiunea 5c.
 // Obligatoriu (stele) ca lucrarea să fie marcată complet "închisă"; comentariu opțional;
@@ -9,6 +11,10 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const user = await getCurrentUser(req);
+  if (!user || user.role !== "client") {
+    return NextResponse.json({ error: "Trebuie să fii autentificat ca client" }, { status: 401 });
+  }
   const { id } = await params;
   const body = await req.json().catch(() => ({}));
   const { stars, punctuality, quality, communication, comment } = body as {
@@ -30,6 +36,9 @@ export async function POST(
       { error: "Doar lucrările finalizate pot primi rating" },
       { status: 409 }
     );
+  }
+  if (!canRateJob(user.id, job)) {
+    return NextResponse.json({ error: "Nu poți evalua lucrarea altui client" }, { status: 403 });
   }
 
   // Doar clientul care a avut lucrarea finalizată poate lăsa rating — previne rating-uri false.

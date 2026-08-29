@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
+import { shouldSeedDemo } from "@/lib/authorization";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -9,7 +10,6 @@ const DB_PATH = path.join(DATA_DIR, "nitido.db");
 
 // Singleton connection (dev server hot-reloads reuse the same instance)
 declare global {
-  // eslint-disable-next-line no-var
   var __nitidoDb: Database.Database | undefined;
 }
 
@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS jobs (
 CREATE TABLE IF NOT EXISTS job_photos (
   id TEXT PRIMARY KEY,
   job_id TEXT REFERENCES jobs(id),
+  owner_user_id TEXT REFERENCES users(id),
   filename TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -122,6 +123,21 @@ CREATE TABLE IF NOT EXISTS payments (
   stripe_payment_intent_id TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS admin_sessions (
+  id TEXT PRIMARY KEY,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+  id TEXT PRIMARY KEY,
+  action TEXT NOT NULL,
+  target_id TEXT,
+  details TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `;
 
 db.exec(SCHEMA_SQL);
@@ -141,6 +157,7 @@ ensureColumn("users", "referral_code", "TEXT");
 ensureColumn("users", "referred_by_code", "TEXT");
 ensureColumn("users", "credit_balance", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("jobs", "credit_applied", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("job_photos", "owner_user_id", "TEXT REFERENCES users(id)");
 
 export function newId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
@@ -151,7 +168,8 @@ export function newId(prefix: string): string {
 // poată fi testate real (inclusiv mecanismul de "primul care apasă câștigă")
 // fără un sistem de autentificare complet, care nu face parte din acest MVP.
 const seedCount = db.prepare("SELECT COUNT(*) as c FROM users").get() as { c: number };
-if (seedCount.c === 0) {
+const demoSeedEnabled = shouldSeedDemo(process.env.NODE_ENV, process.env.NITIDO_SEED_DEMO);
+if (demoSeedEnabled && seedCount.c === 0) {
   const insertUser = db.prepare(
     "INSERT INTO users (id, role, name, email, phone) VALUES (?, ?, ?, ?, ?)"
   );

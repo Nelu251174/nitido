@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { auditAdminAction, isAdmin } from "@/lib/adminAuth";
 
 /**
  * Golește tot istoricul de activitate al platformei — lucrări, poze de
@@ -11,10 +12,11 @@ import { db } from "@/lib/db";
  * explicit din panoul de admin (nu se poate declanșa accidental).
  */
 export async function POST(req: NextRequest) {
+  if (!(await isAdmin())) return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
-  if (body?.confirm !== "STERGE") {
+  if (body?.confirm !== true) {
     return NextResponse.json(
-      { error: "Confirmare lipsă — trimite { confirm: 'STERGE' }" },
+      { error: "Confirmarea explicită este obligatorie" },
       { status: 400 }
     );
   }
@@ -54,5 +56,6 @@ export async function POST(req: NextRequest) {
     };
   })();
 
+  auditAdminAction("history.reset", null, result);
   return NextResponse.json({ ok: true, ...result });
 }

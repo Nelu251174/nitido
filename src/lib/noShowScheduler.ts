@@ -40,7 +40,6 @@ export async function runNoShowScan(): Promise<number> {
 }
 
 declare global {
-  // eslint-disable-next-line no-var
   var __nitidoNoShowInterval: ReturnType<typeof setInterval> | undefined;
 }
 

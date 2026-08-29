@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifyCuiWithAnaf } from "@/lib/cui";
+import { auditAdminAction, isAdmin } from "@/lib/adminAuth";
 
 /**
  * Re-verificare manuală a unei firme contra ANAF — pentru cazul în care
@@ -15,6 +16,7 @@ export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!(await isAdmin())) return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
   const { id } = await params;
 
   const firm = db.prepare("SELECT id, cui FROM firms WHERE id = ?").get(id) as
@@ -32,6 +34,7 @@ export async function POST(
 
   if (result.status === "valid") {
     db.prepare("UPDATE firms SET verified = 1 WHERE id = ?").run(id);
+    auditAdminAction("firm.recheck_cui", id, { result: result.status });
     return NextResponse.json({ verified: true, status: result.status, name: result.name });
   }
 

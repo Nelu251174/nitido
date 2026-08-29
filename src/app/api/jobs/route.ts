@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, newId, listAlertableFirms, getFirmById } from "@/lib/db";
+import { db, newId, listAlertableFirms, getFirmByUserId } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import {
   calcGrossPrice,
@@ -10,16 +10,16 @@ import {
   nextValidAsapSlot,
   SpaceType,
 } from "@/lib/pricing";
-import { normalizeCity, firmCoversCity } from "@/lib/text";
+import { firmCoversCity } from "@/lib/text";
 import { sendNewJobAlertSms } from "@/lib/sms";
 import { applyCredit } from "@/lib/referral";
 import { JobRow } from "@/lib/types";
 
 export async function GET(req: NextRequest) {
+  const user = await getCurrentUser(req);
+  if (!user) return NextResponse.json({ error: "Autentificare necesară" }, { status: 401 });
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
-  const city = searchParams.get("city");
-  const firmId = searchParams.get("firmId");
 
   let query = "SELECT * FROM jobs WHERE 1=1";
   const params: unknown[] = [];
@@ -34,34 +34,49 @@ export async function GET(req: NextRequest) {
   query += " ORDER BY created_at DESC";
 
   let jobs = db.prepare(query).all(...params) as JobRow[];
-  if (firmId) {
-    // Filtrare pe zona reală de acoperire a firmei (oraș principal + eventuale
-    // localități extra) — folosit de panoul de Firmă pentru "Alerte noi".
-    const firm = getFirmById(firmId);
-    if (firm) {
-      jobs = jobs.filter((j) => firmCoversCity(firm.coverage_city, firm.coverage_cities_extra, j.city));
-    } else {
-      jobs = [];
-    }
-  } else if (city) {
-    const target = normalizeCity(city);
-    jobs = jobs.filter((j) => normalizeCity(j.city) === target);
+  let firmId: string | null = null;
+  if (user.role === "client") {
+    jobs = jobs.filter((j) => j.client_id === user.id);
+  } else {
+    const firm = getFirmByUserId(user.id);
+    if (!firm) return NextResponse.json({ error: "Profil firmă inexistent" }, { status: 403 });
+    firmId = firm.id;
+    jobs = jobs.filter(
+      (j) =>
+        j.accepted_firm_id === firm.id ||
+        (j.status === "waiting" && firmCoversCity(firm.coverage_city, firm.coverage_cities_extra, j.city))
+    );
   }
 
   const photosByJob = new Map<string, string[]>();
   if (jobs.length > 0) {
     const placeholders = jobs.map(() => "?").join(",");
     const photos = db
-      .prepare(`SELECT job_id, filename FROM job_photos WHERE job_id IN (${placeholders})`)
-      .all(...jobs.map((j) => j.id)) as { job_id: string; filename: string }[];
+      .prepare(`SELECT id, job_id, filename FROM job_photos WHERE job_id IN (${placeholders})`)
+      .all(...jobs.map((j) => j.id)) as { id: string; job_id: string; filename: string }[];
     for (const p of photos) {
       const arr = photosByJob.get(p.job_id) ?? [];
-      arr.push(`/uploads/${p.filename}`);
+      arr.push(`/api/uploads/${p.id}`);
       photosByJob.set(p.job_id, arr);
     }
   }
 
-  const jobsWithPhotos = jobs.map((j) => ({ ...j, photos: photosByJob.get(j.id) ?? [] }));
+  const jobsWithPhotos = jobs.map((j) => {
+    const canSeePrivate = user.role === "client" || j.accepted_firm_id === firmId;
+    if (canSeePrivate) return { ...j, photos: photosByJob.get(j.id) ?? [] };
+    return {
+      id: j.id,
+      city: j.city,
+      sqm: j.sqm,
+      space_type: j.space_type,
+      when_type: j.when_type,
+      scheduled_at: j.scheduled_at,
+      price_gross: j.price_gross,
+      duration_minutes: j.duration_minutes,
+      status: j.status,
+      created_at: j.created_at,
+    };
+  });
   return NextResponse.json({ jobs: jobsWithPhotos });
 }
 
@@ -143,14 +158,20 @@ export async function POST(req: NextRequest) {
   // src/lib/referral.ts). Firma tot primește pe baza prețului INTEGRAL — vezi
   // src/lib/payments.ts, discount-ul e absorbit din comisionul platformei.
   const { creditUsed } = applyCredit(priceGross, user.credit_balance);
+  const requestedPhotoIds = Array.from(new Set(photoIds ?? [])).slice(0, 5);
+  const ownedPhotoIds = requestedPhotoIds.filter((photoId) =>
+    db.prepare("SELECT 1 FROM job_photos WHERE id = ? AND owner_user_id = ? AND job_id IS NULL")
+      .get(photoId, user.id)
+  );
+  if (ownedPhotoIds.length !== requestedPhotoIds.length) {
+    return NextResponse.json({ error: "Una sau mai multe poze nu îți aparțin" }, { status: 403 });
+  }
   if (creditUsed > 0) {
     db.prepare("UPDATE users SET credit_balance = credit_balance - ? WHERE id = ?").run(
       creditUsed,
       user.id
     );
   }
-
-  const validPhotoIds = (photoIds ?? []).slice(0, 5);
 
   const id = newId("job");
   db.prepare(
@@ -173,12 +194,12 @@ export async function POST(req: NextRequest) {
     creditUsed,
     durationMinutes,
     BUFFER_MINUTES,
-    validPhotoIds.length
+    ownedPhotoIds.length
   );
 
-  if (validPhotoIds.length > 0) {
-    const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND job_id IS NULL");
-    for (const photoId of validPhotoIds) linkPhoto.run(id, photoId);
+  if (ownedPhotoIds.length > 0) {
+    const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL");
+    for (const photoId of ownedPhotoIds) linkPhoto.run(id, photoId, user.id);
   }
 
   const job = db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow;
