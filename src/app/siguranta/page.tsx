@@ -1,0 +1,2 @@
+import {InfoCard,InfoPageV2} from "@/components/InfoPageV2";
+export default function Page(){return <InfoPageV2 eyebrow="Siguranță" title="Date private și plăți controlate." intro="NITIDO limitează accesul la fiecare lucrare și nu expune adresa exactă înainte ca o firmă să fie alocată."><InfoCard title="Date protejate">Doar clientul și firma alocată pot accesa detaliile private și fotografiile lucrării.</InfoCard><InfoCard title="Plată protejată">Autorizarea eșuată nu acceptă fals lucrarea. Capturarea are loc la finalizare.</InfoCard></InfoPageV2>}
