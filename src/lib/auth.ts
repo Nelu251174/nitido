@@ -1,7 +1,8 @@
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
-import { db, newId, getUserById, UserRow } from "@/lib/db";
+import { db, getUserById, UserRow } from "@/lib/db";
+import { secureToken } from "@/lib/security";
 
 const SESSION_COOKIE = "nitido_session";
 const SESSION_DAYS = 30;
@@ -23,7 +24,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
  * `Authorization: Bearer <token>` pe fiecare cerere. Vezi getCurrentUser.
  */
 export async function createSession(userId: string): Promise<string> {
-  const id = newId("sess");
+  const id = secureToken();
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + SESSION_DAYS);
 
@@ -60,6 +61,7 @@ export async function destroySession(req?: NextRequest): Promise<void> {
 }
 
 function getBearerSessionId(req?: NextRequest): string | null {
+  if (process.env.NITIDO_ENABLE_BEARER_AUTH !== "true") return null;
   const authHeader = req?.headers.get("authorization");
   if (authHeader && authHeader.startsWith("Bearer ")) {
     return authHeader.slice("Bearer ".length).trim();

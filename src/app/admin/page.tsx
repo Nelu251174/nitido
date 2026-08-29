@@ -44,10 +44,19 @@ export default function AdminPage() {
   const [firms, setFirms] = useState<FirmRow[]>([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const res = await fetch("/api/admin/overview");
+    if (res.status === 401) {
+      setAuthenticated(false);
+      return;
+    }
     const data = await res.json();
+    setAuthenticated(true);
     setJobs(data.jobs);
     setFirms(data.firms);
     setPayments(data.payments);
@@ -93,12 +102,7 @@ export default function AdminPage() {
   const [resetMessage, setResetMessage] = useState<string | null>(null);
 
   async function resetHistory() {
-    const typed = window.prompt(
-      'Această acțiune șterge PERMANENT toate lucrările, plățile și evaluările de pe platformă ' +
-        '(rămân conturile reale de client/firmă, doar activitatea). Nu se poate anula.\n\n' +
-        'Scrie STERGE ca să confirmi:'
-    );
-    if (typed !== "STERGE") return;
+    if (!window.confirm("Ștergi permanent istoricul de activitate? Acțiunea nu poate fi anulată.")) return;
 
     setResetting(true);
     setResetMessage(null);
@@ -106,7 +110,7 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/reset-history", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirm: "STERGE" }),
+        body: JSON.stringify({ confirm: true }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Eroare la ștergere");
@@ -119,6 +123,37 @@ export default function AdminPage() {
       setResetting(false);
       refresh();
     }
+  }
+
+  async function adminLogin(event: React.FormEvent) {
+    event.preventDefault();
+    setAuthError(null);
+    const res = await fetch("/api/admin/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: adminEmail, password: adminPassword }),
+    });
+    const data = await res.json();
+    if (!res.ok) return setAuthError(data.error ?? "Autentificare eșuată");
+    setAdminPassword("");
+    await refresh();
+  }
+
+  if (authenticated !== true) {
+    return (
+      <div className="min-h-screen mesh-light flex items-center justify-center p-6">
+        <Card className="w-full max-w-md p-8">
+          <Logo />
+          <h1 className="font-display text-2xl font-bold mt-6">Administrare</h1>
+          <form onSubmit={adminLogin} className="mt-6 space-y-4">
+            <input className="w-full rounded-xl border border-line p-3" type="email" autoComplete="username" required value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="Email admin" />
+            <input className="w-full rounded-xl border border-line p-3" type="password" autoComplete="current-password" required value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="Parolă" />
+            {authError && <p className="text-coral text-sm">{authError}</p>}
+            <Button type="submit" className="w-full">Autentificare</Button>
+          </form>
+        </Card>
+      </div>
+    );
   }
 
   return (

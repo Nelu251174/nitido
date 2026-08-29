@@ -5,6 +5,7 @@ import { toE164Romania } from "@/lib/sms";
 import { isPlausibleCui, sanitizeCui, verifyCuiWithAnaf } from "@/lib/cui";
 import { sanitizeCoverageCitiesInput } from "@/lib/text";
 import { generateReferralCode, REFERRAL_BONUS_LEI } from "@/lib/referral";
+import { consumeRateLimit, requestIp } from "@/lib/security";
 
 // Înregistrare — spec secțiunea 4.1 (client) și secțiunea 4, punct 1 (firmă:
 // "date firmă, zonă de acoperire, tipuri de lucrări acceptate").
@@ -13,6 +14,9 @@ import { generateReferralCode, REFERRAL_BONUS_LEI } from "@/lib/referral";
 // "am ajuns" (vezi src/lib/sms.ts), iar firma trebuie să fie contactabilă
 // direct de un client în caz de nevoie.
 export async function POST(req: NextRequest) {
+  if (!consumeRateLimit(`signup:${requestIp(req)}`, 5, 60 * 60 * 1000)) {
+    return NextResponse.json({ error: "Prea multe conturi create. Încearcă mai târziu." }, { status: 429 });
+  }
   const body = await req.json().catch(() => ({}));
   const { role, name, email, password, phone, cui, coverageCity, coverageCitiesExtra, referralCode } =
     body as {
@@ -36,8 +40,8 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  if (password.length < 6) {
-    return NextResponse.json({ error: "Parola trebuie să aibă minim 6 caractere" }, { status: 400 });
+  if (password.length < 10 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+    return NextResponse.json({ error: "Parola trebuie să aibă minim 10 caractere, litere și cifre" }, { status: 400 });
   }
   const normalizedPhone = toE164Romania(phone);
   if (!normalizedPhone) {
@@ -130,7 +134,7 @@ export async function POST(req: NextRequest) {
     ).run(firmId, userId, sanitizeCui(cui!), coverageCity, citiesExtra || null, verified);
   }
 
-  const sessionToken = await createSession(userId);
+  await createSession(userId);
 
-  return NextResponse.json({ ok: true, role, sessionToken }, { status: 201 });
+  return NextResponse.json({ ok: true, role }, { status: 201 });
 }

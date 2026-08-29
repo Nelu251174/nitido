@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { markNoShow } from "@/lib/noShow";
+import { auditAdminAction, isAdmin } from "@/lib/adminAuth";
 
 /**
  * No-show — spec secțiunea 5b. Logica efectivă e în src/lib/noShow.ts (partajată cu
@@ -11,6 +12,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!(await isAdmin())) return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
   const { id } = await params;
   const body = await req.json().catch(() => ({}));
   const repost = Boolean(body?.repost);
@@ -19,6 +21,8 @@ export async function POST(
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
+
+  auditAdminAction("job.mark_no_show", id, { repost, repostedJobId: result.repostedJobId });
 
   return NextResponse.json({ consequence: result.consequence, repostedJobId: result.repostedJobId });
 }

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserByEmail } from "@/lib/db";
 import { verifyPassword, createSession } from "@/lib/auth";
+import { consumeRateLimit, requestIp } from "@/lib/security";
 
 export async function POST(req: NextRequest) {
+  if (!consumeRateLimit(`login:${requestIp(req)}`, 10, 15 * 60 * 1000)) {
+    return NextResponse.json({ error: "Prea multe încercări. Încearcă mai târziu." }, { status: 429 });
+  }
   const body = await req.json().catch(() => ({}));
   const { email, password, role } = body as {
     email: string;
@@ -34,8 +38,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const sessionToken = await createSession(user.id);
-  // sessionToken e util doar pentru aplicația mobilă (Bearer auth) — clientul
-  // web ignoră câmpul, el a primit deja cookie-ul httpOnly din createSession.
-  return NextResponse.json({ ok: true, role: user.role, sessionToken });
+  await createSession(user.id);
+  return NextResponse.json({ ok: true, role: user.role });
 }

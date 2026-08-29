@@ -24,7 +24,7 @@ export default function FirmaPage() {
   const refresh = useCallback(async () => {
     if (!firm) return;
     const [waitingRes, allRes] = await Promise.all([
-      fetch(`/api/jobs?status=waiting&firmId=${encodeURIComponent(firm.id)}`),
+      fetch(`/api/jobs?status=waiting`),
       fetch(`/api/jobs`),
     ]);
     const waitingData = await waitingRes.json();
@@ -50,8 +50,6 @@ export default function FirmaPage() {
     setMessage(null);
     const res = await fetch(`/api/jobs/${jobId}/accept`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ firmId: firm.id }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -144,22 +142,7 @@ export default function FirmaPage() {
                 <div className="font-display font-bold text-sm text-ink">
                   Curățenie {job.space_type}, {job.city}
                 </div>
-                <div className="text-xs text-muted mb-2 flex flex-wrap items-center gap-x-1.5">
-                  <span>
-                    {job.street}
-                    {job.postal_code ? `, cod poștal ${job.postal_code}` : ""}
-                    {job.floor ? `, etaj ${job.floor}` : ""}
-                  </span>
-                  <a
-                    href={mapsDirectionsUrl(job)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-aqua-deep font-semibold underline underline-offset-2 whitespace-nowrap"
-                  >
-                    📍 vezi distanța pe hartă
-                  </a>
-                </div>
+                <div className="text-xs text-muted mb-2">Adresa exactă devine vizibilă după acceptare.</div>
                 <div className="flex gap-2 flex-wrap mb-2">
                   <span className="text-[11px] bg-mist px-2 py-1 rounded-md">{job.sqm} mp</span>
                   <span className="text-[11px] bg-mist px-2 py-1 rounded-md">{job.space_type}</span>
@@ -173,19 +156,6 @@ export default function FirmaPage() {
                     </span>
                   )}
                 </div>
-                {job.photos && job.photos.length > 0 && (
-                  <div className="flex gap-1.5 mb-2">
-                    {job.photos.map((url, i) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        key={i}
-                        src={url}
-                        alt="Poză lucrare"
-                        className="w-12 h-12 rounded-lg object-cover border border-line"
-                      />
-                    ))}
-                  </div>
-                )}
                 <div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold">
                   Tu primești
                 </div>

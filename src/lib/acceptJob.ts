@@ -1,6 +1,7 @@
 import type { Database } from "better-sqlite3";
 import { calcBlockedMinutes, overlapsExisting } from "@/lib/pricing";
 import { authorizePayment } from "@/lib/payments";
+import { firmCoversCity } from "@/lib/text";
 
 export type AcceptResult =
   | { ok: true }
@@ -22,9 +23,10 @@ export async function acceptJobAtomic(
   firmId: string
 ): Promise<AcceptResult> {
   const firm = db.prepare("SELECT * FROM firms WHERE id = ?").get(firmId) as
-    | { id: string; suspended_until: string | null; stripe_account_id: string | null }
+    | { id: string; suspended_until: string | null; stripe_account_id: string | null; verified: number; coverage_city: string; coverage_cities_extra: string | null }
     | undefined;
   if (!firm) return { ok: false, error: "Firmă inexistentă", status: 404 };
+  if (!firm.verified) return { ok: false, error: "Firma nu este verificată", status: 403 };
   if (firm.suspended_until && new Date(firm.suspended_until) > new Date()) {
     return { ok: false, error: "Firma este suspendată temporar", status: 403 };
   }
@@ -36,9 +38,13 @@ export async function acceptJobAtomic(
         sqm: number;
         price_gross: number;
         credit_applied: number;
+        city: string;
       }
     | undefined;
   if (!job) return { ok: false, error: "Lucrare inexistentă", status: 404 };
+  if (!firmCoversCity(firm.coverage_city, firm.coverage_cities_extra, job.city)) {
+    return { ok: false, error: "Lucrarea este în afara zonei firmei", status: 403 };
+  }
 
   if (job.scheduled_at) {
     const candidateStart = new Date(job.scheduled_at);
