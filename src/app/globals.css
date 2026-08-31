@@ -106,6 +106,33 @@ html { scroll-behavior: smooth; scroll-padding-top: 76px; }
   .phone-frame { width:390px; max-width:100%; transform-origin:top center; }
 }
 
+.nitido-price-range {
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  cursor: pointer;
+  outline: none;
+}
+.nitido-price-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border: 3px solid #101711;
+  border-radius: 999px;
+  background: #39c97c;
+  box-shadow: 0 0 0 2px #8fd8ae, 0 4px 12px rgba(0,0,0,.32);
+}
+.nitido-price-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 3px solid #101711;
+  border-radius: 999px;
+  background: #39c97c;
+  box-shadow: 0 0 0 2px #8fd8ae, 0 4px 12px rgba(0,0,0,.32);
+}
+.nitido-price-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px #fff, 0 0 0 7px #39c97c; }
+.nitido-price-range:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px #fff, 0 0 0 7px #39c97c; }
+
 /* Fundal întunecat cu pete de gradient estompate — folosit pe hero, auth, secțiuni dark */
 .mesh-dark {
   position: relative;
@@ -206,4 +233,40 @@ html { scroll-behavior: smooth; scroll-padding-top: 76px; }
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
+}
+
+/* /contact — bloc structural real între navbar și întregul conținut de suport. */
+.contact-page-top-spacer {
+  height: 140px;
+}
+
+body:has(#asistent-ai) #asistent-ai {
+  padding-bottom: 0;
+}
+
+body:has(#asistent-ai) #asistent-ai + section > .v2-container {
+  padding-top: 64px;
+  padding-bottom: 72px;
+}
+
+body:has(#asistent-ai) #asistent-ai + section article {
+  height: 100%;
+}
+
+@media (max-width: 1199px) {
+  .contact-page-top-spacer {
+    height: 100px;
+  }
+}
+
+@media (max-width: 899px) {
+  .contact-page-top-spacer {
+    height: 72px;
+  }
+}
+
+@media (max-width: 759px) {
+  .contact-page-top-spacer {
+    height: 40px;
+  }
 }

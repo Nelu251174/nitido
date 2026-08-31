@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
 import { Logo, Card, Field, inputClass, Button, StatusTrack, StarRating } from "@/components/ui";
 import {
   calcGrossPrice,
@@ -15,13 +17,7 @@ import {
 import { JobRow } from "@/lib/types";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { applyCredit } from "@/lib/referral";
-
-const SPACE_LABELS: Record<SpaceType, string> = {
-  apartament: "Apartament",
-  casa: "Casă",
-  birou: "Birou",
-  altul: "Altul (sală jocuri etc.)",
-};
+import { PROPERTY_TYPE_LABELS } from "@/lib/jobTypeLabels";
 
 const DAY_NAMES = ["Dum", "Lun", "Mar", "Mie", "Joi", "Vin", "Sâm"];
 
@@ -167,12 +163,12 @@ export default function ClientPage() {
     }
   }, [job?.status, job?.id, poll]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function submitRating(stars: number) {
+  async function submitRating(stars: number, reviewText: string) {
     if (!job) return;
     const res = await fetch(`/api/jobs/${job.id}/rating`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stars }),
+      body: JSON.stringify({ stars, reviewText }),
     });
     if (res.ok) setRatingDone(true);
   }
@@ -202,13 +198,13 @@ export default function ClientPage() {
       <aside className="w-[236px] shrink-0 bg-white border-r border-[#e3e2da] p-5 flex flex-col sticky top-0 h-screen max-[760px]:w-full max-[760px]:h-auto max-[760px]:relative max-[760px]:border-r-0 max-[760px]:border-b max-[760px]:p-3">
         <Logo />
         <nav className="mt-10 space-y-2 text-sm font-semibold max-[760px]:mt-4 max-[760px]:flex max-[760px]:overflow-x-auto max-[760px]:space-y-0 max-[760px]:gap-2">
-          <span className="block rounded-[10px] bg-[#e9f2ec] text-[#14663a] px-4 py-3 whitespace-nowrap">Acasă</span><span className="block px-4 py-3 text-[#5c6660] whitespace-nowrap">Lucrările mele</span><span className="block px-4 py-3 text-[#5c6660] whitespace-nowrap">Mesaje</span><span className="block px-4 py-3 text-[#5c6660] whitespace-nowrap">Plăți</span><span className="block px-4 py-3 text-[#5c6660] whitespace-nowrap">Cont</span>
+          <span className="block rounded-[10px] bg-[#e9f2ec] text-[#14663a] px-4 py-3 whitespace-nowrap">Acasă</span><span className="block px-4 py-3 text-[#5c6660] whitespace-nowrap">Lucrările mele</span><span className="block px-4 py-3 text-[#5c6660] whitespace-nowrap">Mesaje</span><span className="block px-4 py-3 text-[#5c6660] whitespace-nowrap">Plăți</span><Link href="/incredere" className="block px-4 py-3 text-[#5c6660] whitespace-nowrap">Încredere &amp; Siguranță</Link><span className="block px-4 py-3 text-[#5c6660] whitespace-nowrap">Cont</span>
         </nav>
         <div className="mt-auto max-[760px]:hidden"><div className="text-sm font-semibold">{user.name}</div><div className="text-xs text-[#6b756f] mt-1">{user.email}</div><button onClick={logout} className="text-xs text-[#5c6660] mt-4">Ieși din cont</button></div>
       </aside>
       <main className="flex-1 min-w-0 px-8 py-8 max-[760px]:px-[22px]">
         <header className="flex items-center justify-between gap-4"><div><div className="text-sm text-[#5c6660]">Bună, {user.name.split(" ")[0]}</div><h1 className="text-[26px] font-bold mt-1">Panoul tău NITIDO</h1></div><button onClick={resetToForm} className="v2-btn v2-btn-primary">Postează o lucrare</button></header>
-        <section className="grid grid-cols-4 gap-4 mt-7 max-[1100px]:grid-cols-2"><Kpi value={String(myJobs.filter(j=>["accepted","arrived"].includes(j.status)).length)} label="În lucru"/><Kpi value={String(myJobs.filter(j=>j.status==="waiting").length)} label="În așteptare"/><Kpi value={String(myJobs.filter(j=>j.status==="completed").length)} label="Finalizate"/><Kpi value="4.8★" label="Rating mediu"/></section>
+        <section className="grid grid-cols-4 gap-4 mt-7 max-[1100px]:grid-cols-2"><Kpi value={String(myJobs.filter(j=>["accepted","arrived"].includes(j.status)).length)} label="În lucru"/><Kpi value={String(myJobs.filter(j=>j.status==="waiting").length)} label="În așteptare"/><Kpi value={String(myJobs.filter(j=>j.status==="completed").length)} label="Finalizate"/><Kpi value={String(myJobs.filter(j=>j.proofs?.some(p=>p.type==="COMPLETION")).length)} label="Dovezi finale"/></section>
         <div className="grid grid-cols-[minmax(0,1fr)_360px] gap-5 mt-7 max-[1100px]:grid-cols-1">
         <div className="min-w-0">
         {myJobs.length>0&&<section className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold">Lucrările mele</h2><span className="text-xs text-[#6b756f]">{myJobs.length} total</span></div><div className="mt-3 divide-y divide-[#e3e2da]">{myJobs.slice(0,5).map(item=><button key={item.id} onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[#e9f2ec] flex items-center justify-center text-[#14663a] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate">{item.space_type} · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm} m² · {item.status}</span></span><b className="text-sm">{item.price_gross} lei</b></button>)}</div></section>}
@@ -254,7 +250,7 @@ export default function ClientPage() {
                 value={spaceType}
                 onChange={(e) => setSpaceType(e.target.value as SpaceType)}
               >
-                {Object.entries(SPACE_LABELS).map(([k, v]) => (
+                {Object.entries(PROPERTY_TYPE_LABELS).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v}
                   </option>
@@ -425,6 +421,7 @@ export default function ClientPage() {
                 { label: "Confirmată", done: false },
               ]}
             />
+            <ProofGallery proofs={job.proofs ?? []}/>
           </Card>
         )}
 
@@ -446,10 +443,11 @@ export default function ClientPage() {
                 },
               ]}
             />
+            <ProofGallery proofs={job.proofs ?? []}/>
           </Card>
         )}
 
-        {job && job.status === "completed" && !ratingDone && (
+        {job && job.status === "completed" && !ratingDone && !job.ownReview && (
           <Card>
             <h1 className="font-display font-bold text-lg text-ink text-center mb-1">
               Cum a fost curățenia?
@@ -458,14 +456,15 @@ export default function ClientPage() {
               {firmName ?? "Firma"} a finalizat lucrarea. Lasă un rating — plata se procesează abia
               acum.
             </p>
+            <ProofGallery proofs={job.proofs ?? []}/>
             <RatingBlock onSubmit={submitRating} />
           </Card>
         )}
 
-        {job && job.status === "completed" && ratingDone && (
+        {job && job.status === "completed" && (ratingDone || job.ownReview) && (
           <Card>
             <h1 className="font-display font-bold text-lg text-ink mb-2">Mulțumim!</h1>
-            <p className="text-sm text-muted mb-4">Rating-ul tău a fost înregistrat.</p>
+            <p className="text-sm text-muted mb-4">{job.ownReview?`${job.ownReview.rating} / 5 · ${job.ownReview.badge}${job.ownReview.reviewText?` — ${job.ownReview.reviewText}`:""}`:"Rating-ul tău a fost înregistrat."}</p>
             <Button variant="outline" className="w-full" onClick={resetToForm}>
               Postează o nouă lucrare
             </Button>
@@ -497,6 +496,11 @@ export default function ClientPage() {
 }
 
 function Kpi({value,label}:{value:string;label:string}) { return <div className="v2-card p-5"><div className="text-[26px] font-bold">{value}</div><div className="text-sm text-[#6b756f] mt-1">{label}</div></div> }
+
+function ProofGallery({proofs}:{proofs:NonNullable<JobRow["proofs"]>}) {
+  if (!proofs.length) return null;
+  return <div className="mt-4 grid grid-cols-2 gap-3">{proofs.map(proof=><a key={proof.id} href={proof.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-xl border border-line bg-white"><Image src={proof.url} alt={proof.type==="ARRIVAL"?"Echipa a ajuns — fotografie de confirmare":"Lucrare finalizată — dovadă foto"} width={320} height={180} className="h-28 w-full object-cover"/><span className="block p-2 text-[11px] font-bold text-ink">{proof.type==="ARRIVAL"?"Echipa a ajuns":"Lucrare finalizată"}</span></a>)}</div>;
+}
 
 function ReferralCard({ code, creditBalance }: { code: string; creditBalance: number }) {
   const [copied, setCopied] = useState(false);
@@ -536,13 +540,15 @@ function ReferralCard({ code, creditBalance }: { code: string; creditBalance: nu
   );
 }
 
-function RatingBlock({ onSubmit }: { onSubmit: (stars: number) => void }) {
+function RatingBlock({ onSubmit }: { onSubmit: (stars: number, reviewText: string) => void }) {
   const [stars, setStars] = useState(0);
+  const [reviewText, setReviewText] = useState("");
   return (
-    <div>
+    <div className="space-y-3">
       <StarRating value={stars} onChange={setStars} />
-      <Button className="w-full" disabled={stars === 0} onClick={() => onSubmit(stars)}>
-        Trimite rating
+      <label className="block text-sm font-bold text-ink">Recenzie opțională<textarea className={`${inputClass} mt-2 min-h-24 resize-y`} maxLength={2000} value={reviewText} onChange={event=>setReviewText(event.target.value)} placeholder="Spune pe scurt cum a fost experiența."/></label>
+      <Button className="w-full" disabled={stars === 0} onClick={() => onSubmit(stars,reviewText)}>
+        Trimite recenzia verificată
       </Button>
     </div>
   );

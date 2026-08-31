@@ -1,0 +1,11 @@
+import { InformationPage } from "@/components/InformationPage";
+export default function Page(){return <InformationPage eyebrow="PENTRU CLIENȚI" title="Curățenie organizată clar, de la postare la evaluare." intro="NITIDO.RO te ajută să publici o nevoie de curățenie și să lucrezi cu o firmă eligibilă printr-un flux transparent și controlat." cta={{label:"Postează o lucrare",href:"/signup?role=client"}} sections={[
+  {title:"Ce este NITIDO.RO pentru client",paragraphs:["O platformă de intermediere tehnică între client și firme de curățenie. NITIDO.RO nu execută serviciul, ci facilitează publicarea, alocarea, comunicarea, statusurile și plata."]},
+  {title:"Cum postezi",items:["Creează contul de client.","Completează tipul spațiului, suprafața, localitatea, adresa și programarea.","Adaugă observații și maximum 5 fotografii relevante, dacă sunt necesare.","Verifică prețul și publică lucrarea."]},
+  {title:"Cum este aleasă firma",paragraphs:["Firmele verificate și eligibile pentru zonă sunt alertate. Prima firmă care obține un Accept valid, confirmat atomic de server, primește lucrarea."]},
+  {title:"Ce vede firma",paragraphs:["Înainte de Accept: localitatea/zona, tipul serviciului, suprafața, programarea și date neconfidențiale. După Accept: numai firma câștigătoare primește adresa exactă, fotografiile și detaliile necesare executării."]},
+  {title:"Status și fotografii",paragraphs:["În cont vezi propriile lucrări și stările disponibile. Fotografiile sunt accesibile clientului proprietar și firmei alocate, nu firmelor care doar consultă lucrarea."]},
+  {title:"Plata",paragraphs:["Prețul este afișat înainte de publicare. Autorizarea și capturarea sunt controlate de server și providerul de plată; AI-ul nu poate modifica, rambursa sau captura sume."]},
+  {title:"Rating și no-show",paragraphs:["După finalizare poți evalua firma. Dacă firma nu se prezintă, incidentul poate fi înregistrat ca no-show și tratat conform stării lucrării și regulilor active."]},
+  {title:"Siguranță și suport",paragraphs:["Nu transmite parole, coduri sau date complete de card. Asistentul AI oferă explicații și context autorizat, fără drept de modificare."],items:["Telefon: 0341.402.403","Email: contact@nitido.ro","Pentru o problemă reală, folosește și contextul lucrării din cont."]},
+]}/>}

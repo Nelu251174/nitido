@@ -1,84 +1,37 @@
-import { LegalPage } from "@/components/LegalPage";
-
-export default function ConfidentialitatePage() {
-  return (
-    <LegalPage title="Politica de confidențialitate" updated="16 august 2026">
-      <section>
-        <h2>1. Ce date colectăm</h2>
-        <p>
-          Colectăm datele pe care ni le furnizezi direct: nume, email, telefon (opțional), și,
-          pentru Firme, CUI și zona de acoperire. Pentru fiecare lucrare postată, colectăm adresa
-          locației, tipul de spațiu, suprafața și, opțional, poze ale spațiului. Datele de plată
-          (numărul cardului) sunt procesate direct de Stripe — Nitido nu stochează niciodată
-          datele complete ale cardului.
-        </p>
-      </section>
-
-      <section>
-        <h2>2. Scopul prelucrării</h2>
-        <ul className="list-disc pl-5 space-y-1">
-          <li>Crearea și administrarea contului tău</li>
-          <li>Conectarea Clienților cu Firmele eligibile pentru o lucrare</li>
-          <li>Procesarea plăților prin Stripe</li>
-          <li>Comunicări legate de statusul unei lucrări</li>
-          <li>Respectarea obligațiilor legale (facturare, evidență contabilă)</li>
-        </ul>
-      </section>
-
-      <section>
-        <h2>3. Temei legal</h2>
-        <p>
-          Prelucrăm datele în baza executării contractului dintre tine și Nitido (crearea contului,
-          folosirea platformei), a consimțământului (pentru comunicări opționale) și a obligațiilor
-          legale aplicabile.
-        </p>
-      </section>
-
-      <section>
-        <h2>4. Partajarea cu terți</h2>
-        <p>
-          Partajăm date strict cu furnizorii necesari funcționării platformei: Stripe (procesare
-          plăți) și furnizorul de găzduire a serverelor. Adresa locației unei lucrări este
-          partajată cu Firma care acceptă acea lucrare — este necesar pentru executarea
-          serviciului. Nu vindem și nu închiriem datele tale către terți în scopuri de marketing.
-        </p>
-      </section>
-
-      <section>
-        <h2>5. Perioada de stocare</h2>
-        <p>
-          Păstrăm datele contului cât timp acesta este activ. Datele legate de tranzacții
-          (lucrări, plăți) sunt păstrate conform obligațiilor legale de arhivare fiscală/contabilă
-          aplicabile în România.
-        </p>
-      </section>
-
-      <section>
-        <h2>6. Drepturile tale</h2>
-        <p>
-          Conform Regulamentului General privind Protecția Datelor (GDPR), ai dreptul de acces,
-          rectificare, ștergere, restricționare a prelucrării, portabilitate a datelor și opoziție
-          față de prelucrare. Pentru a exercita oricare dintre aceste drepturi, ne scrii la
-          contact@nitido.ro.
-        </p>
-      </section>
-
-      <section>
-        <h2>7. Securitate</h2>
-        <p>
-          Parolele sunt stocate criptat (hash), niciodată în clar. Comunicarea cu platforma se
-          face exclusiv criptat (HTTPS). Accesul la datele stocate este restricționat la personalul
-          necesar operării platformei.
-        </p>
-      </section>
-
-      <section>
-        <h2>8. Contact</h2>
-        <p>
-          Pentru orice întrebare legată de datele tale personale, ne poți scrie la
-          contact@nitido.ro.
-        </p>
-      </section>
-    </LegalPage>
-  );
-}
+import { InformationPage, type InfoSection } from "@/components/InformationPage";
+import { legalIdentityStatus } from "@/lib/legalConfig";
+export default function Page(){const legal=legalIdentityStatus();const sections:InfoSection[]=[
+  {title:"1. Operatorul datelor",paragraphs:[legal.productionReady?`Operatorul este ${legal.values.LEGAL_ENTITY_NAME}, ${legal.values.LEGAL_ENTITY_REGISTRATION}, ${legal.values.LEGAL_ENTITY_ADDRESS}. Contact: ${legal.values.LEGAL_CONTACT_EMAIL}.`:`BLOCAJ DE PRODUCȚIE: identitatea operatorului nu este configurată. Lipsesc ${legal.missing.join(", ")}. Nu publicăm o identitate inventată.`]},
+  {title:"2. Ce date colectăm",paragraphs:["Colectăm numai datele necesare contului, lucrărilor, plăților, notificărilor, suportului și securității."]},
+  {title:"3. Date de cont",items:["Nume","Email","Telefon","Rol","Parolă stocată numai sub formă de hash","Cod și sold de recomandare"]},
+  {title:"4. Date despre firmă",items:["CUI","Oraș principal și localități acoperite","Status verificare","Rating și incidente","Identificator de cont de plată, unde este configurat"]},
+  {title:"5. Date despre lucrare",items:["Tip spațiu și suprafață","Programare și status","Preț și date de plată asociate","Observații și identificatori operaționali"]},
+  {title:"6. Adresa exactă",paragraphs:["Adresa este colectată pentru executarea serviciului și este dezvăluită numai clientului și firmei căreia i-a fost alocată lucrarea."]},
+  {title:"7. Fotografii",paragraphs:["Fotografiile opționale sunt legate de lucrare și accesibile numai participanților autorizați. Evită persoane, acte sau informații inutile."]},
+  {title:"8. Date de comunicare",paragraphs:["Putem prelucra mesajele și solicitările asociate suportului sau unei lucrări pentru soluționare și siguranță."]},
+  {title:"9. Date privind plata",paragraphs:["Păstrăm stări, sume și identificatori tranzacționali. Datele complete ale cardului sunt procesate de providerul de plată și nu sunt stocate de NITIDO.RO."]},
+  {title:"10. Conversații AI și suport",paragraphs:["Întrebările trimise Asistentului AI și contextul minim autorizat pot fi transmise providerului AI pentru generarea răspunsului. Nu introduce parole, coduri sau date complete de card."]},
+  {title:"11. Date SMS și email",paragraphs:["Prelucrăm numărul sau adresa destinatarului, tipul evenimentului, statusul livrării și identificatorul furnizorului pentru notificări tranzacționale."]},
+  {title:"12. Jurnale tehnice și de securitate",paragraphs:["Pot fi păstrate IP-uri, identificatori de sesiune, rate-limit, erori și audit administrativ pentru securitate și diagnostic."]},
+  {title:"13. Scopuri",items:["Administrarea contului","Publicarea și alocarea lucrărilor","Plăți și notificări","Suport și AI","Prevenirea fraudei și securitate","Respectarea obligațiilor legale"]},
+  {title:"14. Temeiuri legale",paragraphs:["Prelucrarea poate avea la bază executarea contractului, obligația legală, interesul legitim, consimțământul sau apărarea drepturilor, după caz."]},
+  {title:"15. Cine primește date",paragraphs:["Datele sunt furnizate participanților autorizați și furnizorilor necesari, în limita scopului și a obligațiilor contractuale."]},
+  {title:"16. Providerul de plată",paragraphs:["Stripe poate primi datele necesare procesării plății și aplică propria politică de confidențialitate."]},
+  {title:"17. Providerul SMS",paragraphs:["Twilio sau providerul SMS configurat poate primi numărul, mesajul tranzacțional și metadatele livrării."]},
+  {title:"18. Providerul AI",paragraphs:["OpenAI poate procesa întrebarea și contextul minim furnizat. Cererile sunt trimise cu stocarea dezactivată în integrarea curentă, fără a extinde permisiunile utilizatorului."]},
+  {title:"19. Infrastructură",paragraphs:["Furnizorii de găzduire și infrastructură pot prelucra date tehnice strict pentru operarea serviciului. Furnizorul de producție trebuie documentat la deployment."]},
+  {title:"20. Păstrarea datelor",paragraphs:["Datele contului se păstrează cât timp este activ și ulterior cât cer obligațiile, litigiile sau securitatea. Tranzacțiile pot necesita perioade legale de arhivare. Duratele exacte trebuie completate în registrul de retenție de producție."]},
+  {title:"21. Măsuri de securitate",items:["Hash pentru parole","Cookie de sesiune httpOnly","Autorizare pe rol și ownership","Minimizarea câmpurilor","Audit și limitarea cererilor","Separarea datelor de card"]},
+  {title:"22. Drepturile utilizatorului",paragraphs:["Drepturile se exercită în condițiile GDPR și ale legislației aplicabile, fără a afecta datele care trebuie păstrate legal."]},
+  {title:"23. Acces",paragraphs:["Poți solicita confirmarea prelucrării și o copie a datelor tale."]},
+  {title:"24. Rectificare",paragraphs:["Poți solicita corectarea datelor inexacte sau completarea celor incomplete."]},
+  {title:"25. Ștergere",paragraphs:["Poți solicita ștergerea când sunt îndeplinite condițiile legale. Unele date tranzacționale sau de securitate pot trebui păstrate."]},
+  {title:"26. Restricționare",paragraphs:["Poți cere limitarea prelucrării în cazurile prevăzute de lege."]},
+  {title:"27. Portabilitate",paragraphs:["Pentru datele eligibile, poți cere furnizarea într-un format structurat și interoperabil."]},
+  {title:"28. Opoziție",paragraphs:["Te poți opune prelucrărilor bazate pe interes legitim, în condițiile legii."]},
+  {title:"29. Plângeri",paragraphs:["Poți sesiza Autoritatea Națională de Supraveghere a Prelucrării Datelor cu Caracter Personal."]},
+  {title:"30. Transferuri internaționale",paragraphs:["Unii furnizori pot procesa date în afara SEE. În producție trebuie documentate furnizorii, locațiile și garanțiile aplicabile înainte de publicare."]},
+  {title:"31. Minori",paragraphs:["Platforma nu este destinată folosirii autonome de către persoane care nu au capacitatea legală necesară pentru încheierea contractului."]},
+  {title:"32. Modificări",paragraphs:["Politica poate fi actualizată; versiunea și data trebuie afișate, iar schimbările materiale comunicate adecvat."]},
+  {title:"33. Contact",paragraphs:[`Solicitări privind datele: ${legal.values.LEGAL_CONTACT_EMAIL || "contact@nitido.ro"}. Suport operațional: 0341.402.403.`]},
+];return <InformationPage eyebrow="CONFIDENȚIALITATE" title="Cum protejăm și folosim datele" intro="Politică detaliată, construită pe datele și furnizorii existenți în produs. Identitatea juridică și registrul complet de deployment rămân condiții de publicare." sections={sections}/>}

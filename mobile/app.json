@@ -1,0 +1,79 @@
+{
+  "expo": {
+    "name": "NITIDO",
+    "slug": "nitido",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "nitido",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/icon-ios-1024.png",
+    "splash": {
+      "image": "../public/icons/icon-512x512.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F4F3EE"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "NITIDO folosește camera numai când adaugi dovezi foto pentru o lucrare.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "NITIDO accesează fotografiile numai când alegi să le atașezi unei lucrări."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "NITIDO folosește locația numai pentru lucrarea activă și pentru deschiderea traseului."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#1B8A4C",
+          "sounds": []
+        }
+      ],
+      "@react-native-community/datetimepicker"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "icon": "./assets/icon-ios-1024.png",
+      "buildNumber": "1",
+      "bundleIdentifier": "ro.nitido.app",
+      "associatedDomains": []
+    },
+    "android": {
+      "package": "ro.nitido.app",
+      "versionCode": 1,
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon-android-foreground.png",
+        "backgroundColor": "#F4F3EE"
+      },
+      "intentFilters": []
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "OWNER_EAS_PROJECT_ID_REQUIRED"
+      }
+    }
+  }
+}

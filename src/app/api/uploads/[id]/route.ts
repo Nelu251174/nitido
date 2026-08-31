@@ -3,6 +3,7 @@ import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { db, getFirmByUserId } from "@/lib/db";
+import { isAdmin } from "@/lib/adminAuth";
 
 const UPLOAD_DIR = path.join(process.cwd(), "data", "uploads");
 const CONTENT_TYPES: Record<string, string> = {
@@ -18,7 +19,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getCurrentUser(req);
-  if (!user) return NextResponse.json({ error: "Autentificare necesară" }, { status: 401 });
+  const admin = await isAdmin();
+  if (!user && !admin) return NextResponse.json({ error: "Autentificare necesară" }, { status: 401 });
 
   const { id } = await params;
   const photo = db.prepare(
@@ -29,9 +31,10 @@ export async function GET(
     | undefined;
   if (!photo) return NextResponse.json({ error: "Imagine inexistentă" }, { status: 404 });
 
-  const firm = user.role === "firma" ? getFirmByUserId(user.id) : null;
+  const firm = user?.role === "firma" ? getFirmByUserId(user.id) : null;
   const authorized =
-    (user.role === "client" && (photo.owner_user_id === user.id || photo.client_id === user.id)) ||
+    admin ||
+    (user?.role === "client" && (photo.owner_user_id === user.id || photo.client_id === user.id)) ||
     Boolean(firm && photo.accepted_firm_id === firm.id);
   if (!authorized) return NextResponse.json({ error: "Acces interzis" }, { status: 403 });
 

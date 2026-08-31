@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="NITIDO">
+  <rect width="64" height="64" rx="15" fill="#1B8A4C"/>
+  <path d="M16 47V17h9l14 17.7V17h9v30h-9L25 29.3V47z" fill="#fff"/>
+</svg>

@@ -25,7 +25,26 @@ interface PaymentRow {
   commission_amount: number;
   amount_net: number;
   status: string;
+  stripe_fee_amount: number|null;
+  transfer_status: string;
+  payout_status: string;
+  refund_status: string;
+  dispute_status: string;
 }
+
+interface NotificationRow {
+  id: string;
+  event_type: string;
+  recipient_masked: string;
+  status: string;
+  attempt_count: number;
+  last_error: string | null;
+  created_at: string;
+  channel?:string;
+  platform?:string|null;
+}
+interface ProofRow { id:string; job_id:string; uploaded_by_firm_id:string; proof_type:"ARRIVAL"|"COMPLETION"; status:string; created_at:string; validated_at:string|null; url:string }
+interface ReviewRow { id:string;job_id:string;firm_id:string;stars:number;comment:string|null;moderation_status:string;created_at:string;report_count:number;verified_job:number }
 
 interface AdminStats {
   totalJobs: number;
@@ -43,6 +62,9 @@ export default function AdminPage() {
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [firms, setFirms] = useState<FirmRow[]>([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [notifications, setNotifications] = useState<NotificationRow[]>([]);
+  const [proofs, setProofs] = useState<ProofRow[]>([]);
+  const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [adminEmail, setAdminEmail] = useState("");
@@ -60,6 +82,9 @@ export default function AdminPage() {
     setJobs(data.jobs);
     setFirms(data.firms);
     setPayments(data.payments);
+    setNotifications(data.notifications ?? []);
+    setProofs(data.proofs ?? []);
+    setReviews(data.reviews ?? []);
     setStats(data.stats ?? null);
   }, []);
 
@@ -78,6 +103,7 @@ export default function AdminPage() {
     });
     refresh();
   }
+  async function moderateReview(id:string,status:"published"|"under_review"|"hidden") { await fetch(`/api/admin/reviews/${id}/moderate`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status})}); await refresh(); }
 
   const [recheckState, setRecheckState] = useState<Record<string, string>>({});
 
@@ -164,6 +190,7 @@ export default function AdminPage() {
           <div className="flex items-center gap-4 text-sm font-display font-bold text-muted">
             <Link href="/client" className="hover:text-ink">Client</Link>
             <Link href="/firma" className="hover:text-ink">Firmă</Link>
+            <Link href="/incredere" className="hover:text-ink">Încredere &amp; Siguranță</Link>
             <button
               onClick={resetHistory}
               disabled={resetting}
@@ -262,6 +289,13 @@ export default function AdminPage() {
         </section>
 
         <section>
+          <h2 className="font-display font-bold text-ink mb-3">Dovezi foto operaționale</h2>
+          <div className="overflow-x-auto"><table className="w-full text-xs bg-white border border-line rounded-xl overflow-hidden"><thead className="bg-mist text-muted"><tr><th className="text-left px-3 py-2">Job</th><th className="text-left px-3 py-2">Firmă</th><th className="text-left px-3 py-2">Tip</th><th className="text-left px-3 py-2">Status</th><th className="text-left px-3 py-2">Încărcată</th><th className="text-left px-3 py-2">Validată</th><th className="text-left px-3 py-2">Dovadă</th></tr></thead><tbody>{proofs.map(p=><tr key={p.id} className="border-t border-line"><td className="px-3 py-2">{p.job_id}</td><td className="px-3 py-2">{p.uploaded_by_firm_id}</td><td className="px-3 py-2">{p.proof_type}</td><td className="px-3 py-2">{p.status}</td><td className="px-3 py-2">{p.created_at}</td><td className="px-3 py-2">{p.validated_at ?? "—"}</td><td className="px-3 py-2"><a className="font-bold text-aqua-deep underline" href={p.url} target="_blank" rel="noreferrer">Vezi fotografia</a></td></tr>)}</tbody></table></div>
+        </section>
+
+        <section><h2 className="font-display font-bold text-ink mb-3">Moderare recenzii</h2><div className="space-y-3">{reviews.map(review=><Card key={review.id}><div className="flex flex-wrap justify-between gap-3"><div><b>{review.stars} / 5 · Lucrare verificată</b><p className="text-xs text-muted">Job {review.job_id} · Firmă {review.firm_id} · {review.report_count} raportări</p></div><span className="text-xs font-bold text-aqua-deep">{review.moderation_status}</span></div>{review.comment&&<p className="mt-3 text-sm text-muted">{review.comment}</p>}<div className="mt-3 flex gap-2"><Button variant="outline" onClick={()=>moderateReview(review.id,"published")}>Publică/restaurează</Button><Button variant="outline" onClick={()=>moderateReview(review.id,"under_review")}>Analizează</Button><Button variant="outline" onClick={()=>moderateReview(review.id,"hidden")}>Ascunde</Button></div></Card>)}{reviews.length===0&&<p className="text-sm text-muted">Nu există recenzii.</p>}</div></section>
+
+        <section>
           <h2 className="font-display font-bold text-ink mb-3">Firme</h2>
           <div className="grid md:grid-cols-3 gap-3">
             {firms.map((f) => (
@@ -318,6 +352,10 @@ export default function AdminPage() {
                   <th className="text-left px-3 py-2">Comision</th>
                   <th className="text-left px-3 py-2">Net firmă</th>
                   <th className="text-left px-3 py-2">Status</th>
+                  <th className="text-left px-3 py-2">Taxă Stripe</th>
+                  <th className="text-left px-3 py-2">Transfer</th>
+                  <th className="text-left px-3 py-2">Payout</th>
+                  <th className="text-left px-3 py-2">Refund / dispută</th>
                 </tr>
               </thead>
               <tbody>
@@ -328,9 +366,22 @@ export default function AdminPage() {
                     <td className="px-3 py-2">{p.commission_amount} lei</td>
                     <td className="px-3 py-2">{p.amount_net} lei</td>
                     <td className="px-3 py-2">{p.status}</td>
+                    <td className="px-3 py-2">{p.stripe_fee_amount == null ? "Necunoscută" : `${(p.stripe_fee_amount/100).toFixed(2)} lei`}</td>
+                    <td className="px-3 py-2">{p.transfer_status}</td>
+                    <td className="px-3 py-2">{p.payout_status}</td>
+                    <td className="px-3 py-2">{p.refund_status} / {p.dispute_status}</td>
                   </tr>
                 ))}
               </tbody>
+            </table>
+          </div>
+        </section>
+        <section>
+          <h2 className="font-display font-bold text-ink mb-3">Notificări SMS</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs bg-white border border-line rounded-xl overflow-hidden">
+              <thead className="bg-mist text-muted"><tr><th className="text-left px-3 py-2">Eveniment</th><th className="text-left px-3 py-2">Canal</th><th className="text-left px-3 py-2">Destinatar</th><th className="text-left px-3 py-2">Status</th><th className="text-left px-3 py-2">Încercări</th><th className="text-left px-3 py-2">Creat</th><th className="text-left px-3 py-2">Diagnostic</th></tr></thead>
+              <tbody>{notifications.map((n)=><tr key={n.id} className="border-t border-line"><td className="px-3 py-2">{n.event_type}</td><td className="px-3 py-2">{n.channel}{n.platform?` · ${n.platform}`:""}</td><td className="px-3 py-2">{n.recipient_masked}</td><td className="px-3 py-2">{n.status}</td><td className="px-3 py-2">{n.attempt_count}</td><td className="px-3 py-2">{n.created_at}</td><td className="px-3 py-2">{n.last_error ?? "—"}</td></tr>)}</tbody>
             </table>
           </div>
         </section>

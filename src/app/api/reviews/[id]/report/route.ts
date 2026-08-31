@@ -1,0 +1,6 @@
+import { NextRequest,NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
+import { db,newId } from "@/lib/db";
+import { auditWorkflow } from "@/lib/proofOfWork";
+const reasons=["limbaj_abuziv","date_personale","spam","informatii_false","alt_motiv"];
+export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>}){const user=await getCurrentUser(req);if(!user)return NextResponse.json({error:"Autentificare necesară"},{status:401});const {id}=await params;const body=await req.json().catch(()=>({}));if(!reasons.includes(body.reason))return NextResponse.json({error:"Motiv invalid"},{status:400});const review=db.prepare("SELECT job_id,firm_id FROM ratings WHERE id=? AND status='active'").get(id) as {job_id:string;firm_id:string}|undefined;if(!review)return NextResponse.json({error:"Recenzie inexistentă"},{status:404});try{db.prepare("INSERT INTO review_reports(id,rating_id,reported_by_user_id,reason,details) VALUES(?,?,?,?,?)").run(newId("report"),id,user.id,body.reason,String(body.details??"").slice(0,1000)||null);}catch{return NextResponse.json({error:"Ai raportat deja această recenzie"},{status:409});}auditWorkflow(db,"REVIEW_REPORTED",review.job_id,review.firm_id,user.id,{reviewId:id,reason:body.reason});return NextResponse.json({ok:true},{status:201});}

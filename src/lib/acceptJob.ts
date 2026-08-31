@@ -1,6 +1,6 @@
 import type { Database } from "better-sqlite3";
 import { calcBlockedMinutes, overlapsExisting } from "@/lib/pricing";
-import { authorizePayment } from "@/lib/payments";
+import { authorizePayment, connectTransfersEnabled } from "@/lib/payments";
 import { firmCoversCity } from "@/lib/text";
 
 export type AcceptResult =
@@ -23,10 +23,11 @@ export async function acceptJobAtomic(
   firmId: string
 ): Promise<AcceptResult> {
   const firm = db.prepare("SELECT * FROM firms WHERE id = ?").get(firmId) as
-    | { id: string; suspended_until: string | null; stripe_account_id: string | null; verified: number; coverage_city: string; coverage_cities_extra: string | null }
+    | { id: string; suspended_until: string | null; stripe_account_id: string | null; stripe_account_status:string;stripe_transfers_capability:string; verified: number; coverage_city: string; coverage_cities_extra: string | null }
     | undefined;
   if (!firm) return { ok: false, error: "Firmă inexistentă", status: 404 };
   if (!firm.verified) return { ok: false, error: "Firma nu este verificată", status: 403 };
+  if(connectTransfersEnabled()&&(!firm.stripe_account_id||firm.stripe_account_status!=="ready"||firm.stripe_transfers_capability!=="active"))return {ok:false,error:"Contul Stripe al firmei nu este pregătit pentru transferuri",status:409};
   if (firm.suspended_until && new Date(firm.suspended_until) > new Date()) {
     return { ok: false, error: "Firma este suspendată temporar", status: 403 };
   }

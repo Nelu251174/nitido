@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import {after,NextRequest, NextResponse } from "next/server";
 import { db, getFirmByUserId } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { capturePayment } from "@/lib/payments";
 import { JobRow } from "@/lib/types";
+import { markCompletedWithProof } from "@/lib/proofOfWork";
+import {processPushOutbox,queueCompletedClientPush} from "@/lib/push";
 
 // Finalizarea este permisă numai firmei autentificate care deține lucrarea.
 export async function POST(
@@ -20,19 +22,9 @@ export async function POST(
   }
 
   const { id } = await params;
-  const result = db
-    .prepare(
-      `UPDATE jobs SET status = 'completed', completed_at = datetime('now')
-       WHERE id = ? AND accepted_firm_id = ? AND status IN ('accepted','arrived')`
-    )
-    .run(id, firm.id);
-
-  if (result.changes === 0) {
-    return NextResponse.json(
-      { error: "Lucrarea nu poate fi finalizată de această firmă" },
-      { status: 409 }
-    );
-  }
+  const result = markCompletedWithProof(db,id,firm.id,user.id);
+  if (!result.ok) return NextResponse.json({error:result.error},{status:result.status});
+  db.prepare("DELETE FROM job_live_locations WHERE job_id=?").run(id);
 
   try {
     await capturePayment(db, id);
@@ -49,5 +41,7 @@ export async function POST(
   }
 
   const job = db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow;
+  try{const ids=queueCompletedClientPush(db,id);if(ids.length)after(()=>processPushOutbox(db,ids));}
+  catch{console.error("[push-outbox] enqueue_failed JOB_COMPLETED_CLIENT_PUSH");}
   return NextResponse.json({ job });
 }

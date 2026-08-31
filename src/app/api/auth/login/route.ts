@@ -38,6 +38,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  await createSession(user.id);
-  return NextResponse.json({ ok: true, role: user.role });
+  const sessionToken = await createSession(user.id);
+  return NextResponse.json({
+    ok: true,
+    role: user.role,
+    ...(process.env.NITIDO_ENABLE_BEARER_AUTH === "true" ? { sessionToken } : {}),
+  });
 }

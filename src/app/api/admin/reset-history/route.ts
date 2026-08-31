@@ -22,9 +22,13 @@ export async function POST(req: NextRequest) {
   }
 
   const result = db.transaction(() => {
+    const notificationsDeleted = db.prepare("DELETE FROM notification_outbox").run();
+    db.prepare("DELETE FROM workflow_audit_log").run();
     const photosDeleted = db.prepare("DELETE FROM job_photos").run();
     const paymentsDeleted = db.prepare("DELETE FROM payments").run();
+    db.prepare("DELETE FROM review_reports").run();
     db.prepare("DELETE FROM ratings").run();
+    db.prepare("DELETE FROM strikes").run();
     const jobsCount = db.prepare("DELETE FROM jobs").run();
 
     // Firme + client demo, inserate automat la prima pornire — identificabile
@@ -52,6 +56,7 @@ export async function POST(req: NextRequest) {
       jobs: jobsCount.changes,
       payments: paymentsDeleted.changes,
       photos: photosDeleted.changes,
+      notifications: notificationsDeleted.changes,
       demoFirmsRemoved: demoFirmUserIds.length,
     };
   })();

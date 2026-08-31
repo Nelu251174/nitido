@@ -16,7 +16,9 @@ vi.mock("@/lib/db", () => ({
 import { POST as accept } from "./jobs/[id]/accept/route";
 import { POST as arrived } from "./jobs/[id]/arrived/route";
 import { POST as complete } from "./jobs/[id]/complete/route";
+import { POST as rating } from "./jobs/[id]/rating/route";
 import { GET as adminOverview } from "./admin/overview/route";
+import { POST as retryNotifications } from "./admin/notifications/retry/route";
 
 const request = () => new Request("http://localhost/api/test", { method: "POST" }) as never;
 const context = { params: Promise.resolve({ id: "job_1" }) };
@@ -31,6 +33,7 @@ describe("route authentication regressions", () => {
     ["accept", accept],
     ["arrived", arrived],
     ["complete", complete],
+    ["rate", rating],
   ])("unauthenticated user cannot %s a job", async (_name, handler) => {
     const response = await handler(request(), context);
     expect(response.status).toBe(401);
@@ -38,6 +41,11 @@ describe("route authentication regressions", () => {
 
   it("unauthenticated user cannot access admin overview", async () => {
     const response = await adminOverview(request());
+    expect(response.status).toBe(401);
+  });
+
+  it("unauthenticated user cannot retry SMS notifications", async () => {
+    const response = await retryNotifications();
     expect(response.status).toBe(401);
   });
 });

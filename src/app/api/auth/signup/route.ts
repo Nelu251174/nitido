@@ -134,7 +134,11 @@ export async function POST(req: NextRequest) {
     ).run(firmId, userId, sanitizeCui(cui!), coverageCity, citiesExtra || null, verified);
   }
 
-  await createSession(userId);
+  const sessionToken = await createSession(userId);
 
-  return NextResponse.json({ ok: true, role }, { status: 201 });
+  return NextResponse.json({
+    ok: true,
+    role,
+    ...(process.env.NITIDO_ENABLE_BEARER_AUTH === "true" ? { sessionToken } : {}),
+  }, { status: 201 });
 }

@@ -1,0 +1,2 @@
+import type {ReactNode} from "react";import {Redirect} from "expo-router";import {useAuth} from "./auth";import type {UserRole} from "./types";import {Screen,State} from "./components";
+export function RoleGate({role,children}:{role:UserRole;children:ReactNode}){const {user,loading}=useAuth();if(loading)return <Screen title="NITIDO"><State kind="loading" title="Se verifică accesul…"/></Screen>;if(!user)return <Redirect href="/(auth)/login"/>;if(user.role!==role)return <Redirect href={user.role==="client"?"/(client)":"/(firma)"}/>;return children}

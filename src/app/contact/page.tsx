@@ -1,2 +1,12 @@
-import Link from "next/link";import {InfoCard,InfoPageV2} from "@/components/InfoPageV2";
-export default function Page(){return <InfoPageV2 eyebrow="Contact" title="Suntem aici să ajutăm." intro="Pentru întrebări despre cont, lucrări, firme sau plăți, contactează echipa NITIDO."><InfoCard title="Email"><Link className="text-[#14663a] font-bold" href="mailto:contact@nitido.ro">contact@nitido.ro</Link><p className="mt-2">Răspundem solicitărilor în ordinea primirii.</p></InfoCard><InfoCard title="Suport în platformă">După autentificare, folosește zona de mesaje asociată lucrării tale pentru context operațional.</InfoCard></InfoPageV2>}
+import type { Metadata } from "next";
+import { SupportCenter } from "@/components/SupportCenter";
+import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
+
+export const metadata: Metadata = {
+  title: "Contact și suport | NITIDO.RO",
+  description: "Asistent AI, suport telefonic și email pentru clienții și firmele NITIDO.RO.",
+};
+
+export default function ContactPage() {
+  return <main className="bg-[#f4f3ee] text-[#101711]"><SiteHeader/><div className="contact-page-top-spacer" aria-hidden="true"/><div className="contact-page-content"><SupportCenter/></div><SiteFooter/></main>;
+}

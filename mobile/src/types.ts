@@ -1,0 +1,6 @@
+export type UserRole="client"|"firma";
+export type JobStatus="waiting"|"accepted"|"arrived"|"completed"|"cancelled"|"no_show";
+export type SpaceType="apartament"|"casa"|"birou"|"altul";
+export interface SessionUser{id:string;role:UserRole;name:string;email:string;firm?:{id:string;coverage_city:string;coverage_cities_extra:string|null;verified:number;stripe_account_status:string;stripe_transfers_capability:string}}
+export interface Job{id:string;city:string;sqm:number;space_type:SpaceType;scheduled_at:string|null;price_gross:number;firm_payout?:number|null;duration_minutes?:number;status:JobStatus;accepted_firm_id:string|null;street?:string;postal_code?:string|null;floor?:string|null;details?:string|null;photos_count?:number;photos?:string[];created_at?:string;accepted_at?:string|null;arrived_confirmed_at?:string|null;completed_at?:string|null;proofs?:{id:string;type:"ARRIVAL"|"COMPLETION";url:string;createdAt:string}[];ownReview?:{rating:number;reviewText:string|null;badge:"Recenzie verificată"}|null;financial?:{paymentStatus:string;firmPayout?:number;transferStatus:string;payoutStatus:string;refundStatus?:string;disputeStatus?:string}|null}
+export interface ApiErrorShape{error?:string;code?:string}

@@ -13,6 +13,8 @@ export interface JobRow {
   postal_code: string | null;
   city: string;
   floor: string | null;
+  details?: string | null;
+  client_request_id?: string | null;
   sqm: number;
   space_type: "apartament" | "casa" | "birou" | "altul";
   when_type: "asap" | "scheduled";
@@ -29,4 +31,6 @@ export interface JobRow {
   completed_at: string | null;
   created_at: string;
   photos?: string[];
+  proofs?: { id: string; type: "ARRIVAL" | "COMPLETION"; url: string; createdAt: string }[];
+  ownReview?: { rating: number; reviewText: string | null; badge: "Recenzie verificată" } | null;
 }

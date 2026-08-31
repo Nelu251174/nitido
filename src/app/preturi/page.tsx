@@ -1,0 +1,9 @@
+import { InformationPage } from "@/components/InformationPage";
+export default function Page(){return <InformationPage eyebrow="PREȚURI" title="Prețuri calculate transparent din datele lucrării." intro="Această pagină descrie numai regulile confirmate de codul actual. Nu publicăm planuri comerciale sau taxe care nu au o sursă autoritară în produs." sections={[
+  {title:"Pentru client",paragraphs:["Prețul brut al lucrării este calculat automat din tipul spațiului și suprafață și este afișat înainte de publicare. Formula activă folosește regulile din aplicație, nu o ofertă introdusă de firmă."]},
+  {title:"Credit de recomandare",paragraphs:["Creditul disponibil poate reduce suma finală plătită de client, până la valoarea lucrării. Codul de recomandare valid acordă în prezent câte 20 lei credit utilizatorului nou și persoanei care l-a recomandat."]},
+  {title:"Costuri suplimentare",paragraphs:["Fluxul actual nu definește taxe ascunse adăugate după confirmare. Clientul trebuie să verifice rezumatul și prețul afișat înainte de publicare. Orice neconcordanță concretă trebuie raportată cu identificatorul lucrării."]},
+  {title:"Pentru firmă",paragraphs:["Plata asociată lucrării păstrează suma brută, comisionul și suma netă. Comisionul tehnic este definit în logica de plată; valoarea netă este calculată de server. Nu există în codul autoritar actual un sistem activ de abonamente Start, Pro sau Teams."]},
+  {title:"Autorizare și capturare",paragraphs:["Plata poate fi autorizată la acceptare și capturată după finalizare, conform stării reale. Providerul de plată și serverul sunt autoritatea; interfața și AI-ul nu pot schimba rezultatul."]},
+  {title:"Configurare comercială",paragraphs:["Dacă NITIDO.RO introduce ulterior abonamente, alte comisioane sau taxe, acestea trebuie configurate în produs și comunicate înainte de aplicare. Pentru clarificări: 0341.402.403 sau contact@nitido.ro."]},
+]}/>}
