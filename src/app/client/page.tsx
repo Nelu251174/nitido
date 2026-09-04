@@ -48,6 +48,8 @@ export default function ClientPage() {
   const [submitting, setSubmitting] = useState(false);
   const [ratingDone, setRatingDone] = useState(false);
   const [myJobs, setMyJobs] = useState<JobRow[]>([]);
+  const [hasCard, setHasCard] = useState<boolean | null>(null); // null = se încarcă
+  const [cardBusy, setCardBusy] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -65,6 +67,47 @@ export default function ClientPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- istoric încărcat după autentificare
     if (user?.role === "client") refreshMyJobs();
   }, [user?.id, user?.role, refreshMyJobs]);
+
+  // Starea cardului: dacă tocmai s-a întors din Stripe (?card=added), sincronizează,
+  // apoi citește dacă are card salvat. Dacă Stripe nu e activat, nu blocăm postarea.
+  useEffect(() => {
+    if (user?.role !== "client") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("card") === "added") {
+          await fetch("/api/payments/card", { method: "POST" });
+          window.history.replaceState({}, "", "/client");
+        }
+        const res = await fetch("/api/payments/card");
+        if (!res.ok || cancelled) return;
+        const d = await res.json();
+        setHasCard(d.stripeConfigured ? Boolean(d.hasCard) : true);
+      } catch {
+        if (!cancelled) setHasCard(true); // în caz de eroare, nu blocăm UI-ul
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, user?.role]);
+
+  async function addCard() {
+    setError(null);
+    setCardBusy(true);
+    try {
+      const res = await fetch("/api/payments/checkout", { method: "POST" });
+      const d = await res.json();
+      if (!res.ok || !d.url) {
+        setError(d.error ?? "Nu s-a putut porni adăugarea cardului.");
+        setCardBusy(false);
+        return;
+      }
+      window.location.href = d.url; // redirect către pagina de card găzduită de Stripe
+    } catch {
+      setError("Nu s-a putut porni adăugarea cardului.");
+      setCardBusy(false);
+    }
+  }
 
   async function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []).slice(0, 5 - photos.length);
@@ -136,6 +179,7 @@ export default function ClientPage() {
         body: JSON.stringify(body),
       });
       const data = await res.json();
+      if (res.status === 402) setHasCard(false); // lipsă card — arată butonul de adăugare
       if (!res.ok) throw new Error(data.error ?? "Eroare la postare");
       setJob(data.job);
       refreshMyJobs();
@@ -397,7 +441,25 @@ export default function ClientPage() {
 
             {error && <p className="text-coral text-xs mb-3">{error}</p>}
 
-            <Button className="w-full" onClick={postJob} disabled={submitting}>
+            {hasCard === false && (
+              <div className="mb-3 rounded-xl border border-[#e3e2da] bg-[#f4f3ee] p-4">
+                <div className="text-sm font-bold text-[#101711]">Adaugă un card pentru plată</div>
+                <p className="text-xs text-[#5c6660] mt-1 leading-5">
+                  Banii se rezervă abia când o firmă acceptă lucrarea și se încasează doar
+                  după finalizarea confirmată. Cardul e procesat securizat de Stripe.
+                </p>
+                <Button className="w-full mt-3" onClick={addCard} disabled={cardBusy}>
+                  {cardBusy ? "Se deschide..." : "Adaugă card"}
+                </Button>
+              </div>
+            )}
+            {hasCard === true && (
+              <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-[#14663a]">
+                <span>✓</span> Card salvat — plată securizată
+              </p>
+            )}
+
+            <Button className="w-full" onClick={postJob} disabled={submitting || hasCard === false}>
               {submitting ? "Se postează..." : "Postează lucrarea"}
             </Button>
           </Card>

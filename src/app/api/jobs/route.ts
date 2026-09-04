@@ -15,6 +15,7 @@ import {
 import { firmCoversCity } from "@/lib/text";
 import {processPushOutbox,queueNewJobFirmPushes} from "@/lib/push";
 import { applyCredit } from "@/lib/referral";
+import { getClientCardInfo } from "@/lib/clientPayments";
 import { JobRow } from "@/lib/types";
 
 export async function GET(req: NextRequest) {
@@ -98,6 +99,16 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req);
   if (!user || user.role !== "client") {
     return NextResponse.json({ error: "Trebuie să fii autentificat ca client" }, { status: 401 });
+  }
+
+  // Card obligatoriu înainte de postare — la acceptare se pune HOLD pe acest
+  // card, deci trebuie salvat dinainte. Dacă Stripe nu e activat, se sare peste.
+  const card = getClientCardInfo(db, user.id);
+  if (card.stripeConfigured && !card.hasCard) {
+    return NextResponse.json(
+      { error: "Adaugă un card înainte de a posta o lucrare.", needsCard: true },
+      { status: 402 }
+    );
   }
 
   const body = await req.json();

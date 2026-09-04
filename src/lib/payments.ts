@@ -34,7 +34,23 @@ export async function authorizePayment(db: Database, jobId: string, grossAmount:
   const stripe=getStripeClient();
   let intentId:string|null=null;
   if(stripe){
-    const intent=await stripe.paymentIntents.create({amount:clientAmount*100,currency:"ron",capture_method:"manual",metadata:{jobId,paymentId:id,pricingSource:"server"}},{idempotencyKey:`nitido-authorize-${jobId}`});
+    // HOLD pe cardul salvat al clientului (card pe fișier — vezi clientPayments.ts).
+    // off_session + confirm = autorizare imediată fără ca clientul să fie prezent;
+    // capture_method:manual = doar rezervare, se încasează abia la finalizare.
+    const client=db.prepare("SELECT u.stripe_customer_id AS customerId, u.stripe_payment_method_id AS paymentMethodId FROM jobs j JOIN users u ON u.id=j.client_id WHERE j.id=?").get(jobId) as {customerId:string|null;paymentMethodId:string|null}|undefined;
+    if(!client?.customerId||!client?.paymentMethodId){
+      throw new Error("Clientul nu are un card salvat pentru această lucrare");
+    }
+    const intent=await stripe.paymentIntents.create({
+      amount:clientAmount*100,
+      currency:"ron",
+      customer:client.customerId,
+      payment_method:client.paymentMethodId,
+      off_session:true,
+      confirm:true,
+      capture_method:"manual",
+      metadata:{jobId,paymentId:id,pricingSource:"server"},
+    },{idempotencyKey:`nitido-authorize-${jobId}`});
     intentId=intent.id;
   }
   db.prepare(`INSERT INTO payments(id,job_id,amount_gross,commission_amount,amount_net,status,stripe_payment_intent_id) VALUES(?,?,?,?,?,'authorized',?)`).run(id,jobId,clientAmount,platformAmount,firmAmount,intentId);

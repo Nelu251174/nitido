@@ -288,6 +288,8 @@ ensureColumn("firms", "stripe_transfers_capability", "TEXT NOT NULL DEFAULT 'ina
 ensureColumn("users", "referral_code", "TEXT");
 ensureColumn("users", "referred_by_code", "TEXT");
 ensureColumn("users", "credit_balance", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("users", "stripe_customer_id", "TEXT");
+ensureColumn("users", "stripe_payment_method_id", "TEXT");
 ensureColumn("jobs", "credit_applied", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("jobs", "details", "TEXT");
 ensureColumn("jobs", "client_request_id", "TEXT");
