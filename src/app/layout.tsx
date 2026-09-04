@@ -38,15 +38,47 @@ export const metadata: Metadata = {
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
     shortcut: ["/favicon.ico"],
   },
-  title: "Nitido — Marketplace de curățenie",
-  description: "Postezi o lucrare de curățenie, firmele din zonă primesc alertă instant.",
+  title: {
+    default: "NITIDO.RO — Marketplace de curățenie în România",
+    template: "%s — NITIDO.RO",
+  },
+  description:
+    "Postezi o lucrare de curățenie, firmele verificate din zona ta sunt notificate instant și prima care acceptă o preia. Preț fix afișat de la început, plată securizată.",
+  keywords: [
+    "curățenie apartament",
+    "firme de curățenie",
+    "servicii curățenie București",
+    "curățenie la domiciliu",
+    "curățenie birou",
+    "curățenie după constructor",
+    "marketplace curățenie",
+    "curățenie la cerere",
+  ],
+  alternates: { canonical: "/" },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
+  // Verificarea Google Search Console se activează setând variabila de mediu
+  // GOOGLE_SITE_VERIFICATION (codul „HTML tag" din GSC) — fără schimbare de cod.
+  verification: process.env.GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.GOOGLE_SITE_VERIFICATION }
+    : undefined,
   openGraph: {
-    title: "Nitido — Marketplace de curățenie",
-    description: "Postezi o lucrare de curățenie, firmele din zonă primesc alertă instant.",
+    title: "NITIDO.RO — Marketplace de curățenie în România",
+    description:
+      "Postezi o lucrare de curățenie, firmele verificate din zona ta sunt notificate instant. Preț fix, plată securizată.",
     url: SITE_URL,
-    siteName: "Nitido",
+    siteName: "NITIDO.RO",
     locale: "ro_RO",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "NITIDO.RO — Marketplace de curățenie în România",
+    description:
+      "Postezi o lucrare de curățenie, firmele din zonă sunt notificate instant. Preț fix, plată securizată.",
   },
 };
 
