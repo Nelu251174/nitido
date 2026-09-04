@@ -1,5 +1,14 @@
 import { LegalPage } from "@/components/LegalPage";
 
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Politica de cookie-uri",
+  description:
+    "Ce cookie-uri folosește Nitido — doar cookie-ul esențial de sesiune, fără tracking de marketing sau cross-site.",
+};
+
+
 export default function CookieUriPage() {
   return (
     <LegalPage title="Politica de cookie-uri" updated="16 august 2026">

@@ -37,6 +37,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white">
+      <JsonLd />
       <header className="glass sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <Logo />
@@ -431,5 +432,51 @@ function HeroIllustration() {
         <circle cx="24" cy="22" r="6" fill="white" />
       </g>
     </svg>
+  );
+}
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://nitido.ro";
+
+// Date structurate (schema.org) — ajută Google să înțeleagă că Nitido e o
+// organizație + un serviciu de curățenie cu arie de acoperire în România, și
+// poate produce rezultate îmbogățite (sitelinks, knowledge panel).
+function JsonLd() {
+  const data = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${SITE_URL}/#organization`,
+        name: "Nitido",
+        url: SITE_URL,
+        description:
+          "Marketplace de curățenie care conectează instant clienți cu firme de curățenie verificate din România.",
+        areaServed: { "@type": "Country", name: "România" },
+        email: "contact@nitido.ro",
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        url: SITE_URL,
+        name: "Nitido",
+        inLanguage: "ro-RO",
+        publisher: { "@id": `${SITE_URL}/#organization` },
+      },
+      {
+        "@type": "Service",
+        serviceType: "Servicii de curățenie la cerere",
+        provider: { "@id": `${SITE_URL}/#organization` },
+        areaServed: { "@type": "Country", name: "România" },
+        description:
+          "Postezi o lucrare de curățenie pentru apartament, casă sau birou, iar firmele verificate din zonă primesc alertă instant. Preț fix afișat de la început, plată securizată.",
+      },
+    ],
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+    />
   );
 }
