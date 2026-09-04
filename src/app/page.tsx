@@ -3,6 +3,7 @@ import { Logo } from "@/components/ui";
 import { PriceCalculator } from "@/components/PriceCalculator";
 import { Faq } from "@/components/Faq";
 import { db } from "@/lib/db";
+import { CITIES } from "@/lib/cities";
 
 // Fără asta, Next.js ar preda-randa homepage-ul static la build — statisticile
 // de mai jos ar rămâne înghețate la valorile din momentul build-ului, nu ar
@@ -37,6 +38,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white">
+      <JsonLd />
       <header className="glass sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <Logo />
@@ -323,6 +325,20 @@ export default function Home() {
           </div>
         </div>
         <div className="border-t border-line">
+          <div className="max-w-6xl mx-auto px-6 py-8">
+            <h4 className="font-display font-bold text-xs uppercase tracking-wide text-muted mb-3">
+              Curățenie pe orașe
+            </h4>
+            <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+              {CITIES.map((c) => (
+                <Link key={c.slug} href={`/curatenie/${c.slug}`} className="text-muted hover:text-ink transition">
+                  Curățenie {c.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="border-t border-line">
           <div className="max-w-6xl mx-auto px-6 py-6 text-sm text-muted">
             © {new Date().getFullYear()} Nitido. Marketplace de curățenie, România.
           </div>
@@ -431,5 +447,51 @@ function HeroIllustration() {
         <circle cx="24" cy="22" r="6" fill="white" />
       </g>
     </svg>
+  );
+}
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://nitido.ro";
+
+// Date structurate (schema.org) — ajută Google să înțeleagă că Nitido e o
+// organizație + un serviciu de curățenie cu arie de acoperire în România, și
+// poate produce rezultate îmbogățite (sitelinks, knowledge panel).
+function JsonLd() {
+  const data = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${SITE_URL}/#organization`,
+        name: "Nitido",
+        url: SITE_URL,
+        description:
+          "Marketplace de curățenie care conectează instant clienți cu firme de curățenie verificate din România.",
+        areaServed: { "@type": "Country", name: "România" },
+        email: "contact@nitido.ro",
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        url: SITE_URL,
+        name: "Nitido",
+        inLanguage: "ro-RO",
+        publisher: { "@id": `${SITE_URL}/#organization` },
+      },
+      {
+        "@type": "Service",
+        serviceType: "Servicii de curățenie la cerere",
+        provider: { "@id": `${SITE_URL}/#organization` },
+        areaServed: { "@type": "Country", name: "România" },
+        description:
+          "Postezi o lucrare de curățenie pentru apartament, casă sau birou, iar firmele verificate din zonă primesc alertă instant. Preț fix afișat de la început, plată securizată.",
+      },
+    ],
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+    />
   );
 }

@@ -248,11 +248,23 @@ export function getUserById(id: string): UserRow | undefined {
 
 export function getFirmByUserId(
   userId: string
-): { id: string; coverage_city: string; coverage_cities_extra: string | null } | undefined {
+): {
+  id: string;
+  coverage_city: string;
+  coverage_cities_extra: string | null;
+  stripe_account_id: string | null;
+} | undefined {
   return db
-    .prepare("SELECT id, coverage_city, coverage_cities_extra FROM firms WHERE user_id = ?")
+    .prepare(
+      "SELECT id, coverage_city, coverage_cities_extra, stripe_account_id FROM firms WHERE user_id = ?"
+    )
     .get(userId) as
-    | { id: string; coverage_city: string; coverage_cities_extra: string | null }
+    | {
+        id: string;
+        coverage_city: string;
+        coverage_cities_extra: string | null;
+        stripe_account_id: string | null;
+      }
     | undefined;
 }
 

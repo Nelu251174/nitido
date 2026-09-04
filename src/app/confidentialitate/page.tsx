@@ -1,5 +1,14 @@
 import { LegalPage } from "@/components/LegalPage";
 
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Politica de confidențialitate",
+  description:
+    "Cum colectează și protejează Nitido datele tale personale, în acord cu GDPR. Datele de plată sunt procesate exclusiv de Stripe.",
+};
+
+
 export default function ConfidentialitatePage() {
   return (
     <LegalPage title="Politica de confidențialitate" updated="16 august 2026">

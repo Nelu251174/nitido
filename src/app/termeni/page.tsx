@@ -1,5 +1,14 @@
 import { LegalPage } from "@/components/LegalPage";
 
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Termeni și condiții",
+  description:
+    "Termenii și condițiile de utilizare a platformei Nitido — rolul platformei, conturi, plăți și responsabilități între clienți și firmele de curățenie.",
+};
+
+
 export default function TermeniPage() {
   return (
     <LegalPage title="Termeni și condiții" updated="16 august 2026">

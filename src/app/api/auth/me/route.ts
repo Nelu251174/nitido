@@ -18,7 +18,12 @@ export async function GET(req: NextRequest) {
     db.prepare("UPDATE users SET referral_code = ? WHERE id = ?").run(referralCode, user.id);
   }
 
-  let firm: { id: string; coverage_city: string; coverage_cities_extra: string | null } | null = null;
+  let firm: {
+    id: string;
+    coverage_city: string;
+    coverage_cities_extra: string | null;
+    stripe_account_id: string | null;
+  } | null = null;
   if (user.role === "firma") {
     firm = getFirmByUserId(user.id) ?? null;
   }

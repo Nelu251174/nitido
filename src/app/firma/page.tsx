@@ -70,6 +70,18 @@ export default function FirmaPage() {
     refresh();
   }
 
+  async function connectStripe() {
+    setMessage(null);
+    const res = await fetch("/api/firms/stripe/onboard", { method: "POST" });
+    const data = await res.json();
+    if (!res.ok || !data.url) {
+      setMessage(data.error ?? "Nu s-a putut porni conectarea plăților.");
+      return;
+    }
+    // Redirecționare către onboarding-ul găzduit de Stripe.
+    window.location.href = data.url;
+  }
+
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
@@ -121,6 +133,34 @@ export default function FirmaPage() {
             {message}
           </div>
         )}
+
+        {/* Conectare plăți Stripe — ca firma să încaseze automat suma netă */}
+        <section>
+          <Card>
+            {firm?.stripe_account_id ? (
+              <div className="flex items-center gap-3">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="flex-shrink-0">
+                  <circle cx="10" cy="10" r="10" fill="#17B8A6" />
+                  <path d="M5.5 10.2l2.7 2.7L14.5 6.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <div>
+                  <div className="font-display font-bold text-sm text-ink">Plăți conectate</div>
+                  <div className="text-sm text-muted">Încasezi automat suma netă după fiecare lucrare finalizată.</div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+                <div>
+                  <div className="font-display font-bold text-sm text-ink">Conectează-ți plățile</div>
+                  <div className="text-sm text-muted">
+                    Ca să încasezi banii pe lucrări, conectează un cont Stripe (o singură dată, câțiva pași).
+                  </div>
+                </div>
+                <Button onClick={connectStripe}>Conectează plățile</Button>
+              </div>
+            )}
+          </Card>
+        </section>
 
         <section>
           <h2 className="font-display font-bold text-ink mb-3">Alerte noi</h2>
