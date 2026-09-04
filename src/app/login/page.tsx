@@ -83,6 +83,12 @@ export default function LoginPage() {
           />
         </Field>
 
+        <div className="flex justify-end -mt-1 mb-3">
+          <Link href="/reset-parola" className="text-xs text-aqua-deep font-semibold">
+            Am uitat parola
+          </Link>
+        </div>
+
         {error && <p className="text-coral text-xs mb-3">{error}</p>}
 
         <Button type="submit" className="w-full" disabled={submitting}>
