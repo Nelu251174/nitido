@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { CITIES } from "@/lib/cities";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://nitido.ro";
 
@@ -20,10 +21,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/cookie-uri", priority: 0.3, changeFrequency: "yearly" },
   ];
 
-  return routes.map((r) => ({
+  const cityRoutes: MetadataRoute.Sitemap = CITIES.map((c) => ({
+    url: `${SITE_URL}/curatenie/${c.slug}`,
+    lastModified: now,
+    changeFrequency: "weekly",
+    priority: 0.7,
+  }));
+
+  const staticRoutes: MetadataRoute.Sitemap = routes.map((r) => ({
     url: `${SITE_URL}${r.path}`,
     lastModified: now,
     changeFrequency: r.changeFrequency,
     priority: r.priority,
   }));
+
+  return [...staticRoutes, ...cityRoutes];
 }

@@ -1,6 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  themeColor: "#142530",
+  colorScheme: "light",
+};
 
 const sora = localFont({
   src: [
@@ -48,9 +53,12 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true, "max-image-preview": "large" },
   },
-  // Codul de verificare Google Search Console se adaugă aici după ce Nelu
-  // revendică proprietatea în GSC (metoda „HTML tag"):
-  // verification: { google: "COD_GSC_AICI" },
+  // Verificarea Google Search Console se activează setând variabila de mediu
+  // GOOGLE_SITE_VERIFICATION (codul din metoda „HTML tag" din GSC) — fără
+  // nicio schimbare de cod, doar redeploy.
+  verification: process.env.GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.GOOGLE_SITE_VERIFICATION }
+    : undefined,
   openGraph: {
     title: "Nitido — Marketplace de curățenie în România",
     description:

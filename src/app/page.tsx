@@ -3,6 +3,7 @@ import { Logo } from "@/components/ui";
 import { PriceCalculator } from "@/components/PriceCalculator";
 import { Faq } from "@/components/Faq";
 import { db } from "@/lib/db";
+import { CITIES } from "@/lib/cities";
 
 // Fără asta, Next.js ar preda-randa homepage-ul static la build — statisticile
 // de mai jos ar rămâne înghețate la valorile din momentul build-ului, nu ar
@@ -321,6 +322,20 @@ export default function Home() {
               </li>
               <li className="text-muted">România</li>
             </ul>
+          </div>
+        </div>
+        <div className="border-t border-line">
+          <div className="max-w-6xl mx-auto px-6 py-8">
+            <h4 className="font-display font-bold text-xs uppercase tracking-wide text-muted mb-3">
+              Curățenie pe orașe
+            </h4>
+            <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+              {CITIES.map((c) => (
+                <Link key={c.slug} href={`/curatenie/${c.slug}`} className="text-muted hover:text-ink transition">
+                  Curățenie {c.name}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
         <div className="border-t border-line">
