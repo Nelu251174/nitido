@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import "@fontsource-variable/instrument-sans";
+import { PwaProvider } from "@/components/PwaProvider";
 
 const sora = localFont({
   src: [
@@ -27,6 +28,11 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://nitido.ro";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: "NITIDO.RO",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "NITIDO",
+  },
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -85,7 +91,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ro" className={`${sora.variable} ${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <PwaProvider />
+      </body>
     </html>
   );
 }

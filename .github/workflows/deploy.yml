@@ -1,0 +1,24 @@
+name: Deploy la Coolify
+
+# Robot de publicare: la fiecare push pe branch-ul live, declanșează automat
+# deploy-ul în Coolify. Poate fi pornit și manual (workflow_dispatch) — ex. de
+# către asistent, prin API GitHub. Astfel nu mai e nevoie de apăsat „Deploy".
+on:
+  push:
+    branches: [feat/design-handoff-website-mobile-v2]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Declanșează deploy Coolify
+        run: |
+          if [ -z "${{ secrets.COOLIFY_WEBHOOK }}" ]; then
+            echo "::error::Lipsește secretul COOLIFY_WEBHOOK. Adaugă-l în Settings → Secrets → Actions."
+            exit 1
+          fi
+          curl --fail --silent --show-error --location --request GET \
+            "${{ secrets.COOLIFY_WEBHOOK }}" \
+            --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
+          echo "Deploy declanșat cu succes în Coolify."
