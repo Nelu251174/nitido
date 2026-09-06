@@ -17,3 +17,20 @@ mobile/*.jks
 mobile/*.keystore
 mobile/credentials.json
 mobile/.eas/
+
+# --- Capacitor / mobil: artefacte de build (NU codul proiectului) ---
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties
+/android/.idea/
+/android/captures/
+/android/app/src/main/assets/public/
+/android/app/src/main/assets/capacitor.config.json
+/android/app/src/main/assets/capacitor.plugins.json
+/ios/App/Pods/
+/ios/App/build/
+/ios/DerivedData/
+/ios/App/App/public/
+/ios/App/App/capacitor.config.json
+.DS_Store
