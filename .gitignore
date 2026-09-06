@@ -34,3 +34,8 @@ mobile/.eas/
 /ios/App/App/public/
 /ios/App/App/capacitor.config.json
 .DS_Store
+
+# Generatorul @capacitor/assets creeaza astea, dar folosim manifestul DINAMIC
+# (src/app/manifest.ts). Nu le versionam ca sa nu umbreasca ruta dinamica.
+/public/manifest.webmanifest
+/icons/
