@@ -11,6 +11,10 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>
   const firm=getFirmByUserId(user.id);
   if(!firm) return NextResponse.json({error:"Profilul firmei nu a fost găsit"},{status:403});
   const {id}=await params;
+  // Acceptarea directă („primul care apasă") e permisă DOAR pe lucrările Express.
+  // Lucrările Standard se preiau prin ofertă (POST /api/jobs/[id]/offers) + selecția clientului.
+  const jobMode=db.prepare("SELECT mode FROM jobs WHERE id = ?").get(id) as {mode:string}|undefined;
+  if(jobMode&&jobMode.mode!=="express") return NextResponse.json({error:"Această lucrare se preia prin ofertă, nu prin acceptare directă",code:"NOT_EXPRESS"},{status:409});
   const result=await acceptJobAtomic(db,id,firm.id);
   if(!result.ok) return NextResponse.json({error:result.error,code:result.status===409?"ALREADY_TAKEN":"ACCEPT_FAILED"},{status:result.status});
   const updated=db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow;
