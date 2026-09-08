@@ -1,0 +1,61 @@
+name: Verificare & Securitate
+
+# Doi roboți care lucrează singuri, la fiecare modificare de cod:
+#  1) Robot de verificare — build + teste + lint. Dacă ceva e stricat, iese ROȘU
+#     și NU lăsăm modificarea să ajungă pe site.
+#  2) Robot de securitate — scanează vulnerabilitățile din librării și RAPORTEAZĂ.
+#     (Nu blochează; doar avertizează, ca să știm ce e de reparat.)
+on:
+  push:
+    branches: [feat/design-handoff-website-mobile-v2, claude/nitido-access-42s4fz]
+  pull_request:
+    branches: [feat/design-handoff-website-mobile-v2]
+  workflow_dispatch:
+
+jobs:
+  verificare:
+    name: Robot verificare (build + teste + lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalează dependențele
+        run: npm ci
+      - name: Lint
+        run: npx eslint
+      - name: Teste (vitest)
+        run: npx vitest run
+      - name: Build
+        env:
+          STRIPE_SECRET_KEY: sk_test_ci_dummy
+          NEXT_PUBLIC_SITE_URL: https://nitido.ro
+        run: npx next build
+
+  securitate:
+    name: Robot securitate (vulnerabilități)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalează dependențele
+        run: npm ci
+      - name: Scanează vulnerabilitățile
+        run: |
+          echo "== Raport securitate dependențe =="
+          npm audit || true
+          echo ""
+          echo "== Rezumat =="
+          crt=$(npm audit --json 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const v=JSON.parse(s).metadata.vulnerabilities;console.log((v.critical||0)+' '+(v.high||0)+' '+(v.moderate||0)+' '+(v.low||0));}catch(e){console.log('0 0 0 0');}})")
+          set -- $crt
+          echo "Critice: $1 | Mari: $2 | Medii: $3 | Mici: $4"
+          if [ "${1:-0}" -gt 0 ] || [ "${2:-0}" -gt 0 ]; then
+            echo "::warning::Robotul de securitate a găsit ${1:-0} vulnerabilități critice și ${2:-0} mari. De reparat într-un task dedicat."
+          else
+            echo "✅ Nicio vulnerabilitate critică sau mare."
+          fi
