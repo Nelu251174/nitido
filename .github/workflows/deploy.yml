@@ -13,12 +13,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Declanșează deploy Coolify
+        env:
+          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
         run: |
-          if [ -z "${{ secrets.COOLIFY_WEBHOOK }}" ]; then
+          if [ -z "$COOLIFY_WEBHOOK" ]; then
             echo "::error::Lipsește secretul COOLIFY_WEBHOOK. Adaugă-l în Settings → Secrets → Actions."
             exit 1
           fi
-          curl --fail --silent --show-error --location --request GET \
-            "${{ secrets.COOLIFY_WEBHOOK }}" \
-            --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
-          echo "Deploy declanșat cu succes în Coolify."
+
+          # Diagnostic: afișăm codul HTTP și răspunsul serverului (fără a expune secretele).
+          # Coolify întoarce în corp mesajul exact (ex. „Unauthenticated", „uuid invalid"),
+          # ceea ce ne spune dacă problema e tokenul sau adresa webhook-ului.
+          resp=$(curl -sS -w $'\n%{http_code}' --location --request GET \
+            "$COOLIFY_WEBHOOK" \
+            --header "Authorization: Bearer $COOLIFY_TOKEN" || true)
+
+          code=$(printf '%s' "$resp" | tail -n1)
+          body=$(printf '%s' "$resp" | sed '$d')
+
+          echo "== Cod HTTP: $code =="
+          echo "== Răspuns server: =="
+          echo "$body"
+
+          if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
+            echo "✅ Deploy declanșat cu succes în Coolify."
+          else
+            echo "::error::Serverul a respins cererea (HTTP $code). Vezi răspunsul de mai sus."
+            exit 1
+          fi
