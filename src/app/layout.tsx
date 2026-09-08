@@ -49,7 +49,7 @@ export const metadata: Metadata = {
     template: "%s — NITIDO.RO",
   },
   description:
-    "Postezi o lucrare de curățenie, firmele verificate din zona ta sunt notificate instant și prima care acceptă o preia. Preț fix afișat de la început, plată securizată.",
+    "Postezi o lucrare de curățenie, primești oferte de la firme verificate din zona ta și alegi pe calitate. Pentru urgențe, Nitido Express preia instant. Preț fix afișat de la început, plată securizată.",
   keywords: [
     "curățenie apartament",
     "firme de curățenie",

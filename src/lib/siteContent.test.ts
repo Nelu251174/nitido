@@ -37,7 +37,7 @@ describe("footer and information pages", () => {
   it("contains the required product and trust headings", () => {
     expect(read("src/app/cum-functioneaza/page.tsx")).toContain("Cum funcționează NITIDO.RO");
     expect(read("src/app/pentru-clienti/page.tsx")).toContain("Ce este NITIDO.RO pentru client");
-    expect(read("src/app/pentru-firme/page.tsx")).toContain("Regula first valid Accept");
+    expect(read("src/app/pentru-firme/page.tsx")).toContain("Alocare confirmată de server");
     expect(read("src/app/cariere/page.tsx")).toContain("Momentan nu avem poziții publicate");
     expect(read("src/app/siguranta/page.tsx")).toContain("Limitele Asistentului AI");
   });
