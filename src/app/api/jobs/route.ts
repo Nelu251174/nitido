@@ -84,6 +84,7 @@ export async function GET(req: NextRequest) {
       sqm: j.sqm,
       space_type: j.space_type,
       when_type: j.when_type,
+      mode: j.mode,
       scheduled_at: j.scheduled_at,
       price_gross: j.price_gross,
       firm_payout: calcNetForFirm(j.price_gross),
@@ -92,7 +93,15 @@ export async function GET(req: NextRequest) {
       created_at: j.created_at,
     };
   });
-  return NextResponse.json({ jobs: jobsWithPhotos });
+  // Pentru firme: lista lucrărilor la care firma a trimis deja o ofertă (ca UI-ul
+  // să arate „Ofertă trimisă" în loc de butonul de ofertă).
+  let offeredJobIds: string[] = [];
+  if (user.role === "firma" && firmId) {
+    offeredJobIds = (db
+      .prepare("SELECT job_id FROM offers WHERE firm_id = ? AND status IN ('pending','accepted')")
+      .all(firmId) as { job_id: string }[]).map((o) => o.job_id);
+  }
+  return NextResponse.json({ jobs: jobsWithPhotos, offeredJobIds });
 }
 
 export async function POST(req: NextRequest) {
@@ -121,6 +130,7 @@ export async function POST(req: NextRequest) {
     sqm,
     spaceType,
     whenType,
+    mode, // 'express' (urgențe, primul care acceptă) | 'standard' (oferte, clientul alege)
     scheduledDate, // ISO date string (ziua aleasă), doar dacă whenType === 'scheduled'
     scheduledHour, // oră din SLOT_HOURS, doar dacă whenType === 'scheduled'
     photoIds,
@@ -133,11 +143,16 @@ export async function POST(req: NextRequest) {
     sqm: number;
     spaceType: SpaceType;
     whenType: "asap" | "scheduled";
+    mode?: "express" | "standard";
     scheduledDate?: string;
     scheduledHour?: number;
     photoIds?: string[];
     details?: string;
   };
+
+  // Modul de preluare. Implicit 'express' dacă nu e trimis (compatibilitate cu
+  // apeluri vechi); UI-ul nou trimite mereu explicit alegerea clientului.
+  const jobMode: "express" | "standard" = mode === "standard" ? "standard" : "express";
 
   const validSpaceTypes: readonly SpaceType[] = ["apartament", "casa", "birou", "altul"];
   const requestId = req.headers.get("Idempotency-Key")?.trim() || null;
@@ -225,9 +240,9 @@ export async function POST(req: NextRequest) {
     db.prepare(
       `INSERT INTO jobs
         (id, client_id, street, postal_code, city, floor, details, client_request_id, sqm, space_type, when_type,
-         scheduled_at, price_gross, credit_applied, duration_minutes, buffer_minutes, photos_count, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting')`
-    ).run(id,user.id,street,postalCode ?? null,city,floor ?? null,typeof details === "string" ? details.trim() || null : null,requestId,sqm,spaceType,whenType,scheduledAt.toISOString(),priceGross,creditUsed,durationMinutes,BUFFER_MINUTES,ownedPhotoIds.length);
+         scheduled_at, price_gross, credit_applied, duration_minutes, buffer_minutes, photos_count, mode, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting')`
+    ).run(id,user.id,street,postalCode ?? null,city,floor ?? null,typeof details === "string" ? details.trim() || null : null,requestId,sqm,spaceType,whenType,scheduledAt.toISOString(),priceGross,creditUsed,durationMinutes,BUFFER_MINUTES,ownedPhotoIds.length,jobMode);
     if (ownedPhotoIds.length > 0) {
       const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL");
       for (const photoId of ownedPhotoIds) linkPhoto.run(id, photoId, user.id);
