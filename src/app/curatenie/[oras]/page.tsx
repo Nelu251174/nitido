@@ -54,7 +54,7 @@ export default async function CityPage({ params }: { params: Promise<{ oras: str
             title: "Cum funcționează",
             items: [
               `Postezi lucrarea (adresă ${city.prepositional}, tip spațiu, suprafață) și vezi prețul înainte de publicare.`,
-              "Firmele verificate din zonă sunt notificate simultan. Prima care apasă Accept preia lucrarea.",
+              "Firmele verificate din zonă sunt notificate. Primești oferte și alegi firma pe calitate — sau, pentru urgențe, prima firmă disponibilă preia instant cu Nitido Express.",
               "Plata se rezervă la acceptare și se decontează după finalizarea confirmată.",
             ],
           },
