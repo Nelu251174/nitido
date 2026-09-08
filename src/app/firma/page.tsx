@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Logo, Card, Button } from "@/components/ui";
+import { Logo, Card, Button, inputClass } from "@/components/ui";
 import { calcNetForFirm } from "@/lib/pricing";
 import { mapsDirectionsUrl } from "@/lib/maps";
 import { JobRow } from "@/lib/types";
@@ -14,6 +14,8 @@ export default function FirmaPage() {
   const { user, firm, loading } = useCurrentUser();
   const [waitingJobs, setWaitingJobs] = useState<JobRow[]>([]);
   const [myJobs, setMyJobs] = useState<JobRow[]>([]);
+  const [offeredJobIds, setOfferedJobIds] = useState<string[]>([]);
+  const [offerMsgs, setOfferMsgs] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [uploadingProof, setUploadingProof] = useState<string | null>(null);
   const [trustProfile, setTrustProfile] = useState<{firms:{average_rating:number|null;review_count:number;completed_jobs:number;verified:number}[];reviews:{id:string;rating:number;reviewText:string|null;reviewer:string;badge:string}[]}>({firms:[],reviews:[]});
@@ -35,6 +37,7 @@ export default function FirmaPage() {
     const allData = await allRes.json();
     if(trustRes.ok) setTrustProfile(await trustRes.json());
     setWaitingJobs(waitingData.jobs);
+    setOfferedJobIds(waitingData.offeredJobIds ?? []);
     setMyJobs(
       (allData.jobs as JobRow[]).filter(
         (j) => j.accepted_firm_id === firm.id && j.status !== "no_show"
@@ -61,6 +64,19 @@ export default function FirmaPage() {
       setMessage(data.error ?? "Nu s-a putut accepta lucrarea");
     }
     refresh();
+  }
+
+  async function sendOffer(jobId: string, message: string) {
+    if (!firm) return;
+    setMessage(null);
+    const res = await fetch(`/api/jobs/${jobId}/offers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    });
+    const data = await res.json();
+    setMessage(res.ok ? "Ofertă trimisă! Clientul alege dintre firmele care au ofertat." : data.error ?? "Nu s-a putut trimite oferta");
+    await refresh();
   }
 
   async function markArrived(jobId: string) {
@@ -164,8 +180,8 @@ export default function FirmaPage() {
                 key={job.id}
                 className="bg-white border-2 border-coral rounded-2xl p-4 relative"
               >
-                <span className="inline-block bg-coral text-white text-[10px] font-display font-bold px-2.5 py-1 rounded-full mb-2">
-                  🔔 LUCRARE NOUĂ
+                <span className={`inline-block text-white text-[10px] font-display font-bold px-2.5 py-1 rounded-full mb-2 ${job.mode === "standard" ? "bg-aqua-deep" : "bg-coral"}`}>
+                  {job.mode === "standard" ? "✦ CERE OFERTĂ (STANDARD)" : "⚡ URGENT — EXPRESS"}
                 </span>
                 <div className="font-display font-bold text-sm text-ink">
                   Curățenie {job.space_type}, {job.city}
@@ -191,9 +207,30 @@ export default function FirmaPage() {
                 <div className="font-display font-extrabold text-lg text-aqua-deep mb-3">
                   {calcNetForFirm(job.price_gross)} lei
                 </div>
-                <Button className="w-full" onClick={() => accept(job.id)}>
-                  Accept lucrarea
-                </Button>
+                {job.mode === "standard" ? (
+                  offeredJobIds.includes(job.id) ? (
+                    <div className="text-center text-sm font-display font-bold text-aqua-deep bg-aqua/10 rounded-lg py-2.5">
+                      ✓ Ofertă trimisă — clientul alege
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <textarea
+                        className={`${inputClass} min-h-16 resize-y text-sm`}
+                        maxLength={500}
+                        placeholder="Mesaj scurt pentru client (opțional): disponibilitate, experiență…"
+                        value={offerMsgs[job.id] ?? ""}
+                        onChange={(e) => setOfferMsgs((m) => ({ ...m, [job.id]: e.target.value }))}
+                      />
+                      <Button className="w-full" onClick={() => sendOffer(job.id, offerMsgs[job.id] ?? "")}>
+                        Trimite ofertă
+                      </Button>
+                    </div>
+                  )
+                ) : (
+                  <Button className="w-full" onClick={() => accept(job.id)}>
+                    Accept lucrarea
+                  </Button>
+                )}
               </div>
             ))}
           </div>

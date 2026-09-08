@@ -26,6 +26,18 @@ interface UploadedPhoto {
   url: string;
 }
 
+interface OfferView {
+  offerId: string;
+  firmId: string;
+  firmName: string;
+  message: string | null;
+  status: string;
+  ratingAvg: number | null;
+  ratingCount: number;
+  completedJobs: number;
+  createdAt: string;
+}
+
 export default function ClientPage() {
   const router = useRouter();
   const { user, loading } = useCurrentUser();
@@ -37,6 +49,7 @@ export default function ClientPage() {
   const [sqm, setSqm] = useState(75);
   const [spaceType, setSpaceType] = useState<SpaceType>("apartament");
   const [whenType, setWhenType] = useState<"asap" | "scheduled">("asap");
+  const [mode, setMode] = useState<"express" | "standard">("standard");
   const [scheduledDate, setScheduledDate] = useState<Date>(new Date());
   const [scheduledHour, setScheduledHour] = useState<number | null>(null);
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
@@ -48,6 +61,8 @@ export default function ClientPage() {
   const [submitting, setSubmitting] = useState(false);
   const [ratingDone, setRatingDone] = useState(false);
   const [myJobs, setMyJobs] = useState<JobRow[]>([]);
+  const [offers, setOffers] = useState<OfferView[]>([]);
+  const [choosing, setChoosing] = useState<string | null>(null);
   const [hasCard, setHasCard] = useState<boolean | null>(null); // null = se încarcă
   const [cardBusy, setCardBusy] = useState(false);
 
@@ -162,6 +177,7 @@ export default function ClientPage() {
         sqm,
         spaceType,
         whenType,
+        mode,
         photoIds: photos.map((p) => p.id),
       };
       if (whenType === "scheduled") {
@@ -197,7 +213,30 @@ export default function ClientPage() {
     const data = await res.json();
     setJob(data.job);
     setFirmName(data.firmName);
+    // Lucrare Standard încă în așteptare → aducem ofertele primite de la firme.
+    if (data.job?.status === "waiting" && data.job?.mode === "standard") {
+      const oRes = await fetch(`/api/jobs/${job.id}/offers`);
+      if (oRes.ok) setOffers((await oRes.json()).offers ?? []);
+    }
   }, [job?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function chooseOffer(offerId: string) {
+    if (!job) return;
+    setError(null);
+    setChoosing(offerId);
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/offers/${offerId}`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Nu s-a putut alege oferta");
+        return;
+      }
+      setJob(data.job);
+      refreshMyJobs();
+    } finally {
+      setChoosing(null);
+    }
+  }
 
   useEffect(() => {
     if (!job) return;
@@ -301,6 +340,28 @@ export default function ClientPage() {
                 ))}
               </select>
             </Field>
+
+            <span className="block text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1">
+              Cum vrei să alegi firma?
+            </span>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => setMode("standard")}
+                className={`text-left p-3 rounded-xl border ${mode === "standard" ? "border-aqua bg-aqua/10" : "border-line"}`}
+              >
+                <span className="block font-display font-bold text-xs text-ink">✦ Primesc oferte</span>
+                <span className="block text-[11px] text-muted mt-0.5 leading-tight">Mai multe firme, aleg eu pe calitate. Recomandat.</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("express")}
+                className={`text-left p-3 rounded-xl border ${mode === "express" ? "border-coral bg-coral/10" : "border-line"}`}
+              >
+                <span className="block font-display font-bold text-xs text-ink">⚡ Express (urgent)</span>
+                <span className="block text-[11px] text-muted mt-0.5 leading-tight">Prima firmă disponibilă preia imediat.</span>
+              </button>
+            </div>
 
             <span className="block text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1">
               Când?
@@ -468,21 +529,60 @@ export default function ClientPage() {
         {job && job.status === "waiting" && (
           <Card>
             <h1 className="font-display font-extrabold text-xl text-ink mb-1">Lucrare postată!</h1>
-            <p className="text-sm text-muted mb-2">
-              Firmele din zonă au primit alerta acum. Așteptăm acceptare.
-            </p>
-            {job.scheduled_at && (
-              <p className="text-xs text-muted">
-                Interval rezervat: {formatInterval(new Date(job.scheduled_at), calcBlockedMinutes(job.sqm))}
-              </p>
+            {job.mode === "standard" ? (
+              <>
+                <p className="text-sm text-muted mb-3">
+                  Firmele verificate din zonă trimit oferte. Alege firma care îți place — pe calitate, nu pe noroc.
+                </p>
+                {offers.length === 0 ? (
+                  <div className="rounded-xl border border-line bg-mist p-4 text-sm text-muted">
+                    Așteptăm primele oferte… firmele din zonă au fost notificate.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="text-[11px] uppercase tracking-wide text-aqua-deep font-bold">
+                      {offers.length} {offers.length === 1 ? "ofertă primită" : "oferte primite"}
+                    </div>
+                    {offers.map((o) => (
+                      <div key={o.offerId} className="rounded-xl border border-line p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="font-display font-bold text-sm text-ink truncate">{o.firmName}</div>
+                            <div className="text-[11.5px] text-muted mt-0.5">
+                              {o.ratingAvg != null ? `★ ${o.ratingAvg.toFixed(1)} (${o.ratingCount})` : "firmă nouă"} · {o.completedJobs} lucrări finalizate
+                            </div>
+                          </div>
+                          <Button onClick={() => chooseOffer(o.offerId)} disabled={choosing !== null}>
+                            {choosing === o.offerId ? "Se alege…" : "Alege"}
+                          </Button>
+                        </div>
+                        {o.message && (
+                          <p className="text-sm text-muted mt-2 border-t border-line pt-2">{o.message}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted mb-2">
+                  Firmele din zonă au primit alerta acum. Așteptăm acceptare.
+                </p>
+                {job.scheduled_at && (
+                  <p className="text-xs text-muted">
+                    Interval rezervat: {formatInterval(new Date(job.scheduled_at), calcBlockedMinutes(job.sqm))}
+                  </p>
+                )}
+                <StatusTrack
+                  steps={[
+                    { label: "Alertă trimisă către firme", done: true },
+                    { label: "Așteaptă acceptare...", done: false },
+                    { label: "Confirmată", done: false },
+                  ]}
+                />
+              </>
             )}
-            <StatusTrack
-              steps={[
-                { label: "Alertă trimisă către firme", done: true },
-                { label: "Așteaptă acceptare...", done: false },
-                { label: "Confirmată", done: false },
-              ]}
-            />
             <ProofGallery proofs={job.proofs ?? []}/>
           </Card>
         )}
