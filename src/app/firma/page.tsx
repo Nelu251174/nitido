@@ -245,6 +245,7 @@ export default function FirmaPage() {
             {activeJobs.map((job) => (
               <Card key={job.id}>
                 {(() => { const hasArrival=job.proofs?.some(p=>p.type==="ARRIVAL")??false; const hasCompletion=job.proofs?.some(p=>p.type==="COMPLETION")??false; return <>
+                {job.guarantee_of && <span className="inline-block bg-[#a9781f] text-white text-[10px] font-display font-bold px-2.5 py-1 rounded-full mb-2">♻ RE-CURĂȚARE ÎN GARANȚIE · gratuită</span>}
                 <a
                   href={mapsDirectionsUrl(job)}
                   target="_blank"

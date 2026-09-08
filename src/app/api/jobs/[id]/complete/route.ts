@@ -26,18 +26,23 @@ export async function POST(
   if (!result.ok) return NextResponse.json({error:result.error},{status:result.status});
   db.prepare("DELETE FROM job_live_locations WHERE job_id=?").run(id);
 
-  try {
-    await capturePayment(db, id);
-  } catch (err) {
-    // Nu ascundem o eroare de capturare: lucrarea a fost finalizată operațional,
-    // iar reconcilierea plății trebuie tratată explicit de admin/ops.
-    return NextResponse.json(
-      {
-        error: "Lucrarea a fost finalizată, dar capturarea plății a eșuat",
-        detail: err instanceof Error ? err.message : "eroare necunoscută",
-      },
-      { status: 502 }
-    );
+  // Re-curățările în garanție (Nitido Guaranteed) sunt gratuite: preț 0, fără
+  // plată de capturat. Sărim peste capturare pentru ele.
+  const guaranteeRow = db.prepare("SELECT guarantee_of FROM jobs WHERE id=?").get(id) as {guarantee_of:string|null}|undefined;
+  if (!guaranteeRow?.guarantee_of) {
+    try {
+      await capturePayment(db, id);
+    } catch (err) {
+      // Nu ascundem o eroare de capturare: lucrarea a fost finalizată operațional,
+      // iar reconcilierea plății trebuie tratată explicit de admin/ops.
+      return NextResponse.json(
+        {
+          error: "Lucrarea a fost finalizată, dar capturarea plății a eșuat",
+          detail: err instanceof Error ? err.message : "eroare necunoscută",
+        },
+        { status: 502 }
+      );
+    }
   }
 
   const job = db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow;

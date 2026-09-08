@@ -79,6 +79,7 @@ export default function ClientPage() {
   const [myJobs, setMyJobs] = useState<JobRow[]>([]);
   const [offers, setOffers] = useState<OfferView[]>([]);
   const [choosing, setChoosing] = useState<string | null>(null);
+  const [guaranteeEligible, setGuaranteeEligible] = useState(false);
   const [hasCard, setHasCard] = useState<boolean | null>(null); // null = se încarcă
   const [cardBusy, setCardBusy] = useState(false);
 
@@ -262,6 +263,12 @@ export default function ClientPage() {
     }
   }, [job?.status, job?.id, poll]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const c = job?.completed_at;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- eligibilitate garanție calculată la schimbarea lucrării
+    setGuaranteeEligible(!!c && Date.now() - new Date(c).getTime() <= 48 * 3600 * 1000);
+  }, [job?.id, job?.status, job?.completed_at]);
+
   async function submitRating(stars: number, reviewText: string) {
     if (!job) return;
     const res = await fetch(`/api/jobs/${job.id}/rating`, {
@@ -270,6 +277,19 @@ export default function ClientPage() {
       body: JSON.stringify({ stars, reviewText }),
     });
     if (res.ok) setRatingDone(true);
+  }
+
+  async function requestGuarantee() {
+    if (!job) return;
+    setError(null);
+    const res = await fetch(`/api/jobs/${job.id}/reclean`, { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error ?? "Nu s-a putut cere re-curățarea");
+      return;
+    }
+    setJob(data.job); // urmărim de acum lucrarea de re-curățare
+    refreshMyJobs();
   }
 
   function resetToForm() {
@@ -644,6 +664,20 @@ export default function ClientPage() {
           <Card>
             <h1 className="font-display font-bold text-lg text-ink mb-2">Mulțumim!</h1>
             <p className="text-sm text-muted mb-4">{job.ownReview?`${job.ownReview.rating} / 5 · ${job.ownReview.badge}${job.ownReview.reviewText?` — ${job.ownReview.reviewText}`:""}`:"Rating-ul tău a fost înregistrat."}</p>
+            {guaranteeEligible && (
+              <div className="mb-4 rounded-xl border border-line bg-mist p-3.5">
+                <div className="text-sm font-bold text-ink flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-[#a9781f] bg-[#f7efdd] rounded-full px-2 py-0.5">Nitido Guaranteed</span>
+                  Nu ești mulțumit?
+                </div>
+                <p className="text-[11.5px] text-muted mt-1 leading-relaxed">
+                  Ai garanție: trimitem gratuit aceeași echipă înapoi. Valabil 48h de la finalizare.
+                </p>
+                <Button variant="outline" className="w-full mt-2.5" onClick={requestGuarantee}>
+                  Cere re-curățare gratuită
+                </Button>
+              </div>
+            )}
             <Button variant="outline" className="w-full" onClick={resetToForm}>
               Postează o nouă lucrare
             </Button>
