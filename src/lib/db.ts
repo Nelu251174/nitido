@@ -94,6 +94,9 @@ CREATE TABLE IF NOT EXISTS jobs (
   -- Implicit 'express' ca să NU schimbe comportamentul lucrărilor deja existente.
   mode TEXT NOT NULL DEFAULT 'express'
     CHECK (mode IN ('express','standard')),
+  -- Nitido Guaranteed (Etapa 3): dacă lucrarea e o re-curățare gratuită în
+  -- garanție, aici e id-ul lucrării originale pe care o repară.
+  guarantee_of TEXT REFERENCES jobs(id),
   status TEXT NOT NULL DEFAULT 'waiting'
     CHECK (status IN ('waiting','accepted','arrived','completed','cancelled','no_show')),
   accepted_firm_id TEXT REFERENCES firms(id),
@@ -354,6 +357,8 @@ ensureColumn("jobs", "client_request_id", "TEXT");
 // ca să nu se schimbe comportamentul actual). CHECK-ul e aplicat doar pe baze
 // noi (via SCHEMA_SQL); pe cele existente rămâne o coloană TEXT simplă cu default.
 ensureColumn("jobs", "mode", "TEXT NOT NULL DEFAULT 'express'");
+// Etapa 3 — legătura de garanție (re-curățare gratuită).
+ensureColumn("jobs", "guarantee_of", "TEXT REFERENCES jobs(id)");
 ensureColumn("job_photos", "owner_user_id", "TEXT REFERENCES users(id)");
 ensureColumn("job_photos", "uploaded_by_firm_id", "TEXT REFERENCES firms(id)");
 ensureColumn("job_photos", "proof_type", "TEXT NOT NULL DEFAULT 'CLIENT_CONTEXT'");

@@ -19,6 +19,7 @@ export interface JobRow {
   space_type: "apartament" | "casa" | "birou" | "altul";
   when_type: "asap" | "scheduled";
   mode?: "express" | "standard";
+  guarantee_of?: string | null;
   scheduled_at: string | null;
   price_gross: number;
   credit_applied: number;
