@@ -301,6 +301,30 @@ CREATE TABLE IF NOT EXISTS offers (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_offers_one_per_firm_job ON offers(job_id, firm_id);
 CREATE INDEX IF NOT EXISTS idx_offers_job ON offers(job_id, status);
+
+-- Nitido Repeat (Etapa 3): abonamente recurente — aceeași echipă, la interval fix.
+-- Planul păstrează șablonul lucrării; sistemul generează automat următoarea
+-- lucrare când e scadentă (next_run_date) și o alocă firmei preferate.
+CREATE TABLE IF NOT EXISTS recurring_plans (
+  id TEXT PRIMARY KEY,
+  client_id TEXT NOT NULL REFERENCES users(id),
+  preferred_firm_id TEXT REFERENCES firms(id),
+  frequency TEXT NOT NULL CHECK (frequency IN ('weekly','biweekly','monthly')),
+  street TEXT NOT NULL,
+  postal_code TEXT,
+  city TEXT NOT NULL,
+  floor TEXT,
+  sqm REAL NOT NULL,
+  space_type TEXT NOT NULL CHECK (space_type IN ('apartament','casa','birou','altul')),
+  hour INTEGER NOT NULL,
+  details TEXT,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','paused','cancelled')),
+  next_run_date TEXT NOT NULL,
+  last_job_id TEXT REFERENCES jobs(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_recurring_due ON recurring_plans(status, next_run_date);
+CREATE INDEX IF NOT EXISTS idx_recurring_client ON recurring_plans(client_id, status);
 `;
 
 db.exec(SCHEMA_SQL);
