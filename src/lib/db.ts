@@ -88,6 +88,12 @@ CREATE TABLE IF NOT EXISTS jobs (
   duration_minutes INTEGER NOT NULL,
   buffer_minutes INTEGER NOT NULL DEFAULT 30,
   photos_count INTEGER NOT NULL DEFAULT 0,
+  -- Modul de preluare al lucrării (repoziționare „Etapa 2"):
+  --   'express'  = urgențe → prima firmă disponibilă preia direct (acceptJobAtomic)
+  --   'standard' = restul pieței → firmele trimit ofertă, clientul alege pe calitate
+  -- Implicit 'express' ca să NU schimbe comportamentul lucrărilor deja existente.
+  mode TEXT NOT NULL DEFAULT 'express'
+    CHECK (mode IN ('express','standard')),
   status TEXT NOT NULL DEFAULT 'waiting'
     CHECK (status IN ('waiting','accepted','arrived','completed','cancelled','no_show')),
   accepted_firm_id TEXT REFERENCES firms(id),
@@ -278,6 +284,23 @@ CREATE TABLE IF NOT EXISTS job_live_locations (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_live_locations_firm ON job_live_locations(firm_id,updated_at);
+
+-- Oferte pentru lucrările în mod 'standard' (repoziționare „Etapa 2"):
+-- fiecare firmă verificată din zonă poate trimite O SINGURĂ ofertă per lucrare;
+-- clientul vede ofertele (cu semnalele de calitate) și alege una. Prețul rămâne
+-- fix (calcGrossPrice) — oferta e interes + mesaj, nu negociere de preț.
+CREATE TABLE IF NOT EXISTS offers (
+  id TEXT PRIMARY KEY,
+  job_id TEXT NOT NULL REFERENCES jobs(id),
+  firm_id TEXT NOT NULL REFERENCES firms(id),
+  message TEXT,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','accepted','rejected','withdrawn')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_offers_one_per_firm_job ON offers(job_id, firm_id);
+CREATE INDEX IF NOT EXISTS idx_offers_job ON offers(job_id, status);
 `;
 
 db.exec(SCHEMA_SQL);
@@ -303,6 +326,10 @@ ensureColumn("users", "stripe_payment_method_id", "TEXT");
 ensureColumn("jobs", "credit_applied", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("jobs", "details", "TEXT");
 ensureColumn("jobs", "client_request_id", "TEXT");
+// Etapa 2 — modul de preluare (implicit 'express' pentru lucrările existente,
+// ca să nu se schimbe comportamentul actual). CHECK-ul e aplicat doar pe baze
+// noi (via SCHEMA_SQL); pe cele existente rămâne o coloană TEXT simplă cu default.
+ensureColumn("jobs", "mode", "TEXT NOT NULL DEFAULT 'express'");
 ensureColumn("job_photos", "owner_user_id", "TEXT REFERENCES users(id)");
 ensureColumn("job_photos", "uploaded_by_firm_id", "TEXT REFERENCES firms(id)");
 ensureColumn("job_photos", "proof_type", "TEXT NOT NULL DEFAULT 'CLIENT_CONTEXT'");
