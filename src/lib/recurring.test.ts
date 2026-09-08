@@ -82,6 +82,18 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     expect(created).toHaveLength(0);
   });
 
+  it("generarea filtrată pe client afectează doar planurile clientului dat", async () => {
+    seedClientAndFirm(db);
+    db.prepare("INSERT INTO users (id, role, name) VALUES ('client_2','client','Alt Client')").run();
+    createRecurringPlan(db, { ...basePlan, preferredFirmId: "firm_pref", startDate: "2026-01-05" });
+    createRecurringPlan(db, { ...basePlan, clientId: "client_2", preferredFirmId: "firm_pref", startDate: "2026-01-05" });
+
+    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-06T09:00:00"), "client_1");
+    expect(created).toHaveLength(1);
+    const c2jobs = db.prepare("SELECT COUNT(*) AS n FROM jobs WHERE client_id='client_2'").get() as { n: number };
+    expect(c2jobs.n).toBe(0);
+  });
+
   it("un plan pe pauză nu generează lucrări", async () => {
     seedClientAndFirm(db);
     const r = createRecurringPlan(db, { ...basePlan, preferredFirmId: "firm_pref", startDate: "2026-01-05" });

@@ -38,6 +38,22 @@ interface OfferView {
   createdAt: string;
 }
 
+interface PlanView {
+  id: string;
+  frequency: "weekly" | "biweekly" | "monthly";
+  next_run_date: string;
+  status: string;
+  city: string;
+  sqm: number;
+  space_type: string;
+}
+
+const FREQ_LABELS: Record<string, string> = {
+  weekly: "Săptămânal",
+  biweekly: "La 2 săptămâni",
+  monthly: "Lunar",
+};
+
 export default function ClientPage() {
   const router = useRouter();
   const { user, loading } = useCurrentUser();
@@ -291,6 +307,7 @@ export default function ClientPage() {
         <div className="grid grid-cols-[minmax(0,1fr)_360px] gap-5 mt-7 max-[1100px]:grid-cols-1">
         <div className="min-w-0">
         {myJobs.length>0&&<section className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold">Lucrările mele</h2><span className="text-xs text-[#6b756f]">{myJobs.length} total</span></div><div className="mt-3 divide-y divide-[#e3e2da]">{myJobs.slice(0,5).map(item=><button key={item.id} onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[#e9f2ec] flex items-center justify-center text-[#14663a] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate">{item.space_type} · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm} m² · {item.status}</span></span><b className="text-sm">{item.price_gross} lei</b></button>)}</div></section>}
+        {!job && <RecurringSection defaults={{ street, postalCode, city, floor, sqm, spaceType }} />}
         {!job && user?.referral_code && (
           <ReferralCard code={user.referral_code} creditBalance={creditBalance} />
         )}
@@ -696,6 +713,130 @@ function ReferralCard({ code, creditBalance }: { code: string; creditBalance: nu
       {creditBalance > 0 && (
         <div className="text-[11.5px] text-aqua-deep font-semibold mt-2">
           Ai {creditBalance} lei credit disponibil — se aplică automat la următoarea lucrare.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RecurringSection({ defaults }: { defaults: { street: string; postalCode: string; city: string; floor: string; sqm: number; spaceType: SpaceType } }) {
+  const [plans, setPlans] = useState<PlanView[]>([]);
+  const [open, setOpen] = useState(false);
+  const [frequency, setFrequency] = useState<"weekly" | "biweekly" | "monthly">("weekly");
+  const [startDate, setStartDate] = useState(() => new Date(Date.now() + 86_400_000).toISOString().slice(0, 10));
+  const [hour, setHour] = useState(10);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const r = await fetch("/api/recurring");
+    if (r.ok) setPlans((await r.json()).plans ?? []);
+  }, []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- încărcare inițială a abonamentelor (client-only)
+    void load();
+  }, [load]);
+
+  async function create() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await fetch("/api/recurring", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...defaults, frequency, hour, startDate }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        setMsg(d.error ?? "Nu s-a putut crea abonamentul");
+        return;
+      }
+      setOpen(false);
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function changeStatus(id: string, status: string) {
+    await fetch(`/api/recurring/${id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    await load();
+  }
+
+  return (
+    <div className="v2-card p-5 mb-5">
+      <div className="flex items-center justify-between">
+        <h2 className="font-bold">
+          Abonament recurent{" "}
+          <span className="text-[11px] font-bold text-aqua-deep bg-aqua/10 rounded-full px-2 py-0.5 align-middle">Nitido Repeat</span>
+        </h2>
+        <button onClick={() => setOpen((o) => !o)} className="text-xs font-display font-bold text-aqua-deep">
+          {open ? "Închide" : "+ Adaugă"}
+        </button>
+      </div>
+      <p className="text-xs text-muted mt-1">Aceeași echipă, la interval fix. Se creează automat următoarea lucrare.</p>
+
+      {plans.length > 0 && (
+        <div className="mt-3 divide-y divide-[#e3e2da]">
+          {plans.map((p) => (
+            <div key={p.id} className="py-3 flex items-center gap-3">
+              <span className="w-10 h-10 rounded-lg bg-[#e9f2ec] flex items-center justify-center text-[#14663a] font-bold">↻</span>
+              <span className="min-w-0 flex-1">
+                <b className="text-sm block truncate">{FREQ_LABELS[p.frequency]} · {p.space_type} · {p.city}</b>
+                <span className="text-xs text-[#6b756f]">Următoarea: {p.next_run_date} · {p.status === "active" ? "activ" : p.status === "paused" ? "pe pauză" : p.status}</span>
+              </span>
+              {p.status !== "cancelled" && (
+                <span className="flex gap-2 flex-shrink-0">
+                  {p.status === "active" ? (
+                    <button onClick={() => changeStatus(p.id, "paused")} className="text-xs font-bold text-muted">Pauză</button>
+                  ) : (
+                    <button onClick={() => changeStatus(p.id, "active")} className="text-xs font-bold text-aqua-deep">Reia</button>
+                  )}
+                  <button onClick={() => changeStatus(p.id, "cancelled")} className="text-xs font-bold text-coral">Anulează</button>
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {open && (
+        <div className="mt-4 border-t border-line pt-4">
+          <p className="text-[11px] text-muted mb-2">
+            Se folosește adresa și spațiul din formularul de mai jos: <b>{defaults.spaceType}</b> · {defaults.sqm} m² · {defaults.city}.
+          </p>
+          <span className="block text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1">Frecvență</span>
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {(["weekly", "biweekly", "monthly"] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFrequency(f)}
+                className={`py-2 rounded-lg border text-[11px] font-display font-bold ${frequency === f ? "border-aqua bg-aqua/10 text-ink" : "border-line text-muted"}`}
+              >
+                {FREQ_LABELS[f]}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Prima dată">
+              <input type="date" className={inputClass} min={new Date().toISOString().slice(0, 10)} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </Field>
+            <Field label="Ora">
+              <select className={inputClass} value={hour} onChange={(e) => setHour(Number(e.target.value))}>
+                {SLOT_HOURS.map((h) => (
+                  <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          {msg && <p className="text-coral text-xs mt-1">{msg}</p>}
+          <Button className="w-full mt-3" onClick={create} disabled={busy}>
+            {busy ? "Se creează..." : "Creează abonamentul"}
+          </Button>
         </div>
       )}
     </div>

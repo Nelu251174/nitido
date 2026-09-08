@@ -141,12 +141,13 @@ export function setPlanStatus(
  */
 export async function generateDueRecurringJobs(
   db: Database,
-  now: Date = new Date()
+  now: Date = new Date(),
+  clientId?: string
 ): Promise<{ created: string[] }> {
   const today = ymd(now);
-  const due = db
-    .prepare("SELECT * FROM recurring_plans WHERE status = 'active' AND next_run_date <= ?")
-    .all(today) as PlanRow[];
+  const due = (clientId
+    ? db.prepare("SELECT * FROM recurring_plans WHERE status = 'active' AND next_run_date <= ? AND client_id = ?").all(today, clientId)
+    : db.prepare("SELECT * FROM recurring_plans WHERE status = 'active' AND next_run_date <= ?").all(today)) as PlanRow[];
 
   const created: string[] = [];
   for (const plan of due) {
