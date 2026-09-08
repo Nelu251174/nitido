@@ -29,7 +29,6 @@
     "twilio": "^6.1.0"
   },
   "devDependencies": {
-    "@capacitor/assets": "^3.0.5",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^9.6.0",
