@@ -22,12 +22,12 @@ jobs:
             exit 1
           fi
 
-          # Diagnostic: afișăm codul HTTP și răspunsul serverului (fără a expune secretele).
-          # Coolify întoarce în corp mesajul exact (ex. „Unauthenticated", „uuid invalid"),
-          # ceea ce ne spune dacă problema e tokenul sau adresa webhook-ului.
-          resp=$(curl -sS -w $'\n%{http_code}' --location --request GET \
+          # API-ul Coolify de deploy cere metoda POST. Afișăm codul HTTP și răspunsul
+          # (fără a expune secretele) ca să vedem clar rezultatul.
+          resp=$(curl -sS -w $'\n%{http_code}' --location --request POST \
             "$COOLIFY_WEBHOOK" \
-            --header "Authorization: Bearer $COOLIFY_TOKEN" || true)
+            --header "Authorization: Bearer $COOLIFY_TOKEN" \
+            --header "Accept: application/json" || true)
 
           code=$(printf '%s' "$resp" | tail -n1)
           body=$(printf '%s' "$resp" | sed '$d')
