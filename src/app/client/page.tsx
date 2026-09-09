@@ -18,12 +18,14 @@ import { JobRow } from "@/lib/types";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { applyCredit } from "@/lib/referral";
 import { PROPERTY_TYPE_LABELS } from "@/lib/jobTypeLabels";
+import { SCAN_ROOMS, scanRoomLabel } from "@/lib/nitidoScan";
 
 const DAY_NAMES = ["Dum", "Lun", "Mar", "Mie", "Joi", "Vin", "Sâm"];
 
 interface UploadedPhoto {
   id: string;
   url: string;
+  room: string | null;
 }
 
 interface OfferView {
@@ -160,7 +162,7 @@ export default function ClientPage() {
     }
   }
 
-  async function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>, room: string | null) {
     const files = Array.from(e.target.files ?? []).slice(0, 5 - photos.length);
     if (files.length === 0) return;
     setUploading(true);
@@ -168,10 +170,11 @@ export default function ClientPage() {
       for (const file of files) {
         const formData = new FormData();
         formData.append("file", file);
+        if (room) formData.append("room", room);
         const res = await fetch("/api/uploads", { method: "POST", body: formData });
         if (res.ok) {
           const data = await res.json();
-          setPhotos((prev) => [...prev, { id: data.id, url: data.url }]);
+          setPhotos((prev) => [...prev, { id: data.id, url: data.url, room: data.room ?? room }]);
         }
       }
     } finally {
@@ -501,40 +504,56 @@ export default function ClientPage() {
               </div>
             )}
 
-            <label className="block border border-dashed border-line rounded-lg p-4 text-center mb-2 cursor-pointer hover:border-aqua bg-white">
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                disabled={photos.length >= 5 || uploading}
-                onChange={handlePhotoSelect}
-              />
-              <div className="text-xl mb-0.5">📷</div>
-              <div className="font-display font-semibold text-xs">
-                {uploading
-                  ? "Se încarcă..."
-                  : photos.length > 0
-                  ? `${photos.length} poză(e) adăugate`
-                  : "Adaugă poze (opțional)"}
+            <div className="border border-line rounded-xl p-3.5 mb-2 bg-white">
+              <div className="flex items-center justify-between">
+                <span className="font-display font-semibold text-xs">📷 Nitido Scan (opțional)</span>
+                <span className="text-[10.5px] text-muted">{photos.length}/5 poze</span>
               </div>
-              <div className="text-[10.5px] text-muted mt-0.5">
-                Firmele acceptă mai repede lucrări cu context clar
-              </div>
-            </label>
-            {photos.length > 0 && (
-              <div className="flex gap-1.5 mb-2 flex-wrap">
-                {photos.map((p) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={p.id}
-                    src={p.url}
-                    alt="Poză lucrare"
-                    className="w-12 h-12 rounded-lg object-cover border border-line"
-                  />
+              <p className="text-[10.5px] text-muted mt-0.5 mb-2.5">
+                Fă câte o poză pe încăpere. Firma vede contextul clar și estimează mai bine.
+              </p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {SCAN_ROOMS.map((r) => (
+                  <label
+                    key={r.key}
+                    className={`flex flex-col items-center justify-center gap-0.5 border border-dashed border-line rounded-lg py-2 text-center text-[10.5px] font-semibold ${
+                      photos.length >= 5 || uploading
+                        ? "opacity-50 cursor-not-allowed"
+                        : "cursor-pointer hover:border-aqua"
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      disabled={photos.length >= 5 || uploading}
+                      onChange={(e) => handlePhotoSelect(e, r.key)}
+                    />
+                    <span className="text-base leading-none">＋</span>
+                    <span>{r.label}</span>
+                  </label>
                 ))}
               </div>
-            )}
+              {uploading && <div className="text-[10.5px] text-muted mt-2">Se încarcă…</div>}
+              {photos.length > 0 && (
+                <div className="flex gap-1.5 mt-2.5 flex-wrap">
+                  {photos.map((p) => (
+                    <div key={p.id} className="relative w-14">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={p.url}
+                        alt={`Poză ${scanRoomLabel(p.room)}`}
+                        className="w-14 h-14 rounded-lg object-cover border border-line"
+                      />
+                      <span className="block text-[9px] text-muted text-center mt-0.5 leading-tight">
+                        {scanRoomLabel(p.room)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <div className="bg-mist border border-aqua rounded-xl p-3.5 my-4">
               <div className="flex justify-between items-center">

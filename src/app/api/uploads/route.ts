@@ -5,6 +5,7 @@ import fs from "fs";
 import { getCurrentUser } from "@/lib/auth";
 import { consumeRateLimit, requestIp } from "@/lib/security";
 import { auditWorkflow, WorkProofType } from "@/lib/proofOfWork";
+import { normalizeScanRoom } from "@/lib/nitidoScan";
 
 // Upload real de poze la postarea lucrării — spec secțiunea 3, punct 2:
 // "Clientul poate încărca 1-5 poze cu spațiul de curățat."
@@ -50,6 +51,8 @@ export async function POST(req: NextRequest) {
   const file = formData.get("file");
   const jobId = String(formData.get("jobId") ?? "");
   const proofType = String(formData.get("proofType") ?? "").toUpperCase() as WorkProofType;
+  // Nitido Scan: eticheta încăperii pentru pozele de context ale clientului.
+  const contextLabel = normalizeScanRoom(formData.get("room"));
 
   if (!file || !(file instanceof File)) {
     return NextResponse.json({ error: "Niciun fișier primit" }, { status: 400 });
@@ -92,13 +95,14 @@ export async function POST(req: NextRequest) {
   fs.writeFileSync(path.join(UPLOAD_DIR, filename), buffer);
 
   // job_id rămâne NULL până la crearea lucrării (POST /api/jobs îl leagă apoi).
-  db.prepare("INSERT INTO job_photos (id, job_id, owner_user_id, proof_type, filename, mime_type, file_size, status, validated_at) VALUES (?, NULL, ?, 'CLIENT_CONTEXT', ?, ?, ?, 'VALID', datetime('now'))").run(
+  db.prepare("INSERT INTO job_photos (id, job_id, owner_user_id, proof_type, context_label, filename, mime_type, file_size, status, validated_at) VALUES (?, NULL, ?, 'CLIENT_CONTEXT', ?, ?, ?, ?, 'VALID', datetime('now'))").run(
     id,
     user.id,
+    contextLabel,
     filename,
     detected.mime,
     file.size
   );
 
-  return NextResponse.json({ id, url: `/api/uploads/${id}` }, { status: 201 });
+  return NextResponse.json({ id, url: `/api/uploads/${id}`, room: contextLabel }, { status: 201 });
 }
