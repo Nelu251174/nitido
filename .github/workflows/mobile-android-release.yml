@@ -65,8 +65,10 @@ jobs:
         env:
           NITIDO_KEYSTORE_PATH: ${{ runner.temp }}/nitido-upload.keystore
           NITIDO_KEYSTORE_PASSWORD: ${{ secrets.NITIDO_KEYSTORE_PASSWORD }}
-          NITIDO_KEY_ALIAS: ${{ secrets.NITIDO_KEY_ALIAS }}
-          NITIDO_KEY_PASSWORD: ${{ secrets.NITIDO_KEY_PASSWORD }}
+          # Alias-ul nu e secret (e mereu „nitido-upload"), iar cheia folosește
+          # aceeași parolă ca keystore-ul — așa OWNER adaugă doar 3 secrete.
+          NITIDO_KEY_ALIAS: nitido-upload
+          NITIDO_KEY_PASSWORD: ${{ secrets.NITIDO_KEYSTORE_PASSWORD }}
           # versionCode crește automat cu numărul rulării, ca Play să-l accepte mereu.
           NITIDO_VERSION_CODE: ${{ github.run_number }}
         run: |
