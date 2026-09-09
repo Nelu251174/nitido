@@ -19,6 +19,7 @@ import { useCurrentUser } from "@/lib/useCurrentUser";
 import { applyCredit } from "@/lib/referral";
 import { PROPERTY_TYPE_LABELS } from "@/lib/jobTypeLabels";
 import { SCAN_ROOMS, scanRoomLabel } from "@/lib/nitidoScan";
+import { EXPRESS_60_FEE_LEI } from "@/lib/express60";
 
 const DAY_NAMES = ["Dum", "Lun", "Mar", "Mie", "Joi", "Vin", "Sâm"];
 
@@ -87,6 +88,7 @@ export default function ClientPage() {
   const [spaceType, setSpaceType] = useState<SpaceType>("apartament");
   const [whenType, setWhenType] = useState<"asap" | "scheduled">("asap");
   const [mode, setMode] = useState<"express" | "standard">("standard");
+  const [express60, setExpress60] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<Date>(new Date());
   const [scheduledHour, setScheduledHour] = useState<number | null>(null);
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
@@ -183,13 +185,18 @@ export default function ClientPage() {
     }
   }
 
-  const price = useMemo(() => {
+  const basePrice = useMemo(() => {
     try {
       return calcGrossPrice(spaceType, sqm);
     } catch {
       return 0;
     }
   }, [spaceType, sqm]);
+
+  // Express 60 adaugă suplimentul premium la prețul brut (doar pentru „asap").
+  const express60Active = express60 && whenType === "asap";
+  const express60Fee = express60Active ? EXPRESS_60_FEE_LEI : 0;
+  const price = basePrice + express60Fee;
 
   const creditBalance = user?.credit_balance ?? 0;
   const { finalPrice, creditUsed } = applyCredit(price, creditBalance);
@@ -216,7 +223,8 @@ export default function ClientPage() {
         sqm,
         spaceType,
         whenType,
-        mode,
+        mode: express60Active ? "express" : mode,
+        express60: express60Active,
         photoIds: photos.map((p) => p.id),
       };
       if (whenType === "scheduled") {
@@ -423,6 +431,42 @@ export default function ClientPage() {
               </button>
             </div>
 
+            {/* Express 60 — tier premium: preluare garantată în 60 de minute. */}
+            <button
+              type="button"
+              onClick={() => {
+                const next = !express60;
+                setExpress60(next);
+                if (next) setWhenType("asap");
+              }}
+              className={`w-full text-left p-3 rounded-xl border mb-3 flex items-start gap-2.5 ${
+                express60Active ? "border-coral bg-coral/10" : "border-line"
+              }`}
+            >
+              <span
+                className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] ${
+                  express60Active ? "border-coral bg-coral text-white" : "border-line text-transparent"
+                }`}
+                aria-hidden="true"
+              >
+                ✓
+              </span>
+              <span className="flex-1">
+                <span className="flex items-center justify-between gap-2">
+                  <span className="font-display font-bold text-xs text-ink">🔥 Express 60 · preluare în 60 min</span>
+                  <span className="font-display font-bold text-xs text-coral shrink-0">+{EXPRESS_60_FEE_LEI} lei</span>
+                </span>
+                <span className="block text-[11px] text-muted mt-0.5 leading-tight">
+                  Garantat: o firmă preia în 60 de minute, prioritate maximă. Dacă nu, nu plătești suplimentul.
+                </span>
+              </span>
+            </button>
+            {express60 && whenType !== "asap" && (
+              <div className="text-[11px] text-coral bg-coral/5 rounded-lg px-3 py-2 mb-3">
+                Express 60 e disponibil doar pentru „Cât mai curând”. Alege-l mai jos.
+              </div>
+            )}
+
             <span className="block text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1">
               Când?
             </span>
@@ -556,6 +600,11 @@ export default function ClientPage() {
             </div>
 
             <div className="bg-mist border border-aqua rounded-xl p-3.5 my-4">
+              {express60Active && (
+                <div className="flex justify-between items-center text-[11.5px] text-muted mb-1.5 pb-1.5 border-b border-line/60">
+                  <span>Curățenie {basePrice} lei · 🔥 Express 60 +{express60Fee} lei</span>
+                </div>
+              )}
               <div className="flex justify-between items-center">
                 <span className="text-[11.5px] text-muted">
                   {creditUsed > 0 ? "Preț (după credit)" : "Preț estimat"}
@@ -645,6 +694,16 @@ export default function ClientPage() {
               </>
             ) : (
               <>
+                {job.express_60 ? (
+                  <div className="rounded-xl border border-coral bg-coral/10 p-3 mb-3">
+                    <div className="font-display font-bold text-sm text-ink">🔥 Express 60 activ</div>
+                    <p className="text-[12px] text-muted mt-0.5">
+                      Preluare garantată{job.express_60_deadline ? (
+                        <> până la <b className="text-ink">{new Date(job.express_60_deadline).toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" })}</b></>
+                      ) : " în 60 de minute"}. Dacă nicio firmă nu preia la timp, suplimentul nu se percepe.
+                    </p>
+                  </div>
+                ) : null}
                 <p className="text-sm text-muted mb-2">
                   Firmele din zonă au primit alerta acum. Așteptăm acceptare.
                 </p>

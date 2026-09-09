@@ -102,6 +102,15 @@ CREATE TABLE IF NOT EXISTS jobs (
   -- Nitido Guaranteed (Etapa 3): dacă lucrarea e o re-curățare gratuită în
   -- garanție, aici e id-ul lucrării originale pe care o repară.
   guarantee_of TEXT REFERENCES jobs(id),
+  -- Express 60 (Pachet C): tier premium cu preluare garantată în 60 min.
+  --   express_60           = 1 dacă lucrarea e Express 60 (retrogradat la 0 dacă garanția nu e respectată)
+  --   express_60_fee       = suplimentul (lei) inclus în price_gross la postare
+  --   express_60_deadline  = termenul garanției (postare + 60 min), ISO
+  --   express_60_status    = 'pending' | 'met' | 'breached' (NULL dacă nu e Express 60)
+  express_60 INTEGER NOT NULL DEFAULT 0,
+  express_60_fee INTEGER NOT NULL DEFAULT 0,
+  express_60_deadline TEXT,
+  express_60_status TEXT,
   status TEXT NOT NULL DEFAULT 'waiting'
     CHECK (status IN ('waiting','accepted','arrived','completed','cancelled','no_show')),
   accepted_firm_id TEXT REFERENCES firms(id),
@@ -383,6 +392,11 @@ ensureColumn("jobs", "client_request_id", "TEXT");
 ensureColumn("jobs", "mode", "TEXT NOT NULL DEFAULT 'express'");
 // Etapa 3 — legătura de garanție (re-curățare gratuită).
 ensureColumn("jobs", "guarantee_of", "TEXT REFERENCES jobs(id)");
+// Express 60 (Pachet C) — tier premium cu preluare garantată în 60 min.
+ensureColumn("jobs", "express_60", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("jobs", "express_60_fee", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("jobs", "express_60_deadline", "TEXT");
+ensureColumn("jobs", "express_60_status", "TEXT");
 ensureColumn("job_photos", "owner_user_id", "TEXT REFERENCES users(id)");
 ensureColumn("job_photos", "uploaded_by_firm_id", "TEXT REFERENCES firms(id)");
 ensureColumn("job_photos", "proof_type", "TEXT NOT NULL DEFAULT 'CLIENT_CONTEXT'");

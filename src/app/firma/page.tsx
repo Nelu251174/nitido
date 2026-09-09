@@ -190,11 +190,25 @@ export default function FirmaPage() {
             {waitingJobs.map((job) => (
               <div
                 key={job.id}
-                className="bg-white border-2 border-coral rounded-2xl p-4 relative"
+                className={`bg-white rounded-2xl p-4 relative ${job.express_60 ? "border-2 border-coral ring-2 ring-coral/30" : "border-2 border-coral"}`}
               >
-                <span className={`inline-block text-white text-[10px] font-display font-bold px-2.5 py-1 rounded-full mb-2 ${job.mode === "standard" ? "bg-aqua-deep" : "bg-coral"}`}>
-                  {job.mode === "standard" ? "✦ CERE OFERTĂ (STANDARD)" : "⚡ URGENT — EXPRESS"}
-                </span>
+                {job.express_60 ? (
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <span className="inline-block text-white text-[10px] font-display font-bold px-2.5 py-1 rounded-full bg-coral">
+                      🔥 EXPRESS 60 — PRIORITATE MAXIMĂ
+                    </span>
+                    {job.express_60_deadline && (
+                      <span className="text-[10.5px] font-display font-bold text-coral">
+                        Preluare garantată până la{" "}
+                        {new Date(job.express_60_deadline).toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span className={`inline-block text-white text-[10px] font-display font-bold px-2.5 py-1 rounded-full mb-2 ${job.mode === "standard" ? "bg-aqua-deep" : "bg-coral"}`}>
+                    {job.mode === "standard" ? "✦ CERE OFERTĂ (STANDARD)" : "⚡ URGENT — EXPRESS"}
+                  </span>
+                )}
                 <div className="font-display font-bold text-sm text-ink">
                   Curățenie {job.space_type}, {job.city}
                 </div>
