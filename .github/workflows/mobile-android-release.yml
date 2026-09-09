@@ -84,10 +84,19 @@ jobs:
           path: android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
 
+      # Detectează dacă e configurat contul de serviciu Play (secretele nu se pot
+      # folosi direct într-un `if`, așa că verificăm aici și expunem un output).
+      - name: Detectează contul de serviciu Play
+        id: sa
+        env:
+          SA: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$SA" ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+
       # Se urcă pe Play DOAR dacă e configurat contul de serviciu. Fără el,
       # robotul tot produce .aab-ul semnat (ca artefact) — util înainte de setup.
       - name: Urcă pe Google Play (canal: testare internă)
-        if: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON != '' }}
+        if: ${{ steps.sa.outputs.present == 'true' }}
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
