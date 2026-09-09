@@ -10,6 +10,7 @@ import { LivePriceEstimator } from "@/components/LivePriceEstimator";
 import { getActiveEstimatorOptions } from "@/lib/estimatorConfig";
 import { HeroJobCard } from "@/components/HeroJobCard";
 import { HomeLogoLink } from "@/components/HomeLogoLink";
+import { appStoreLinks } from "@/lib/appStore";
 
 export const dynamic = "force-dynamic";
 const Check = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><path d="m5 12 4 4L19 6"/></svg>;
@@ -19,6 +20,7 @@ export default function Home() {
   const verified = (db.prepare("SELECT COUNT(*) n FROM firms WHERE verified=1").get() as {n:number}).n;
   const trust = getPublicTrustSnapshot(db);
   const heroJob={serviceType:"apartament" as const,zone:"Sector 1",surfaceM2:120,scheduledAt:HERO_JOB_SCHEDULED_AT,estimatedPrice:"450–600 lei"};
+  const app=appStoreLinks();
   return <main className="bg-[#f4f3ee] text-[#101711]">
     <header className="sticky top-0 z-50 h-[66px] bg-[#f4f3ee]/95 backdrop-blur border-b border-[#e3e2da]"><div className="v2-container h-full flex items-center justify-between"><HomeLogoLink/><nav className="v2-hide-mobile flex items-center gap-7 text-sm font-medium text-[#3e4842]"><a href="#cum">Cum funcționează</a><a href="#score">Calitate</a><a href="#firme">Pentru firme</a><a href="#preturi">Prețuri</a><Link href="/despre-noi">Despre noi</Link><Link href="/contact">Contact</Link></nav><div className="flex items-center gap-2"><Link href="/login" className="v2-btn v2-btn-secondary v2-hide-mobile">Autentificare</Link><Link href="/signup" className="v2-btn v2-btn-primary">Înregistrează-te</Link></div></div></header>
 
@@ -37,6 +39,8 @@ export default function Home() {
     <section id="preturi" className="bg-white"><div className="v2-container v2-section text-center"><div className="v2-eyebrow">Prețuri transparente</div><h2 className="v2-h2 mt-3">Vezi prețul lucrării înainte de publicare.</h2><p className="mx-auto mt-5 max-w-2xl leading-7 text-[#5c6660]">Prețul este calculat din tipul spațiului și suprafață. Nu publicăm abonamente sau taxe comerciale care nu sunt configurate în produs.</p><Link href="/preturi" className="v2-btn v2-btn-primary mt-8">Vezi regulile de preț</Link></div></section>
 
     <VerifiedReviews reviews={trust.reviews}/>
+
+    <section className="bg-white"><div className="v2-container v2-section"><div className="rounded-[20px] bg-[#101711] p-8 text-white md:p-12 grid grid-cols-[1.1fr_.9fr] gap-10 items-center max-md:grid-cols-1"><div><div className="text-xs font-bold text-[#8fd8ae]">APLICAȚIA NITIDO</div><h2 className="mt-4 text-4xl font-bold max-md:text-3xl">Curând în buzunarul tău.</h2><p className="mt-5 max-w-xl leading-7 text-[#b8c1bb]">Postezi lucrarea, urmărești echipa live și plătești în siguranță — direct din telefon. {app.live?"Descarcă aplicația și lasă-ne o notă ⭐":"Se lansează în curând pe App Store și Google Play."}</p><div className="mt-7 flex flex-wrap gap-3">{app.live?<>{app.appStore&&<a href={app.appStore} target="_blank" rel="noreferrer" className="rounded-xl bg-white text-[#101711] font-bold text-sm px-5 py-3"> App Store</a>}{app.playStore&&<a href={app.playStore} target="_blank" rel="noreferrer" className="rounded-xl bg-[#39c97c] text-[#101711] font-bold text-sm px-5 py-3">▶ Google Play</a>}</>:<><span className="rounded-xl border border-[#2a332c] text-[#8b958f] font-bold text-sm px-5 py-3"> App Store · în curând</span><span className="rounded-xl border border-[#2a332c] text-[#8b958f] font-bold text-sm px-5 py-3">▶ Google Play · în curând</span></>}</div></div><div className="flex flex-col items-center justify-center rounded-2xl bg-[#18231a] p-8 text-center"><div className="text-[#f5a623] text-2xl leading-none" aria-hidden="true">★★★★★</div><div className="mt-3 font-bold text-lg">Îți place NITIDO?</div><p className="mt-1 text-sm text-[#b8c1bb]">Nota ta ne ajută să aducem mai multe firme și clienți.</p></div></div></div></section>
 
     <section className="v2-container v2-section"><div className="v2-eyebrow">Întrebări frecvente</div><h2 className="v2-h2 mt-3">Clar, înainte să începi.</h2><div className="grid grid-cols-2 gap-4 mt-9 v2-mobile-stack">{[["Cum este aleasă firma?","La lucrările Standard primești oferte de la firme verificate și alegi tu, pe calitate. La Nitido Express (urgențe), prima firmă disponibilă preia lucrarea instant."],["Când vede firma adresa exactă?","Numai după ce acceptarea a fost confirmată și lucrarea i-a fost alocată."],["Când se face plata?","Suma este rezervată la acceptare și eliberată după finalizare."],["Ce se întâmplă la no-show?","Rezervarea se anulează, iar incidentul intră în scorul firmei."]].map(([q,a])=><article className="v2-card p-6" key={q}><h3 className="font-bold">{q}</h3><p className="text-sm text-[#5c6660] mt-2 leading-6">{a}</p></article>)}</div></section>
 
