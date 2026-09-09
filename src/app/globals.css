@@ -270,3 +270,16 @@ body:has(#asistent-ai) #asistent-ai + section article {
     height: 40px;
   }
 }
+
+/* ── Safe area (notch / bară de stare) — aplicația nativă NITIDO (Capacitor) ──
+   Aplicația încarcă site-ul live pe tot ecranul, așa că bara de sus ajungea sub
+   ceas/baterie. Împingem barele „sticky" sub zona de siguranță a telefonului.
+   În browserul desktop env(safe-area-inset-top) = 0, deci nu schimbă nimic. */
+header.sticky,
+aside.sticky {
+  padding-top: env(safe-area-inset-top);
+}
+/* Barele cu înălțime fixă cresc cu zona de siguranță, ca să nu strângă conținutul. */
+header.sticky.h-\[66px\] {
+  height: calc(66px + env(safe-area-inset-top));
+}
