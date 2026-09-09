@@ -26,13 +26,12 @@ jobs:
       - name: Checkout cod
         uses: actions/checkout@v4
 
-      - name: Verifică secretele necesare
+      - name: Verifică cheia de semnare
         env:
           KS: ${{ secrets.NITIDO_KEYSTORE_BASE64 }}
-          SA: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
-          if [ -z "$KS" ] || [ -z "$SA" ]; then
-            echo "::error::Lipsesc secretele de semnare/Play. Adaugă NITIDO_KEYSTORE_BASE64 și GOOGLE_PLAY_SERVICE_ACCOUNT_JSON (+ parolele) în Settings → Secrets → Actions."
+          if [ -z "$KS" ]; then
+            echo "::error::Lipsește NITIDO_KEYSTORE_BASE64. Adaugă cheia de semnare în Settings → Secrets → Actions."
             exit 1
           fi
 
@@ -83,7 +82,10 @@ jobs:
           path: android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
 
+      # Se urcă pe Play DOAR dacă e configurat contul de serviciu. Fără el,
+      # robotul tot produce .aab-ul semnat (ca artefact) — util înainte de setup.
       - name: Urcă pe Google Play (canal: testare internă)
+        if: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON != '' }}
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
