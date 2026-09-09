@@ -9,8 +9,10 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         // versionCode se poate injecta din robot (NITIDO_VERSION_CODE) ca să
         // crească automat la fiecare upload în Play; implicit 1 pentru build local.
-        versionCode (System.getenv("NITIDO_VERSION_CODE") ?: "1").toInteger()
-        versionName (System.getenv("NITIDO_VERSION_NAME") ?: "1.0")
+        def ciVersionCode = System.getenv("NITIDO_VERSION_CODE")
+        def ciVersionName = System.getenv("NITIDO_VERSION_NAME")
+        versionCode ciVersionCode ? ciVersionCode.toInteger() : 1
+        versionName ciVersionName ?: "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
