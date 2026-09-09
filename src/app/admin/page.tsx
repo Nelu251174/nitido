@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Logo, Card, Button } from "@/components/ui";
+import { Logo, Card, Button, inputClass } from "@/components/ui";
 import { JobRow } from "@/lib/types";
 
 interface FirmRow {
@@ -66,6 +66,8 @@ export default function AdminPage() {
   const [proofs, setProofs] = useState<ProofRow[]>([]);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [estimatorOptions, setEstimatorOptions] = useState<{ key: string; label: string; enabled: boolean }[]>([]);
+  const [estimatorLabels, setEstimatorLabels] = useState<Record<string, string>>({});
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
@@ -86,7 +88,22 @@ export default function AdminPage() {
     setProofs(data.proofs ?? []);
     setReviews(data.reviews ?? []);
     setStats(data.stats ?? null);
+    try {
+      const estRes = await fetch("/api/admin/estimator");
+      if (estRes.ok) setEstimatorOptions((await estRes.json()).options ?? []);
+    } catch {
+      /* nu blocăm panoul dacă estimatorul nu se încarcă */
+    }
   }, []);
+
+  async function saveEstimator(key: string, patch: { label?: string; enabled?: boolean }) {
+    await fetch("/api/admin/estimator", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, ...patch }),
+    });
+    await refresh();
+  }
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- prima citire + polling pe interval
@@ -253,6 +270,25 @@ export default function AdminPage() {
             )}
           </section>
         )}
+
+        <section>
+          <h2 className="font-display font-bold text-ink mb-3">ESTIMATOR LIVE — tipuri afișate clientului</h2>
+          <Card>
+            <p className="text-xs text-muted mb-3">Controlezi ce vede clientul în calculatorul de preț de pe prima pagină: schimbi eticheta unui tip sau îl ascunzi/afișezi. Prețul rămâne calculat din tariful oficial.</p>
+            <div className="space-y-2">
+              {estimatorOptions.map((o) => (
+                <div key={o.key} className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted w-24">{o.key}</span>
+                  <input className={`${inputClass} flex-1 min-w-40`} value={estimatorLabels[o.key] ?? o.label} onChange={(e) => setEstimatorLabels((s) => ({ ...s, [o.key]: e.target.value }))} />
+                  <Button variant="outline" onClick={() => saveEstimator(o.key, { label: estimatorLabels[o.key] ?? o.label })}>Salvează</Button>
+                  <Button variant="outline" onClick={() => saveEstimator(o.key, { enabled: !o.enabled })}>{o.enabled ? "Ascunde" : "Afișează"}</Button>
+                  <span className={`text-xs font-bold ${o.enabled ? "text-aqua-deep" : "text-muted"}`}>{o.enabled ? "vizibil" : "ascuns"}</span>
+                </div>
+              ))}
+              {estimatorOptions.length === 0 && <p className="text-sm text-muted">Se încarcă opțiunile…</p>}
+            </div>
+          </Card>
+        </section>
 
         <section>
           <h2 className="font-display font-bold text-ink mb-3">Lucrări ({jobs.length})</h2>

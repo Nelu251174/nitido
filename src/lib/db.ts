@@ -333,6 +333,16 @@ CREATE TABLE IF NOT EXISTS recurring_plans (
 );
 CREATE INDEX IF NOT EXISTS idx_recurring_due ON recurring_plans(status, next_run_date);
 CREATE INDEX IF NOT EXISTS idx_recurring_client ON recurring_plans(client_id, status);
+
+-- Opțiunile din ESTIMATOR LIVE, gestionate de admin (ce tipuri vede clientul).
+-- Cheia e limitată la tipurile cu tarif oficial; adminul schimbă doar
+-- eticheta / vizibilitatea / ordinea.
+CREATE TABLE IF NOT EXISTS estimator_options (
+  key TEXT PRIMARY KEY CHECK (key IN ('apartament','casa','birou','altul')),
+  label TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
 `;
 
 db.exec(SCHEMA_SQL);
@@ -388,6 +398,13 @@ ensureColumn("payments", "refund_status", "TEXT NOT NULL DEFAULT 'none'");
 ensureColumn("payments", "dispute_status", "TEXT NOT NULL DEFAULT 'none'");
 db.exec("CREATE INDEX IF NOT EXISTS idx_job_photos_proof ON job_photos(job_id, uploaded_by_firm_id, proof_type, status)");
 db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_ratings_one_per_job ON ratings(job_id)");
+
+// Seed ESTIMATOR LIVE (opțiunile implicite) — doar dacă tabelul e gol.
+if ((db.prepare("SELECT COUNT(*) c FROM estimator_options").get() as { c: number }).c === 0) {
+  const seedEstimator = db.prepare("INSERT INTO estimator_options (key, label, enabled, sort_order) VALUES (?, ?, 1, ?)");
+  ([["apartament", "Apartament"], ["casa", "Casă / Vilă"], ["birou", "Birou"], ["altul", "Altul"]] as const)
+    .forEach(([key, label], i) => seedEstimator.run(key, label, i));
+}
 db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_client_request ON jobs(client_id, client_request_id) WHERE client_request_id IS NOT NULL");
 
 export function newId(prefix: string): string {
