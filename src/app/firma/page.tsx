@@ -79,6 +79,15 @@ export default function FirmaPage() {
     await refresh();
   }
 
+  async function cancelJob(jobId: string) {
+    setMessage(null);
+    if (typeof window !== "undefined" && !window.confirm("Sigur renunți la lucrare? Va fi repusă automat pentru altă firmă.")) return;
+    const res = await fetch(`/api/jobs/${jobId}/cancel`, { method: "POST" });
+    const data = await res.json();
+    setMessage(res.ok ? "Ai renunțat la lucrare. Am repus-o automat pentru altă firmă (Job Rescue)." : data.error ?? "Nu s-a putut renunța la lucrare");
+    await refresh();
+  }
+
   async function markArrived(jobId: string) {
     setMessage(null);
     const res = await fetch(`/api/jobs/${jobId}/arrived`, { method: "POST" });
@@ -266,7 +275,7 @@ export default function FirmaPage() {
                   {job.sqm} mp · {calcNetForFirm(job.price_gross)} lei · status: {job.status}
                 </div>
                 {job.status === "accepted" && (
-                  <div className="space-y-3"><div className="rounded-xl border border-line bg-mist p-4"><div className="flex justify-between gap-3 text-sm font-bold"><span>Fotografie la sosire · OBLIGATORIU</span><span className={hasArrival?"text-aqua-deep":"text-coral"}>{hasArrival?"Încărcată":"Lipsă"}</span></div><label className="mt-3 block cursor-pointer rounded-lg border border-line bg-white px-4 py-2 text-center text-sm font-bold">{uploadingProof===`${job.id}:ARRIVAL`?"Se încarcă…":"Încarcă fotografie la sosire"}<input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={Boolean(uploadingProof)} onChange={e=>void uploadProof(job.id,"ARRIVAL",e.target.files?.[0])}/></label></div><Button disabled={!hasArrival} className="w-full disabled:cursor-not-allowed disabled:opacity-50" onClick={() => markArrived(job.id)}>Am ajuns / Începe lucrarea</Button></div>
+                  <div className="space-y-3"><div className="rounded-xl border border-line bg-mist p-4"><div className="flex justify-between gap-3 text-sm font-bold"><span>Fotografie la sosire · OBLIGATORIU</span><span className={hasArrival?"text-aqua-deep":"text-coral"}>{hasArrival?"Încărcată":"Lipsă"}</span></div><label className="mt-3 block cursor-pointer rounded-lg border border-line bg-white px-4 py-2 text-center text-sm font-bold">{uploadingProof===`${job.id}:ARRIVAL`?"Se încarcă…":"Încarcă fotografie la sosire"}<input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={Boolean(uploadingProof)} onChange={e=>void uploadProof(job.id,"ARRIVAL",e.target.files?.[0])}/></label></div><Button disabled={!hasArrival} className="w-full disabled:cursor-not-allowed disabled:opacity-50" onClick={() => markArrived(job.id)}>Am ajuns / Începe lucrarea</Button><button onClick={() => cancelJob(job.id)} className="w-full text-xs font-display font-bold text-coral py-1">Renunță la lucrare (o repunem pentru altă firmă)</button></div>
                 )}
                 {job.status === "arrived" && (
                   <div className="space-y-3"><div className="rounded-xl border border-line bg-mist p-4"><div className="flex justify-between gap-3 text-sm font-bold"><span>Fotografie la finalizare · OBLIGATORIU</span><span className={hasCompletion?"text-aqua-deep":"text-coral"}>{hasCompletion?"Încărcată":"Lipsă"}</span></div><label className="mt-3 block cursor-pointer rounded-lg border border-line bg-white px-4 py-2 text-center text-sm font-bold">{uploadingProof===`${job.id}:COMPLETION`?"Se încarcă…":"Încarcă fotografia finală"}<input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={Boolean(uploadingProof)} onChange={e=>void uploadProof(job.id,"COMPLETION",e.target.files?.[0])}/></label></div><p className="text-xs leading-5 text-muted">Plata este blocată până la finalizarea corectă a lucrării. Pentru eliberarea plății este obligatorie fotografia de finalizare.</p><Button disabled={!hasCompletion} className="w-full disabled:cursor-not-allowed disabled:opacity-50" onClick={() => markComplete(job.id)}>Finalizează lucrarea</Button></div>
