@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import "@fontsource-variable/instrument-sans";
@@ -24,6 +24,15 @@ const inter = localFont({
 });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://nitido.ro";
+
+// viewport-fit=cover expune zonele „safe area" (notch / bară de stare) prin
+// env(safe-area-inset-*), folosite în globals.css ca bara de sus a aplicației
+// native (Capacitor) să nu mai stea sub ceas/baterie.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
