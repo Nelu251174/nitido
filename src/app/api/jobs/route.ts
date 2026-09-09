@@ -18,10 +18,15 @@ import { applyCredit } from "@/lib/referral";
 import { getClientCardInfo } from "@/lib/clientPayments";
 import { JobRow } from "@/lib/types";
 import { scanRoomLabel } from "@/lib/nitidoScan";
+import { EXPRESS_60_FEE_LEI, express60Deadline, expireExpress60Guarantees } from "@/lib/express60";
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req);
   if (!user) return NextResponse.json({ error: "Autentificare necesară" }, { status: 401 });
+  // Express 60: retrogradează lazy lucrările premium cu garanția expirată, la
+  // orice încărcare de feed — astfel breach-ul funcționează și fără cron extern
+  // (backstop-ul programat /api/cron/express60 rămâne disponibil în plus).
+  expireExpress60Guarantees(db);
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
 
@@ -50,6 +55,16 @@ export async function GET(req: NextRequest) {
         j.accepted_firm_id === firm.id ||
         (Boolean(firm.verified) && j.status === "waiting" && firmCoversCity(firm.coverage_city, firm.coverage_cities_extra, j.city))
     );
+    // Express 60 = prioritate maximă: lucrările premium urcă în capul feed-ului
+    // (restul rămâne pe ordinea existentă, cele mai noi primele).
+    jobs = jobs
+      .map((j, index) => ({ j, index }))
+      .sort((a, b) => {
+        const aEx = a.j.status === "waiting" && a.j.express_60 ? 1 : 0;
+        const bEx = b.j.status === "waiting" && b.j.express_60 ? 1 : 0;
+        return bEx - aEx || a.index - b.index;
+      })
+      .map((entry) => entry.j);
   }
 
   const photosByJob = new Map<string, string[]>();
@@ -98,6 +113,10 @@ export async function GET(req: NextRequest) {
       duration_minutes: j.duration_minutes,
       status: j.status,
       created_at: j.created_at,
+      // Express 60: firma vede că e tier premium cu preluare garantată + countdown.
+      express_60: j.express_60,
+      express_60_deadline: j.express_60_deadline,
+      express_60_status: j.express_60_status,
       // Nitido Scan: firma vede pozele de context etichetate încă din feed,
       // ca să estimeze mai bine înainte de a prelua/oferta.
       scan: scanByJob.get(j.id) ?? [],
@@ -141,6 +160,7 @@ export async function POST(req: NextRequest) {
     spaceType,
     whenType,
     mode, // 'express' (urgențe, primul care acceptă) | 'standard' (oferte, clientul alege)
+    express60, // true = tier premium Express 60 (preluare garantată în 60 min)
     scheduledDate, // ISO date string (ziua aleasă), doar dacă whenType === 'scheduled'
     scheduledHour, // oră din SLOT_HOURS, doar dacă whenType === 'scheduled'
     photoIds,
@@ -154,15 +174,21 @@ export async function POST(req: NextRequest) {
     spaceType: SpaceType;
     whenType: "asap" | "scheduled";
     mode?: "express" | "standard";
+    express60?: boolean;
     scheduledDate?: string;
     scheduledHour?: number;
     photoIds?: string[];
     details?: string;
   };
 
-  // Modul de preluare. Implicit 'express' dacă nu e trimis (compatibilitate cu
-  // apeluri vechi); UI-ul nou trimite mereu explicit alegerea clientului.
-  const jobMode: "express" | "standard" = mode === "standard" ? "standard" : "express";
+  // Express 60 e inerent urgent → forțează modul 'express' (preluare directă).
+  // Altfel: modul ales de client, implicit 'express' pentru compatibilitate.
+  const isExpress60 = express60 === true;
+  const jobMode: "express" | "standard" = isExpress60 ? "express" : mode === "standard" ? "standard" : "express";
+  // Express 60 nu are sens pentru lucrări programate în viitor — doar „cât mai curând".
+  if (isExpress60 && whenType !== "asap") {
+    return NextResponse.json({ error: "Express 60 este disponibil doar pentru preluare imediată (Cât mai curând)" }, { status: 400 });
+  }
 
   const validSpaceTypes: readonly SpaceType[] = ["apartament", "casa", "birou", "altul"];
   const requestId = req.headers.get("Idempotency-Key")?.trim() || null;
@@ -225,7 +251,11 @@ export async function POST(req: NextRequest) {
     scheduledAt.setHours(scheduledHour, 0, 0, 0);
   }
 
-  const priceGross = calcGrossPrice(spaceType, sqm);
+  // Express 60: suplimentul premium se adaugă la prețul brut. HOLD-ul se pune
+  // abia la acceptare, deci se percepe DOAR dacă o firmă chiar preia; dacă
+  // garanția nu e respectată, suplimentul se scoate din nou (vezi express60.ts).
+  const express60Fee = isExpress60 ? EXPRESS_60_FEE_LEI : 0;
+  const priceGross = calcGrossPrice(spaceType, sqm) + express60Fee;
   const durationMinutes = calcDurationMinutes(sqm);
 
   // Aplicare automată a creditului disponibil (program de recomandare — vezi
@@ -250,9 +280,10 @@ export async function POST(req: NextRequest) {
     db.prepare(
       `INSERT INTO jobs
         (id, client_id, street, postal_code, city, floor, details, client_request_id, sqm, space_type, when_type,
-         scheduled_at, price_gross, credit_applied, duration_minutes, buffer_minutes, photos_count, mode, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting')`
-    ).run(id,user.id,street,postalCode ?? null,city,floor ?? null,typeof details === "string" ? details.trim() || null : null,requestId,sqm,spaceType,whenType,scheduledAt.toISOString(),priceGross,creditUsed,durationMinutes,BUFFER_MINUTES,ownedPhotoIds.length,jobMode);
+         scheduled_at, price_gross, credit_applied, duration_minutes, buffer_minutes, photos_count, mode,
+         express_60, express_60_fee, express_60_deadline, express_60_status, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting')`
+    ).run(id,user.id,street,postalCode ?? null,city,floor ?? null,typeof details === "string" ? details.trim() || null : null,requestId,sqm,spaceType,whenType,scheduledAt.toISOString(),priceGross,creditUsed,durationMinutes,BUFFER_MINUTES,ownedPhotoIds.length,jobMode,isExpress60?1:0,express60Fee,isExpress60?express60Deadline(new Date().toISOString()).toISOString():null,isExpress60?"pending":null);
     if (ownedPhotoIds.length > 0) {
       const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL");
       for (const photoId of ownedPhotoIds) linkPhoto.run(id, photoId, user.id);

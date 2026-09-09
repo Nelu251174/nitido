@@ -2,6 +2,7 @@ import { after, NextRequest, NextResponse } from "next/server";
 import { db, getFirmByUserId } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { acceptJobAtomic } from "@/lib/acceptJob";
+import { markExpress60Met } from "@/lib/express60";
 import {processPushOutbox,queueAcceptedClientPush} from "@/lib/push";
 import { JobRow } from "@/lib/types";
 
@@ -17,6 +18,8 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>
   if(jobMode&&jobMode.mode!=="express") return NextResponse.json({error:"Această lucrare se preia prin ofertă, nu prin acceptare directă",code:"NOT_EXPRESS"},{status:409});
   const result=await acceptJobAtomic(db,id,firm.id);
   if(!result.ok) return NextResponse.json({error:result.error,code:result.status===409?"ALREADY_TAKEN":"ACCEPT_FAILED"},{status:result.status});
+  // Express 60: o firmă a preluat lucrarea → garanția de 60 min e respectată.
+  markExpress60Met(db,id);
   const updated=db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow;
   try{const ids=queueAcceptedClientPush(db,id);if(ids.length)after(()=>processPushOutbox(db,ids));}
   catch{console.error("[push-outbox] enqueue_failed JOB_ACCEPTED_CLIENT_PUSH");}

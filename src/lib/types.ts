@@ -20,6 +20,11 @@ export interface JobRow {
   when_type: "asap" | "scheduled";
   mode?: "express" | "standard";
   guarantee_of?: string | null;
+  // Express 60 (Pachet C): tier premium cu preluare garantată în 60 min.
+  express_60?: number;
+  express_60_fee?: number;
+  express_60_deadline?: string | null;
+  express_60_status?: "pending" | "met" | "breached" | null;
   scheduled_at: string | null;
   price_gross: number;
   credit_applied: number;
