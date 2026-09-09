@@ -20,6 +20,7 @@ import { applyCredit } from "@/lib/referral";
 import { PROPERTY_TYPE_LABELS } from "@/lib/jobTypeLabels";
 import { SCAN_ROOMS, scanRoomLabel } from "@/lib/nitidoScan";
 import { EXPRESS_60_FEE_LEI } from "@/lib/express60";
+import { AppRatingCard } from "@/components/AppRatingCard";
 
 const DAY_NAMES = ["Dum", "Lun", "Mar", "Mie", "Joi", "Vin", "Sâm"];
 
@@ -362,6 +363,7 @@ export default function ClientPage() {
         {!job && user?.referral_code && (
           <ReferralCard code={user.referral_code} creditBalance={creditBalance} />
         )}
+        {!job && <div className="mb-5"><AppRatingCard /></div>}
         {!job && (
           <Card>
             <h1 className="font-display font-extrabold text-xl text-ink mb-1">
@@ -782,6 +784,9 @@ export default function ClientPage() {
             <Button variant="outline" className="w-full" onClick={resetToForm}>
               Postează o nouă lucrare
             </Button>
+            <div className="mt-4">
+              <AppRatingCard compact />
+            </div>
           </Card>
         )}
 
