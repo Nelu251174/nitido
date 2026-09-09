@@ -2,6 +2,7 @@ import type { Database } from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import { firmCoversCity } from "@/lib/text";
 import { acceptJobAtomic, type AcceptResult } from "@/lib/acceptJob";
+import { computeQualityScore } from "@/lib/qualityIndex";
 
 /**
  * Motorul „selecției pe calitate" (repoziționare Etapa 2) — pandantul lui
@@ -45,6 +46,7 @@ export type OfferSummary = {
   ratingAvg: number | null;
   ratingCount: number;
   completedJobs: number;
+  qualityScore: number; // Nitido Quality Index (0–100)
   createdAt: string;
 };
 
@@ -103,22 +105,34 @@ export function createOffer(
   return { ok: true, offerId };
 }
 
-/** Ofertele active pentru o lucrare, cu semnalele de calitate ale fiecărei firme, sortate pe calitate. */
+/** Ofertele active pentru o lucrare, cu semnalele de calitate + Quality Index, sortate pe scor. */
 export function listOffersForJob(db: Database, jobId: string): OfferSummary[] {
-  return db
+  const rows = db
     .prepare(
       `SELECT o.id AS offerId, o.firm_id AS firmId, o.message AS message, o.status AS status,
-              o.created_at AS createdAt, u.name AS firmName,
+              o.created_at AS createdAt, u.name AS firmName, f.strikes_90d AS strikes90d,
               (SELECT ROUND(AVG(stars),2) FROM ratings r WHERE r.firm_id = o.firm_id AND r.status='active') AS ratingAvg,
               (SELECT COUNT(*)           FROM ratings r WHERE r.firm_id = o.firm_id AND r.status='active') AS ratingCount,
               (SELECT COUNT(*)           FROM jobs j   WHERE j.accepted_firm_id = o.firm_id AND j.status='completed') AS completedJobs
        FROM offers o
        JOIN firms f ON f.id = o.firm_id
        JOIN users u ON u.id = f.user_id
-       WHERE o.job_id = ? AND o.status IN ('pending','accepted')
-       ORDER BY (ratingAvg IS NULL), ratingAvg DESC, completedJobs DESC, o.created_at ASC`
+       WHERE o.job_id = ? AND o.status IN ('pending','accepted')`
     )
-    .all(jobId) as OfferSummary[];
+    .all(jobId) as (Omit<OfferSummary, "qualityScore"> & { strikes90d: number })[];
+
+  return rows
+    .map(({ strikes90d, ...r }) => ({
+      ...r,
+      qualityScore: computeQualityScore({
+        avgStars: r.ratingAvg,
+        ratingCount: r.ratingCount,
+        completedJobs: r.completedJobs,
+        strikes90d: strikes90d ?? 0,
+        verified: true,
+      }).score,
+    }))
+    .sort((a, b) => b.qualityScore - a.qualityScore || b.completedJobs - a.completedJobs || a.createdAt.localeCompare(b.createdAt));
 }
 
 /**
