@@ -7,15 +7,29 @@ const ADMIN_COOKIE = "nitido_admin_session";
 const ADMIN_SESSION_HOURS = 8;
 
 export function adminAuthConfigured(): boolean {
-  return Boolean(process.env.NITIDO_ADMIN_EMAIL && process.env.NITIDO_ADMIN_PASSWORD_HASH);
+  // E suficient emailul + (parolă simplă SAU hash). Parola simplă
+  // (NITIDO_ADMIN_PASSWORD) evită problema semnelor `$` din hash în Coolify.
+  return Boolean(
+    process.env.NITIDO_ADMIN_EMAIL &&
+      (process.env.NITIDO_ADMIN_PASSWORD || process.env.NITIDO_ADMIN_PASSWORD_HASH)
+  );
 }
 
 export async function verifyAdminCredentials(email: string, password: string): Promise<boolean> {
   const configuredEmail = process.env.NITIDO_ADMIN_EMAIL;
   const configuredHash = process.env.NITIDO_ADMIN_PASSWORD_HASH;
-  if (!configuredEmail || !configuredHash) return false;
+  const configuredPlain = process.env.NITIDO_ADMIN_PASSWORD;
+  if (!configuredEmail || (!configuredHash && !configuredPlain)) return false;
   const emailMatches = constantTimeEqual(email.trim().toLowerCase(), configuredEmail.trim().toLowerCase());
-  const passwordMatches = await bcrypt.compare(password, configuredHash).catch(() => false);
+  let passwordMatches = false;
+  // Variantă simplă (recomandată pentru Coolify — fără `$`): comparație directă.
+  if (configuredPlain) {
+    passwordMatches = constantTimeEqual(password, configuredPlain);
+  }
+  // Variantă cu hash bcrypt (dacă e configurată și parola simplă nu a potrivit).
+  if (!passwordMatches && configuredHash) {
+    passwordMatches = await bcrypt.compare(password, configuredHash).catch(() => false);
+  }
   return emailMatches && passwordMatches;
 }
 
