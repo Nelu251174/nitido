@@ -95,7 +95,7 @@ jobs:
 
       # Se urcă pe Play DOAR dacă e configurat contul de serviciu. Fără el,
       # robotul tot produce .aab-ul semnat (ca artefact) — util înainte de setup.
-      - name: Urcă pe Google Play (canal: testare internă)
+      - name: "Urcă pe Google Play (canal: testare internă)"
         if: ${{ steps.sa.outputs.present == 'true' }}
         uses: r0adkll/upload-google-play@v1
         with:
