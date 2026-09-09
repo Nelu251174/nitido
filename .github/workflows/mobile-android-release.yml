@@ -18,6 +18,8 @@ on:
   push:
     tags:
       - "play-*"
+    branches:
+      - "release-android"
 
 jobs:
   release:
