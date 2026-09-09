@@ -7,8 +7,12 @@ android {
         applicationId "ro.nitido.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // versionCode se poate injecta din robot (NITIDO_VERSION_CODE) ca să
+        // crească automat la fiecare upload în Play; implicit 1 pentru build local.
+        def ciVersionCode = System.getenv("NITIDO_VERSION_CODE")
+        def ciVersionName = System.getenv("NITIDO_VERSION_NAME")
+        versionCode ciVersionCode ? ciVersionCode.toInteger() : 1
+        versionName ciVersionName ?: "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +20,27 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Semnare pentru release, alimentată din variabile de mediu (injectate de
+    // robotul de build din secretele GitHub). Dacă nu sunt setate — build local
+    // sau debug — nu se aplică nicio semnare, deci nimic nu se strică.
+    signingConfigs {
+        release {
+            def ksPath = System.getenv("NITIDO_KEYSTORE_PATH")
+            if (ksPath) {
+                storeFile file(ksPath)
+                storePassword System.getenv("NITIDO_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("NITIDO_KEY_ALIAS")
+                keyPassword System.getenv("NITIDO_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (System.getenv("NITIDO_KEYSTORE_PATH")) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
