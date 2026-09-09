@@ -716,6 +716,16 @@ export default function ClientPage() {
             </Button>
           </Card>
         )}
+
+        {job && job.status === "cancelled" && (
+          <Card>
+            <h1 className="font-display font-bold text-lg text-ink mb-2">Firma a renunțat — am repus lucrarea</h1>
+            <p className="text-sm text-muted mb-4">
+              Nu s-a reținut nicio sumă. Prin <b>Job Rescue</b> am repus automat lucrarea pentru o altă firmă — o găsești în „Lucrările mele”.
+            </p>
+            <Button className="w-full" onClick={resetToForm}>Înapoi la panou</Button>
+          </Card>
+        )}
         </div>
         <aside className="space-y-4">
           <div className="bg-[#101711] text-white rounded-[18px] p-6"><div className="text-xs text-[#8fd8ae] font-bold">LUCRAREA DE AZI</div><h2 className="text-xl font-bold mt-2">{job?`${job.space_type} · ${job.city}`:"Nicio lucrare activă"}</h2><div className="mt-6 space-y-4 text-sm">{["Firma alocată","Echipa a ajuns","Curățenie în progres","Confirmare finală"].map((x,i)=><div className="flex gap-3" key={x}><span className={`w-3 h-3 rounded-full mt-1 ${job&&i<3?"bg-[#39c97c]":"bg-[#2a332c]"}`}/><span className={i===2?"font-bold":"text-[#a8b2ac]"}>{x}</span></div>)}</div><div className="flex justify-between mt-6 text-sm"><span>Progres</span><b>66%</b></div><div className="h-2 bg-[#2a332c] rounded-full mt-2"><div className="h-full bg-[#39c97c] w-2/3 rounded-full"/></div><div className="text-xs text-[#8b958f] mt-2">6 din 9 pași</div></div>
