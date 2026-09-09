@@ -35,6 +35,7 @@ interface OfferView {
   ratingAvg: number | null;
   ratingCount: number;
   completedJobs: number;
+  qualityScore: number;
   createdAt: string;
 }
 
@@ -603,7 +604,10 @@ export default function ClientPage() {
                       <div key={o.offerId} className="rounded-xl border border-line p-4">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="font-display font-bold text-sm text-ink truncate">{o.firmName}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="font-display font-bold text-sm text-ink truncate">{o.firmName}</div>
+                              <span className="flex-shrink-0 text-[10px] font-display font-bold text-aqua-deep bg-aqua/10 rounded-full px-2 py-0.5" title="Nitido Quality Index">Scor {o.qualityScore}</span>
+                            </div>
                             <div className="text-[11.5px] text-muted mt-0.5">
                               {o.ratingAvg != null ? `★ ${o.ratingAvg.toFixed(1)} (${o.ratingCount})` : "firmă nouă"} · {o.completedJobs} lucrări finalizate
                             </div>
