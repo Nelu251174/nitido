@@ -11,6 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/cum-functioneaza", priority: 0.8, changeFrequency: "monthly" },
     { path: "/pentru-clienti", priority: 0.8, changeFrequency: "monthly" },
     { path: "/pentru-firme", priority: 0.8, changeFrequency: "monthly" },
+    { path: "/inscrie-firma", priority: 0.9, changeFrequency: "monthly" },
     { path: "/preturi", priority: 0.8, changeFrequency: "monthly" },
     { path: "/incredere", priority: 0.6, changeFrequency: "monthly" },
     { path: "/siguranta", priority: 0.6, changeFrequency: "monthly" },

@@ -18,7 +18,7 @@ describe("footer and information pages", () => {
   }, []);
 
   it("gives every visible canonical footer link a real non-anchor destination", () => {
-    expect(links).toHaveLength(14);
+    expect(links).toHaveLength(15);
     for (const [label, href] of links) {
       expect(href, label).not.toBe("#");
       expect(href, label).not.toContain("/#");
