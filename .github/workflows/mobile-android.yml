@@ -3,10 +3,16 @@ name: Robot build Android (APK)
 # Robot de build pentru aplicația mobilă NITIDO (Capacitor).
 # Construiește în cloud un APK de test (debug) pe care îl poți instala pe telefon
 # ca să vezi aplicația reală — fără să instalezi nimic pe calculatorul tău.
-# Pornire manuală: Actions → „Robot build Android (APK)" → Run workflow.
+# Rulează automat când se schimbă ceva la aplicația mobilă (sau manual).
 # (Varianta semnată pentru Google Play vine separat, după ce adaugi cheia de semnare.)
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/mobile-android.yml"
+      - "android/**"
+      - "mobile-shell/**"
+      - "capacitor.config.ts"
 
 jobs:
   build:
