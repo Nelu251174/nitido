@@ -54,6 +54,24 @@ const FREQ_LABELS: Record<string, string> = {
   monthly: "Lunar",
 };
 
+interface BusinessProfileView {
+  isBusiness: boolean;
+  companyName: string | null;
+  companyCui: string | null;
+  companyAddress: string | null;
+}
+
+interface ReportRow {
+  jobId: string;
+  completedAt: string | null;
+  city: string;
+  street: string;
+  sqm: number;
+  spaceType: string;
+  priceGross: number;
+  firmName: string | null;
+}
+
 export default function ClientPage() {
   const router = useRouter();
   const { user, loading } = useCurrentUser();
@@ -328,6 +346,7 @@ export default function ClientPage() {
         <div className="min-w-0">
         {myJobs.length>0&&<section className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold">Lucrările mele</h2><span className="text-xs text-[#6b756f]">{myJobs.length} total</span></div><div className="mt-3 divide-y divide-[#e3e2da]">{myJobs.slice(0,5).map(item=><button key={item.id} onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[#e9f2ec] flex items-center justify-center text-[#14663a] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate">{item.space_type} · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm} m² · {item.status}</span></span><b className="text-sm">{item.price_gross} lei</b></button>)}</div></section>}
         {!job && <RecurringSection defaults={{ street, postalCode, city, floor, sqm, spaceType }} />}
+        {!job && <BusinessSection />}
         {!job && user?.referral_code && (
           <ReferralCard code={user.referral_code} creditBalance={creditBalance} />
         )}
@@ -871,6 +890,128 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
           <Button className="w-full mt-3" onClick={create} disabled={busy}>
             {busy ? "Se creează..." : "Creează abonamentul"}
           </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BusinessSection() {
+  const [profile, setProfile] = useState<BusinessProfileView | null>(null);
+  const [open, setOpen] = useState(false);
+  const [companyName, setCompanyName] = useState("");
+  const [companyCui, setCompanyCui] = useState("");
+  const [companyAddress, setCompanyAddress] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [report, setReport] = useState<{ rows: ReportRow[]; totalJobs: number; totalAmount: number } | null>(null);
+  const [showReport, setShowReport] = useState(false);
+
+  const load = useCallback(async () => {
+    const r = await fetch("/api/account/business");
+    if (r.ok) {
+      const p = (await r.json()).profile as BusinessProfileView;
+      setProfile(p);
+      setCompanyName(p.companyName ?? "");
+      setCompanyCui(p.companyCui ?? "");
+      setCompanyAddress(p.companyAddress ?? "");
+    }
+  }, []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- încărcare inițială profil business (client-only)
+    void load();
+  }, [load]);
+
+  async function save() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await fetch("/api/account/business", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyName, companyCui, companyAddress }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        setMsg(d.error ?? "Nu s-a putut salva");
+        return;
+      }
+      setProfile(d.profile);
+      setOpen(false);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function loadReport() {
+    const r = await fetch("/api/reports/execution");
+    if (r.ok) {
+      setReport((await r.json()).report);
+      setShowReport(true);
+    }
+  }
+
+  return (
+    <div className="v2-card p-5 mb-5">
+      <div className="flex items-center justify-between">
+        <h2 className="font-bold">
+          Cont business{" "}
+          <span className="text-[11px] font-bold text-[#3a4650] bg-[#eef1f0] rounded-full px-2 py-0.5 align-middle">Nitido Office</span>
+        </h2>
+        <button onClick={() => setOpen((o) => !o)} className="text-xs font-display font-bold text-aqua-deep">
+          {open ? "Închide" : profile?.isBusiness ? "Editează" : "+ Activează"}
+        </button>
+      </div>
+      <p className="text-xs text-muted mt-1">Pentru birouri și firme: date de facturare + raport de execuție.</p>
+
+      {profile?.isBusiness && !open && (
+        <div className="mt-3 text-sm">
+          <b>{profile.companyName}</b>
+          <div className="text-xs text-[#6b756f]">CUI: {profile.companyCui}{profile.companyAddress ? ` · ${profile.companyAddress}` : ""}</div>
+          <Button variant="outline" className="w-full mt-3" onClick={loadReport}>Vezi raportul de execuție</Button>
+        </div>
+      )}
+
+      {open && (
+        <div className="mt-4 border-t border-line pt-4">
+          <Field label="Nume firmă">
+            <input className={inputClass} value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="ACME SRL" />
+          </Field>
+          <Field label="CUI">
+            <input className={inputClass} value={companyCui} onChange={(e) => setCompanyCui(e.target.value)} placeholder="RO12345678" />
+          </Field>
+          <Field label="Adresă firmă (opțional)">
+            <input className={inputClass} value={companyAddress} onChange={(e) => setCompanyAddress(e.target.value)} />
+          </Field>
+          {msg && <p className="text-coral text-xs mt-1">{msg}</p>}
+          <Button className="w-full mt-2" onClick={save} disabled={busy}>{busy ? "Se salvează..." : "Salvează contul business"}</Button>
+        </div>
+      )}
+
+      {showReport && report && (
+        <div className="mt-4 border-t border-line pt-4">
+          <div className="flex justify-between items-center mb-2">
+            <b className="text-sm">Raport de execuție</b>
+            <button onClick={() => setShowReport(false)} className="text-xs text-muted">Închide</button>
+          </div>
+          <div className="flex gap-3 mb-3">
+            <div className="flex-1 bg-mist rounded-lg p-3"><div className="text-lg font-bold">{report.totalJobs}</div><div className="text-[11px] text-muted">lucrări</div></div>
+            <div className="flex-1 bg-mist rounded-lg p-3"><div className="text-lg font-bold">{report.totalAmount} lei</div><div className="text-[11px] text-muted">total</div></div>
+          </div>
+          {report.rows.length === 0 ? (
+            <p className="text-xs text-muted">Nicio lucrare finalizată încă.</p>
+          ) : (
+            <div className="divide-y divide-[#e3e2da]">
+              {report.rows.map((row) => (
+                <div key={row.jobId} className="py-2 flex justify-between gap-2 text-xs">
+                  <span className="min-w-0">
+                    <b className="block truncate">{row.spaceType} · {row.city}</b>
+                    <span className="text-[#6b756f]">{row.completedAt ? row.completedAt.slice(0, 10) : ""} · {row.firmName ?? "—"}</span>
+                  </span>
+                  <b className="flex-shrink-0">{row.priceGross} lei</b>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

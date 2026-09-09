@@ -32,6 +32,11 @@ CREATE TABLE IF NOT EXISTS users (
   referral_code TEXT,
   referred_by_code TEXT,
   credit_balance INTEGER NOT NULL DEFAULT 0,
+  -- Nitido Office (Etapa 3, B2B): cont de business + date firmă pentru raport.
+  is_business INTEGER NOT NULL DEFAULT 0,
+  company_name TEXT,
+  company_cui TEXT,
+  company_address TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -350,6 +355,11 @@ ensureColumn("users", "referred_by_code", "TEXT");
 ensureColumn("users", "credit_balance", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("users", "stripe_customer_id", "TEXT");
 ensureColumn("users", "stripe_payment_method_id", "TEXT");
+// Etapa 3 — Nitido Office (cont business + date firmă pentru facturare/raport).
+ensureColumn("users", "is_business", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("users", "company_name", "TEXT");
+ensureColumn("users", "company_cui", "TEXT");
+ensureColumn("users", "company_address", "TEXT");
 ensureColumn("jobs", "credit_applied", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("jobs", "details", "TEXT");
 ensureColumn("jobs", "client_request_id", "TEXT");
