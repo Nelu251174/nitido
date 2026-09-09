@@ -29,11 +29,11 @@ jobs:
       - name: Instalează dependințele
         run: npm ci
 
-      - name: Java 17 (necesar pentru Android Gradle Plugin 8)
+      - name: Java 21 (necesar pentru Capacitor 8 / Android Gradle Plugin 8)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - name: Android SDK (platforma 36)
         uses: android-actions/setup-android@v3
