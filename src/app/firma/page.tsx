@@ -212,6 +212,28 @@ export default function FirmaPage() {
                     </span>
                   )}
                 </div>
+                {job.scan && job.scan.length > 0 && (
+                  <div className="mb-3">
+                    <div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1.5">
+                      📷 Nitido Scan · {job.scan.length} {job.scan.length === 1 ? "poză" : "poze"}
+                    </div>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {job.scan.map((s) => (
+                        <a key={s.id} href={s.url} target="_blank" rel="noreferrer" className="w-16">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={s.url}
+                            alt={`Context: ${s.roomLabel}`}
+                            className="w-16 h-16 rounded-lg object-cover border border-line"
+                          />
+                          <span className="block text-[9px] text-muted text-center mt-0.5 leading-tight">
+                            {s.roomLabel}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold">
                   Valoare lucrare: {job.price_gross} lei
                 </div>

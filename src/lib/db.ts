@@ -118,6 +118,10 @@ CREATE TABLE IF NOT EXISTS job_photos (
   uploaded_by_firm_id TEXT REFERENCES firms(id),
   proof_type TEXT NOT NULL DEFAULT 'CLIENT_CONTEXT'
     CHECK (proof_type IN ('CLIENT_CONTEXT','ARRIVAL','COMPLETION')),
+  -- Nitido Scan (Pachet C): eticheta încăperii pentru pozele de context ale
+  -- clientului (bucatarie/baie/living/...). NULL = poză de context neetichetată
+  -- sau dovadă de lucru (ARRIVAL/COMPLETION).
+  context_label TEXT,
   filename TEXT NOT NULL,
   mime_type TEXT,
   file_size INTEGER,
@@ -386,6 +390,8 @@ ensureColumn("job_photos", "mime_type", "TEXT");
 ensureColumn("job_photos", "file_size", "INTEGER");
 ensureColumn("job_photos", "status", "TEXT NOT NULL DEFAULT 'VALID'");
 ensureColumn("job_photos", "validated_at", "TEXT");
+// Nitido Scan (Pachet C) — eticheta încăperii pentru pozele de context.
+ensureColumn("job_photos", "context_label", "TEXT");
 ensureColumn("ratings", "status", "TEXT NOT NULL DEFAULT 'active'");
 ensureColumn("ratings", "moderation_status", "TEXT NOT NULL DEFAULT 'published'");
 ensureColumn("ratings", "updated_at", "TEXT");

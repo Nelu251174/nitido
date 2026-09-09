@@ -17,6 +17,7 @@ import {processPushOutbox,queueNewJobFirmPushes} from "@/lib/push";
 import { applyCredit } from "@/lib/referral";
 import { getClientCardInfo } from "@/lib/clientPayments";
 import { JobRow } from "@/lib/types";
+import { scanRoomLabel } from "@/lib/nitidoScan";
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req);
@@ -52,18 +53,24 @@ export async function GET(req: NextRequest) {
   }
 
   const photosByJob = new Map<string, string[]>();
+  const scanByJob = new Map<string, {id:string;url:string;room:string|null;roomLabel:string}[]>();
   const proofsByJob = new Map<string, {id:string;type:"ARRIVAL"|"COMPLETION";url:string;createdAt:string}[]>();
   const ownReviewsByJob = new Map<string,{rating:number;reviewText:string|null;badge:"Recenzie verificată"}>();
   const paymentsByJob = new Map<string,{paymentStatus:string;firmPayout:number;transferStatus:string;payoutStatus:string;refundStatus:string;disputeStatus:string}>();
   if (jobs.length > 0) {
     const placeholders = jobs.map(() => "?").join(",");
     const photos = db
-      .prepare(`SELECT id, job_id, filename, proof_type, created_at FROM job_photos WHERE job_id IN (${placeholders}) AND status='VALID'`)
-      .all(...jobs.map((j) => j.id)) as { id: string; job_id: string; filename: string; proof_type:string; created_at:string }[];
+      .prepare(`SELECT id, job_id, filename, proof_type, context_label, created_at FROM job_photos WHERE job_id IN (${placeholders}) AND status='VALID'`)
+      .all(...jobs.map((j) => j.id)) as { id: string; job_id: string; filename: string; proof_type:string; context_label:string|null; created_at:string }[];
     for (const p of photos) {
       const arr = photosByJob.get(p.job_id) ?? [];
       arr.push(`/api/uploads/${p.id}`);
       photosByJob.set(p.job_id, arr);
+      if (p.proof_type === "CLIENT_CONTEXT") {
+        const scan = scanByJob.get(p.job_id) ?? [];
+        scan.push({ id:p.id, url:`/api/uploads/${p.id}`, room:p.context_label, roomLabel:scanRoomLabel(p.context_label) });
+        scanByJob.set(p.job_id, scan);
+      }
       if (p.proof_type === "ARRIVAL" || p.proof_type === "COMPLETION") {
         const proofs = proofsByJob.get(p.job_id) ?? [];
         proofs.push({ id:p.id, type:p.proof_type, url:`/api/uploads/${p.id}`, createdAt:p.created_at });
@@ -77,7 +84,7 @@ export async function GET(req: NextRequest) {
 
   const jobsWithPhotos = jobs.map((j) => {
     const canSeePrivate = user.role === "client" || j.accepted_firm_id === firmId;
-    if (canSeePrivate) {const payment=paymentsByJob.get(j.id)??null;return { ...j, photos: photosByJob.get(j.id) ?? [], proofs: proofsByJob.get(j.id) ?? [], ownReview:user.role==="client"?ownReviewsByJob.get(j.id)??null:undefined, financial:payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null,...(user.role==="firma"?{firm_payout:payment?.firmPayout??null}:{}) };}
+    if (canSeePrivate) {const payment=paymentsByJob.get(j.id)??null;return { ...j, photos: photosByJob.get(j.id) ?? [], scan: scanByJob.get(j.id) ?? [], proofs: proofsByJob.get(j.id) ?? [], ownReview:user.role==="client"?ownReviewsByJob.get(j.id)??null:undefined, financial:payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null,...(user.role==="firma"?{firm_payout:payment?.firmPayout??null}:{}) };}
     return {
       id: j.id,
       city: j.city,
@@ -91,6 +98,9 @@ export async function GET(req: NextRequest) {
       duration_minutes: j.duration_minutes,
       status: j.status,
       created_at: j.created_at,
+      // Nitido Scan: firma vede pozele de context etichetate încă din feed,
+      // ca să estimeze mai bine înainte de a prelua/oferta.
+      scan: scanByJob.get(j.id) ?? [],
     };
   });
   // Pentru firme: lista lucrărilor la care firma a trimis deja o ofertă (ca UI-ul
