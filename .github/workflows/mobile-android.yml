@@ -1,0 +1,51 @@
+name: Robot build Android (APK)
+
+# Robot de build pentru aplicația mobilă NITIDO (Capacitor).
+# Construiește în cloud un APK de test (debug) pe care îl poți instala pe telefon
+# ca să vezi aplicația reală — fără să instalezi nimic pe calculatorul tău.
+# Pornire manuală: Actions → „Robot build Android (APK)" → Run workflow.
+# (Varianta semnată pentru Google Play vine separat, după ce adaugi cheia de semnare.)
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout cod
+        uses: actions/checkout@v4
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Instalează dependințele
+        run: npm ci
+
+      - name: Java 17 (necesar pentru Android Gradle Plugin 8)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android SDK (platforma 36)
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-36"
+
+      - name: Sync Capacitor (regenerează configul nativ + copiază shell-ul web)
+        run: npx cap sync android
+
+      - name: Build APK de test (debug)
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Publică APK-ul ca artefact descărcabil
+        uses: actions/upload-artifact@v4
+        with:
+          name: nitido-android-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
