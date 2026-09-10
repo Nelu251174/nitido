@@ -10,7 +10,7 @@ name: Robot TestFlight (iOS)
 #   APPLE_TEAM_ID                     – Team ID (Apple Developer → Membership)
 #   APP_STORE_CONNECT_KEY_ID          – Key ID al cheii API
 #   APP_STORE_CONNECT_ISSUER_ID       – Issuer ID (App Store Connect → Keys)
-#   APP_STORE_CONNECT_API_KEY_BASE64  – fișierul .p8 codat base64
+#   APP_STORE_CONNECT_API_KEY         – conținutul fișierului .p8 (text simplu, lipit direct)
 on:
   workflow_dispatch:
   push:
@@ -29,13 +29,13 @@ jobs:
           T: ${{ secrets.APPLE_TEAM_ID }}
           K: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           I: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          P: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          P: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
         run: |
           missing=""
           [ -z "$T" ] && missing="$missing APPLE_TEAM_ID"
           [ -z "$K" ] && missing="$missing APP_STORE_CONNECT_KEY_ID"
           [ -z "$I" ] && missing="$missing APP_STORE_CONNECT_ISSUER_ID"
-          [ -z "$P" ] && missing="$missing APP_STORE_CONNECT_API_KEY_BASE64"
+          [ -z "$P" ] && missing="$missing APP_STORE_CONNECT_API_KEY"
           if [ -n "$missing" ]; then
             echo "::error::Lipsesc secretele Apple:$missing. Adaugă-le în Settings → Secrets → Actions."
             exit 1
@@ -53,9 +53,11 @@ jobs:
         run: npx cap sync ios
 
       - name: Pregătește cheia API App Store Connect
+        env:
+          ASC_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
         run: |
           mkdir -p ~/private_keys
-          echo "${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}" | base64 --decode > ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+          printf '%s' "$ASC_KEY" > ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
 
       - name: Archive (semnare automată)
         run: |
