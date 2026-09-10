@@ -1,7 +1,10 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
-// Aplicația mobilă NITIDO (Capacitor). Încarcă site-ul live într-un shell nativ
-// și adaugă funcții native reale (splash, status bar, push) — nu un simplu webview.
+// Aplicația mobilă NITIDO (Capacitor). Încarcă site-ul live nitido.ro într-un
+// shell nativ (App Store / Google Play). Plugin-urile native opționale (splash,
+// status bar, push) au fost scoase temporar din cauza unui conflict de versiuni
+// Capacitor 8 pe iOS (SPM) — se pot readăuga când e rezolvat upstream. Aplicația
+// funcționează integral fără ele: bara de sus e tratată prin CSS (safe-area).
 const config: CapacitorConfig = {
   appId: "ro.nitido.app",
   appName: "NITIDO",
@@ -11,21 +14,6 @@ const config: CapacitorConfig = {
     cleartext: false,
   },
   backgroundColor: "#f4f3ee",
-  plugins: {
-    SplashScreen: {
-      launchShowDuration: 1200,
-      backgroundColor: "#101711",
-      showSpinner: false,
-      androidScaleType: "CENTER_CROP",
-    },
-    StatusBar: {
-      style: "DARK",
-      backgroundColor: "#101711",
-    },
-    PushNotifications: {
-      presentationOptions: ["badge", "sound", "alert"],
-    },
-  },
 };
 
 export default config;
