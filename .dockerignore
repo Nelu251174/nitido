@@ -1,0 +1,36 @@
+# Fișiere care NU intră în contextul de build Docker.
+# Rezultat: imagine mai mică, build mai ușor pe server (mai puțin disc per
+# deploy) și niciun secret / bază de date locală copiată în imagine.
+
+# Control versiune și configurări CI
+.git
+.gitignore
+.github
+
+# Dependențe și artefacte de build (se generează în imagine, nu se copiază)
+node_modules
+.next
+out
+
+# Proiectele native mobile (Capacitor) — inutile pentru build-ul site-ului
+android
+ios
+
+# Baza de date locală și fișierele încărcate — vin din volume la runtime,
+# nu trebuie „coapte" în imagine (db.ts recreează singur directorul + fișierul).
+data
+public/uploads
+
+# Secrete / variabile de mediu — nu se bagă NICIODATĂ în imagine
+.env
+.env.*
+
+# Fișiere de build Docker (nu sunt necesare în interiorul imaginii)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Diverse
+*.log
+npm-debug.log*
+.DS_Store
