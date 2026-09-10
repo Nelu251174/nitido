@@ -19,7 +19,10 @@ on:
 
 jobs:
   ios:
-    runs-on: macos-14
+    # Nucleul Capacitor (framework precompilat) e construit cu Swift 6.2, deci
+    # avem nevoie de un Xcode recent. macos-14 vine cu Xcode 15.4 (Swift 5.10),
+    # care nu poate citi framework-ul → simboluri „lipsă" false (reject/getString).
+    runs-on: macos-26
     steps:
       - name: Checkout cod
         uses: actions/checkout@v4
