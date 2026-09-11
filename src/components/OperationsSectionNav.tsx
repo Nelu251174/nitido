@@ -5,7 +5,7 @@ export function OperationsSectionNav({screen}:{screen:'host'|'business'}){
  {label:'Proprietăți',href:'#locatii',icon:'home'},
  {label:'Calendar și pregătire',href:'#pregatire',icon:'calendar'},
  {label:'Curățenie',href:'/client#sec-lucrari',icon:'broom'},
- {label:'Consumabile și inspecție',href:'#pregatire',icon:'check'},
+ {label:'Lenjerie și consumabile',href:'#inventar',icon:'check'},
  {label:'Integrări',href:'#calendar-import',icon:'calendar'},
  ]:[
  {label:'Portofoliu',href:'#locatii',icon:'building'},

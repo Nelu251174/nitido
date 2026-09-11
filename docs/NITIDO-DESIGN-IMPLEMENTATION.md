@@ -13,7 +13,7 @@ Din cele 30 de fișiere PNG furnizate, 18 sunt distincte: 12 planșe inițiale �
 | 05 Panou client | 3 | `ClientOverview`, `/client` | Rezervare următoare, proprietate, istoric și navigare |
 | 06 Detaliu lucrare | 10 | `/client`, `JobMessages` | Ecran cu etape, checklist real, fotografii protejate, firmă, chat și plată separată; necesită acceptanță vizuală autentificată |
 | 07 Panou firmă | 7 → 14 | `/firma`, `FirmSummary` | Oportunități, echipe și grafic cu valoarea netă a lucrărilor finalizate cu plata capturată; viramente separate |
-| 08 Calendar echipe | 5 | `TeamSchedule`, `/firma/calendar` | Calendar săptămânal, filtre echipe, detalii, alocare; indisponibilitățile necesită extensie |
+| 08 Calendar echipe | 5 | `TeamSchedule`, `/firma/calendar` | Calendar săptămânal, filtre echipe, detalii, alocare și indisponibilități persistente cu verificarea conflictelor |
 | 09 Execuție mobilă | 8 | `/firma/executie`, aplicația firmei | Execuție web refăcută și checklist/raport în aplicație; trimitere validată de server, blocare după raport |
 | 10 Admin operațiuni | 9 | `AdminOperations`, `/admin` | Tabel filtrabil, inspector lucrare, stări financiare distincte |
 | 11 Business | 11 | `/client/business` | Portofoliu și aprobări în două coloane, decizii persistente în panou, bugete, CSV și meniu Business |
@@ -46,6 +46,13 @@ Această tranșă nu reprezintă finalizarea întregului brief. Sunt necesare: c
 - Aprobările Business folosesc API-ul existent și regulile de acces/buget existente; aprobarea nu creează automat o rezervare și nu capturează bani.
 - Graficul firmei însumează valorile nete ale lucrărilor finalizate cu plata capturată pe ziua finalizării în Europe/Bucharest; exclude rambursări/dispute. Nu reprezintă un extras bancar sau data viramentelor.
 - Verificare: 442 teste automate trecute, TypeScript și lint trecute. Previzualizarea locală în browser a fost blocată de politica URL; nu declarăm validare vizuală autentificată.
-- Încă deschise: sincronizare automată iCal, inventar cantitativ consumabile/lenjerie, fotografii proprii per proprietate, calendar Business consolidat și import CSV, comparație vizuală completă a tuturor planșelor și extensiile mobile. Lista de pregătire nu înlocuiește aceste funcții.
+- Încă deschise: sincronizare automată iCal, fotografii proprii per proprietate, calendar Business consolidat și import CSV, comparație vizuală completă a tuturor planșelor și extensiile mobile. Lista de pregătire nu înlocuiește aceste funcții.
 
 - Ajustare cerută de beneficiar: estimatorul ocupă 50% din coloana sa pe desktop (minimum 280 px), cu format compact pe mobil și aceeași variabilă de culoare/gradient ca butonul Caută firme. Sliderul are pistă de 6 px în locul înălțimii globale de input de 44 px.
+
+## Calendar echipe și inventar Host — tranșă operațională
+
+- Calendar firmă: adăugare concediu/indisponibilitate, filtrare, istoric intervale trecute, deblocare și afișare în calendarul săptămânal. Serverul refuză atât alocarea peste un interval blocat, cât și blocarea peste o lucrare deja alocată, incluzând bufferul de deplasare.
+- Host: articole de inventar cu unități întregi, intrări/consum, stoc nenegativ, prag minim editabil și alertă vizuală. Jurnalul mișcărilor este persistent, cu prevenirea dublării aceleiași cereri. Interfața afișează ultimele 100 de mișcări din cont, filtrate pe proprietate.
+- Accesul este limitat la titularul firmei/proprietății. Intervalele deblocate și jurnalul mișcărilor sunt păstrate. Nu sunt efectuate achiziții automate sau trimise mesaje.
+- Nu declarăm brief-ul integral închis. Rămân calendarul zi/lună, sincronizarea automată iCal, extraopțiunile și catalogul versionat, configurarea serviciilor email/AI/plăți și acceptanța vizuală autentificată a tuturor ecranelor web/mobile.
