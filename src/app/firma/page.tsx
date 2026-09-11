@@ -182,9 +182,9 @@ export default function FirmaPage() {
   return (
     <div className="min-h-screen mesh-light">
       <header className="glass sticky top-0 z-20">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-3 max-[760px]:px-4">
           <Logo />
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2 max-[760px]:w-full">
             <span className="flex items-center gap-2.5">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-aqua-deep text-sm font-display font-extrabold text-white" aria-hidden="true">{user.name.trim().slice(0,1).toUpperCase()}</span>
               <span className="text-sm leading-tight">
