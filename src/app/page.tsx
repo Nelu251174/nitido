@@ -1,5 +1,6 @@
 import {LivePriceEstimator} from "@/components/LivePriceEstimator";
 import {SupportCenter} from "@/components/SupportCenter";
+import {PaymentBenefits} from "@/components/PaymentBenefits";
 import Image from "next/image";
 import Link from "next/link";
 import {db} from "@/lib/db";
@@ -32,5 +33,5 @@ export default function Home(){
   <div id="clienti"><VerifiedReviews reviews={trust.reviews}/></div>
   <section className="v2-container v2-section" id="firme"><div className="partner-banner"><div><div className="text-sm text-teal-200">NITIDO PENTRU PROFESIONIȘTI</div><h2 className="v2-h2 mt-3">Mai multă ordine.<br/>În lucrări și în afacere.</h2><p className="mt-4 text-slate-300 max-w-lg">Oportunități, programări, echipe și istoricul lucrărilor. Un loc pentru organizarea activității firmei tale.</p></div><Link href="/signup?role=firma" className="v2-btn bg-white text-ink">Înscrie-ți firma ↗</Link></div></section>
   <section className="v2-container pb-16" id="preturi"><h2 className="v2-h2 mb-6">Bine de știut.</h2><div className="faq-list">{[["Cum se calculează prețul?","Din tipul spațiului și suprafață, conform regulilor active. Prețul final este verificat de server la publicare."],["Când se încasează plata?","Cardul este procesat de Stripe. Autorizarea și încasarea sunt etape distincte; starea plății este afișată în cont."],["Cine vede adresa și fotografiile?","Datele private ale lucrării sunt accesibile clientului și firmei alocate, conform drepturilor lor."],["Pot programa curățenii repetate?","Da. Din cont poți gestiona planuri săptămânale, la două săptămâni sau lunare."]].map(([q,a])=><details key={q}><summary>{q}</summary><p>{a}</p></details>)}</div></section>
- <div className="home-support"><SupportCenter/></div></main><SiteFooter/><nav className="design-home-bottom" aria-label="Navigare mobilă">{[["home","Acasă","/"],["calendar","Rezervări","/client#sec-lucrari"],["chat","Mesaje","/client/mesaje"],["user","Cont","/client#sec-cont"]].map(([icon,label,href])=><Link key={href} href={href}><DesignIcon name={icon as DesignIconName}/>{label}</Link>)}</nav></div>;
+ <PaymentBenefits/><div className="home-support"><SupportCenter/></div></main><SiteFooter/><nav className="design-home-bottom" aria-label="Navigare mobilă">{[["home","Acasă","/"],["calendar","Rezervări","/client#sec-lucrari"],["chat","Mesaje","/client/mesaje"],["user","Cont","/client#sec-cont"]].map(([icon,label,href])=><Link key={href} href={href}><DesignIcon name={icon as DesignIconName}/>{label}</Link>)}</nav></div>;
 }
