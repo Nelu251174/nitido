@@ -26,14 +26,32 @@ export async function getOrCreateStripeCustomer(db: Database, userId: string): P
   if (!stripe) return null;
   const user = getUser(db, userId);
   if (!user) throw new Error("Utilizator inexistent");
-  if (user.stripe_customer_id) return user.stripe_customer_id;
+
+  // Dacă avem un id de client salvat, verificăm că mai există efectiv în contul
+  // Stripe curent. După o schimbare de cheie/cont Stripe, id-ul vechi devine
+  // invalid ("No such customer") — în acel caz îl recreăm, ca fluxul de adăugare
+  // card să se autorepare în loc să dea eroare.
+  if (user.stripe_customer_id) {
+    try {
+      const existing = await stripe.customers.retrieve(user.stripe_customer_id);
+      if (existing && !(existing as { deleted?: boolean }).deleted) {
+        return user.stripe_customer_id;
+      }
+    } catch {
+      // client inexistent în contul curent → cădem pe creare mai jos
+    }
+  }
 
   const customer = await stripe.customers.create({
     email: user.email ?? undefined,
     name: user.name,
     metadata: { userId },
   });
-  db.prepare("UPDATE users SET stripe_customer_id = ? WHERE id = ?").run(customer.id, userId);
+  // Resetăm și metoda de plată salvată: noul client nu are cardurile vechi.
+  db.prepare("UPDATE users SET stripe_customer_id = ?, stripe_payment_method_id = NULL WHERE id = ?").run(
+    customer.id,
+    userId
+  );
   return customer.id;
 }
 
