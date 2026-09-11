@@ -1,3 +1,4 @@
+import { WORKSPACE_SCHEMA } from "@/lib/workspace";
 import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
@@ -341,6 +342,7 @@ CREATE TABLE IF NOT EXISTS recurring_plans (
   details TEXT,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','paused','cancelled')),
   next_run_date TEXT NOT NULL,
+  anchor_day INTEGER,
   last_job_id TEXT REFERENCES jobs(id),
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -359,6 +361,7 @@ CREATE TABLE IF NOT EXISTS estimator_options (
 `;
 
 db.exec(SCHEMA_SQL);
+db.exec(WORKSPACE_SCHEMA);
 
 // Migrare simplă pentru coloane noi adăugate DUPĂ ce baza de date există deja
 // în producție — `CREATE TABLE IF NOT EXISTS` de mai sus nu face nimic pe un
@@ -419,6 +422,8 @@ ensureColumn("payments", "transfer_status", "TEXT NOT NULL DEFAULT 'not_started'
 ensureColumn("payments", "stripe_transfer_id", "TEXT");
 ensureColumn("payments", "payout_status", "TEXT NOT NULL DEFAULT 'unknown'");
 ensureColumn("payments", "refund_status", "TEXT NOT NULL DEFAULT 'none'");
+ensureColumn("recurring_plans", "anchor_day", "INTEGER");
+db.exec("UPDATE recurring_plans SET anchor_day=CAST(substr(next_run_date,9,2) AS INTEGER) WHERE anchor_day IS NULL");
 ensureColumn("payments", "dispute_status", "TEXT NOT NULL DEFAULT 'none'");
 db.exec("CREATE INDEX IF NOT EXISTS idx_job_photos_proof ON job_photos(job_id, uploaded_by_firm_id, proof_type, status)");
 db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_ratings_one_per_job ON ratings(job_id)");

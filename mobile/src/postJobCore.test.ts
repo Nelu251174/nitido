@@ -1,9 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "./apiCore";
 import { buildCreatePayload, canAddPhoto, EMPTY_DRAFT, isDateAllowed, isSlotAllowed, nextPostStep, postJobError, previousPostStep, quoteMatchesDraft, validateSqm, type JobQuote, type PostJobDraft } from "./postJobCore";
 import { publishClientJob, requestAuthoritativeQuote } from "./postJobService";
+
+beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime(new Date("2026-08-30T12:00:00Z"))});
+afterEach(()=>vi.useRealTimers());
 
 const draft = (overrides: Partial<PostJobDraft> = {}): PostJobDraft => ({ ...EMPTY_DRAFT, spaceType: "apartament", sqm: "80", city: "București", street: "Strada Test 10", scheduledDate: "2026-09-02", scheduledHour: 10, ...overrides });
 const quote: JobQuote = { spaceType: "apartament", sqm: 80, priceGross: 550, durationMinutes: 150, currency: "RON" };

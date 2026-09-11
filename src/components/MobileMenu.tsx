@@ -59,7 +59,7 @@ export function MobileMenu() {
         aria-label={open ? "Închide meniul" : "Deschide meniul"}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="v2-only-mobile items-center justify-center w-11 h-11 -mr-2 rounded-lg text-[#101711]"
+        className="v2-only-mobile items-center justify-center w-11 h-11 -mr-2 rounded-lg text-[#111827]"
       >
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           {open ? <path d="M6 6l12 12M18 6 6 18" /> : <><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></>}
@@ -67,14 +67,14 @@ export function MobileMenu() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 top-[66px] z-40 bg-[#f4f3ee]" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 top-[66px] z-40 bg-[#f7f9fc]" role="dialog" aria-modal="true">
           <nav className="v2-container py-4 flex flex-col">
             {LINKS.map(([href, label]) => (
               <Link
                 key={href}
                 href={href}
                 onClick={() => setOpen(false)}
-                className="py-4 text-lg font-semibold text-[#101711] border-b border-[#e3e2da]"
+                className="py-4 text-lg font-semibold text-[#111827] border-b border-[#e2e8f0]"
               >
                 {label}
               </Link>

@@ -33,17 +33,17 @@ const FAQ: { q: string; a: string }[] = [
 
 export default function InscrieFirmaPage() {
   return (
-    <main className="bg-[#f4f3ee] text-[#101711]">
+    <main className="bg-[#f7f9fc] text-[#111827]">
       <SiteHeader />
 
       {/* Hero */}
       <section className="v2-container py-16 pb-14 max-md:py-12">
         <div className="max-w-3xl">
-          <div className="inline-flex rounded-full bg-[#e4f0e8] text-[#14663a] px-4 py-2 text-xs font-bold mb-6">
+          <div className="inline-flex rounded-full bg-[#e4f0e8] text-[#115e59] px-4 py-2 text-xs font-bold mb-6">
             Parteneri NITIDO · București &amp; Constanța
           </div>
           <h1 className="text-[56px] max-md:text-[38px] leading-[1.05] tracking-[-.035em] font-bold">
-            Firma ta de curățenie primește lucrări plătite. <span className="text-[#1b8a4c]">Fără abonament.</span>
+            Firma ta de curățenie primește lucrări plătite. <span className="text-[#0f766e]">Fără abonament.</span>
           </h1>
           <p className="mt-6 text-[17px] leading-7 text-[#3e4842] max-w-2xl">
             NITIDO.RO aduce clienți verificați, cu card salvat, direct în zona ta. Trimiți ofertă sau preiei urgențele
@@ -53,11 +53,11 @@ export default function InscrieFirmaPage() {
             <Link href="/signup?role=firma" className="v2-btn v2-btn-primary">Înregistrează firma gratuit</Link>
             <Link href="/pentru-firme" className="v2-btn v2-btn-secondary">Cum funcționează</Link>
           </div>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 mt-8 text-sm text-[#5c6660]">
+          <div className="flex flex-wrap gap-x-6 gap-y-2 mt-8 text-sm text-[#64748b]">
             {["Fără taxă de înscriere", "Comision fix 18%", "Verificare ANAF"].map((x) => (
-              <span key={x} className="flex gap-2 items-center text-[#14663a]">
+              <span key={x} className="flex gap-2 items-center text-[#115e59]">
                 <span className="font-bold">✓</span>
-                <i className="not-italic text-[#5c6660]">{x}</i>
+                <i className="not-italic text-[#64748b]">{x}</i>
               </span>
             ))}
           </div>
@@ -71,9 +71,9 @@ export default function InscrieFirmaPage() {
           <h2 className="v2-h2 mt-3">Mai multe lucrări, reguli clare, zero surprize.</h2>
           <div className="grid grid-cols-3 gap-4 mt-9 max-md:grid-cols-1">
             {VALUE_PROPS.map((v) => (
-              <article key={v.title} className="bg-[#f4f3ee] rounded-2xl p-[26px]">
+              <article key={v.title} className="bg-[#f7f9fc] rounded-2xl p-[26px]">
                 <h3 className="font-bold text-lg">{v.title}</h3>
-                <p className="text-sm text-[#5c6660] leading-6 mt-2">{v.text}</p>
+                <p className="text-sm text-[#64748b] leading-6 mt-2">{v.text}</p>
               </article>
             ))}
           </div>
@@ -87,9 +87,9 @@ export default function InscrieFirmaPage() {
         <div className="grid grid-cols-3 gap-4 mt-9 max-md:grid-cols-1">
           {STEPS.map((s) => (
             <article key={s.n} className="v2-card p-[26px]">
-              <div className="text-sm font-bold text-[#1b8a4c]">{s.n}</div>
+              <div className="text-sm font-bold text-[#0f766e]">{s.n}</div>
               <h3 className="font-bold text-lg mt-8">{s.title}</h3>
-              <p className="text-sm text-[#5c6660] leading-6 mt-2">{s.text}</p>
+              <p className="text-sm text-[#64748b] leading-6 mt-2">{s.text}</p>
             </article>
           ))}
         </div>
@@ -98,7 +98,7 @@ export default function InscrieFirmaPage() {
       {/* City focus */}
       <section className="bg-white">
         <div className="v2-container v2-section">
-          <div className="rounded-[20px] bg-[#101711] p-8 text-white md:p-12">
+          <div className="rounded-[20px] bg-[#111827] p-8 text-white md:p-12">
             <div className="text-xs font-bold text-[#8fd8ae]">LANSARE PILOT</div>
             <h2 className="mt-4 max-w-3xl text-4xl font-bold max-md:text-3xl">
               Căutăm firme în București și Constanța.
@@ -109,7 +109,7 @@ export default function InscrieFirmaPage() {
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               {["București", "Constanța"].map((c) => (
-                <span key={c} className="rounded-full bg-[#1b8a4c]/20 text-[#8fd8ae] px-4 py-2 text-sm font-bold">
+                <span key={c} className="rounded-full bg-[#0f766e]/20 text-[#8fd8ae] px-4 py-2 text-sm font-bold">
                   📍 {c}
                 </span>
               ))}
@@ -127,7 +127,7 @@ export default function InscrieFirmaPage() {
           {FAQ.map((f) => (
             <article className="v2-card p-6" key={f.q}>
               <h3 className="font-bold">{f.q}</h3>
-              <p className="text-sm text-[#5c6660] mt-2 leading-6">{f.a}</p>
+              <p className="text-sm text-[#64748b] mt-2 leading-6">{f.a}</p>
             </article>
           ))}
         </div>
@@ -137,7 +137,7 @@ export default function InscrieFirmaPage() {
       <section className="bg-white">
         <div className="v2-container v2-section text-center">
           <h2 className="v2-h2">Gata să primești prima lucrare?</h2>
-          <p className="mx-auto mt-5 max-w-2xl leading-7 text-[#5c6660]">
+          <p className="mx-auto mt-5 max-w-2xl leading-7 text-[#64748b]">
             Înregistrarea durează câteva minute. Fără abonament, fără costuri ascunse — plătești doar când muncești.
           </p>
           <Link href="/signup?role=firma" className="v2-btn v2-btn-primary mt-8">Înregistrează firma gratuit</Link>

@@ -1,3 +1,4 @@
+import { ownProperty, linkPropertyJob, WorkspaceError } from "@/lib/workspace";
 import { after, NextRequest, NextResponse } from "next/server";
 import { db, newId, getFirmByUserId } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
@@ -119,7 +120,7 @@ export async function GET(req: NextRequest) {
       express_60_status: j.express_60_status,
       // Nitido Scan: firma vede pozele de context etichetate încă din feed,
       // ca să estimeze mai bine înainte de a prelua/oferta.
-      scan: scanByJob.get(j.id) ?? [],
+      scan: [],
     };
   });
   // Pentru firme: lista lucrărilor la care firma a trimis deja o ofertă (ca UI-ul
@@ -149,7 +150,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const body = await req.json();
+  const body = await req.json().catch(()=>null);
+  if(!body||typeof body!=="object")return NextResponse.json({error:"Cerere invalidă"},{status:400});
+  if(body.propertyId){try{ownProperty(db,user.id,String(body.propertyId))}catch(e){return NextResponse.json({error:e instanceof WorkspaceError?e.message:"Proprietate invalidă"},{status:404})}}
 
   const {
     street,
@@ -288,6 +291,7 @@ export async function POST(req: NextRequest) {
       const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL");
       for (const photoId of ownedPhotoIds) linkPhoto.run(id, photoId, user.id);
     }
+    if(body.propertyId)linkPropertyJob(db,user.id,String(body.propertyId),id);
     return { job: db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow, replayed: false };
   })();
   if (created.replayed) return NextResponse.json({ job: created.job, replayed: true });

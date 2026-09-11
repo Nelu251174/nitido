@@ -69,7 +69,7 @@ export function PwaProvider() {
         zIndex: 60,
         width: "calc(100% - 32px)",
         maxWidth: 420,
-        background: "#101711",
+        background: "#111827",
         color: "#fff",
         borderRadius: 16,
         padding: "14px 16px",
@@ -95,7 +95,7 @@ export function PwaProvider() {
       </button>
       <button
         onClick={install}
-        style={{ background: "#39c97c", color: "#101711", border: "none", fontWeight: 700, fontSize: 13, padding: "9px 16px", borderRadius: 10, cursor: "pointer" }}
+        style={{ background: "#39c97c", color: "#111827", border: "none", fontWeight: 700, fontSize: 13, padding: "9px 16px", borderRadius: 10, cursor: "pointer" }}
       >
         Instalează
       </button>

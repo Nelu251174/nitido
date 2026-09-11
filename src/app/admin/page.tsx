@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import {WorkspaceNav} from "@/components/WorkspaceNav";
 import { Logo, Card, Button, inputClass } from "@/components/ui";
 import { JobRow } from "@/lib/types";
 
@@ -220,6 +221,8 @@ export default function AdminPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-10 space-y-10">
+<WorkspaceNav role="admin"/><header className="mb-8"><p className="v2-eyebrow">NITIDO CONTROL</p><h1 className="workspace-title">Privirea de ansamblu.</h1><p className="text-muted">Lucrări, firme și excepții care necesită intervenție.</p></header><div className="workspace-metrics"><Card><p className="text-sm text-muted">Lucrări în așteptare</p><b className="text-3xl">{jobs.filter(j=>j.status==="waiting").length}</b></Card><Card><p className="text-sm text-muted">Plăți de verificat</p><b className="text-3xl">{payments.filter(p=>["failed","pending"].includes(p.status)).length}</b></Card><Card><p className="text-sm text-muted">Notificări nereușite</p><b className="text-3xl">{notifications.filter(n=>n.status==="failed").length}</b></Card></div>
+
         {resetMessage && (
           <div className="bg-aqua/10 border border-aqua text-aqua-deep text-xs rounded-lg px-4 py-2.5 -mt-4">
             {resetMessage}

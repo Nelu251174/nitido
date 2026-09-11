@@ -9,7 +9,7 @@ export function Logo({ inverted = false }: { inverted?: boolean } = {}) {
       href="/"
       className={`font-display font-extrabold text-lg tracking-tight ${inverted ? "text-white" : "text-ink"}`}
     >
-      Nit<span className="text-gradient">ido</span>
+      NITIDO<span className="text-aqua">.RO</span>
     </Link>
   );
 }
@@ -30,7 +30,7 @@ export function Button({
   className?: string;
 }) {
   const base =
-    "px-5 py-3 rounded-full font-display font-bold text-sm transition-all duration-200 " +
+    "px-5 py-3 rounded-xl font-display font-bold text-sm transition-all duration-200 " +
     "disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.96]";
   const styles =
     variant === "solid"

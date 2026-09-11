@@ -38,16 +38,27 @@ export type PlanResult =
   | { ok: false; error: string; status: number };
 
 function ymd(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Bucharest",year:"numeric",month:"2-digit",day:"2-digit"}).format(d);
 }
 
-/** Următoarea dată de rulare, în funcție de frecvență. */
-export function computeNextDate(frequency: Frequency, from: Date): string {
-  const d = new Date(from.getTime());
-  if (frequency === "weekly") d.setDate(d.getDate() + 7);
-  else if (frequency === "biweekly") d.setDate(d.getDate() + 14);
-  else d.setMonth(d.getMonth() + 1);
-  return ymd(d);
+/** Calendar dates are independent of the server timezone; monthly dates clamp. */
+export function computeNextDate(frequency: Frequency, from: Date, anchorDay?:number): string {
+  const local=ymd(from);const d=new Date(`${local}T12:00:00Z`);
+  if(frequency==="weekly")d.setUTCDate(d.getUTCDate()+7);
+  else if(frequency==="biweekly")d.setUTCDate(d.getUTCDate()+14);
+  else {const day=anchorDay??d.getUTCDate();d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()+1);const last=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();d.setUTCDate(Math.min(day,last))}
+  return d.toISOString().slice(0,10);
+}
+export function bucharestScheduledAt(date:string,hour:number):Date {
+  const [year,month,day]=date.split("-").map(Number);
+  const target=Date.UTC(year,month-1,day,hour);let instant=target;
+  for(let i=0;i<3;i++){
+    const parts=new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Bucharest",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"}).formatToParts(new Date(instant));
+    const get=(key:string)=>Number(parts.find(p=>p.type===key)?.value);
+    const displayed=Date.UTC(get("year"),get("month")-1,get("day"),get("hour"),get("minute"),get("second"));
+    instant+=target-displayed;
+  }
+  return new Date(instant);
 }
 
 const VALID_SPACE: readonly SpaceType[] = ["apartament", "casa", "birou", "altul"];
@@ -70,6 +81,9 @@ export function createRecurringPlan(db: Database, input: RecurringPlanInput): Pl
     return { ok: false, error: "Dată de start invalidă", status: 400 };
   }
 
+  if (!Number.isInteger(input.hour)||![8,10,12,14,16,18].includes(input.hour))return {ok:false,error:"Oră invalidă",status:400};
+  const parsed=new Date(`${input.startDate}T12:00:00Z`);
+  if(!Number.isFinite(parsed.getTime())||parsed.toISOString().slice(0,10)!==input.startDate)return {ok:false,error:"Dată invalidă",status:400};
   const planId = `plan_${randomUUID()}`;
   db.prepare(
     `INSERT INTO recurring_plans
@@ -91,6 +105,7 @@ export function createRecurringPlan(db: Database, input: RecurringPlanInput): Pl
     typeof input.details === "string" ? input.details.trim().slice(0, 500) || null : null,
     input.startDate
   );
+  db.prepare("UPDATE recurring_plans SET anchor_day=? WHERE id=?").run(Number(input.startDate.slice(8,10)),planId);
   return { ok: true, planId };
 }
 
@@ -108,6 +123,7 @@ interface PlanRow {
   hour: number;
   details: string | null;
   next_run_date: string;
+  anchor_day: number|null;
 }
 
 /** Planurile unui client (active + pauză), pentru afișare în cont. */
@@ -150,50 +166,28 @@ export async function generateDueRecurringJobs(
     : db.prepare("SELECT * FROM recurring_plans WHERE status = 'active' AND next_run_date <= ?").all(today)) as PlanRow[];
 
   const created: string[] = [];
-  for (const plan of due) {
-    const jobId = `job_${randomUUID()}`;
-    const scheduledAt = new Date(`${plan.next_run_date}T00:00:00`);
-    scheduledAt.setHours(plan.hour, 0, 0, 0);
-    const priceGross = calcGrossPrice(plan.space_type, plan.sqm);
-    const durationMinutes = calcDurationMinutes(plan.sqm);
-
-    db.prepare(
-      `INSERT INTO jobs
-         (id, client_id, street, postal_code, city, floor, details, sqm, space_type, when_type,
-          scheduled_at, price_gross, credit_applied, duration_minutes, buffer_minutes, photos_count, mode, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, 0, ?, ?, 0, 'express', 'waiting')`
-    ).run(
-      jobId,
-      plan.client_id,
-      plan.street,
-      plan.postal_code,
-      plan.city,
-      plan.floor,
-      plan.details,
-      plan.sqm,
-      plan.space_type,
-      scheduledAt.toISOString(),
-      priceGross,
-      durationMinutes,
-      BUFFER_MINUTES
-    );
-
-    // Alocă firmei preferate dacă e posibil; dacă nu, lucrarea rămâne 'waiting'
-    // (o poate prelua altă firmă din zonă — nu blocăm abonamentul).
-    if (plan.preferred_firm_id) {
-      try {
-        await acceptJobAtomic(db, jobId, plan.preferred_firm_id);
-      } catch {
-        /* rămâne waiting */
+  for (const candidate of due) {
+    // Claim and advance synchronously before any Stripe/network work can yield.
+    const claimed=db.transaction(()=>{
+      const plan=db.prepare("SELECT * FROM recurring_plans WHERE id=? AND status='active' AND next_run_date=?").get(candidate.id,candidate.next_run_date) as PlanRow|undefined;
+      if(!plan)return null;
+      const scheduledAt=bucharestScheduledAt(plan.next_run_date,plan.hour);
+      const next=()=>computeNextDate(plan.frequency,new Date(`${plan.next_run_date}T12:00:00Z`),plan.anchor_day??undefined);
+      if(scheduledAt.getTime()<now.getTime()){
+        let date=next();let skipped=0;
+        while(date<=today&&skipped++<5000)date=computeNextDate(plan.frequency,new Date(`${date}T12:00:00Z`),plan.anchor_day??undefined);
+        db.prepare("UPDATE recurring_plans SET next_run_date=? WHERE id=?").run(date,plan.id);
+        return null;
       }
-    }
-
-    db.prepare("UPDATE recurring_plans SET next_run_date = ?, last_job_id = ? WHERE id = ?").run(
-      computeNextDate(plan.frequency, new Date(`${plan.next_run_date}T00:00:00`)),
-      jobId,
-      plan.id
-    );
-    created.push(jobId);
+      const jobId=`job_${randomUUID()}`;
+      db.prepare(`INSERT INTO jobs(id,client_id,street,postal_code,city,floor,details,sqm,space_type,when_type,scheduled_at,price_gross,credit_applied,duration_minutes,buffer_minutes,photos_count,mode,status)
+        VALUES(?,?,?,?,?,?,?,?,?,'scheduled',?,?,0,?,?,0,'express','waiting')`).run(jobId,plan.client_id,plan.street,plan.postal_code,plan.city,plan.floor,plan.details,plan.sqm,plan.space_type,scheduledAt.toISOString(),calcGrossPrice(plan.space_type,plan.sqm),calcDurationMinutes(plan.sqm),BUFFER_MINUTES);
+      db.prepare("UPDATE recurring_plans SET next_run_date=?,last_job_id=? WHERE id=?").run(next(),jobId,plan.id);
+      return {jobId,preferredFirmId:plan.preferred_firm_id};
+    })();
+    if(!claimed)continue;
+    created.push(claimed.jobId);
+    if(claimed.preferredFirmId){try{await acceptJobAtomic(db,claimed.jobId,claimed.preferredFirmId)}catch{/* Job remains waiting for the existing recovery flow. */}}
   }
-  return { created };
+  return {created};
 }

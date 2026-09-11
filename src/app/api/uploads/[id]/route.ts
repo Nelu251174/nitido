@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { db, getFirmByUserId } from "@/lib/db";
 import { isAdmin } from "@/lib/adminAuth";
-import { firmCoversCity } from "@/lib/text";
 
 const UPLOAD_DIR = path.join(process.cwd(), "data", "uploads");
 const CONTENT_TYPES: Record<string, string> = {
@@ -42,23 +41,10 @@ export async function GET(
   if (!photo) return NextResponse.json({ error: "Imagine inexistentă" }, { status: 404 });
 
   const firm = user?.role === "firma" ? getFirmByUserId(user.id) : null;
-  // Nitido Scan: o firmă verificată care acoperă orașul poate vedea pozele de
-  // context ale unei lucrări încă disponibile (waiting), ca să estimeze corect
-  // înainte de a prelua/oferta. Pentru lucrările deja preluate rămâne regula
-  // strictă (doar firma acceptată).
-  const firmSeesScanContext = Boolean(
-    firm &&
-      photo.proof_type === "CLIENT_CONTEXT" &&
-      photo.job_status === "waiting" &&
-      firm.verified &&
-      photo.job_city &&
-      firmCoversCity(firm.coverage_city, firm.coverage_cities_extra, photo.job_city)
-  );
   const authorized =
     admin ||
     (user?.role === "client" && (photo.owner_user_id === user.id || photo.client_id === user.id)) ||
-    Boolean(firm && photo.accepted_firm_id === firm.id) ||
-    firmSeesScanContext;
+    Boolean(firm && photo.accepted_firm_id === firm.id);
   if (!authorized) return NextResponse.json({ error: "Acces interzis" }, { status: 403 });
 
   if (path.basename(photo.filename) !== photo.filename) {

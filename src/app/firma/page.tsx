@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import {WorkspaceNav} from "@/components/WorkspaceNav";
 import { Logo, Card, Button, inputClass } from "@/components/ui";
 import { calcNetForFirm } from "@/lib/pricing";
 import { mapsDirectionsUrl } from "@/lib/maps";
@@ -22,6 +23,8 @@ export default function FirmaPage() {
   const [myJobs, setMyJobs] = useState<JobRow[]>([]);
   const [offeredJobIds, setOfferedJobIds] = useState<string[]>([]);
   const [offerMsgs, setOfferMsgs] = useState<Record<string, string>>({});
+  const [filter,setFilter]=useState("all");
+  const [search,setSearch]=useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [uploadingProof, setUploadingProof] = useState<string | null>(null);
   const [trustProfile, setTrustProfile] = useState<{firms:{average_rating:number|null;review_count:number;completed_jobs:number;verified:number}[];reviews:{id:string;rating:number;reviewText:string|null;reviewer:string;badge:string}[]}>({firms:[],reviews:[]});
@@ -134,7 +137,7 @@ export default function FirmaPage() {
     setMessage(null);
     const res = await fetch(`/api/jobs/${jobId}/complete`, { method: "POST" });
     const data = await res.json();
-    setMessage(res.ok ? "Lucrarea a fost finalizată. Plata a fost eliberată în platforma NITIDO." : data.error ?? "Nu s-a putut finaliza lucrarea");
+    setMessage(res.ok ? "Lucrarea a fost finalizată. Verifică separat starea plății în secțiunea financiară." : data.error ?? "Nu s-a putut finaliza lucrarea");
     await refresh();
   }
 
@@ -206,7 +209,10 @@ export default function FirmaPage() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-6 py-10 space-y-8">
+      <main className="max-w-6xl mx-auto px-6 py-8 space-y-8">
+        <WorkspaceNav role="firma"/>
+        <header className="section-heading"><div><p className="v2-eyebrow">NITIDO PARTENER</p><h1 className="workspace-title">Bună, {user.name}. Să facem loc lucrurilor bune.</h1><p className="text-muted">Lucrări noi și programul echipei, într-un singur loc.</p></div><Link className="v2-btn v2-btn-primary" href="/firma/calendar">Deschide calendarul ↗</Link></header>
+        <section className="workspace-metrics"><Card><p className="text-sm text-muted">Oportunități în zonă</p><b className="text-3xl">{waitingJobs.length}</b></Card><Card><p className="text-sm text-muted">Lucrări active</p><b className="text-3xl">{activeJobs.length}</b></Card><Card><p className="text-sm text-muted">Lucrări finalizate</p><b className="text-3xl">{historyJobs.length}</b></Card></section>
         {message && (
           <div className="bg-coral/10 border border-coral text-coral text-sm rounded-lg px-4 py-2.5">
             {message}
@@ -284,7 +290,7 @@ export default function FirmaPage() {
         )}
 
         <section>
-          <h2 className="font-display font-bold text-ink mb-3">Alerte noi</h2>
+          <h2 className="font-display font-bold text-ink mb-3">Oportunități noi</h2><div className="workspace-toolbar"><input aria-label="Caută oportunități" className={inputClass} placeholder="Caută după oraș sau tip de spațiu" value={search} onChange={e=>setSearch(e.target.value)}/><select aria-label="Mod de alocare" className={inputClass} value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Toate lucrările</option><option value="standard">Standard</option><option value="express">Express</option></select></div>
           {waitingJobs.length === 0 && (
             <Card>
               <p className="text-sm text-muted">
@@ -294,10 +300,10 @@ export default function FirmaPage() {
             </Card>
           )}
           <div className="space-y-3">
-            {waitingJobs.map((job) => (
+            {waitingJobs.filter(j=>(filter==="all"||(j.mode??"express")===filter)&&`${j.city} ${j.space_type}`.toLowerCase().includes(search.toLowerCase())).map((job) => (
               <div
                 key={job.id}
-                className={`bg-white rounded-2xl p-4 relative ${job.express_60 ? "border-2 border-coral ring-2 ring-coral/30" : "border-2 border-coral"}`}
+                className={`bg-white rounded-2xl p-4 relative ${job.express_60 ? "border-2 border-coral ring-2 ring-coral/30" : "border border-line"}`}
               >
                 {job.express_60 ? (
                   <div className="flex items-center gap-2 mb-2 flex-wrap">

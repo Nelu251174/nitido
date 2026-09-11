@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
+import {WorkspaceNav} from "@/components/WorkspaceNav";
+import {JobMessages} from "@/components/JobMessages";
+import {JOB_STATUS} from "@/lib/workspaceShared";
 import { Logo, Card, Field, inputClass, Button, StatusTrack, StarRating } from "@/components/ui";
 import {
   calcGrossPrice,
@@ -80,10 +84,15 @@ export default function ClientPage() {
   const router = useRouter();
   const { user, loading } = useCurrentUser();
 
-  const [street, setStreet] = useState("Str. Exemplu 12");
-  const [postalCode, setPostalCode] = useState("900123");
-  const [city, setCity] = useState("Constanța");
-  const [floor, setFloor] = useState("3");
+  const [propertyId,setPropertyId]=useState<string|null>(null);
+  const requestRef=useRef<{payload:string;id:string}|null>(null);
+  const [showBooking,setShowBooking]=useState(false);
+  const [historyFilter,setHistoryFilter]=useState("");
+  const [cardConfigured,setCardConfigured]=useState(false);
+  const [street, setStreet] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [city, setCity] = useState("");
+  const [floor, setFloor] = useState("");
   const [sqm, setSqm] = useState(75);
   const [spaceType, setSpaceType] = useState<SpaceType>("apartament");
   const [whenType, setWhenType] = useState<"asap" | "scheduled">("asap");
@@ -112,8 +121,19 @@ export default function ClientPage() {
 
   useEffect(() => {
     if (loading) return;
-    if (!user || user.role !== "client") router.replace("/login");
+    if (!user || user.role !== "client") router.replace(`/login?next=${encodeURIComponent(window.location.pathname+window.location.search+window.location.hash)}`);
   }, [loading, user, router]);
+
+  useEffect(() => {
+    if(user?.role!=="client")return;
+    const params=new URLSearchParams(window.location.search);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initialize form from navigation parameters after authentication
+    if(window.location.hash==="#sec-form"||params.has("propertyId")||params.has("spaceType")||params.has("mode"))setShowBooking(true);
+    const type=params.get("spaceType");if(type&&["apartament","casa","birou","altul"].includes(type))setSpaceType(type as SpaceType);
+    const area=Number(params.get("sqm"));if(Number.isInteger(area)&&area>0&&area<=1000)setSqm(area);
+    if(params.get("mode")==="express")setMode("express");
+    const id=params.get("propertyId");if(id){void fetch("/api/workspace").then(r=>{if(!r.ok)throw new Error();return r.json()}).then(d=>{const p=d.properties.find((p:{id:string})=>p.id===id);if(!p){setError("Proprietatea nu este disponibilă.");return}setPropertyId(p.id);setStreet(p.street);setCity(p.city);setSqm(p.sqm);setSpaceType(p.space_type)}).catch(()=>setError("Proprietatea nu a putut fi încărcată."))}
+  },[user?.id,user?.role]);
 
   const refreshMyJobs = useCallback(async () => {
     const response = await fetch("/api/jobs");
@@ -142,9 +162,10 @@ export default function ClientPage() {
         const res = await fetch("/api/payments/card");
         if (!res.ok || cancelled) return;
         const d = await res.json();
-        setHasCard(d.stripeConfigured ? Boolean(d.hasCard) : true);
+        setCardConfigured(Boolean(d.stripeConfigured));
+        setHasCard(Boolean(d.hasCard));
       } catch {
-        if (!cancelled) setHasCard(true); // în caz de eroare, nu blocăm UI-ul
+        if (!cancelled) {setHasCard(null);setError("Starea cardului nu a putut fi verificată.");}
       }
     })();
     return () => { cancelled = true; };
@@ -230,6 +251,7 @@ export default function ClientPage() {
         mode: express60Active ? "express" : mode,
         express60: express60Active,
         photoIds: photos.map((p) => p.id),
+        propertyId,
       };
       if (whenType === "scheduled") {
         if (scheduledHour === null) {
@@ -240,15 +262,20 @@ export default function ClientPage() {
         body.scheduledDate = scheduledDate.toISOString();
         body.scheduledHour = scheduledHour;
       }
+      const payload=JSON.stringify(body);
+      if(requestRef.current?.payload!==payload)requestRef.current={payload,id:crypto.randomUUID()};
+      body.clientRequestId=requestRef.current.id;
       const res = await fetch("/api/jobs", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": requestRef.current.id },
         body: JSON.stringify(body),
       });
       const data = await res.json();
       if (res.status === 402) setHasCard(false); // lipsă card — arată butonul de adăugare
       if (!res.ok) throw new Error(data.error ?? "Eroare la postare");
       setJob(data.job);
+      requestRef.current=null;
+      setShowBooking(false);
       refreshMyJobs();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Eroare necunoscută");
@@ -336,6 +363,7 @@ export default function ClientPage() {
   // „Postează o lucrare" — resetează la formular ȘI derulează direct la el, ca
   // utilizatorul să ajungă imediat unde completează, nu doar să vadă un mesaj.
   function goToForm() {
+    setShowBooking(true);
     resetToForm();
     setTimeout(() => {
       document.getElementById("sec-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -379,54 +407,54 @@ export default function ClientPage() {
 
   const scrollToId = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   const navItems: { label: string; onSelect: () => void }[] = [
-    { label: "Acasă", onSelect: () => { resetToForm(); window.scrollTo({ top: 0, behavior: "smooth" }); } },
+    { label: "Acasă", onSelect: () => { setShowBooking(false); resetToForm(); window.scrollTo({ top: 0, behavior: "smooth" }); } },
     { label: "Lucrările mele", onSelect: () => scrollToId("sec-lucrari") },
-    { label: "Mesaje", onSelect: () => scrollToId("sec-mesaje") },
+    { label: "Mesaje", onSelect: () => router.push("/client/mesaje") },
     { label: "Plăți", onSelect: () => scrollToId("sec-plata") },
     { label: "Încredere & Siguranță", onSelect: () => scrollToId("sec-incredere") },
     { label: "Cont", onSelect: () => scrollToId("sec-cont") },
   ];
 
   return (
-    <div className="min-h-screen bg-[#f4f3ee] flex max-[760px]:block">
-      <aside className="w-[236px] shrink-0 bg-white border-r border-[#e3e2da] p-5 flex flex-col sticky top-0 h-screen max-[760px]:w-full max-[760px]:h-auto max-[760px]:relative max-[760px]:border-r-0 max-[760px]:border-b max-[760px]:p-4">
+    <div className="min-h-screen bg-[#f7f9fc] flex max-[760px]:block">
+      <aside className="w-[236px] shrink-0 bg-white border-r border-[#e2e8f0] p-5 flex flex-col sticky top-0 h-screen max-[760px]:w-full max-[760px]:h-auto max-[760px]:relative max-[760px]:border-r-0 max-[760px]:border-b max-[760px]:p-4">
         <div className="flex items-center justify-between">
           <Logo />
-          <button type="button" onClick={()=>setMenuOpen(o=>!o)} aria-expanded={menuOpen} aria-label="Meniu" className="hidden max-[760px]:inline-flex items-center gap-2 rounded-full border border-[#e3e2da] bg-white px-4 py-2 text-sm font-semibold text-[#3e4842]">
+          <button type="button" onClick={()=>setMenuOpen(o=>!o)} aria-expanded={menuOpen} aria-label="Meniu" className="hidden max-[760px]:inline-flex items-center gap-2 rounded-full border border-[#e2e8f0] bg-white px-4 py-2 text-sm font-semibold text-[#3e4842]">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">{menuOpen?<path d="M6 6l12 12M18 6 6 18"/>:<><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></>}</svg>
             Meniu
           </button>
         </div>
-        <nav className="mt-10 space-y-2 text-sm font-semibold max-[760px]:hidden">
-          {navItems.map((it,i)=><button key={it.label} type="button" onClick={it.onSelect} className={i===0?"text-left block w-full rounded-[10px] bg-[#e9f2ec] text-[#14663a] px-4 py-3":"text-left block w-full rounded-[10px] px-4 py-3 text-[#5c6660] hover:bg-[#f4f3ee]"}>{it.label}</button>)}
+        <WorkspaceNav role="client"/><nav className="mt-3 space-y-2 text-sm font-semibold max-[760px]:hidden">
+          {navItems.map((it,i)=><button key={it.label} type="button" onClick={it.onSelect} className={i===0?"text-left block w-full rounded-[10px] bg-[#e8f5f2] text-[#115e59] px-4 py-3":"text-left block w-full rounded-[10px] px-4 py-3 text-[#64748b] hover:bg-[#f7f9fc]"}>{it.label}</button>)}
         </nav>
         {menuOpen && (
-          <nav className="hidden max-[760px]:flex flex-col mt-3 rounded-2xl border border-[#e3e2da] bg-white overflow-hidden text-sm font-semibold">
-            {navItems.map((it,i)=><button key={it.label} type="button" onClick={()=>{it.onSelect();setMenuOpen(false);}} className={`text-left px-4 py-3.5 text-[#3e4842] active:bg-[#e9f2ec] ${i>0?"border-t border-[#ecebe4]":""}`}>{it.label}</button>)}
+          <nav className="hidden max-[760px]:flex flex-col mt-3 rounded-2xl border border-[#e2e8f0] bg-white overflow-hidden text-sm font-semibold">
+            {navItems.map((it,i)=><button key={it.label} type="button" onClick={()=>{it.onSelect();setMenuOpen(false);}} className={`text-left px-4 py-3.5 text-[#3e4842] active:bg-[#e8f5f2] ${i>0?"border-t border-[#ecebe4]":""}`}>{it.label}</button>)}
             <button type="button" onClick={()=>{setMenuOpen(false);logout();}} className="text-left px-4 py-3.5 text-[#c0392b] border-t border-[#ecebe4]">Ieși din cont</button>
           </nav>
         )}
-        <div className="mt-auto max-[760px]:hidden"><div className="text-sm font-semibold">{user.name}</div><div className="text-xs text-[#6b756f] mt-1">{user.email}</div><button onClick={logout} className="text-xs text-[#5c6660] mt-4">Ieși din cont</button></div>
+        <div className="mt-auto max-[760px]:hidden"><div className="text-sm font-semibold">{user.name}</div><div className="text-xs text-[#6b756f] mt-1">{user.email}</div><button onClick={logout} className="text-xs text-[#64748b] mt-4">Ieși din cont</button></div>
       </aside>
-      <main className="flex-1 min-w-0 px-8 py-8 max-[760px]:px-[22px]">
-        <header className="flex items-center justify-between gap-4 flex-wrap max-[760px]:gap-3"><div><div className="text-sm text-[#5c6660]">Bună, {user.name.split(" ")[0]}</div><h1 className="text-[26px] max-[760px]:text-[22px] font-bold mt-1">Panoul tău NITIDO</h1></div><button onClick={goToForm} className="v2-btn v2-btn-primary max-[760px]:w-full">Postează o lucrare</button></header>
+      <main className="flex-1 min-w-0 px-8 py-8 max-[760px]:px-[22px] max-[760px]:pb-28">
+        <header className="flex items-center justify-between gap-4 flex-wrap max-[760px]:gap-3"><div><div className="text-sm text-[#64748b]">Bună, {user.name.split(" ")[0]}</div><h1 className="text-[26px] max-[760px]:text-[22px] font-bold mt-1">Panoul tău NITIDO</h1></div><button onClick={goToForm} className="v2-btn v2-btn-primary max-[760px]:w-full">Postează o lucrare</button></header>
         <section className="grid grid-cols-4 gap-4 mt-7 max-[1100px]:grid-cols-2"><Kpi value={String(myJobs.filter(j=>["accepted","arrived"].includes(j.status)).length)} label="În lucru"/><Kpi value={String(myJobs.filter(j=>j.status==="waiting").length)} label="În așteptare"/><Kpi value={String(myJobs.filter(j=>j.status==="completed").length)} label="Finalizate"/><Kpi value={String(myJobs.filter(j=>j.proofs?.some(p=>p.type==="COMPLETION")).length)} label="Dovezi finale"/></section>
         <div className="grid grid-cols-[minmax(0,1fr)_360px] gap-5 mt-7 max-[1100px]:grid-cols-1">
         <div className="min-w-0">
-        {myJobs.length>0&&<section id="sec-lucrari" className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold">Lucrările mele</h2><span className="text-xs text-[#6b756f]">{myJobs.length} total</span></div><div className="mt-3 divide-y divide-[#e3e2da]">{myJobs.slice(0,5).map(item=><button key={item.id} onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[#e9f2ec] flex items-center justify-center text-[#14663a] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate">{item.space_type} · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm} m² · {item.status}</span></span><b className="text-sm">{item.price_gross} lei</b></button>)}</div></section>}
-        {!job && <RecurringSection defaults={{ street, postalCode, city, floor, sqm, spaceType }} />}
-        {!job && <BusinessSection />}
-        {!job && user?.referral_code && (
+        {!showBooking&&myJobs.length>0&&<section id="sec-lucrari" className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold">Lucrările mele</h2><span className="text-xs text-[#6b756f]">{myJobs.length} total</span></div><input aria-label="Caută rezervări" className={`${inputClass} mt-3`} value={historyFilter} onChange={e=>setHistoryFilter(e.target.value)} placeholder="Caută rezervare sau status…"/><div className="mt-3 divide-y divide-[#e2e8f0]">{myJobs.filter(item=>`${item.city} ${item.street} ${JOB_STATUS[item.status]}`.toLowerCase().includes(historyFilter.toLowerCase())).map(item=><button key={item.id} onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[#e8f5f2] flex items-center justify-center text-[#115e59] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate">{item.space_type} · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm} m² · {JOB_STATUS[item.status]}</span></span><b className="text-sm">{item.price_gross} lei</b></button>)}</div></section>}
+        {!job && !showBooking && <RecurringSection defaults={{ street, postalCode, city, floor, sqm, spaceType }} />}
+        {!job && !showBooking && <BusinessSection />}
+        {!job && !showBooking && user?.referral_code && (
           <ReferralCard code={user.referral_code} creditBalance={creditBalance} />
         )}
-        {!job && <div className="mb-5"><AppRatingCard /></div>}
-        {!job && <section id="sec-mesaje" className="v2-card p-5 mb-5"><h2 className="font-bold">Mesaje &amp; suport</h2><p className="text-sm text-[#5c6660] mt-2 leading-6">Ai o întrebare despre o lucrare sau despre cont? Echipa NITIDO îți răspunde rapid.</p><div className="mt-3 flex flex-col gap-1 text-sm"><a href="tel:0341402403" className="text-[#14663a] font-semibold">📞 0341 402 403</a><a href="mailto:contact@nitido.ro" className="text-[#14663a] font-semibold">✉️ contact@nitido.ro</a></div><a href="/contact" target="_blank" rel="noopener noreferrer" className="v2-btn v2-btn-secondary mt-4 inline-flex">Deschide asistentul NITIDO</a></section>}
-        {!job && <section id="sec-incredere" className="v2-card p-5 mb-5"><h2 className="font-bold">Încredere &amp; Siguranță</h2><ul className="text-sm text-[#5c6660] mt-2 leading-6 list-disc pl-5 space-y-1"><li>Firme verificate în platformă, cu CUI validat la ANAF.</li><li>Banii tăi stau în escrow și se eliberează firmei doar după ce confirmi finalizarea.</li><li>Plata cardului e procesată securizat de Stripe — NITIDO nu îți vede datele cardului.</li><li>Urmărești lucrarea în timp real și primești dovezi foto la final.</li></ul><a href="/incredere" target="_blank" rel="noopener noreferrer" className="v2-btn v2-btn-secondary mt-4 inline-flex">Vezi pagina completă</a></section>}
-        {!job && (
+        {!job && !showBooking && <div className="mb-5"><AppRatingCard /></div>}
+        {!job && !showBooking && <section id="sec-mesaje" className="v2-card p-5 mb-5"><h2 className="font-bold">Mesaje &amp; suport</h2><p className="text-sm text-[#64748b] mt-2 leading-6">Ai o întrebare despre o lucrare sau despre cont? Echipa NITIDO îți răspunde rapid.</p><div className="mt-3 flex flex-col gap-1 text-sm"><a href="tel:0341402403" className="text-[#115e59] font-semibold">📞 0341 402 403</a><a href="mailto:contact@nitido.ro" className="text-[#115e59] font-semibold">✉️ contact@nitido.ro</a></div><a href="/contact" target="_blank" rel="noopener noreferrer" className="v2-btn v2-btn-secondary mt-4 inline-flex">Deschide asistentul NITIDO</a></section>}
+        {!job && !showBooking && <section id="sec-incredere" className="v2-card p-5 mb-5"><h2 className="font-bold">Încredere &amp; Siguranță</h2><ul className="text-sm text-[#64748b] mt-2 leading-6 list-disc pl-5 space-y-1"><li>Firme verificate în platformă, cu CUI validat la ANAF.</li><li>Autorizarea cardului și încasarea sunt etape distincte. Starea plății este afișată separat de starea lucrării.</li><li>Plata cardului e procesată securizat de Stripe — NITIDO nu îți vede datele cardului.</li><li>Urmărești lucrarea în timp real și primești dovezi foto la final.</li></ul><a href="/incredere" target="_blank" rel="noopener noreferrer" className="v2-btn v2-btn-secondary mt-4 inline-flex">Vezi pagina completă</a></section>}
+        {!job && !showBooking && (
           <section id="sec-cont" className="v2-card p-5 mb-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="font-bold">Contul meu</h2>
-              {!editingProfile && <button type="button" onClick={openProfileEditor} className="inline-flex items-center rounded-full border border-[#d8d7d0] px-3.5 py-1.5 text-sm font-semibold text-[#14663a] transition-colors duration-150 hover:border-[#1b8a4c] hover:bg-[#e9f2ec]">Editează profilul</button>}
+              {!editingProfile && <button type="button" onClick={openProfileEditor} className="inline-flex items-center rounded-full border border-[#d8d7d0] px-3.5 py-1.5 text-sm font-semibold text-[#115e59] transition-colors duration-150 hover:border-[#0f766e] hover:bg-[#e8f5f2]">Editează profilul</button>}
             </div>
             {!editingProfile ? (
               <div className="mt-3 grid gap-3 sm:grid-cols-2 text-sm">
@@ -449,7 +477,7 @@ export default function ClientPage() {
           </section>
         )}
         <div id="sec-form" />
-        {!job && (
+        {!job && showBooking && (
           <Card>
             <h1 className="font-display font-extrabold text-xl text-ink mb-1">
               Postează o lucrare
@@ -714,10 +742,10 @@ export default function ClientPage() {
 
             {error && <p className="text-coral text-xs mb-3">{error}</p>}
 
-            {hasCard === false && (
-              <div id="sec-plata" className="mb-3 rounded-xl border border-[#e3e2da] bg-[#f4f3ee] p-4">
-                <div className="text-sm font-bold text-[#101711]">Adaugă un card pentru plată</div>
-                <p className="text-xs text-[#5c6660] mt-1 leading-5">
+            {cardConfigured && hasCard === false && (
+              <div id="sec-plata" className="mb-3 rounded-xl border border-[#e2e8f0] bg-[#f7f9fc] p-4">
+                <div className="text-sm font-bold text-[#111827]">Adaugă un card pentru plată</div>
+                <p className="text-xs text-[#64748b] mt-1 leading-5">
                   Banii se rezervă abia când o firmă acceptă lucrarea și se încasează doar
                   după finalizarea confirmată. Cardul e procesat securizat de Stripe.
                 </p>
@@ -726,13 +754,13 @@ export default function ClientPage() {
                 </Button>
               </div>
             )}
-            {hasCard === true && (
-              <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-[#14663a]">
+            {cardConfigured && hasCard === true && (
+              <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-[#115e59]">
                 <span>✓</span> Card salvat — plată securizată
               </p>
             )}
 
-            <Button className="w-full" onClick={postJob} disabled={submitting || hasCard === false}>
+            <Button className="w-full" onClick={postJob} disabled={submitting || (cardConfigured && hasCard !== true) || !street.trim() || !city.trim()}>
               {submitting ? "Se postează..." : "Postează lucrarea"}
             </Button>
           </Card>
@@ -761,7 +789,7 @@ export default function ClientPage() {
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <div className="font-display font-bold text-sm text-ink truncate">{o.firmName}</div>
-                              <span className="flex-shrink-0 text-[10px] font-display font-bold text-aqua-deep bg-aqua/10 rounded-full px-2 py-0.5" title="Nitido Quality Index">Scor {o.qualityScore}</span>
+                              <span className="eyebrow-pill">Candidatură</span>
                             </div>
                             <div className="text-[11.5px] text-muted mt-0.5">
                               {o.ratingAvg != null ? `★ ${o.ratingAvg.toFixed(1)} (${o.ratingCount})` : "firmă nouă"} · {o.completedJobs} lucrări finalizate
@@ -881,7 +909,7 @@ export default function ClientPage() {
               Firma nu a confirmat prezența
             </h1>
             <p className="text-sm text-muted mb-4">
-              Lucrarea a fost anulată automat. Nu s-a reținut nicio sumă — hold-ul a fost eliberat.
+              Lucrarea a fost anulată automat. Verifică starea anulării autorizării în detaliile plății.
             </p>
             <Button className="w-full" onClick={resetToForm}>
               Repostează lucrarea
@@ -893,18 +921,21 @@ export default function ClientPage() {
           <Card>
             <h1 className="font-display font-bold text-lg text-ink mb-2">Firma a renunțat — am repus lucrarea</h1>
             <p className="text-sm text-muted mb-4">
-              Nu s-a reținut nicio sumă. Prin <b>Job Rescue</b> am repus automat lucrarea pentru o altă firmă — o găsești în „Lucrările mele”.
+              Consultă istoricul rezervărilor pentru o eventuală repostare și starea separată a plății.
             </p>
             <Button className="w-full" onClick={resetToForm}>Înapoi la panou</Button>
           </Card>
         )}
         </div>
         <aside className="space-y-4">
-          <div className="bg-[#101711] text-white rounded-[18px] p-6"><div className="text-xs text-[#8fd8ae] font-bold">LUCRAREA DE AZI</div><h2 className="text-xl font-bold mt-2">{job?`${job.space_type} · ${job.city}`:"Nicio lucrare activă"}</h2><div className="mt-6 space-y-4 text-sm">{["Firma alocată","Echipa a ajuns","Curățenie în progres","Confirmare finală"].map((x,i)=><div className="flex gap-3" key={x}><span className={`w-3 h-3 rounded-full mt-1 ${job&&i<3?"bg-[#39c97c]":"bg-[#2a332c]"}`}/><span className={i===2?"font-bold":"text-[#a8b2ac]"}>{x}</span></div>)}</div><div className="flex justify-between mt-6 text-sm"><span>Progres</span><b>66%</b></div><div className="h-2 bg-[#2a332c] rounded-full mt-2"><div className="h-full bg-[#39c97c] w-2/3 rounded-full"/></div><div className="text-xs text-[#8b958f] mt-2">6 din 9 pași</div></div>
-          <div className="v2-card p-5"><div className="text-xs text-[#14663a] font-bold">ESCROW</div><div className="text-3xl font-bold mt-2">{job?.price_gross ?? 500} lei</div><p className="text-sm text-[#5c6660] mt-2">Suma rămâne rezervată până confirmi finalizarea.</p><div aria-disabled="true" className="v2-btn w-full mt-5 bg-[#edece6] text-[#9aa39d] cursor-not-allowed">Disponibilă după finalizarea lucrării</div></div>
+          <div className="relative h-48 rounded-2xl overflow-hidden"><Image src="/design-v2/hero-cleaning.png" alt="Un spațiu pregătit pentru tine" fill sizes="360px" className="object-cover"/></div>
+          <div className="v2-card p-6"><div className="v2-eyebrow">REZERVAREA SELECTATĂ</div><h2 className="text-xl font-bold mt-3">{job?`${job.space_type} · ${job.city}`:"Totul începe cu prima rezervare"}</h2>{job?<><p className="eyebrow-pill mt-4">{JOB_STATUS[job.status]}</p><p className="mt-4 text-sm text-muted">{job.scheduled_at?new Date(job.scheduled_at).toLocaleString("ro-RO"):"Program în curs de stabilire"}</p><div className="border-t border-line mt-5 pt-5 flex justify-between"><span>Preț lucrare</span><b>{job.price_gross} lei</b></div><p className="text-sm text-muted mt-3">Plată: {job.financial?.paymentStatus??"Nicio plată înregistrată"}</p><p className="mt-3 text-xs text-muted">{job.proofs?.filter(p=>p.type==="COMPLETION").length??0} dovezi finale disponibile</p></>:<><p className="text-sm text-muted leading-6 mt-3">Alege spațiul, verifică prețul și găsește firma potrivită.</p><button className="v2-btn v2-btn-primary w-full mt-5" onClick={goToForm}>Rezervă o curățenie</button></>}</div>
+          <Link href="/client/proprietati" className="v2-card p-5 block"><b>Proprietățile tale ↗</b><p className="text-sm text-muted mt-2">Salvează adresele pentru rezervările viitoare.</p></Link>
+          {job?.accepted_firm_id&&<JobMessages key={job.id} jobId={job.id}/>}
         </aside>
         </div>
       </main>
+      <nav className="mobile-workspace-nav" aria-label="Navigare rapidă"><button onClick={()=>{setShowBooking(false);resetToForm();window.scrollTo(0,0)}}>Acasă</button><button onClick={()=>scrollToId("sec-lucrari")}>Rezervări</button><Link href="/client/mesaje">Mesaje</Link><button onClick={()=>scrollToId("sec-cont")}>Cont</button></nav>
     </div>
   );
 }
@@ -1015,10 +1046,10 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
       <p className="text-xs text-muted mt-1">Aceeași echipă, la interval fix. Se creează automat următoarea lucrare.</p>
 
       {plans.length > 0 && (
-        <div className="mt-3 divide-y divide-[#e3e2da]">
+        <div className="mt-3 divide-y divide-[#e2e8f0]">
           {plans.map((p) => (
             <div key={p.id} className="py-3 flex items-center gap-3">
-              <span className="w-10 h-10 rounded-lg bg-[#e9f2ec] flex items-center justify-center text-[#14663a] font-bold">↻</span>
+              <span className="w-10 h-10 rounded-lg bg-[#e8f5f2] flex items-center justify-center text-[#115e59] font-bold">↻</span>
               <span className="min-w-0 flex-1">
                 <b className="text-sm block truncate">{FREQ_LABELS[p.frequency]} · {p.space_type} · {p.city}</b>
                 <span className="text-xs text-[#6b756f]">Următoarea: {p.next_run_date} · {p.status === "active" ? "activ" : p.status === "paused" ? "pe pauză" : p.status}</span>
@@ -1182,7 +1213,7 @@ function BusinessSection() {
           {report.rows.length === 0 ? (
             <p className="text-xs text-muted">Nicio lucrare finalizată încă.</p>
           ) : (
-            <div className="divide-y divide-[#e3e2da]">
+            <div className="divide-y divide-[#e2e8f0]">
               {report.rows.map((row) => (
                 <div key={row.jobId} className="py-2 flex justify-between gap-2 text-xs">
                   <span className="min-w-0">

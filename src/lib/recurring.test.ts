@@ -5,6 +5,7 @@ import { SCHEMA_SQL } from "./db";
 import {
   createRecurringPlan,
   computeNextDate,
+  bucharestScheduledAt,
   generateDueRecurringJobs,
   listPlansForClient,
   setPlanStatus,
@@ -62,7 +63,7 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     const firmId = seedClientAndFirm(db);
     createRecurringPlan(db, { ...basePlan, preferredFirmId: firmId, startDate: "2026-01-05" });
 
-    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-06T09:00:00"));
+    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-05T06:00:00Z"));
     expect(created).toHaveLength(1);
 
     const job = db.prepare("SELECT status, accepted_firm_id, mode FROM jobs WHERE id = ?").get(created[0]) as { status: string; accepted_firm_id: string; mode: string };
@@ -78,7 +79,7 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
   it("nu generează nimic dacă nu e scadent încă", async () => {
     seedClientAndFirm(db);
     createRecurringPlan(db, { ...basePlan, preferredFirmId: "firm_pref", startDate: "2026-02-01" });
-    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-06T09:00:00"));
+    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-05T06:00:00Z"));
     expect(created).toHaveLength(0);
   });
 
@@ -88,7 +89,7 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     createRecurringPlan(db, { ...basePlan, preferredFirmId: "firm_pref", startDate: "2026-01-05" });
     createRecurringPlan(db, { ...basePlan, clientId: "client_2", preferredFirmId: "firm_pref", startDate: "2026-01-05" });
 
-    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-06T09:00:00"), "client_1");
+    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-05T06:00:00Z"), "client_1");
     expect(created).toHaveLength(1);
     const c2jobs = db.prepare("SELECT COUNT(*) AS n FROM jobs WHERE client_id='client_2'").get() as { n: number };
     expect(c2jobs.n).toBe(0);
@@ -99,7 +100,7 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     const r = createRecurringPlan(db, { ...basePlan, preferredFirmId: "firm_pref", startDate: "2026-01-05" });
     const planId = r.ok ? r.planId : "";
     expect(setPlanStatus(db, planId, "client_1", "paused").ok).toBe(true);
-    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-06T09:00:00"));
+    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-05T06:00:00Z"));
     expect(created).toHaveLength(0);
   });
 
@@ -107,9 +108,28 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     seedClientAndFirm(db);
     db.prepare("UPDATE firms SET coverage_city='Brașov' WHERE id='firm_pref'").run();
     createRecurringPlan(db, { ...basePlan, preferredFirmId: "firm_pref", startDate: "2026-01-05" });
-    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-06T09:00:00"));
+    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-05T06:00:00Z"));
     expect(created).toHaveLength(1);
     const job = db.prepare("SELECT status FROM jobs WHERE id = ?").get(created[0]) as { status: string };
     expect(job.status).toBe("waiting");
   });
+  it("clamps a monthly occurrence and restores its anchor day",()=>{
+    expect(computeNextDate("monthly",new Date("2026-01-31T12:00:00Z"),31)).toBe("2026-02-28");
+    expect(computeNextDate("monthly",new Date("2026-02-28T12:00:00Z"),31)).toBe("2026-03-31");
+  });
+  it("keeps local booking time across daylight saving changes",()=>{
+    expect(bucharestScheduledAt("2026-03-28",10).toISOString()).toBe("2026-03-28T08:00:00.000Z");
+    expect(bucharestScheduledAt("2026-03-29",10).toISOString()).toBe("2026-03-29T07:00:00.000Z");
+  });
+  it("skips missed occurrences instead of creating past bookings",async()=>{
+    seedClientAndFirm(db);createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-06T09:00:00Z"))).created).toHaveLength(0);
+    expect((db.prepare("SELECT next_run_date FROM recurring_plans").get() as {next_run_date:string}).next_run_date).toBe("2026-01-12");
+  });
+  it("does not create duplicates when schedulers run concurrently",async()=>{
+    const firmId=seedClientAndFirm(db);createRecurringPlan(db,{...basePlan,preferredFirmId:firmId,startDate:"2026-01-05"});
+    const results=await Promise.all([generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z")),generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"))]);
+    expect(results.flatMap(r=>r.created)).toHaveLength(1);
+  });
+
 });

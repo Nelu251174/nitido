@@ -10,7 +10,7 @@ const homeLogo = readFileSync(join(root,"src/components/HomeLogoLink.tsx"),"utf8
 describe("public navigation", () => {
   it("uses an accessible semantic home logo in the shared header",()=>{
     expect(siteChrome).toContain("<HomeLogoLink/>");
-    expect(homepage).toContain("<HomeLogoLink/>");
+    expect(homepage).toContain("<SiteHeader/>");
     expect(homeLogo).toContain('<Link href="/"');
     expect(homeLogo).toContain('aria-label="NITIDO.RO – Pagina principală"');
     expect(homeLogo).toContain("focus-visible:ring-2");

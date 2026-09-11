@@ -26,7 +26,10 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Eroare la autentificare");
-      router.push(data.role === "client" ? "/client" : "/firma");
+      const next=new URLSearchParams(window.location.search).get("next");
+      const allowed=data.role==="client"?"/client":"/firma";
+      const safeNext=next&&(next===allowed||next.startsWith(allowed+"?")||next.startsWith(allowed+"#")||next.startsWith(allowed+"/"))&&!next.includes("\\")?next:allowed;
+      router.push(safeNext);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Eroare necunoscută");

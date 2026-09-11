@@ -37,6 +37,8 @@ export interface JobRow {
   arrived_confirmed_at: string | null;
   completed_at: string | null;
   created_at: string;
+  financial?: {paymentStatus:string;transferStatus:string;payoutStatus:string;refundStatus:string;disputeStatus:string;firmPayout?:number}|null;
+  firm_payout?:number|null;
   photos?: string[];
   // Nitido Scan (Pachet C): pozele de context ale clientului, etichetate pe
   // încăpere, vizibile firmei încă din feed.
