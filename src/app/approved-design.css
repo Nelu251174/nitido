@@ -28,3 +28,5 @@
 .client-overview .next-booking-details{padding-bottom:0}.client-overview .design-button{min-height:48px;padding:10px;font-size:14px;line-height:20px}.professional-nav small{white-space:normal}@media(max-width:760px){.professional-nav{min-width:220px;margin-top:0;padding:8px 12px;border-top:0}.professional-nav[open]{max-width:280px}}
 
 .public-account-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.public-account-actions .v2-btn{white-space:nowrap}@media(max-width:760px){.design-header{height:auto;min-height:78px}.design-header-inner{flex-wrap:wrap;padding-top:12px;padding-bottom:12px;gap:12px}.design-header-actions{flex-wrap:wrap}.public-account-actions .v2-btn{padding:8px 12px;font-size:12px}}
+
+.design-header-home .design-header-actions>.public-account-actions{display:flex}
