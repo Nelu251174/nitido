@@ -2,12 +2,11 @@
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import {ClientOverview} from "@/components/ClientOverview";
 import {DesignIcon} from "@/components/DesignIcon";
 import {WorkspaceNav} from "@/components/WorkspaceNav";
-import {JobMessages} from "@/components/JobMessages";
+import {JobExecutionDetail} from "@/components/JobExecutionDetail";
 import {JOB_STATUS} from "@/lib/workspaceShared";
 import { Logo, Card, Field, inputClass, Button, StatusTrack, StarRating } from "@/components/ui";
 import {
@@ -292,19 +291,22 @@ export default function ClientPage() {
     }
   }
 
-  const poll = useCallback(async () => {
-    if (!job) return;
-    const res = await fetch(`/api/jobs/${job.id}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    setJob(data.job);
-    setFirmName(data.firmName);
-    // Lucrare Standard încă în așteptare → aducem ofertele primite de la firme.
-    if (data.job?.status === "waiting" && data.job?.mode === "standard") {
-      const oRes = await fetch(`/api/jobs/${job.id}/offers`);
-      if (oRes.ok) setOffers((await oRes.json()).offers ?? []);
-    }
-  }, [job?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const selectedJobId=job?.id;
+  const poll = useCallback(async (signal:AbortSignal) => {
+    if (!selectedJobId) return;
+    try {
+      const res = await fetch(`/api/jobs/${encodeURIComponent(selectedJobId)}`,{signal});
+      if (!res.ok) throw new Error("Detaliile lucrării nu au putut fi actualizate.");
+      const data = await res.json();
+      if(signal.aborted)return;
+      setJob(data.job);
+      setFirmName(data.firmName??null);
+      if (data.job?.status === "waiting" && data.job?.mode === "standard") {
+        const oRes = await fetch(`/api/jobs/${encodeURIComponent(selectedJobId)}/offers`,{signal});
+        if (oRes.ok) {const offersData=await oRes.json();if(!signal.aborted)setOffers(offersData.offers??[])}
+      }
+    } catch(cause) {if(!signal.aborted)setError(cause instanceof Error?cause.message:"Eroare de conexiune.")}
+  }, [selectedJobId]);
 
   async function chooseOffer(offerId: string) {
     if (!job) return;
@@ -325,12 +327,13 @@ export default function ClientPage() {
   }
 
   useEffect(() => {
-    if (!job) return;
-    if (["waiting", "accepted", "arrived"].includes(job.status)) {
-      const t = setInterval(poll, 2000);
-      return () => clearInterval(t);
-    }
-  }, [job?.status, job?.id, poll]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!selectedJobId) return;
+    const controller=new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial authenticated remote fetch, cancelled when the selected reservation changes
+    void poll(controller.signal);
+    const timer=["waiting","accepted","arrived"].includes(job?.status??"")?setInterval(()=>void poll(controller.signal),5000):null;
+    return()=>{controller.abort();if(timer)clearInterval(timer)};
+  }, [job?.status,selectedJobId,poll]);
 
   useEffect(() => {
     const c = job?.completed_at;
@@ -446,10 +449,11 @@ export default function ClientPage() {
         <div className="board-topbar"><span>Spațiul tău NITIDO</span><div><Link href="/client/mesaje" aria-label="Mesaje"><DesignIcon name="bell"/></Link><span className="board-avatar">{user.name.slice(0,1)}</span><b>{user.name}</b></div></div>
         <header className="board-greeting"><div><h1>Bună, {user.name.split(" ")[0]}!</h1><p>Mulțumim că faci parte din comunitatea NITIDO.RO.</p></div><span className="board-greeting-note"><DesignIcon name="sparkles"/>Un cămin curat este începutul<br/>unei zile mai bune.</span></header>
         {!job&&!showBooking&&<ClientOverview jobs={myJobs} onSelect={setJob} onBook={goToForm}/>}
-        <div className={`client-content-grid ${job||showBooking?"with-detail":""}`}>
+        {job&&<JobExecutionDetail job={job} firmName={firmName} onBack={()=>{setJob(null);setShowBooking(false)}}/>}
+        <div className={`client-content-grid ${showBooking&&!job?"with-detail":""}`}>
         <div className="min-w-0">
         {myJobs.filter(j=>j.status==="waiting"&&["requires_action","requires_confirmation"].includes(j.authorizationStatus??"")).map(j=><section key={j.id} className="v2-card p-5 mb-4"><h2 className="font-bold">Confirmarea cardului este necesară</h2><p className="text-sm text-muted mt-2">{j.city} · {j.sqm} m². Banca solicită confirmarea autorizării pentru această lucrare.</p><Link href={`/client/plata/${encodeURIComponent(j.id)}`} className="inline-block mt-3 font-bold text-aqua-deep underline">Confirmă prin bancă</Link></section>)}
-        {!showBooking&&myJobs.length>0&&<section id="sec-lucrari" className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold">Rezervările tale recente</h2><span className="text-xs text-[#6b756f]">{myJobs.length} total</span></div><input aria-label="Caută rezervări" className={`${inputClass} mt-3`} value={historyFilter} onChange={e=>setHistoryFilter(e.target.value)} placeholder="Caută rezervare sau status…"/><div className="mt-3 divide-y divide-[#e2e8f0]">{myJobs.filter(item=>`${item.city} ${item.street} ${JOB_STATUS[item.status]}`.toLowerCase().includes(historyFilter.toLowerCase())).map(item=><button key={item.id} onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[#e8f5f2] flex items-center justify-center text-[#115e59] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate">{item.space_type} · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm} m² · {JOB_STATUS[item.status]}</span></span><b className="text-sm">{item.price_gross} lei</b></button>)}</div></section>}
+        {!job&&!showBooking&&myJobs.length>0&&<section id="sec-lucrari" className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold">Rezervările tale recente</h2><span className="text-xs text-[#6b756f]">{myJobs.length} total</span></div><input aria-label="Caută rezervări" className={`${inputClass} mt-3`} value={historyFilter} onChange={e=>setHistoryFilter(e.target.value)} placeholder="Caută rezervare sau status…"/><div className="mt-3 divide-y divide-[#e2e8f0]">{myJobs.filter(item=>`${item.city} ${item.street} ${JOB_STATUS[item.status]}`.toLowerCase().includes(historyFilter.toLowerCase())).map(item=><button key={item.id} onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[#e8f5f2] flex items-center justify-center text-[#115e59] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate">{item.space_type} · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm} m² · {JOB_STATUS[item.status]}</span></span><b className="text-sm">{item.price_gross} lei</b></button>)}</div></section>}
         {!job && !showBooking && <RecurringSection defaults={{ street, postalCode, city, floor, sqm, spaceType }} />}
         {!job && !showBooking && <BusinessSection />}
         {!job && !showBooking && user?.referral_code && (
@@ -845,29 +849,6 @@ export default function ClientPage() {
                 />
               </>
             )}
-            <ProofGallery proofs={job.proofs ?? []}/>
-          </Card>
-        )}
-
-        {job && (job.status === "accepted" || job.status === "arrived") && (
-          <Card>
-            <h1 className="font-display font-extrabold text-xl text-ink mb-1">
-              Lucrare confirmată ✅
-            </h1>
-            <p className="text-sm text-muted mb-2">
-              Firma <b className="text-ink">{firmName ?? "..."}</b> a acceptat lucrarea ta.
-            </p>
-            <StatusTrack
-              steps={[
-                { label: "Alertă trimisă către firme", done: true },
-                { label: `Acceptată de ${firmName ?? "firmă"}`, done: true },
-                {
-                  label: job.status === "arrived" ? "Firma a ajuns" : "Așteaptă sosirea firmei",
-                  done: job.status === "arrived",
-                },
-              ]}
-            />
-            <ProofGallery proofs={job.proofs ?? []}/>
           </Card>
         )}
 
@@ -877,10 +858,8 @@ export default function ClientPage() {
               Cum a fost curățenia?
             </h1>
             <p className="text-sm text-muted text-center mb-2">
-              {firmName ?? "Firma"} a finalizat lucrarea. Lasă un rating — plata se procesează abia
-              acum.
+              {firmName ?? "Firma"} a finalizat lucrarea. Poți lăsa o recenzie. Starea plății este afișată separat.
             </p>
-            <ProofGallery proofs={job.proofs ?? []}/>
             <RatingBlock onSubmit={submitRating} />
           </Card>
         )}
@@ -928,7 +907,7 @@ export default function ClientPage() {
 
         {job && job.status === "cancelled" && (
           <Card>
-            <h1 className="font-display font-bold text-lg text-ink mb-2">Firma a renunțat — am repus lucrarea</h1>
+            <h1 className="font-display font-bold text-lg text-ink mb-2">Lucrarea este anulată</h1>
             <p className="text-sm text-muted mb-4">
               Consultă istoricul rezervărilor pentru o eventuală repostare și starea separată a plății.
             </p>
@@ -936,22 +915,12 @@ export default function ClientPage() {
           </Card>
         )}
         </div>
-        {(job||showBooking)&&<aside className="space-y-4">
-          <div className="relative h-48 rounded-2xl overflow-hidden"><Image src="/design-v2/approved-living-room.webp" alt="Un spațiu pregătit pentru tine" fill sizes="360px" className="object-cover"/></div>
-          <div className="v2-card p-6"><div className="v2-eyebrow">REZERVAREA SELECTATĂ</div><h2 className="text-xl font-bold mt-3">{job?`${job.space_type} · ${job.city}`:"Totul începe cu prima rezervare"}</h2>{job?<><p className="eyebrow-pill mt-4">{JOB_STATUS[job.status]}</p><p className="mt-4 text-sm text-muted">{job.scheduled_at?new Date(job.scheduled_at).toLocaleString("ro-RO"):"Program în curs de stabilire"}</p><div className="border-t border-line mt-5 pt-5 flex justify-between"><span>Preț lucrare</span><b>{job.price_gross} lei</b></div><p className="text-sm text-muted mt-3">Plată: {job.financial?.paymentStatus??"Nicio plată înregistrată"}</p><p className="mt-3 text-xs text-muted">{job.proofs?.filter(p=>p.type==="COMPLETION").length??0} dovezi finale disponibile</p></>:<><p className="text-sm text-muted leading-6 mt-3">Alege spațiul, verifică prețul și găsește firma potrivită.</p><button className="v2-btn v2-btn-primary w-full mt-5" onClick={goToForm}>Rezervă o curățenie</button></>}</div>
-          <Link href="/client/proprietati" className="v2-card p-5 block"><b>Proprietățile tale ↗</b><p className="text-sm text-muted mt-2">Salvează adresele pentru rezervările viitoare.</p></Link>
-          {job?.accepted_firm_id&&<JobMessages key={job.id} jobId={job.id}/>}
-        </aside>}
+        {(!job&&showBooking)&&<aside className="space-y-4"><div className="v2-card p-6"><h2 className="text-xl font-bold">Pregătește rezervarea</h2><p className="text-sm text-muted leading-6 mt-3">Completează spațiul, adresa și programul. Verifică prețul înainte de publicare.</p></div><Link href="/client/proprietati" className="v2-card p-5 block"><b>Proprietățile tale</b><p className="text-sm text-muted mt-2">Salvează adresele pentru rezervările viitoare.</p></Link></aside>}
         </div>
       </main>
       <nav className="mobile-workspace-nav" aria-label="Navigare rapidă"><button onClick={()=>{setShowBooking(false);resetToForm();window.scrollTo(0,0)}}>Acasă</button><button onClick={()=>scrollToId("sec-lucrari")}>Rezervări</button><Link href="/client/mesaje">Mesaje</Link><button onClick={()=>scrollToId("sec-cont")}>Cont</button></nav>
     </div>
   );
-}
-
-function ProofGallery({proofs}:{proofs:NonNullable<JobRow["proofs"]>}) {
-  if (!proofs.length) return null;
-  return <div className="mt-4 grid grid-cols-2 gap-3">{proofs.map(proof=><a key={proof.id} href={proof.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-xl border border-line bg-white"><Image src={proof.url} alt={proof.type==="ARRIVAL"?"Echipa a ajuns — fotografie de confirmare":"Lucrare finalizată — dovadă foto"} width={320} height={180} className="h-28 w-full object-cover"/><span className="block p-2 text-[11px] font-bold text-ink">{proof.type==="ARRIVAL"?"Echipa a ajuns":"Lucrare finalizată"}</span></a>)}</div>;
 }
 
 function ReferralCard({ code, creditBalance }: { code: string; creditBalance: number }) {
