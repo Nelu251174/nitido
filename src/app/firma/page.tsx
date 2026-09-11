@@ -24,7 +24,7 @@ export default function FirmaPage() {
   const [reportReasons,setReportReasons]=useState<Record<string,string>>({});
   const [editingProfile,setEditingProfile]=useState(false);
   const [savingProfile,setSavingProfile]=useState(false);
-  const [profileForm,setProfileForm]=useState({name:"",phone:"",coverageCity:"",coverageCitiesExtra:""});
+  const [profileForm,setProfileForm]=useState({name:"",phone:"",coverageCity:"",coverageCitiesExtra:"",description:"",workingHours:"",services:"",website:""});
 
   useEffect(() => {
     if (loading) return;
@@ -37,7 +37,7 @@ export default function FirmaPage() {
       const res=await fetch("/api/account/firm");
       const d=await res.json();
       if(!res.ok){setMessage(d.error??"Nu s-a putut încărca profilul");return;}
-      setProfileForm({name:d.name??"",phone:d.phone??"",coverageCity:d.coverageCity??"",coverageCitiesExtra:d.coverageCitiesExtra??""});
+      setProfileForm({name:d.name??"",phone:d.phone??"",coverageCity:d.coverageCity??"",coverageCitiesExtra:d.coverageCitiesExtra??"",description:d.description??"",workingHours:d.workingHours??"",services:d.services??"",website:d.website??""});
       setEditingProfile(true);
     }catch{setMessage("Nu s-a putut încărca profilul");}
   }
@@ -180,9 +180,12 @@ export default function FirmaPage() {
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <Logo />
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted">
-              <b className="text-ink">{user.name}</b> — {firm?.coverage_city}
-              {firm?.coverage_cities_extra ? ` + ${firm.coverage_cities_extra}` : ""}
+            <span className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-aqua-deep text-sm font-display font-extrabold text-white" aria-hidden="true">{user.name.trim().slice(0,1).toUpperCase()}</span>
+              <span className="text-sm leading-tight">
+                <span className="flex items-center gap-1.5"><b className="text-ink">{user.name}</b>{firm?.verified?<span className="inline-flex items-center gap-1 rounded-full bg-aqua/15 px-2 py-0.5 text-[10px] font-bold text-aqua-deep">✓ Verificată</span>:<span className="inline-flex items-center rounded-full bg-mist px-2 py-0.5 text-[10px] font-bold text-muted">Verificare în curs</span>}</span>
+                <span className="block text-xs text-muted">{firm?.coverage_city}{firm?.coverage_cities_extra ? ` + ${firm.coverage_cities_extra}` : ""}</span>
+              </span>
             </span>
             <button type="button" onClick={openProfileEditor} className="text-sm font-display font-bold text-aqua-deep hover:text-ink">
               Editează profilul
@@ -228,12 +231,50 @@ export default function FirmaPage() {
                 <span className="text-muted">Orașe suplimentare (opțional, separate prin virgulă)</span>
                 <input className={inputClass} value={profileForm.coverageCitiesExtra} onChange={(e)=>setProfileForm(f=>({...f,coverageCitiesExtra:e.target.value}))} placeholder="Ex: Mangalia, Năvodari" />
               </label>
+              <label className="block text-sm">
+                <span className="text-muted">Despre firmă (descriere scurtă)</span>
+                <textarea className={`${inputClass} min-h-[90px]`} value={profileForm.description} onChange={(e)=>setProfileForm(f=>({...f,description:e.target.value}))} placeholder="Ex: Echipă cu experiență în curățenie rezidențială și birouri, produse profesionale, personal verificat." />
+              </label>
+              <label className="block text-sm">
+                <span className="text-muted">Servicii oferite</span>
+                <input className={inputClass} value={profileForm.services} onChange={(e)=>setProfileForm(f=>({...f,services:e.target.value}))} placeholder="Ex: Apartamente, birouri, după constructor, geamuri" />
+              </label>
+              <label className="block text-sm">
+                <span className="text-muted">Program de lucru</span>
+                <input className={inputClass} value={profileForm.workingHours} onChange={(e)=>setProfileForm(f=>({...f,workingHours:e.target.value}))} placeholder="Ex: Luni–Sâmbătă, 08:00–20:00" />
+              </label>
+              <label className="block text-sm">
+                <span className="text-muted">Website (opțional)</span>
+                <input className={inputClass} value={profileForm.website} onChange={(e)=>setProfileForm(f=>({...f,website:e.target.value}))} placeholder="Ex: www.firma-ta.ro" />
+              </label>
               <p className="text-xs text-muted">CUI-ul firmei este verificat la ANAF și nu poate fi modificat de aici.</p>
               <div className="flex gap-2 pt-1">
                 <Button onClick={saveProfile} disabled={savingProfile}>{savingProfile?"Se salvează...":"Salvează"}</Button>
                 <Button variant="outline" onClick={()=>setEditingProfile(false)} disabled={savingProfile}>Renunță</Button>
               </div>
             </div>
+          </section>
+        )}
+
+        {!editingProfile && (
+          <section className="rounded-2xl border border-line bg-white p-5">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-display font-bold text-ink">Despre firmă</h2>
+              <button type="button" onClick={openProfileEditor} className="text-sm font-display font-bold text-aqua-deep hover:text-ink">Editează</button>
+            </div>
+            {(firm?.description||firm?.services||firm?.working_hours||firm?.website)?(
+              <div className="mt-3 space-y-3 text-sm">
+                {firm?.description && <p className="leading-6 text-ink">{firm.description}</p>}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {firm?.services && <div><div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold">Servicii</div><div className="text-ink mt-0.5">{firm.services}</div></div>}
+                  {firm?.working_hours && <div><div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold">Program</div><div className="text-ink mt-0.5">{firm.working_hours}</div></div>}
+                  <div><div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold">Acoperire</div><div className="text-ink mt-0.5">{firm?.coverage_city}{firm?.coverage_cities_extra?` + ${firm.coverage_cities_extra}`:""}</div></div>
+                  {firm?.website && <div><div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold">Website</div><a href={firm.website} target="_blank" rel="noopener noreferrer" className="text-aqua-deep font-semibold mt-0.5 inline-block break-all">{firm.website.replace(/^https?:\/\//,"")}</a></div>}
+                </div>
+              </div>
+            ):(
+              <p className="mt-3 text-sm text-muted">Profilul tău e gol. Adaugă o descriere, serviciile și programul ca să câștigi încrederea clienților. Apasă <b className="text-ink">Editează</b>.</p>
+            )}
           </section>
         )}
 

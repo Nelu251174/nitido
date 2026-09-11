@@ -22,6 +22,10 @@ export async function GET(req: NextRequest) {
     phone: row?.phone ?? "",
     coverageCity: firm?.coverage_city ?? "",
     coverageCitiesExtra: firm?.coverage_cities_extra ?? "",
+    description: firm?.description ?? "",
+    workingHours: firm?.working_hours ?? "",
+    services: firm?.services ?? "",
+    website: firm?.website ?? "",
   });
 }
 
@@ -36,6 +40,10 @@ export async function POST(req: NextRequest) {
     phone?: string;
     coverageCity?: string;
     coverageCitiesExtra?: string;
+    description?: string;
+    workingHours?: string;
+    services?: string;
+    website?: string;
   };
 
   const name = (body.name ?? "").trim();
@@ -52,12 +60,18 @@ export async function POST(req: NextRequest) {
   }
   const citiesExtra = body.coverageCitiesExtra ? sanitizeCoverageCitiesInput(body.coverageCitiesExtra) : null;
 
+  // Câmpuri text libere, limitate ca lungime pentru a evita abuzul.
+  const description = (body.description ?? "").trim().slice(0, 1000) || null;
+  const workingHours = (body.workingHours ?? "").trim().slice(0, 200) || null;
+  const services = (body.services ?? "").trim().slice(0, 400) || null;
+  let website = (body.website ?? "").trim().slice(0, 200);
+  if (website && !/^https?:\/\//i.test(website)) website = `https://${website}`;
+  const websiteValue = website || null;
+
   db.prepare("UPDATE users SET name = ?, phone = ? WHERE id = ?").run(name, normalizedPhone, user.id);
-  db.prepare("UPDATE firms SET coverage_city = ?, coverage_cities_extra = ? WHERE user_id = ?").run(
-    coverageCity,
-    citiesExtra || null,
-    user.id
-  );
+  db.prepare(
+    "UPDATE firms SET coverage_city = ?, coverage_cities_extra = ?, description = ?, working_hours = ?, services = ?, website = ? WHERE user_id = ?"
+  ).run(coverageCity, citiesExtra || null, description, workingHours, services, websiteValue, user.id);
 
   return NextResponse.json({
     ok: true,
@@ -65,5 +79,9 @@ export async function POST(req: NextRequest) {
     phone: normalizedPhone,
     coverageCity,
     coverageCitiesExtra: citiesExtra || "",
+    description: description || "",
+    workingHours: workingHours || "",
+    services: services || "",
+    website: websiteValue || "",
   });
 }

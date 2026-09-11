@@ -15,6 +15,11 @@ export interface CurrentFirm {
   id: string;
   coverage_city: string;
   coverage_cities_extra: string | null;
+  verified?: number;
+  description?: string | null;
+  working_hours?: string | null;
+  services?: string | null;
+  website?: string | null;
 }
 
 export function useCurrentUser() {

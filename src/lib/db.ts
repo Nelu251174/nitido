@@ -373,6 +373,10 @@ function ensureColumn(table: string, column: string, definition: string) {
 ensureColumn("firms", "coverage_cities_extra", "TEXT");
 ensureColumn("firms", "stripe_account_status", "TEXT NOT NULL DEFAULT 'not_started'");
 ensureColumn("firms", "stripe_transfers_capability", "TEXT NOT NULL DEFAULT 'inactive'");
+ensureColumn("firms", "description", "TEXT");
+ensureColumn("firms", "working_hours", "TEXT");
+ensureColumn("firms", "services", "TEXT");
+ensureColumn("firms", "website", "TEXT");
 ensureColumn("users", "referral_code", "TEXT");
 ensureColumn("users", "referred_by_code", "TEXT");
 ensureColumn("users", "credit_balance", "INTEGER NOT NULL DEFAULT 0");
@@ -534,11 +538,11 @@ export function getUserById(id: string): UserRow | undefined {
 
 export function getFirmByUserId(
   userId: string
-): { id: string; coverage_city: string; coverage_cities_extra: string | null; verified:number; stripe_account_status:string; stripe_transfers_capability:string } | undefined {
+): { id: string; coverage_city: string; coverage_cities_extra: string | null; verified:number; stripe_account_status:string; stripe_transfers_capability:string; description:string|null; working_hours:string|null; services:string|null; website:string|null } | undefined {
   return db
-    .prepare("SELECT id, coverage_city, coverage_cities_extra, verified, stripe_account_status, stripe_transfers_capability FROM firms WHERE user_id = ?")
+    .prepare("SELECT id, coverage_city, coverage_cities_extra, verified, stripe_account_status, stripe_transfers_capability, description, working_hours, services, website FROM firms WHERE user_id = ?")
     .get(userId) as
-    | { id: string; coverage_city: string; coverage_cities_extra: string | null; verified:number; stripe_account_status:string; stripe_transfers_capability:string }
+    | { id: string; coverage_city: string; coverage_cities_extra: string | null; verified:number; stripe_account_status:string; stripe_transfers_capability:string; description:string|null; working_hours:string|null; services:string|null; website:string|null }
     | undefined;
 }
 
