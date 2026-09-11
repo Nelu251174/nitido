@@ -22,11 +22,36 @@ export default function FirmaPage() {
   const [trustProfile, setTrustProfile] = useState<{firms:{average_rating:number|null;review_count:number;completed_jobs:number;verified:number}[];reviews:{id:string;rating:number;reviewText:string|null;reviewer:string;badge:string}[]}>({firms:[],reviews:[]});
   const [quality, setQuality] = useState<{score:number;rating:number;experience:number;reliability:number}|null>(null);
   const [reportReasons,setReportReasons]=useState<Record<string,string>>({});
+  const [editingProfile,setEditingProfile]=useState(false);
+  const [savingProfile,setSavingProfile]=useState(false);
+  const [profileForm,setProfileForm]=useState({name:"",phone:"",coverageCity:"",coverageCitiesExtra:""});
 
   useEffect(() => {
     if (loading) return;
     if (!user || user.role !== "firma") router.replace("/login");
   }, [loading, user, router]);
+
+  async function openProfileEditor(){
+    setMessage(null);
+    try{
+      const res=await fetch("/api/account/firm");
+      const d=await res.json();
+      if(!res.ok){setMessage(d.error??"Nu s-a putut încărca profilul");return;}
+      setProfileForm({name:d.name??"",phone:d.phone??"",coverageCity:d.coverageCity??"",coverageCitiesExtra:d.coverageCitiesExtra??""});
+      setEditingProfile(true);
+    }catch{setMessage("Nu s-a putut încărca profilul");}
+  }
+
+  async function saveProfile(){
+    setSavingProfile(true);setMessage(null);
+    try{
+      const res=await fetch("/api/account/firm",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(profileForm)});
+      const d=await res.json();
+      if(!res.ok){setMessage(d.error??"Nu s-au putut salva modificările");setSavingProfile(false);return;}
+      // Reîncărcăm pagina ca antetul (nume + oraș) să reflecte imediat modificările.
+      window.location.reload();
+    }catch{setMessage("Nu s-au putut salva modificările");setSavingProfile(false);}
+  }
 
   const refresh = useCallback(async () => {
     if (!firm) return;
@@ -159,6 +184,9 @@ export default function FirmaPage() {
               <b className="text-ink">{user.name}</b> — {firm?.coverage_city}
               {firm?.coverage_cities_extra ? ` + ${firm.coverage_cities_extra}` : ""}
             </span>
+            <button type="button" onClick={openProfileEditor} className="text-sm font-display font-bold text-aqua-deep hover:text-ink">
+              Editează profilul
+            </button>
             <Link href="/" className="text-sm font-display font-bold text-muted hover:text-ink">
               Vezi site-ul public →
             </Link>
@@ -175,6 +203,38 @@ export default function FirmaPage() {
           <div className="bg-coral/10 border border-coral text-coral text-sm rounded-lg px-4 py-2.5">
             {message}
           </div>
+        )}
+
+        {editingProfile && (
+          <section className="rounded-2xl border border-line bg-white p-5">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h2 className="font-display font-bold text-ink">Editează profilul firmei</h2>
+              <button type="button" onClick={()=>setEditingProfile(false)} className="text-sm text-muted hover:text-coral">Anulează</button>
+            </div>
+            <div className="space-y-3">
+              <label className="block text-sm">
+                <span className="text-muted">Numele firmei</span>
+                <input className={inputClass} value={profileForm.name} onChange={(e)=>setProfileForm(f=>({...f,name:e.target.value}))} />
+              </label>
+              <label className="block text-sm">
+                <span className="text-muted">Telefon</span>
+                <input className={inputClass} value={profileForm.phone} onChange={(e)=>setProfileForm(f=>({...f,phone:e.target.value}))} placeholder="07xx xxx xxx" />
+              </label>
+              <label className="block text-sm">
+                <span className="text-muted">Oraș principal de acoperire</span>
+                <input className={inputClass} value={profileForm.coverageCity} onChange={(e)=>setProfileForm(f=>({...f,coverageCity:e.target.value}))} />
+              </label>
+              <label className="block text-sm">
+                <span className="text-muted">Orașe suplimentare (opțional, separate prin virgulă)</span>
+                <input className={inputClass} value={profileForm.coverageCitiesExtra} onChange={(e)=>setProfileForm(f=>({...f,coverageCitiesExtra:e.target.value}))} placeholder="Ex: Mangalia, Năvodari" />
+              </label>
+              <p className="text-xs text-muted">CUI-ul firmei este verificat la ANAF și nu poate fi modificat de aici.</p>
+              <div className="flex gap-2 pt-1">
+                <Button onClick={saveProfile} disabled={savingProfile}>{savingProfile?"Se salvează...":"Salvează"}</Button>
+                <Button variant="outline" onClick={()=>setEditingProfile(false)} disabled={savingProfile}>Renunță</Button>
+              </div>
+            </div>
+          </section>
         )}
 
         <section>
