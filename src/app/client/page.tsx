@@ -101,6 +101,7 @@ export default function ClientPage() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({ name: "", email: "", phone: "" });
+  const [menuOpen, setMenuOpen] = useState(false);
   const [ratingDone, setRatingDone] = useState(false);
   const [myJobs, setMyJobs] = useState<JobRow[]>([]);
   const [offers, setOffers] = useState<OfferView[]>([]);
@@ -376,13 +377,35 @@ export default function ClientPage() {
     );
   }
 
+  const scrollToId = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const navItems: { label: string; onSelect: () => void }[] = [
+    { label: "Acasă", onSelect: () => { resetToForm(); window.scrollTo({ top: 0, behavior: "smooth" }); } },
+    { label: "Lucrările mele", onSelect: () => scrollToId("sec-lucrari") },
+    { label: "Mesaje", onSelect: () => scrollToId("sec-mesaje") },
+    { label: "Plăți", onSelect: () => scrollToId("sec-plata") },
+    { label: "Încredere & Siguranță", onSelect: () => scrollToId("sec-incredere") },
+    { label: "Cont", onSelect: () => scrollToId("sec-cont") },
+  ];
+
   return (
     <div className="min-h-screen bg-[#f4f3ee] flex max-[760px]:block">
-      <aside className="w-[236px] shrink-0 bg-white border-r border-[#e3e2da] p-5 flex flex-col sticky top-0 h-screen max-[760px]:w-full max-[760px]:h-auto max-[760px]:relative max-[760px]:border-r-0 max-[760px]:border-b max-[760px]:p-3">
-        <Logo />
-        <nav className="client-nav mt-10 space-y-2 text-sm font-semibold max-[760px]:mt-3 max-[760px]:flex max-[760px]:flex-nowrap max-[760px]:overflow-x-auto max-[760px]:space-y-0 max-[760px]:gap-2">
-          <button type="button" onClick={()=>{resetToForm();window.scrollTo({top:0,behavior:"smooth"});}} className="is-active text-left block rounded-[10px] bg-[#e9f2ec] text-[#14663a] px-4 py-3 whitespace-nowrap">Acasă</button><button type="button" onClick={()=>document.getElementById("sec-lucrari")?.scrollIntoView({behavior:"smooth"})} className="text-left block px-4 py-3 text-[#5c6660] whitespace-nowrap">Lucrările mele</button><button type="button" onClick={()=>document.getElementById("sec-mesaje")?.scrollIntoView({behavior:"smooth"})} className="text-left block px-4 py-3 text-[#5c6660] whitespace-nowrap">Mesaje</button><button type="button" onClick={()=>document.getElementById("sec-plata")?.scrollIntoView({behavior:"smooth"})} className="text-left block px-4 py-3 text-[#5c6660] whitespace-nowrap">Plăți</button><button type="button" onClick={()=>document.getElementById("sec-incredere")?.scrollIntoView({behavior:"smooth"})} className="text-left block px-4 py-3 text-[#5c6660] whitespace-nowrap">Încredere &amp; Siguranță</button><button type="button" onClick={()=>document.getElementById("sec-cont")?.scrollIntoView({behavior:"smooth"})} className="text-left block px-4 py-3 text-[#5c6660] whitespace-nowrap">Cont</button>
+      <aside className="w-[236px] shrink-0 bg-white border-r border-[#e3e2da] p-5 flex flex-col sticky top-0 h-screen max-[760px]:w-full max-[760px]:h-auto max-[760px]:relative max-[760px]:border-r-0 max-[760px]:border-b max-[760px]:p-4">
+        <div className="flex items-center justify-between">
+          <Logo />
+          <button type="button" onClick={()=>setMenuOpen(o=>!o)} aria-expanded={menuOpen} aria-label="Meniu" className="hidden max-[760px]:inline-flex items-center gap-2 rounded-full border border-[#e3e2da] bg-white px-4 py-2 text-sm font-semibold text-[#3e4842]">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">{menuOpen?<path d="M6 6l12 12M18 6 6 18"/>:<><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></>}</svg>
+            Meniu
+          </button>
+        </div>
+        <nav className="mt-10 space-y-2 text-sm font-semibold max-[760px]:hidden">
+          {navItems.map((it,i)=><button key={it.label} type="button" onClick={it.onSelect} className={i===0?"text-left block w-full rounded-[10px] bg-[#e9f2ec] text-[#14663a] px-4 py-3":"text-left block w-full rounded-[10px] px-4 py-3 text-[#5c6660] hover:bg-[#f4f3ee]"}>{it.label}</button>)}
         </nav>
+        {menuOpen && (
+          <nav className="hidden max-[760px]:flex flex-col mt-3 rounded-2xl border border-[#e3e2da] bg-white overflow-hidden text-sm font-semibold">
+            {navItems.map((it,i)=><button key={it.label} type="button" onClick={()=>{it.onSelect();setMenuOpen(false);}} className={`text-left px-4 py-3.5 text-[#3e4842] active:bg-[#e9f2ec] ${i>0?"border-t border-[#ecebe4]":""}`}>{it.label}</button>)}
+            <button type="button" onClick={()=>{setMenuOpen(false);logout();}} className="text-left px-4 py-3.5 text-[#c0392b] border-t border-[#ecebe4]">Ieși din cont</button>
+          </nav>
+        )}
         <div className="mt-auto max-[760px]:hidden"><div className="text-sm font-semibold">{user.name}</div><div className="text-xs text-[#6b756f] mt-1">{user.email}</div><button onClick={logout} className="text-xs text-[#5c6660] mt-4">Ieși din cont</button></div>
       </aside>
       <main className="flex-1 min-w-0 px-8 py-8 max-[760px]:px-[22px]">
