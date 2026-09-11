@@ -55,3 +55,5 @@ Referință pentru stările providerului: [ciclul PaymentIntent](https://docs.st
 - Verificare locală: 377 teste în suita completă, plus 4 teste noi ale webhookului trecute separat (381 total); build Next.js și lint reușite. Providerul este simulat, fără mutații Stripe sau bani reali.
 - Limite: rambursările externe necunoscute, notificarea sosită înainte de persistarea ID-ului, autorizările expirate și concurența distribuită necesită în continuare reconciliere operațională; nu sunt introduse încercări financiare noi automat după un refund eșuat.
 - Stările sunt definite în [documentația Stripe Refund](https://docs.stripe.com/api/refunds/object).
+
+Aplicația mobilă diferențiază explicit rambursarea eșuată de cea în procesare. Verificare: 57 teste mobile și TypeScript trecute.
