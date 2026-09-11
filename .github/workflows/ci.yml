@@ -59,3 +59,24 @@ jobs:
           else
             echo "✅ Nicio vulnerabilitate critică sau mare."
           fi
+
+  mobile:
+    name: Aplicație mobilă (teste + TypeScript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - name: Instalează dependențele mobile
+        run: npm ci
+      - name: Teste mobile
+        run: npm test
+      - name: Verificare TypeScript mobil
+        run: npm run typecheck
