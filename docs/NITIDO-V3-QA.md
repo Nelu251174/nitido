@@ -45,3 +45,13 @@ Aceste teste nu sunt tranzacții în Stripe sandbox. Nu există cheie Stripe con
 Auditul financiar nu este închis: rambursările în așteptare, reconcilierea webhookurilor, autorizările expirate, reluarea după schimbarea cardului/sumei și concurența la acceptare necesită continuare. Identificatorul stabil nu înlocuiește un registru durabil al încercărilor și nu extinde perioada de păstrare a idempotency keys la Stripe. Datele financiare istorice nu sunt rescrise automat.
 
 Referință pentru stările providerului: [ciclul PaymentIntent](https://docs.stripe.com/payments/paymentintents/lifecycle).
+
+## Continuare: rambursări confirmate și recuperabile
+
+- Rambursările pending/requires_action nu mai sunt înregistrate ca finalizate. Failed/canceled sunt raportate ca eșec, fără modificarea plății în refunded. API-ul admin răspunde 202 pentru pending și înregistrează starea corectă în audit.
+- Identitatea rambursării și reversarea transferului sunt păstrate; la repetare se interoghează rambursarea existentă. O reversare confirmată nu este repetată după timeout la cererea de refund.
+- Actualizările verifică PaymentIntent-ul, moneda RON și suma integrală. Succesul nu este degradat de un mesaj vechi. Transferurile noi sunt blocate după inițierea rambursării.
+- Evenimentele refund.created/updated/failed și charge.refunded consultă starea curentă a rambursării cunoscute; o notificare de rambursare parțială nu închide automat întreaga plată. Erorile acestei reconcilieri permit retrimiterea evenimentului.
+- Verificare locală: 377 teste în suita completă, plus 4 teste noi ale webhookului trecute separat (381 total); build Next.js și lint reușite. Providerul este simulat, fără mutații Stripe sau bani reali.
+- Limite: rambursările externe necunoscute, notificarea sosită înainte de persistarea ID-ului, autorizările expirate și concurența distribuită necesită în continuare reconciliere operațională; nu sunt introduse încercări financiare noi automat după un refund eșuat.
+- Stările sunt definite în [documentația Stripe Refund](https://docs.stripe.com/api/refunds/object).

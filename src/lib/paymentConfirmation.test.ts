@@ -1,9 +1,9 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from "vitest";
 import DatabaseCtor from "better-sqlite3";
 import {SCHEMA_SQL} from "./db";
-const api=vi.hoisted(()=>({paymentIntents:{create:vi.fn(),retrieve:vi.fn(),capture:vi.fn(),cancel:vi.fn()}}));
-vi.mock('stripe',()=>({default:class {paymentIntents=api.paymentIntents}}));
-import {authorizePayment,capturePayment,cancelPayment} from './payments';
+const api=vi.hoisted(()=>({refunds:{create:vi.fn(),retrieve:vi.fn()},transfers:{createReversal:vi.fn()},paymentIntents:{create:vi.fn(),retrieve:vi.fn(),capture:vi.fn(),cancel:vi.fn()}}));
+vi.mock('stripe',()=>({default:class {paymentIntents=api.paymentIntents;refunds=api.refunds;transfers=api.transfers}}));
+import {authorizePayment,capturePayment,cancelPayment,refundCapturedPayment,applyStripeRefund,initiateFirmTransfer} from './payments';
 function setup(){
   const db=new DatabaseCtor(":memory:");db.exec(SCHEMA_SQL);db.exec("ALTER TABLE users ADD COLUMN stripe_customer_id TEXT;ALTER TABLE users ADD COLUMN stripe_payment_method_id TEXT");
   db.exec(`INSERT INTO users(id,role,name) VALUES('client','client','Client'),('firm_user','firma','Firmă'),('other_user','firma','Altă firmă');
@@ -29,4 +29,16 @@ describe('provider payment confirmation and recovery',()=>{
  it('recovers a capture confirmed by Stripe after an uncertain response',async()=>{const db=prepare();api.paymentIntents.retrieve.mockResolvedValue(intent({status:'succeeded',amount_received:50000,latest_charge:{id:'ch_expanded'}}));await capturePayment(db,'job');await capturePayment(db,'job');expect(api.paymentIntents.capture).not.toHaveBeenCalled();expect(db.prepare('SELECT status,stripe_charge_id FROM payments').get()).toEqual({status:'captured',stripe_charge_id:'ch_expanded'});expect(db.prepare("SELECT * FROM workflow_audit_log WHERE event_type='PAYMENT_CAPTURED'").all()).toHaveLength(1);});
  it('rejects partial capture as full settlement',async()=>{const db=prepare();api.paymentIntents.retrieve.mockResolvedValue(intent({status:'succeeded',amount_received:49000}));await expect(capturePayment(db,'job')).rejects.toThrow('PAYMENT_CAPTURE_NOT_CONFIRMED');});
  it('records a confirmed full capture',async()=>{const db=prepare();api.paymentIntents.retrieve.mockResolvedValue(intent());api.paymentIntents.capture.mockResolvedValue(intent({status:'succeeded',amount_received:50000}));await capturePayment(db,'job');expect(db.prepare('SELECT status FROM payments').get()).toEqual({status:'captured'});expect(api.paymentIntents.capture).toHaveBeenCalledTimes(1);});
+});
+
+function refund(status:string,extra:Record<string,unknown>={}){return {id:'re_test',payment_intent:'pi_test',currency:'ron',amount:50000,status,...extra} as unknown as import('stripe').default.Refund;}
+function captured(){const db=prepare();db.exec("UPDATE payments SET status='captured'");return db;}
+describe('refund confirmation and recovery',()=>{
+ it.each(['pending','requires_action','failed','canceled'])('does not mark %s as refunded',async status=>{const db=captured();api.refunds.create.mockResolvedValue(refund(status));expect(await refundCapturedPayment(db,'job')).toBe(['failed','canceled'].includes(status)?'failed':'pending');expect(db.prepare('SELECT status FROM payments').get()).toEqual({status:'captured'});});
+ it('retrieves the saved refund on retry and records success once',async()=>{const db=captured();api.refunds.create.mockResolvedValue(refund('pending'));await refundCapturedPayment(db,'job');api.refunds.retrieve.mockResolvedValue(refund('succeeded'));expect(await refundCapturedPayment(db,'job')).toBe('succeeded');await refundCapturedPayment(db,'job');expect(api.refunds.create).toHaveBeenCalledTimes(1);expect(api.refunds.retrieve).toHaveBeenCalledWith('re_test');expect(db.prepare('SELECT * FROM payment_refunds').all()).toHaveLength(1);expect(db.prepare('SELECT status FROM payments').get()).toEqual({status:'refunded'});});
+ it('keeps the reversal when the refund request times out',async()=>{const db=captured();db.exec("UPDATE payments SET stripe_transfer_id='tr_test'");api.transfers.createReversal.mockResolvedValue({id:'trr_test'});api.refunds.create.mockRejectedValueOnce(Error('timeout')).mockResolvedValueOnce(refund('pending'));await expect(refundCapturedPayment(db,'job')).rejects.toThrow('timeout');expect(db.prepare('SELECT transfer_status FROM payments').get()).toEqual({transfer_status:'reversed'});await refundCapturedPayment(db,'job');expect(api.transfers.createReversal).toHaveBeenCalledTimes(1);});
+ it('rejects missing intent before reversing any transfer',async()=>{const db=captured();db.exec("UPDATE payments SET stripe_payment_intent_id=NULL,stripe_transfer_id='tr_test'");await expect(refundCapturedPayment(db,'job')).rejects.toThrow('STRIPE_PAYMENT_INTENT_MISSING');expect(api.transfers.createReversal).not.toHaveBeenCalled();});
+ it.each([{amount:100},{currency:'eur'},{payment_intent:'pi_other'}])('rejects a mismatched refund %j',async extra=>{const db=captured();api.refunds.create.mockResolvedValue(refund('succeeded',extra));await expect(refundCapturedPayment(db,'job')).rejects.toThrow('REFUND_DETAILS_MISMATCH');expect(db.prepare('SELECT status FROM payments').get()).toEqual({status:'captured'});});
+ it('does not downgrade success on an old pending event',async()=>{const db=captured();api.refunds.create.mockResolvedValue(refund('succeeded'));await refundCapturedPayment(db,'job');expect(applyStripeRefund(db,'pay',refund('pending'))).toBe('succeeded');});
+ it('blocks a new transfer after refund initiation',async()=>{const db=captured();api.refunds.create.mockResolvedValue(refund('pending'));await refundCapturedPayment(db,'job');await expect(initiateFirmTransfer(db,'job')).rejects.toThrow('TRANSFER_BLOCKED_REFUND');});
 });

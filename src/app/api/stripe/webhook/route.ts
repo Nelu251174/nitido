@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import {NextRequest,NextResponse} from "next/server";
 import {db} from "@/lib/db";
-import {getStripeClient,recordStripeEvent} from "@/lib/payments";
+import {applyStripeRefund,getStripeClient,recordStripeEvent} from "@/lib/payments";
 import {refreshRecipientCapability} from "@/lib/stripeConnect";
 
 export const runtime="nodejs";
@@ -21,7 +21,14 @@ export async function POST(req:NextRequest){
     const balance=await stripe.balanceTransactions.retrieve(object.balance_transaction);
     db.prepare("UPDATE payments SET stripe_fee_amount=? WHERE id=?").run(balance.fee,paymentId);
   }
-  if(event.type==="charge.refunded"&&paymentId)db.prepare("UPDATE payments SET status='refunded',refund_status='succeeded' WHERE id=?").run(paymentId);
+  if(["refund.created","refund.updated","refund.failed","charge.refunded"].includes(event.type)){
+    const rows=event.type==="charge.refunded"
+      ?db.prepare("SELECT r.payment_id,r.stripe_refund_id FROM payment_refunds r JOIN payments p ON p.id=r.payment_id WHERE p.stripe_payment_intent_id=? AND r.stripe_refund_id IS NOT NULL").all(typeof object.payment_intent==="string"?object.payment_intent:"")
+      :db.prepare("SELECT payment_id,stripe_refund_id FROM payment_refunds WHERE stripe_refund_id=?").all(typeof object.id==="string"?object.id:"");
+    try{
+      for(const row of rows as {payment_id:string;stripe_refund_id:string}[])applyStripeRefund(db,row.payment_id,await stripe.refunds.retrieve(row.stripe_refund_id));
+    }catch{db.prepare("DELETE FROM stripe_events WHERE event_id=?").run(event.id);return NextResponse.json({error:"Sincronizarea rambursării a eșuat"},{status:500});}
+  }
   if(event.type==="charge.dispute.created"&&paymentId)db.prepare("UPDATE payments SET dispute_status='open' WHERE id=?").run(paymentId);
   if(event.type==="charge.dispute.closed"&&paymentId)db.prepare("UPDATE payments SET dispute_status=? WHERE id=?").run(String(object.status??"closed"),paymentId);
   if(event.type==="transfer.updated"&&paymentId&&object.reversed===true)db.prepare("UPDATE payments SET transfer_status='reversed' WHERE id=?").run(paymentId);
