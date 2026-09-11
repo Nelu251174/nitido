@@ -96,11 +96,13 @@ html { scroll-behavior: smooth; scroll-padding-top: 76px; }
   .v2-container { padding-inline:32px; }
   .v2-hero-grid { grid-template-columns:1fr !important; }
 }
+.v2-only-mobile { display:none !important; }
 @media (max-width: 760px) {
   .v2-container { padding-inline:22px; }
   .v2-section { padding-block:48px; }
   .v2-h2 { font-size:29px; }
   .v2-hide-mobile { display:none !important; }
+  .v2-only-mobile { display:inline-flex !important; }
   .v2-mobile-stack { grid-template-columns:1fr !important; }
   .v2-mobile-two { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
   .phone-frame { width:390px; max-width:100%; transform-origin:top center; }
