@@ -49,6 +49,7 @@ export default function FirmaPage() {
       if(!res.ok){setMessage(d.error??"Nu s-a putut încărca profilul");return;}
       setProfileForm({name:d.name??"",phone:d.phone??"",coverageCity:d.coverageCity??"",coverageCitiesExtra:d.coverageCitiesExtra??"",description:d.description??"",workingHours:d.workingHours??"",services:d.services??"",website:d.website??""});
       setEditingProfile(true);
+      setTimeout(()=>{const editor=document.getElementById("firm-profile-editor");editor?.scrollIntoView({behavior:"smooth",block:"start"});editor?.querySelector("input")?.focus({preventScroll:true});},60);
     }catch{setMessage("Nu s-a putut încărca profilul");}
   }
 
@@ -226,7 +227,7 @@ export default function FirmaPage() {
         )}
 
         {editingProfile && (
-          <section className="rounded-2xl border border-line bg-white p-5">
+          <section id="firm-profile-editor" className="rounded-2xl border border-line bg-white p-5">
             <div className="flex items-center justify-between gap-3 mb-4">
               <h2 className="font-display font-bold text-ink">Editează profilul firmei</h2>
               <button type="button" onClick={()=>setEditingProfile(false)} className="text-sm text-muted hover:text-coral">Anulează</button>
@@ -493,7 +494,7 @@ export default function FirmaPage() {
                 </div>
               </div>
             ):(
-              <p className="mt-3 text-sm text-muted">Profilul tău e gol. Adaugă o descriere, serviciile și programul ca să câștigi încrederea clienților. Apasă <b className="text-ink">Editează</b>.</p>
+              <p className="mt-3 text-sm text-muted">Profilul tău e gol. Adaugă o descriere, serviciile și programul ca să câștigi încrederea clienților. <button type="button" onClick={openProfileEditor} className="text-ink font-bold underline">Completează profilul firmei</button>.</p>
             )}
           </section>
         )}
