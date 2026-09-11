@@ -349,7 +349,7 @@ export default function FirmaPage() {
         )}
 
         <section className="rounded-2xl border border-line bg-white p-5">
-          <div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="font-display font-bold text-ink">Încasări prin Stripe</h2><p className="mt-1 text-xs leading-5 text-muted">Conectează contul firmei prin onboarding-ul găzduit de Stripe. Transferurile reale rămân inactive până la aprobarea NITIDO.</p></div><Button variant="outline" onClick={startStripeOnboarding}>Configurează încasările</Button></div>
+          <div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="font-display font-bold text-ink">Încasări prin Stripe</h2><p className="mt-1 text-xs leading-5 text-muted">{process.env.NEXT_PUBLIC_STRIPE_CONNECT_ONBOARDING==="true"?"Conectează contul firmei prin onboarding-ul găzduit de Stripe. Transferurile reale rămân inactive până la aprobarea NITIDO.":"Plățile directe către firme (Stripe Connect) se activează în curând. Până atunci, încasările se fac prin NITIDO."}</p></div>{process.env.NEXT_PUBLIC_STRIPE_CONNECT_ONBOARDING==="true"?<Button variant="outline" onClick={startStripeOnboarding}>Configurează încasările</Button>:<span className="shrink-0 rounded-full bg-mist px-4 py-2 text-xs font-bold text-muted">În curând</span>}</div>
         </section>
 
         <AppRatingCard />
