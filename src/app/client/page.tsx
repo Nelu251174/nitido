@@ -98,6 +98,9 @@ export default function ClientPage() {
   const [firmName, setFirmName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ name: "", email: "", phone: "" });
   const [ratingDone, setRatingDone] = useState(false);
   const [myJobs, setMyJobs] = useState<JobRow[]>([]);
   const [offers, setOffers] = useState<OfferView[]>([]);
@@ -338,6 +341,28 @@ export default function ClientPage() {
     }, 60);
   }
 
+  async function openProfileEditor() {
+    setError(null);
+    try {
+      const res = await fetch("/api/account/client");
+      const d = await res.json();
+      if (!res.ok) { setError(d.error ?? "Nu s-a putut încărca profilul"); return; }
+      setProfileForm({ name: d.name ?? "", email: d.email ?? "", phone: d.phone ?? "" });
+      setEditingProfile(true);
+      setTimeout(() => document.getElementById("sec-cont")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+    } catch { setError("Nu s-a putut încărca profilul"); }
+  }
+
+  async function saveProfile() {
+    setSavingProfile(true); setError(null);
+    try {
+      const res = await fetch("/api/account/client", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(profileForm) });
+      const d = await res.json();
+      if (!res.ok) { setError(d.error ?? "Nu s-au putut salva modificările"); setSavingProfile(false); return; }
+      window.location.reload();
+    } catch { setError("Nu s-au putut salva modificările"); setSavingProfile(false); }
+  }
+
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
@@ -358,7 +383,7 @@ export default function ClientPage() {
         <nav className="mt-10 space-y-2 text-sm font-semibold max-[760px]:mt-4 max-[760px]:flex max-[760px]:overflow-x-auto max-[760px]:space-y-0 max-[760px]:gap-2">
           <button type="button" onClick={()=>{resetToForm();window.scrollTo({top:0,behavior:"smooth"});}} className="text-left block rounded-[10px] bg-[#e9f2ec] text-[#14663a] px-4 py-3 whitespace-nowrap">Acasă</button><button type="button" onClick={()=>document.getElementById("sec-lucrari")?.scrollIntoView({behavior:"smooth"})} className="text-left block px-4 py-3 text-[#5c6660] whitespace-nowrap">Lucrările mele</button><button type="button" onClick={()=>document.getElementById("sec-mesaje")?.scrollIntoView({behavior:"smooth"})} className="text-left block px-4 py-3 text-[#5c6660] whitespace-nowrap">Mesaje</button><button type="button" onClick={()=>document.getElementById("sec-plata")?.scrollIntoView({behavior:"smooth"})} className="text-left block px-4 py-3 text-[#5c6660] whitespace-nowrap">Plăți</button><button type="button" onClick={()=>document.getElementById("sec-incredere")?.scrollIntoView({behavior:"smooth"})} className="text-left block px-4 py-3 text-[#5c6660] whitespace-nowrap">Încredere &amp; Siguranță</button><button type="button" onClick={()=>document.getElementById("sec-cont")?.scrollIntoView({behavior:"smooth"})} className="text-left block px-4 py-3 text-[#5c6660] whitespace-nowrap">Cont</button>
         </nav>
-        <div id="sec-cont" className="mt-auto max-[760px]:mt-6"><div className="text-sm font-semibold">{user.name}</div><div className="text-xs text-[#6b756f] mt-1">{user.email}</div><button onClick={logout} className="text-xs text-[#5c6660] mt-4">Ieși din cont</button></div>
+        <div className="mt-auto max-[760px]:mt-6"><div className="text-sm font-semibold">{user.name}</div><div className="text-xs text-[#6b756f] mt-1">{user.email}</div><button onClick={logout} className="text-xs text-[#5c6660] mt-4">Ieși din cont</button></div>
       </aside>
       <main className="flex-1 min-w-0 px-8 py-8 max-[760px]:px-[22px]">
         <header className="flex items-center justify-between gap-4"><div><div className="text-sm text-[#5c6660]">Bună, {user.name.split(" ")[0]}</div><h1 className="text-[26px] font-bold mt-1">Panoul tău NITIDO</h1></div><button onClick={goToForm} className="v2-btn v2-btn-primary">Postează o lucrare</button></header>
@@ -374,6 +399,32 @@ export default function ClientPage() {
         {!job && <div className="mb-5"><AppRatingCard /></div>}
         {!job && <section id="sec-mesaje" className="v2-card p-5 mb-5"><h2 className="font-bold">Mesaje &amp; suport</h2><p className="text-sm text-[#5c6660] mt-2 leading-6">Ai o întrebare despre o lucrare sau despre cont? Echipa NITIDO îți răspunde rapid.</p><div className="mt-3 flex flex-col gap-1 text-sm"><a href="tel:0341402403" className="text-[#14663a] font-semibold">📞 0341 402 403</a><a href="mailto:contact@nitido.ro" className="text-[#14663a] font-semibold">✉️ contact@nitido.ro</a></div><a href="/contact" target="_blank" rel="noopener noreferrer" className="v2-btn v2-btn-secondary mt-4 inline-flex">Deschide asistentul NITIDO</a></section>}
         {!job && <section id="sec-incredere" className="v2-card p-5 mb-5"><h2 className="font-bold">Încredere &amp; Siguranță</h2><ul className="text-sm text-[#5c6660] mt-2 leading-6 list-disc pl-5 space-y-1"><li>Firme verificate în platformă, cu CUI validat la ANAF.</li><li>Banii tăi stau în escrow și se eliberează firmei doar după ce confirmi finalizarea.</li><li>Plata cardului e procesată securizat de Stripe — NITIDO nu îți vede datele cardului.</li><li>Urmărești lucrarea în timp real și primești dovezi foto la final.</li></ul><a href="/incredere" target="_blank" rel="noopener noreferrer" className="v2-btn v2-btn-secondary mt-4 inline-flex">Vezi pagina completă</a></section>}
+        {!job && (
+          <section id="sec-cont" className="v2-card p-5 mb-5">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-bold">Contul meu</h2>
+              {!editingProfile && <button type="button" onClick={openProfileEditor} className="text-sm font-semibold text-[#14663a] hover:underline">Editează profilul</button>}
+            </div>
+            {!editingProfile ? (
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 text-sm">
+                <div><div className="text-[10.5px] uppercase tracking-wide text-[#6b756f] font-semibold">Nume</div><div className="text-ink mt-0.5">{user.name}</div></div>
+                <div><div className="text-[10.5px] uppercase tracking-wide text-[#6b756f] font-semibold">Email</div><div className="text-ink mt-0.5 break-all">{user.email}</div></div>
+                <div className="sm:col-span-2"><button onClick={logout} className="text-sm text-[#c0392b] font-semibold">Ieși din cont</button></div>
+              </div>
+            ) : (
+              <div className="mt-3 space-y-3">
+                <label className="block text-sm"><span className="text-[#6b756f]">Nume</span><input className={inputClass} value={profileForm.name} onChange={(e)=>setProfileForm(f=>({...f,name:e.target.value}))} /></label>
+                <label className="block text-sm"><span className="text-[#6b756f]">Email</span><input className={inputClass} value={profileForm.email} onChange={(e)=>setProfileForm(f=>({...f,email:e.target.value}))} /></label>
+                <label className="block text-sm"><span className="text-[#6b756f]">Telefon</span><input className={inputClass} value={profileForm.phone} onChange={(e)=>setProfileForm(f=>({...f,phone:e.target.value}))} placeholder="07xx xxx xxx" /></label>
+                <p className="text-xs text-[#6b756f]">Parola se schimbă din pagina „Am uitat parola”.</p>
+                <div className="flex gap-2 pt-1">
+                  <Button onClick={saveProfile} disabled={savingProfile}>{savingProfile?"Se salvează...":"Salvează"}</Button>
+                  <Button variant="outline" onClick={()=>setEditingProfile(false)} disabled={savingProfile}>Renunță</Button>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
         <div id="sec-form" />
         {!job && (
           <Card>
