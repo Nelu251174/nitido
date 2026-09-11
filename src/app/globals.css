@@ -103,6 +103,15 @@ html { scroll-behavior: smooth; scroll-padding-top: 76px; }
   .v2-h2 { font-size:29px; }
   .v2-hide-mobile { display:none !important; }
   .v2-only-mobile { display:inline-flex !important; }
+  /* Meniul panoului de client pe telefon: chip-uri rotunjite, uniforme. */
+  .client-nav { gap:8px !important; }
+  .client-nav > a, .client-nav > button {
+    border:1px solid #e3e2da; border-radius:999px; background:#fff;
+    padding:8px 14px !important; font-size:13px; color:#3e4842; line-height:1;
+  }
+  .client-nav > .is-active {
+    background:#e9f2ec; border-color:#bfe0cc; color:#14663a;
+  }
   .v2-mobile-stack { grid-template-columns:1fr !important; }
   .v2-mobile-two { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
   .phone-frame { width:390px; max-width:100%; transform-origin:top center; }
