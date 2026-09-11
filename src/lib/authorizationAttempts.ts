@@ -18,10 +18,18 @@ export async function obtainAuthorization(db:Database,stripe:Stripe,jobId:string
    try{intent=await stripe.paymentIntents.create(params,{idempotencyKey:`nitido-authorize-${jobId}`});}
    catch(error){
      db.prepare("UPDATE payment_authorization_attempts SET status='unknown' WHERE job_id=? AND stripe_payment_intent_id IS NULL").run(jobId);
+     const candidate=error&&typeof error==='object'&&'payment_intent' in error?error.payment_intent:null;
+     if(candidate&&typeof candidate==='object'&&'id' in candidate&&'metadata' in candidate){
+       const intent=candidate as Stripe.PaymentIntent;
+       if(typeof intent.id==='string'&&intent.amount===params.amount&&intent.currency===params.currency&&intent.metadata?.jobId===jobId&&intent.metadata?.paymentId===params.metadata?.paymentId){
+         const authenticationRequired=error!==null&&typeof error==='object'&&'code' in error&&error.code==='authentication_required';
+         db.prepare('UPDATE payment_authorization_attempts SET stripe_payment_intent_id=?,status=? WHERE job_id=?').run(intent.id,authenticationRequired?'requires_action':intent.status,jobId);
+       }
+     }
      throw error;
    }
  }
  if(intent.amount!==params.amount||intent.currency!==params.currency||intent.metadata.jobId!==jobId||intent.metadata.paymentId!==params.metadata?.paymentId||(attempt.stripe_payment_intent_id&&intent.id!==attempt.stripe_payment_intent_id))throw Error('PAYMENT_DETAILS_MISMATCH');
- db.prepare('UPDATE payment_authorization_attempts SET stripe_payment_intent_id=?,status=? WHERE job_id=?').run(intent.id,intent.status,jobId);
+ db.prepare('UPDATE payment_authorization_attempts SET stripe_payment_intent_id=?,status=? WHERE job_id=?').run(intent.id,intent.status==='requires_payment_method'&&intent.last_payment_error?.code==='authentication_required'?'requires_action':intent.status,jobId);
  return intent;
 }

@@ -69,6 +69,8 @@ export async function GET(req: NextRequest) {
       .map((entry) => entry.j);
   }
 
+  const authorizationByJob=new Map<string,string>();
+  if(user.role==="client")for(const row of db.prepare("SELECT a.job_id,a.status FROM payment_authorization_attempts a JOIN jobs j ON j.id=a.job_id WHERE j.client_id=? AND j.status='waiting'").all(user.id) as {job_id:string;status:string}[])authorizationByJob.set(row.job_id,row.status);
   const photosByJob = new Map<string, string[]>();
   const scanByJob = new Map<string, {id:string;url:string;room:string|null;roomLabel:string}[]>();
   const proofsByJob = new Map<string, {id:string;type:"ARRIVAL"|"COMPLETION";url:string;createdAt:string}[]>();
@@ -101,7 +103,7 @@ export async function GET(req: NextRequest) {
 
   const jobsWithPhotos = jobs.map((j) => {
     const canSeePrivate = user.role === "client" || j.accepted_firm_id === firmId;
-    if (canSeePrivate) {const payment=paymentsByJob.get(j.id)??null;return { ...j, photos: photosByJob.get(j.id) ?? [], scan: scanByJob.get(j.id) ?? [], proofs: proofsByJob.get(j.id) ?? [], ownReview:user.role==="client"?ownReviewsByJob.get(j.id)??null:undefined, financial:payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null,...(user.role==="firma"?{firm_payout:payment?.firmPayout??null}:{}) };}
+    if (canSeePrivate) {const payment=paymentsByJob.get(j.id)??null;return { ...j, ...(user.role==="client"?{authorizationStatus:authorizationByJob.get(j.id)??null}:{}), photos: photosByJob.get(j.id) ?? [], scan: scanByJob.get(j.id) ?? [], proofs: proofsByJob.get(j.id) ?? [], ownReview:user.role==="client"?ownReviewsByJob.get(j.id)??null:undefined, financial:payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null,...(user.role==="firma"?{firm_payout:payment?.firmPayout??null}:{}) };}
     return {
       id: j.id,
       city: j.city,
