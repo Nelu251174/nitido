@@ -1,5 +1,6 @@
 import type { Database } from "better-sqlite3";
 import Stripe from "stripe";
+import {obtainAuthorization} from "@/lib/authorizationAttempts";
 import { createHash } from "node:crypto";
 import { calcNetForFirm, PLATFORM_COMMISSION } from "@/lib/pricing";
 import { assertCompletionProof, auditWorkflow } from "@/lib/proofOfWork";
@@ -27,15 +28,28 @@ export function calculatePaymentSplit(grossAmount: number, discountAmount = 0) {
 
 /** Authorize the authoritative client amount on the platform. No transfer is made here. */
 export async function authorizePayment(db: Database, jobId: string, grossAmount: number, _firmAccountId?: string | null, discountAmount = 0): Promise<string> {
-  const existing = db.prepare("SELECT id,status FROM payments WHERE job_id=?").get(jobId) as {id:string;status:string}|undefined;
-  if (existing) {
-    if (existing.status !== "authorized") throw new Error("PAYMENT_NOT_AUTHORIZED");
+  const {clientAmount,firmAmount,platformAmount}=calculatePaymentSplit(grossAmount,discountAmount);
+  const stripe=getStripeClient();
+  const rows=db.prepare("SELECT * FROM payments WHERE job_id=?").all(jobId) as {id:string;status:string;amount_gross:number;stripe_payment_intent_id:string|null}[];
+  if(rows.length>1)throw new Error("PAYMENT_AUTHORIZATION_RECONCILIATION_REQUIRED");
+  const existing=rows[0];
+  if(existing){
+    if(existing.status!=="authorized")throw new Error("PAYMENT_NOT_AUTHORIZED");
+    if(existing.amount_gross!==clientAmount)throw new Error("PAYMENT_DETAILS_MISMATCH");
+    if(stripe){
+      if(!existing.stripe_payment_intent_id)throw new Error("STRIPE_PAYMENT_INTENT_MISSING");
+      const intent=await stripe.paymentIntents.retrieve(existing.stripe_payment_intent_id);
+      if(intent.id!==existing.stripe_payment_intent_id||intent.currency!=="ron"||intent.amount!==clientAmount*100||intent.metadata.jobId!==jobId||intent.metadata.paymentId!==existing.id)throw new Error("PAYMENT_DETAILS_MISMATCH");
+      if(intent.status==="canceled"){
+        db.transaction(()=>{db.prepare("UPDATE payments SET status='cancelled' WHERE id=? AND status='authorized'").run(existing.id);db.prepare("UPDATE payment_authorization_attempts SET status='canceled' WHERE stripe_payment_intent_id=?").run(existing.stripe_payment_intent_id);})();
+        throw new Error("PAYMENT_AUTHORIZATION_EXPIRED_OR_CANCELLED");
+      }
+      if(intent.status!=="requires_capture"||intent.amount_capturable!==clientAmount*100)throw new Error("PAYMENT_AUTHORIZATION_NOT_CONFIRMED");
+    }
     return existing.id;
   }
-  const {clientAmount,firmAmount,platformAmount}=calculatePaymentSplit(grossAmount,discountAmount);
   // Stable metadata across retries after an uncertain provider response.
   const id=`pay_${createHash("sha256").update(jobId).digest("hex")}`;
-  const stripe=getStripeClient();
   let intentId:string|null=null;
   if(stripe){
     // HOLD pe cardul salvat al clientului (card pe fișier — vezi clientPayments.ts).
@@ -45,7 +59,7 @@ export async function authorizePayment(db: Database, jobId: string, grossAmount:
     if(!client?.customerId||!client?.paymentMethodId){
       throw new Error("Clientul nu are un card salvat pentru această lucrare");
     }
-    const intent=await stripe.paymentIntents.create({
+    const intent=await obtainAuthorization(db,stripe,jobId,{
       amount:clientAmount*100,
       currency:"ron",
       customer:client.customerId,
@@ -54,11 +68,13 @@ export async function authorizePayment(db: Database, jobId: string, grossAmount:
       confirm:true,
       capture_method:"manual",
       metadata:{jobId,paymentId:id,pricingSource:"server"},
-    },{idempotencyKey:`nitido-authorize-${jobId}`});
+    });
     if(intent.status!=="requires_capture" || intent.currency!=="ron" || intent.amount!==clientAmount*100 || intent.amount_capturable!==clientAmount*100) throw new Error("PAYMENT_AUTHORIZATION_NOT_CONFIRMED");
     intentId=intent.id;
   }
-  db.prepare(`INSERT INTO payments(id,job_id,amount_gross,commission_amount,amount_net,status,stripe_payment_intent_id) VALUES(?,?,?,?,?,'authorized',?)`).run(id,jobId,clientAmount,platformAmount,firmAmount,intentId);
+  db.prepare(`INSERT INTO payments(id,job_id,amount_gross,commission_amount,amount_net,status,stripe_payment_intent_id) VALUES(?,?,?,?,?,'authorized',?) ON CONFLICT(id) DO NOTHING`).run(id,jobId,clientAmount,platformAmount,firmAmount,intentId);
+  const saved=db.prepare("SELECT status,stripe_payment_intent_id,amount_gross FROM payments WHERE id=?").get(id) as {status:string;stripe_payment_intent_id:string|null;amount_gross:number}|undefined;
+  if(!saved||saved.status!=="authorized"||saved.stripe_payment_intent_id!==intentId||saved.amount_gross!==clientAmount)throw new Error("PAYMENT_AUTHORIZATION_RECONCILIATION_REQUIRED");
   return id;
 }
 
@@ -77,6 +93,10 @@ export async function capturePayment(db:Database,jobId:string):Promise<void>{
     let intent=await stripe.paymentIntents.retrieve(intentId);
     const matchesPayment=(value:Stripe.PaymentIntent)=>value.id===intentId && value.currency==="ron" && value.amount===Number(payment.amount_gross)*100 && value.metadata.jobId===jobId && value.metadata.paymentId===payment.id;
     if(!matchesPayment(intent))throw new Error("PAYMENT_DETAILS_MISMATCH");
+    if(intent.status==="canceled"){
+      db.transaction(()=>{db.prepare("UPDATE payments SET status='cancelled' WHERE id=? AND status='authorized'").run(payment.id);db.prepare("UPDATE payment_authorization_attempts SET status='canceled' WHERE stripe_payment_intent_id=?").run(payment.stripe_payment_intent_id);})();
+      throw new Error("PAYMENT_AUTHORIZATION_EXPIRED_OR_CANCELLED");
+    }
     if(intent.status==="requires_capture" && intent.amount_capturable===Number(payment.amount_gross)*100){
       intent=await stripe.paymentIntents.capture(intentId,{}, {idempotencyKey:`nitido-capture-${jobId}`});
     }

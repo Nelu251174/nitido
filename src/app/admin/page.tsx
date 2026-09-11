@@ -33,6 +33,9 @@ interface PaymentRow {
   dispute_status: string;
 }
 
+interface AuthorizationIssue {job_id:string;status:string;created_ms:number;stripe_payment_intent_id:string|null}
+const authorizationLabels:Record<string,string>={reconciliation_required:"Reconciliere obligatorie",pending:"Verificare în curs",unknown:"Rezultat neconfirmat",requires_action:"Confirmare necesară de la client",requires_payment_method:"Card necesar",canceled:"Autorizare anulată sau expirată",processing:"Procesare Stripe"};
+
 interface BankPayoutRow {account_id:string;payout_id:string;amount_minor:number;currency:string;status:string;arrival_date:number;firm_name:string|null}
 const payoutLabels:Record<string,string>={paid:"Confirmat de Stripe",failed:"Eșuat",pending:"În așteptare",in_transit:"În curs",canceled:"Anulat"};
 function payoutAmount(p:BankPayoutRow){const formatter=new Intl.NumberFormat("ro-RO",{style:"currency",currency:p.currency.toUpperCase()});return formatter.format(p.amount_minor/10**(formatter.resolvedOptions().maximumFractionDigits??2));}
@@ -67,6 +70,7 @@ export default function AdminPage() {
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [firms, setFirms] = useState<FirmRow[]>([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [authorizationIssues,setAuthorizationIssues]=useState<AuthorizationIssue[]>([]);
   const [bankPayouts,setBankPayouts]=useState<BankPayoutRow[]>([]);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [proofs, setProofs] = useState<ProofRow[]>([]);
@@ -91,6 +95,7 @@ export default function AdminPage() {
     setFirms(data.firms);
     setPayments(data.payments);
     setBankPayouts(data.bankPayouts??[]);
+    setAuthorizationIssues(data.authorizationIssues??[]);
     setNotifications(data.notifications ?? []);
     setProofs(data.proofs ?? []);
     setReviews(data.reviews ?? []);
@@ -420,6 +425,11 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
+        </section>
+        <section aria-label="Autorizări de verificat">
+          <h2 className="font-display font-bold text-ink mb-3">Autorizări de plată de verificat</h2>
+          <p className="text-sm text-muted mb-3">Cererile cu rezultat neclar trebuie reconciliate înainte de o nouă blocare pe card.</p>
+          {authorizationIssues.length===0?<p className="text-sm text-muted">Nu sunt înregistrate solicitări care necesită verificare.</p>:<div className="overflow-x-auto"><table className="w-full text-sm bg-white border border-line"><thead className="bg-mist text-muted"><tr><th className="text-left p-3">Lucrare</th><th className="text-left p-3">Stare</th><th className="text-left p-3">Solicitată la</th><th className="text-left p-3">Referință Stripe</th></tr></thead><tbody>{authorizationIssues.map(a=><tr key={a.job_id} className="border-t border-line"><td className="p-3 break-all">{a.job_id}</td><td className="p-3">{authorizationLabels[a.status]??"Necesită verificare"}</td><td className="p-3">{new Date(a.created_ms).toLocaleString("ro-RO",{timeZone:"Europe/Bucharest"})}</td><td className="p-3 break-all">{a.stripe_payment_intent_id??"Încă neconfirmată"}</td></tr>)}</tbody></table></div>}
         </section>
         <section aria-label="Viramente bancare Stripe">
           <h2 className="font-display font-bold text-ink mb-3">Viramente bancare către firme</h2>

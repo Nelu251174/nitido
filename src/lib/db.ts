@@ -216,6 +216,15 @@ CREATE TABLE IF NOT EXISTS stripe_events (
   processed_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS payment_authorization_attempts (
+ job_id TEXT PRIMARY KEY REFERENCES jobs(id),
+ request_json TEXT NOT NULL,
+ provider_key_hash TEXT NOT NULL,
+ created_ms INTEGER NOT NULL,
+ stripe_payment_intent_id TEXT,
+ status TEXT NOT NULL DEFAULT 'pending'
+);
+
 CREATE TABLE IF NOT EXISTS stripe_bank_payouts (
  account_id TEXT NOT NULL,
  payout_id TEXT NOT NULL,

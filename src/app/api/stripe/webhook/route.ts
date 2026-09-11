@@ -22,6 +22,13 @@ export async function POST(req:NextRequest){
   try{
     // Platform charges/refunds/transfers must not be mutated by a connected-account event.
     if(!event.account){
+      if(event.type==="payment_intent.canceled"&&typeof object.id==="string"){
+        const intentId=object.id;
+        updates.push(()=>{
+          db.prepare("UPDATE payments SET status='cancelled' WHERE stripe_payment_intent_id=? AND status='authorized'").run(intentId);
+          db.prepare("UPDATE payment_authorization_attempts SET status='canceled' WHERE stripe_payment_intent_id=?").run(intentId);
+        });
+      }
       if(event.type==="charge.succeeded"){
         const intentId=objectId(object.payment_intent),balanceId=objectId(object.balance_transaction),chargeId=objectId(object.id);
         const payment=intentId?db.prepare("SELECT id FROM payments WHERE stripe_payment_intent_id=?").get(intentId) as {id:string}|undefined:undefined;
