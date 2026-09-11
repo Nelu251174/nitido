@@ -10,6 +10,11 @@ import { JobRow } from "@/lib/types";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AppRatingCard } from "@/components/AppRatingCard";
 
+// Buton de acțiune uniform pentru antet/carduri: contur (linie) + schimbare de
+// culoare la hover. Toate butoanele „text" folosesc același stil.
+const ACTION_BTN =
+  "inline-flex items-center rounded-full border border-line px-3.5 py-1.5 text-sm font-display font-bold text-ink transition-colors duration-150 hover:border-aqua hover:text-aqua-deep hover:bg-aqua/5";
+
 export default function FirmaPage() {
   const router = useRouter();
   const { user, firm, loading } = useCurrentUser();
@@ -187,14 +192,14 @@ export default function FirmaPage() {
                 <span className="block text-xs text-muted">{firm?.coverage_city}{firm?.coverage_cities_extra ? ` + ${firm.coverage_cities_extra}` : ""}</span>
               </span>
             </span>
-            <button type="button" onClick={openProfileEditor} className="text-sm font-display font-bold text-aqua-deep hover:text-ink">
+            <button type="button" onClick={openProfileEditor} className={ACTION_BTN}>
               Editează profilul
             </button>
-            <Link href="/" className="text-sm font-display font-bold text-muted hover:text-ink">
+            <Link href="/" className={ACTION_BTN}>
               Vezi site-ul public →
             </Link>
-            <Link href="/incredere" className="text-sm font-display font-bold text-muted hover:text-ink">Încredere &amp; Siguranță</Link>
-            <button onClick={logout} className="text-sm text-muted hover:text-coral">
+            <Link href="/incredere" className={ACTION_BTN}>Încredere &amp; Siguranță</Link>
+            <button onClick={logout} className="inline-flex items-center rounded-full border border-line px-3.5 py-1.5 text-sm font-display font-bold text-muted transition-colors duration-150 hover:border-coral hover:text-coral hover:bg-coral/5">
               Ieși din cont
             </button>
           </div>
@@ -260,7 +265,7 @@ export default function FirmaPage() {
           <section className="rounded-2xl border border-line bg-white p-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="font-display font-bold text-ink">Despre firmă</h2>
-              <button type="button" onClick={openProfileEditor} className="text-sm font-display font-bold text-aqua-deep hover:text-ink">Editează</button>
+              <button type="button" onClick={openProfileEditor} className={ACTION_BTN}>Editează</button>
             </div>
             {(firm?.description||firm?.services||firm?.working_hours||firm?.website)?(
               <div className="mt-3 space-y-3 text-sm">

@@ -403,13 +403,13 @@ export default function ClientPage() {
           <section id="sec-cont" className="v2-card p-5 mb-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="font-bold">Contul meu</h2>
-              {!editingProfile && <button type="button" onClick={openProfileEditor} className="text-sm font-semibold text-[#14663a] hover:underline">Editează profilul</button>}
+              {!editingProfile && <button type="button" onClick={openProfileEditor} className="inline-flex items-center rounded-full border border-[#d8d7d0] px-3.5 py-1.5 text-sm font-semibold text-[#14663a] transition-colors duration-150 hover:border-[#1b8a4c] hover:bg-[#e9f2ec]">Editează profilul</button>}
             </div>
             {!editingProfile ? (
               <div className="mt-3 grid gap-3 sm:grid-cols-2 text-sm">
                 <div><div className="text-[10.5px] uppercase tracking-wide text-[#6b756f] font-semibold">Nume</div><div className="text-ink mt-0.5">{user.name}</div></div>
                 <div><div className="text-[10.5px] uppercase tracking-wide text-[#6b756f] font-semibold">Email</div><div className="text-ink mt-0.5 break-all">{user.email}</div></div>
-                <div className="sm:col-span-2"><button onClick={logout} className="text-sm text-[#c0392b] font-semibold">Ieși din cont</button></div>
+                <div className="sm:col-span-2"><button onClick={logout} className="inline-flex items-center rounded-full border border-[#d8d7d0] px-3.5 py-1.5 text-sm font-semibold text-[#c0392b] transition-colors duration-150 hover:border-[#c0392b] hover:bg-[#fbeaea]">Ieși din cont</button></div>
               </div>
             ) : (
               <div className="mt-3 space-y-3">
