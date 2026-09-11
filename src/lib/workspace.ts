@@ -42,8 +42,15 @@ CREATE TABLE IF NOT EXISTS workspace_audit (
  id TEXT PRIMARY KEY, actor_id TEXT NOT NULL REFERENCES users(id), action TEXT NOT NULL,
  resource_id TEXT NOT NULL, created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS workspace_host_checks (
+ event_id TEXT NOT NULL REFERENCES workspace_calendar_events(id),
+ turnover_at TEXT NOT NULL, item_key TEXT NOT NULL,
+ done INTEGER NOT NULL CHECK(done IN (0,1)),
+ updated_by TEXT NOT NULL REFERENCES users(id), updated_at TEXT NOT NULL,
+ PRIMARY KEY(event_id,turnover_at,item_key)
+);
 ` + COLLABORATION_SCHEMA;
-import { CHECKLIST } from "@/lib/workspaceShared";
+import { CHECKLIST, HOST_CHECKLIST } from "@/lib/workspaceShared";
 export class WorkspaceError extends Error { constructor(message:string,public status=400){super(message)} }
 export function requireText(value:unknown,label:string,max=250) {
  if(typeof value!=="string"||!value.trim()||value.trim().length>max)throw new WorkspaceError(`${label}: completează între 1 și ${max} caractere.`);
@@ -53,6 +60,26 @@ function audit(db:Database,actor:string,action:string,id:string){db.prepare("INS
 export function ownProperty(db:Database,userId:string,id:string) {
  const row=db.prepare("SELECT * FROM workspace_properties WHERE id=? AND owner_id=? AND archived=0").get(id,userId) as Property|undefined;
  if(!row)throw new WorkspaceError("Proprietate inexistentă",404);return row;
+}
+export function hostChecks(db:Database,userId:string){
+ return db.prepare(`SELECT c.* FROM workspace_host_checks c
+ JOIN workspace_calendar_events e ON e.id=c.event_id AND e.ends_at=c.turnover_at
+ JOIN workspace_properties p ON p.id=e.property_id
+ WHERE p.owner_id=? AND p.archived=0 AND p.kind='host' AND e.status='active'`).all(userId);
+}
+export function setHostCheck(db:Database,userId:string,eventId:string,turnoverAt:string,key:string,done:boolean){
+ if(typeof done!=="boolean"||!HOST_CHECKLIST.some(item=>item.key===key))throw new WorkspaceError("Verificare invalidă.");
+ return db.transaction(()=>{
+  const event=db.prepare(`SELECT e.* FROM workspace_calendar_events e JOIN workspace_properties p ON p.id=e.property_id
+   WHERE e.id=? AND p.owner_id=? AND p.archived=0 AND p.kind='host' AND e.status='active'`).get(eventId,userId) as {ends_at:string}|undefined;
+  if(!event)throw new WorkspaceError("Sejur inexistent sau anulat.",404);
+  if(event.ends_at!==turnoverAt)throw new WorkspaceError("Calendarul s-a modificat. Reîncarcă pagina înainte de verificare.",409);
+  if(Date.parse(event.ends_at)>Date.now())throw new WorkspaceError("Confirmă pregătirea după eliberarea proprietății.",409);
+  db.prepare(`INSERT INTO workspace_host_checks VALUES(?,?,?,?,?,?)
+   ON CONFLICT(event_id,turnover_at,item_key) DO UPDATE SET done=excluded.done,updated_by=excluded.updated_by,updated_at=excluded.updated_at`)
+   .run(eventId,turnoverAt,key,done?1:0,userId,new Date().toISOString());
+  audit(db,userId,"host.check",`${eventId}:${key}`);
+ })();
 }
 export interface Property {id:string;owner_id:string;name:string;city:string;street:string;sqm:number;space_type:string;kind:string;cost_center:string;budget_bani:number;notes:string;archived:number}
 export function saveProperty(db:Database,userId:string,b:Record<string,unknown>) {

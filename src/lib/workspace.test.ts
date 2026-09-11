@@ -1,7 +1,7 @@
 import {beforeEach,afterEach,describe,it,expect} from "vitest";
 import Database from "better-sqlite3";
 import {SCHEMA_SQL} from "./db";
-import {WORKSPACE_SCHEMA,saveProperty,ownProperty,linkPropertyJob,assignTeam,sendJobMessage,setChecklist,importCalendar,parseCalendar} from "./workspace";
+import {hostChecks,setHostCheck,WORKSPACE_SCHEMA,saveProperty,ownProperty,linkPropertyJob,assignTeam,sendJobMessage,setChecklist,importCalendar,parseCalendar} from "./workspace";
 let db:Database.Database;
 beforeEach(()=>{db=new Database(":memory:");db.pragma("foreign_keys=ON");db.exec(SCHEMA_SQL);db.exec(WORKSPACE_SCHEMA);db.exec("INSERT INTO users(id,role,name) VALUES('a','client','A'),('b','client','B'),('f','firma','F'),('g','firma','G');INSERT INTO firms(id,user_id,coverage_city) VALUES('firm','f','București'),('other','g','București')");});
 afterEach(()=>db.close());
@@ -21,4 +21,12 @@ describe("calendar imports",()=>{
  it("upserts by property/source/UID and does not expose guest names",()=>{const id=saveProperty(db,"a",{...property,kind:"host"});importCalendar(db,"a",id,"PMS",calendar(event));importCalendar(db,"a",id,"PMS",calendar(event.replace("20260918","20260919")));const rows=db.prepare("SELECT * FROM workspace_calendar_events").all() as {summary:string;ends_at:string}[];expect(rows).toHaveLength(1);expect(rows[0].ends_at).toContain("2026-09-19");expect(rows[0].summary).toBe("Perioadă ocupată");expect(()=>importCalendar(db,"b",id,"PMS",calendar(event))).toThrow()});
  it("applies explicit cancellation and keeps events omitted from a later partial import",()=>{const id=saveProperty(db,"a",property);importCalendar(db,"a",id,"PMS",calendar(event));importCalendar(db,"a",id,"PMS",calendar("BEGIN:VEVENT\r\nUID:booking-1\r\nSTATUS:CANCELLED\r\nEND:VEVENT"));expect(db.prepare("SELECT status FROM workspace_calendar_events").get()).toEqual({status:"cancelled"})});
  it("rejects invalid dates and unsupported recurrence instead of silently shifting bookings",()=>{expect(()=>parseCalendar(calendar(event.replace("20260915","20260231")))).toThrow();expect(()=>parseCalendar(calendar(event.replace("SUMMARY:","RRULE:FREQ=DAILY\r\nSUMMARY:")))).toThrow()});
+});
+
+describe('host readiness per stay',()=>{
+ const past='BEGIN:VEVENT\r\nUID:past-stay\r\nDTSTART:20240101T110000Z\r\nDTEND:20240102T110000Z\r\nEND:VEVENT';
+ function setup(){const id=saveProperty(db,'a',{...property,kind:'host'});importCalendar(db,'a',id,'PMS',calendar(past));return db.prepare('SELECT id,ends_at FROM workspace_calendar_events WHERE property_id=?').get(id) as {id:string;ends_at:string}}
+ it('persists checks only for the owner and audits changes',()=>{const e=setup();expect(()=>setHostCheck(db,'b',e.id,e.ends_at,'linen',true)).toThrow();setHostCheck(db,'a',e.id,e.ends_at,'linen',true);expect(hostChecks(db,'a')).toHaveLength(1);expect(hostChecks(db,'b')).toHaveLength(0);setHostCheck(db,'a',e.id,e.ends_at,'linen',false);expect(hostChecks(db,'a')[0]).toMatchObject({done:0});expect(db.prepare("SELECT * FROM workspace_audit WHERE action='host.check'").all()).toHaveLength(2)});
+ it('does not reuse readiness after changed checkout, cancellation or archival',()=>{const e=setup();setHostCheck(db,'a',e.id,e.ends_at,'linen',true);db.prepare('UPDATE workspace_calendar_events SET ends_at=? WHERE id=?').run('2024-01-03T11:00:00.000Z',e.id);expect(hostChecks(db,'a')).toHaveLength(0);expect(()=>setHostCheck(db,'a',e.id,e.ends_at,'linen',true)).toThrow(/modificat/);db.prepare("UPDATE workspace_calendar_events SET status='cancelled' WHERE id=?").run(e.id);expect(()=>setHostCheck(db,'a',e.id,'2024-01-03T11:00:00.000Z','linen',true)).toThrow();db.exec('UPDATE workspace_properties SET archived=1');expect(hostChecks(db,'a')).toHaveLength(0)});
+ it('rejects future checkouts and unsupported keys',()=>{const e=setup();expect(()=>setHostCheck(db,'a',e.id,e.ends_at,'fake',true)).toThrow();db.prepare('UPDATE workspace_calendar_events SET ends_at=? WHERE id=?').run('2099-01-03T11:00:00.000Z',e.id);expect(()=>setHostCheck(db,'a',e.id,'2099-01-03T11:00:00.000Z','linen',true)).toThrow(/eliberarea/)});
 });
