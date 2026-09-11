@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
 import { Logo, Card, Field, inputClass, Button, StatusTrack, StarRating } from "@/components/ui";
 import {
   calcGrossPrice,
@@ -348,7 +347,7 @@ export default function ClientPage() {
       <aside className="w-[236px] shrink-0 bg-white border-r border-[#e3e2da] p-5 flex flex-col sticky top-0 h-screen max-[760px]:w-full max-[760px]:h-auto max-[760px]:relative max-[760px]:border-r-0 max-[760px]:border-b max-[760px]:p-3">
         <Logo />
         <nav className="mt-10 space-y-2 text-sm font-semibold max-[760px]:mt-4 max-[760px]:flex max-[760px]:overflow-x-auto max-[760px]:space-y-0 max-[760px]:gap-2">
-          <button type="button" onClick={()=>{resetToForm();window.scrollTo({top:0,behavior:"smooth"});}} className="text-left block rounded-[10px] bg-[#e9f2ec] text-[#14663a] px-4 py-3 whitespace-nowrap">Acasă</button><button type="button" onClick={()=>document.getElementById("sec-lucrari")?.scrollIntoView({behavior:"smooth"})} className="text-left block px-4 py-3 text-[#5c6660] whitespace-nowrap">Lucrările mele</button><Link href="/contact" className="block px-4 py-3 text-[#5c6660] whitespace-nowrap">Mesaje</Link><button type="button" onClick={()=>document.getElementById("sec-plata")?.scrollIntoView({behavior:"smooth"})} className="text-left block px-4 py-3 text-[#5c6660] whitespace-nowrap">Plăți</button><Link href="/incredere" className="block px-4 py-3 text-[#5c6660] whitespace-nowrap">Încredere &amp; Siguranță</Link><button type="button" onClick={()=>document.getElementById("sec-cont")?.scrollIntoView({behavior:"smooth"})} className="text-left block px-4 py-3 text-[#5c6660] whitespace-nowrap">Cont</button>
+          <button type="button" onClick={()=>{resetToForm();window.scrollTo({top:0,behavior:"smooth"});}} className="text-left block rounded-[10px] bg-[#e9f2ec] text-[#14663a] px-4 py-3 whitespace-nowrap">Acasă</button><button type="button" onClick={()=>document.getElementById("sec-lucrari")?.scrollIntoView({behavior:"smooth"})} className="text-left block px-4 py-3 text-[#5c6660] whitespace-nowrap">Lucrările mele</button><button type="button" onClick={()=>document.getElementById("sec-mesaje")?.scrollIntoView({behavior:"smooth"})} className="text-left block px-4 py-3 text-[#5c6660] whitespace-nowrap">Mesaje</button><button type="button" onClick={()=>document.getElementById("sec-plata")?.scrollIntoView({behavior:"smooth"})} className="text-left block px-4 py-3 text-[#5c6660] whitespace-nowrap">Plăți</button><button type="button" onClick={()=>document.getElementById("sec-incredere")?.scrollIntoView({behavior:"smooth"})} className="text-left block px-4 py-3 text-[#5c6660] whitespace-nowrap">Încredere &amp; Siguranță</button><button type="button" onClick={()=>document.getElementById("sec-cont")?.scrollIntoView({behavior:"smooth"})} className="text-left block px-4 py-3 text-[#5c6660] whitespace-nowrap">Cont</button>
         </nav>
         <div id="sec-cont" className="mt-auto max-[760px]:mt-6"><div className="text-sm font-semibold">{user.name}</div><div className="text-xs text-[#6b756f] mt-1">{user.email}</div><button onClick={logout} className="text-xs text-[#5c6660] mt-4">Ieși din cont</button></div>
       </aside>
@@ -364,6 +363,8 @@ export default function ClientPage() {
           <ReferralCard code={user.referral_code} creditBalance={creditBalance} />
         )}
         {!job && <div className="mb-5"><AppRatingCard /></div>}
+        {!job && <section id="sec-mesaje" className="v2-card p-5 mb-5"><h2 className="font-bold">Mesaje &amp; suport</h2><p className="text-sm text-[#5c6660] mt-2 leading-6">Ai o întrebare despre o lucrare sau despre cont? Echipa NITIDO îți răspunde rapid.</p><div className="mt-3 flex flex-col gap-1 text-sm"><a href="tel:0341402403" className="text-[#14663a] font-semibold">📞 0341 402 403</a><a href="mailto:contact@nitido.ro" className="text-[#14663a] font-semibold">✉️ contact@nitido.ro</a></div><a href="/contact" target="_blank" rel="noopener noreferrer" className="v2-btn v2-btn-secondary mt-4 inline-flex">Deschide asistentul NITIDO</a></section>}
+        {!job && <section id="sec-incredere" className="v2-card p-5 mb-5"><h2 className="font-bold">Încredere &amp; Siguranță</h2><ul className="text-sm text-[#5c6660] mt-2 leading-6 list-disc pl-5 space-y-1"><li>Firme verificate în platformă, cu CUI validat la ANAF.</li><li>Banii tăi stau în escrow și se eliberează firmei doar după ce confirmi finalizarea.</li><li>Plata cardului e procesată securizat de Stripe — NITIDO nu îți vede datele cardului.</li><li>Urmărești lucrarea în timp real și primești dovezi foto la final.</li></ul><a href="/incredere" target="_blank" rel="noopener noreferrer" className="v2-btn v2-btn-secondary mt-4 inline-flex">Vezi pagina completă</a></section>}
         {!job && (
           <Card>
             <h1 className="font-display font-extrabold text-xl text-ink mb-1">
