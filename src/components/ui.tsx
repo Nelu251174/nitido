@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { ReactNode } from "react";
 
-export function Logo({ inverted = false }: { inverted?: boolean } = {}) {
+export function Logo({ inverted = false, href = "/", onClick }: { inverted?: boolean; href?: string; onClick?: () => void } = {}) {
   return (
     <Link
-      href="/"
+      href={href}
+      onClick={onClick}
       className={`font-display font-extrabold text-lg tracking-tight ${inverted ? "text-white" : "text-ink"}`}
     >
       NITIDO<span className="text-aqua">.RO</span>
