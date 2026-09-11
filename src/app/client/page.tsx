@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import {ClientOverview} from "@/components/ClientOverview";
+import {DesignIcon} from "@/components/DesignIcon";
 import {WorkspaceNav} from "@/components/WorkspaceNav";
 import {JobMessages} from "@/components/JobMessages";
 import {JOB_STATUS} from "@/lib/workspaceShared";
@@ -133,6 +135,9 @@ export default function ClientPage() {
     const type=params.get("spaceType");if(type&&["apartament","casa","birou","altul"].includes(type))setSpaceType(type as SpaceType);
     const area=Number(params.get("sqm"));if(Number.isInteger(area)&&area>0&&area<=1000)setSqm(area);
     if(params.get("mode")==="express")setMode("express");
+    const requestedCity=params.get("city");if(requestedCity)setCity(requestedCity.slice(0,100));
+    const requestedDate=params.get("date"),requestedHour=Number(params.get("hour"));
+    if(requestedDate&&/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)&&!Number.isNaN(new Date(`${requestedDate}T12:00:00`).getTime())){setWhenType("scheduled");setScheduledDate(new Date(`${requestedDate}T12:00:00`));if(params.has("hour")&&(SLOT_HOURS as readonly number[]).includes(requestedHour))setScheduledHour(requestedHour)}
     const approval=params.get("approvalId");if(approval){void fetch("/api/collaboration").then(r=>r.json()).then(d=>{const a=d.approvals?.find((a:{id:string;status:string})=>a.id===approval&&a.status==='approved');if(!a){setError("Aprobarea nu este disponibilă.");return}setApprovalId(a.id);setWhenType("scheduled");setScheduledDate(new Date(`${a.date}T12:00:00`));setScheduledHour(null)}).catch(()=>setError("Aprobarea nu a putut fi încărcată."))}
     const id=params.get("propertyId");if(id){void fetch("/api/workspace").then(r=>{if(!r.ok)throw new Error();return r.json()}).then(d=>{const p=d.properties.find((p:{id:string})=>p.id===id);if(!p){setError("Proprietatea nu este disponibilă.");return}setPropertyId(p.id);setStreet(p.street);setCity(p.city);setSqm(p.sqm);setSpaceType(p.space_type)}).catch(()=>setError("Proprietatea nu a putut fi încărcată."))}
   },[user?.id,user?.role]);
@@ -419,7 +424,7 @@ export default function ClientPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#f7f9fc] flex max-[760px]:block">
+    <div className="approved-client min-h-screen bg-[#f7f9fc] flex max-[760px]:block">
       <aside className="w-[236px] shrink-0 bg-white border-r border-[#e2e8f0] p-5 flex flex-col sticky top-0 h-screen max-[760px]:w-full max-[760px]:h-auto max-[760px]:relative max-[760px]:border-r-0 max-[760px]:border-b max-[760px]:p-4">
         <div className="flex items-center justify-between">
           <Logo />
@@ -428,9 +433,7 @@ export default function ClientPage() {
             Meniu
           </button>
         </div>
-        <WorkspaceNav role="client"/><nav className="mt-3 space-y-2 text-sm font-semibold max-[760px]:hidden">
-          {navItems.map((it,i)=><button key={it.label} type="button" onClick={it.onSelect} className={i===0?"text-left block w-full rounded-[10px] bg-[#e8f5f2] text-[#115e59] px-4 py-3":"text-left block w-full rounded-[10px] px-4 py-3 text-[#64748b] hover:bg-[#f7f9fc]"}>{it.label}</button>)}
-        </nav>
+        <WorkspaceNav role="client" onNavigate={href=>{if(href==='/client'||href.startsWith('/client#')){setJob(null);setShowBooking(false)}}}/>
         {menuOpen && (
           <nav className="hidden max-[760px]:flex flex-col mt-3 rounded-2xl border border-[#e2e8f0] bg-white overflow-hidden text-sm font-semibold">
             {navItems.map((it,i)=><button key={it.label} type="button" onClick={()=>{it.onSelect();setMenuOpen(false);}} className={`text-left px-4 py-3.5 text-[#3e4842] active:bg-[#e8f5f2] ${i>0?"border-t border-[#ecebe4]":""}`}>{it.label}</button>)}
@@ -440,12 +443,13 @@ export default function ClientPage() {
         <div className="mt-auto max-[760px]:hidden"><div className="text-sm font-semibold">{user.name}</div><div className="text-xs text-[#6b756f] mt-1">{user.email}</div><button onClick={logout} className="text-xs text-[#64748b] mt-4">Ieși din cont</button></div>
       </aside>
       <main className="flex-1 min-w-0 px-8 py-8 max-[760px]:px-[22px] max-[760px]:pb-28">
-        <header className="flex items-center justify-between gap-4 flex-wrap max-[760px]:gap-3"><div><div className="text-sm text-[#64748b]">Bună, {user.name.split(" ")[0]}</div><h1 className="text-[26px] max-[760px]:text-[22px] font-bold mt-1">Panoul tău NITIDO</h1></div><button onClick={goToForm} className="v2-btn v2-btn-primary max-[760px]:w-full">Postează o lucrare</button></header>
-        <section className="grid grid-cols-4 gap-4 mt-7 max-[1100px]:grid-cols-2"><Kpi value={String(myJobs.filter(j=>["accepted","arrived"].includes(j.status)).length)} label="În lucru"/><Kpi value={String(myJobs.filter(j=>j.status==="waiting").length)} label="În așteptare"/><Kpi value={String(myJobs.filter(j=>j.status==="completed").length)} label="Finalizate"/><Kpi value={String(myJobs.filter(j=>j.proofs?.some(p=>p.type==="COMPLETION")).length)} label="Dovezi finale"/></section>
-        <div className="grid grid-cols-[minmax(0,1fr)_360px] gap-5 mt-7 max-[1100px]:grid-cols-1">
+        <div className="board-topbar"><span>Spațiul tău NITIDO</span><div><Link href="/client/mesaje" aria-label="Mesaje"><DesignIcon name="bell"/></Link><span className="board-avatar">{user.name.slice(0,1)}</span><b>{user.name}</b></div></div>
+        <header className="board-greeting"><div><h1>Bună, {user.name.split(" ")[0]}!</h1><p>Mulțumim că faci parte din comunitatea NITIDO.RO.</p></div><span className="board-greeting-note"><DesignIcon name="sparkles"/>Un cămin curat este începutul<br/>unei zile mai bune.</span></header>
+        {!job&&!showBooking&&<ClientOverview jobs={myJobs} onSelect={setJob} onBook={goToForm}/>}
+        <div className={`client-content-grid ${job||showBooking?"with-detail":""}`}>
         <div className="min-w-0">
         {myJobs.filter(j=>j.status==="waiting"&&["requires_action","requires_confirmation"].includes(j.authorizationStatus??"")).map(j=><section key={j.id} className="v2-card p-5 mb-4"><h2 className="font-bold">Confirmarea cardului este necesară</h2><p className="text-sm text-muted mt-2">{j.city} · {j.sqm} m². Banca solicită confirmarea autorizării pentru această lucrare.</p><Link href={`/client/plata/${encodeURIComponent(j.id)}`} className="inline-block mt-3 font-bold text-aqua-deep underline">Confirmă prin bancă</Link></section>)}
-        {!showBooking&&myJobs.length>0&&<section id="sec-lucrari" className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold">Lucrările mele</h2><span className="text-xs text-[#6b756f]">{myJobs.length} total</span></div><input aria-label="Caută rezervări" className={`${inputClass} mt-3`} value={historyFilter} onChange={e=>setHistoryFilter(e.target.value)} placeholder="Caută rezervare sau status…"/><div className="mt-3 divide-y divide-[#e2e8f0]">{myJobs.filter(item=>`${item.city} ${item.street} ${JOB_STATUS[item.status]}`.toLowerCase().includes(historyFilter.toLowerCase())).map(item=><button key={item.id} onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[#e8f5f2] flex items-center justify-center text-[#115e59] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate">{item.space_type} · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm} m² · {JOB_STATUS[item.status]}</span></span><b className="text-sm">{item.price_gross} lei</b></button>)}</div></section>}
+        {!showBooking&&myJobs.length>0&&<section id="sec-lucrari" className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold">Rezervările tale recente</h2><span className="text-xs text-[#6b756f]">{myJobs.length} total</span></div><input aria-label="Caută rezervări" className={`${inputClass} mt-3`} value={historyFilter} onChange={e=>setHistoryFilter(e.target.value)} placeholder="Caută rezervare sau status…"/><div className="mt-3 divide-y divide-[#e2e8f0]">{myJobs.filter(item=>`${item.city} ${item.street} ${JOB_STATUS[item.status]}`.toLowerCase().includes(historyFilter.toLowerCase())).map(item=><button key={item.id} onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[#e8f5f2] flex items-center justify-center text-[#115e59] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate">{item.space_type} · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm} m² · {JOB_STATUS[item.status]}</span></span><b className="text-sm">{item.price_gross} lei</b></button>)}</div></section>}
         {!job && !showBooking && <RecurringSection defaults={{ street, postalCode, city, floor, sqm, spaceType }} />}
         {!job && !showBooking && <BusinessSection />}
         {!job && !showBooking && user?.referral_code && (
@@ -783,16 +787,16 @@ export default function ClientPage() {
                     Așteptăm primele oferte… firmele din zonă au fost notificate.
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    <div className="text-[11px] uppercase tracking-wide text-aqua-deep font-bold">
+                  <div className="offer-comparison">
+                    <div className="offer-comparison-heading">
                       {offers.length} {offers.length === 1 ? "ofertă primită" : "oferte primite"}
                     </div>
                     {offers.map((o) => (
-                      <div key={o.offerId} className="rounded-xl border border-line p-4">
+                      <div key={o.offerId} className="offer-comparison-card">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <div className="font-display font-bold text-sm text-ink truncate">{o.firmName}</div>
+                              <span className="offer-avatar">{o.firmName.slice(0,1)}</span><div className="font-display font-bold text-sm text-ink truncate">{o.firmName}</div>
                               <span className="eyebrow-pill">Candidatură</span>
                             </div>
                             <div className="text-[11.5px] text-muted mt-0.5">
@@ -800,9 +804,10 @@ export default function ClientPage() {
                             </div>
                           </div>
                           <Button onClick={() => chooseOffer(o.offerId)} disabled={choosing !== null}>
-                            {choosing === o.offerId ? "Se alege…" : "Alege"}
+                            {choosing === o.offerId ? "Se alege…" : "Alege această firmă"}
                           </Button>
                         </div>
+                        <div className="offer-price"><b>{job.price_gross} lei</b><span>Preț fix pentru această solicitare</span></div>
                         {o.message && (
                           <p className="text-sm text-muted mt-2 border-t border-line pt-2">{o.message}</p>
                         )}
@@ -931,20 +936,18 @@ export default function ClientPage() {
           </Card>
         )}
         </div>
-        <aside className="space-y-4">
-          <div className="relative h-48 rounded-2xl overflow-hidden"><Image src="/design-v2/hero-cleaning.png" alt="Un spațiu pregătit pentru tine" fill sizes="360px" className="object-cover"/></div>
+        {(job||showBooking)&&<aside className="space-y-4">
+          <div className="relative h-48 rounded-2xl overflow-hidden"><Image src="/design-v2/approved-living-room.webp" alt="Un spațiu pregătit pentru tine" fill sizes="360px" className="object-cover"/></div>
           <div className="v2-card p-6"><div className="v2-eyebrow">REZERVAREA SELECTATĂ</div><h2 className="text-xl font-bold mt-3">{job?`${job.space_type} · ${job.city}`:"Totul începe cu prima rezervare"}</h2>{job?<><p className="eyebrow-pill mt-4">{JOB_STATUS[job.status]}</p><p className="mt-4 text-sm text-muted">{job.scheduled_at?new Date(job.scheduled_at).toLocaleString("ro-RO"):"Program în curs de stabilire"}</p><div className="border-t border-line mt-5 pt-5 flex justify-between"><span>Preț lucrare</span><b>{job.price_gross} lei</b></div><p className="text-sm text-muted mt-3">Plată: {job.financial?.paymentStatus??"Nicio plată înregistrată"}</p><p className="mt-3 text-xs text-muted">{job.proofs?.filter(p=>p.type==="COMPLETION").length??0} dovezi finale disponibile</p></>:<><p className="text-sm text-muted leading-6 mt-3">Alege spațiul, verifică prețul și găsește firma potrivită.</p><button className="v2-btn v2-btn-primary w-full mt-5" onClick={goToForm}>Rezervă o curățenie</button></>}</div>
           <Link href="/client/proprietati" className="v2-card p-5 block"><b>Proprietățile tale ↗</b><p className="text-sm text-muted mt-2">Salvează adresele pentru rezervările viitoare.</p></Link>
           {job?.accepted_firm_id&&<JobMessages key={job.id} jobId={job.id}/>}
-        </aside>
+        </aside>}
         </div>
       </main>
       <nav className="mobile-workspace-nav" aria-label="Navigare rapidă"><button onClick={()=>{setShowBooking(false);resetToForm();window.scrollTo(0,0)}}>Acasă</button><button onClick={()=>scrollToId("sec-lucrari")}>Rezervări</button><Link href="/client/mesaje">Mesaje</Link><button onClick={()=>scrollToId("sec-cont")}>Cont</button></nav>
     </div>
   );
 }
-
-function Kpi({value,label}:{value:string;label:string}) { return <div className="v2-card p-5"><div className="text-[26px] font-bold">{value}</div><div className="text-sm text-[#6b756f] mt-1">{label}</div></div> }
 
 function ProofGallery({proofs}:{proofs:NonNullable<JobRow["proofs"]>}) {
   if (!proofs.length) return null;

@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {WorkspaceNav} from "@/components/WorkspaceNav";
+import {BoardSidebar} from "@/components/BoardSidebar";
+import {FirmSummary} from "@/components/FirmSummary";
 import { Logo, Card, Button, inputClass } from "@/components/ui";
 import { calcNetForFirm } from "@/lib/pricing";
 import { mapsDirectionsUrl } from "@/lib/maps";
@@ -188,7 +189,7 @@ export default function FirmaPage() {
     .reduce((sum, j) => sum + calcNetForFirm(j.price_gross), 0);
 
   return (
-    <div className="min-h-screen mesh-light">
+    <div className="board-page board-firm"><BoardSidebar role="firma"/>
       <header className="glass sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-3 max-[760px]:px-4">
           <Logo />
@@ -215,8 +216,8 @@ export default function FirmaPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-8">
-        <WorkspaceNav role="firma"/>
-        <header className="section-heading"><div><p className="v2-eyebrow">NITIDO PARTENER</p><h1 className="workspace-title">Bună, {user.name}. Să facem loc lucrurilor bune.</h1><p className="text-muted">Lucrări noi și programul echipei, într-un singur loc.</p></div><Link className="v2-btn v2-btn-primary" href="/firma/calendar">Deschide calendarul ↗</Link></header>
+
+        <header className="section-heading"><div><p className="v2-eyebrow">NITIDO PARTENER</p><h1 className="workspace-title">Lucrări potrivite pentru echipa ta</h1><p className="text-muted">Aplică la oportunități și organizează-ți activitatea cu NITIDO.RO.</p></div><Link className="v2-btn v2-btn-primary" href="/firma/calendar">Deschide calendarul ↗</Link></header>
         <section className="workspace-metrics"><Card><p className="text-sm text-muted">Oportunități în zonă</p><b className="text-3xl">{waitingJobs.length}</b></Card><Card><p className="text-sm text-muted">Lucrări active</p><b className="text-3xl">{activeJobs.length}</b></Card><Card><p className="text-sm text-muted">Lucrări finalizate</p><b className="text-3xl">{historyJobs.length}</b></Card></section>
         {message && (
           <div className="bg-coral/10 border border-coral text-coral text-sm rounded-lg px-4 py-2.5">
@@ -272,29 +273,7 @@ export default function FirmaPage() {
           </section>
         )}
 
-        {!editingProfile && (
-          <section className="rounded-2xl border border-line bg-white p-5">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="font-display font-bold text-ink">Despre firmă</h2>
-              <button type="button" onClick={openProfileEditor} className={ACTION_BTN}>Editează</button>
-            </div>
-            {(firm?.description||firm?.services||firm?.working_hours||firm?.website)?(
-              <div className="mt-3 space-y-3 text-sm">
-                {firm?.description && <p className="leading-6 text-ink">{firm.description}</p>}
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {firm?.services && <div><div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold">Servicii</div><div className="text-ink mt-0.5">{firm.services}</div></div>}
-                  {firm?.working_hours && <div><div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold">Program</div><div className="text-ink mt-0.5">{firm.working_hours}</div></div>}
-                  <div><div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold">Acoperire</div><div className="text-ink mt-0.5">{firm?.coverage_city}{firm?.coverage_cities_extra?` + ${firm.coverage_cities_extra}`:""}</div></div>
-                  {firm?.website && <div><div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold">Website</div><a href={firm.website} target="_blank" rel="noopener noreferrer" className="text-aqua-deep font-semibold mt-0.5 inline-block break-all">{firm.website.replace(/^https?:\/\//,"")}</a></div>}
-                </div>
-              </div>
-            ):(
-              <p className="mt-3 text-sm text-muted">Profilul tău e gol. Adaugă o descriere, serviciile și programul ca să câștigi încrederea clienților. Apasă <b className="text-ink">Editează</b>.</p>
-            )}
-          </section>
-        )}
-
-        <section>
+        <div className="firm-work-grid"><section className="firm-opportunities">
           <h2 className="font-display font-bold text-ink mb-3">Oportunități noi</h2><div className="workspace-toolbar"><input aria-label="Caută oportunități" className={inputClass} placeholder="Caută după oraș sau tip de spațiu" value={search} onChange={e=>setSearch(e.target.value)}/><select aria-label="Mod de alocare" className={inputClass} value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Toate lucrările</option><option value="standard">Standard</option><option value="express">Express</option></select></div>
           {waitingJobs.length === 0 && (
             <Card>
@@ -308,7 +287,7 @@ export default function FirmaPage() {
             {waitingJobs.filter(j=>(filter==="all"||(j.mode??"express")===filter)&&`${j.city} ${j.space_type}`.toLowerCase().includes(search.toLowerCase())).map((job) => (
               <div
                 key={job.id}
-                className={`bg-white rounded-2xl p-4 relative ${job.express_60 ? "border-2 border-coral ring-2 ring-coral/30" : "border border-line"}`}
+                className={`firm-opportunity-card bg-white rounded-2xl p-4 relative ${job.express_60 ? "border-2 border-coral ring-2 ring-coral/30" : "border border-line"}`}
               >
                 {job.express_60 ? (
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -324,7 +303,7 @@ export default function FirmaPage() {
                   </div>
                 ) : (
                   <span className={`inline-block text-white text-[10px] font-display font-bold px-2.5 py-1 rounded-full mb-2 ${job.mode === "standard" ? "bg-aqua-deep" : "bg-coral"}`}>
-                    {job.mode === "standard" ? "✦ CERE OFERTĂ (STANDARD)" : "⚡ URGENT — EXPRESS"}
+                    {job.mode === "standard" ? "✦ STANDARD" : "⚡ EXPRESS"}
                   </span>
                 )}
                 <div className="font-display font-bold text-sm text-ink">
@@ -376,7 +355,7 @@ export default function FirmaPage() {
                 {job.mode === "standard" ? (
                   offeredJobIds.includes(job.id) ? (
                     <div className="text-center text-sm font-display font-bold text-aqua-deep bg-aqua/10 rounded-lg py-2.5">
-                      ✓ Ofertă trimisă — clientul alege
+                      ✓ Candidatură trimisă — clientul alege
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -388,7 +367,7 @@ export default function FirmaPage() {
                         onChange={(e) => setOfferMsgs((m) => ({ ...m, [job.id]: e.target.value }))}
                       />
                       <Button className="w-full" onClick={() => sendOffer(job.id, offerMsgs[job.id] ?? "")}>
-                        Trimite ofertă
+                        Trimite candidatura
                       </Button>
                     </div>
                   )
@@ -402,7 +381,7 @@ export default function FirmaPage() {
           </div>
         </section>
 
-        <section>
+        <FirmSummary jobs={myJobs}/></div><section id="lucrari-active">
           <h2 className="font-display font-bold text-ink mb-3">Lucrări active</h2>
           {activeJobs.length === 0 && (
             <p className="text-sm text-muted">Nicio lucrare activă momentan.</p>
@@ -450,7 +429,7 @@ export default function FirmaPage() {
         </section>}
 
         {historyJobs.length > 0 && (
-          <section className="grid grid-cols-2 gap-3">
+          <section id="castiguri" className="grid grid-cols-2 gap-3">
             <div className="bg-white border border-line rounded-2xl p-4">
               <div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold">
                 Câștiguri luna aceasta
@@ -497,6 +476,28 @@ export default function FirmaPage() {
             </div>
           </section>
         )}
+        {!editingProfile && (
+          <section id="profil" className="rounded-2xl border border-line bg-white p-5">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-display font-bold text-ink">Despre firmă</h2>
+              <button type="button" onClick={openProfileEditor} className={ACTION_BTN}>Editează</button>
+            </div>
+            {(firm?.description||firm?.services||firm?.working_hours||firm?.website)?(
+              <div className="mt-3 space-y-3 text-sm">
+                {firm?.description && <p className="leading-6 text-ink">{firm.description}</p>}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {firm?.services && <div><div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold">Servicii</div><div className="text-ink mt-0.5">{firm.services}</div></div>}
+                  {firm?.working_hours && <div><div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold">Program</div><div className="text-ink mt-0.5">{firm.working_hours}</div></div>}
+                  <div><div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold">Acoperire</div><div className="text-ink mt-0.5">{firm?.coverage_city}{firm?.coverage_cities_extra?` + ${firm.coverage_cities_extra}`:""}</div></div>
+                  {firm?.website && <div><div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold">Website</div><a href={firm.website} target="_blank" rel="noopener noreferrer" className="text-aqua-deep font-semibold mt-0.5 inline-block break-all">{firm.website.replace(/^https?:\/\//,"")}</a></div>}
+                </div>
+              </div>
+            ):(
+              <p className="mt-3 text-sm text-muted">Profilul tău e gol. Adaugă o descriere, serviciile și programul ca să câștigi încrederea clienților. Apasă <b className="text-ink">Editează</b>.</p>
+            )}
+          </section>
+        )}
+
       </main>
     </div>
   );

@@ -12,8 +12,8 @@ export const FOOTER_LINK_GROUPS = [
   { title: "Legal", links: [["Termeni", "/termeni"], ["Confidențialitate", "/confidentialitate"], ["Cookie-uri", "/cookie-uri"]] },
 ] as const;
 
-export function SiteHeader() {
-  return <header className="sticky top-0 z-50 h-[66px] border-b border-[#e2e8f0] bg-[#f7f9fc]/95 backdrop-blur"><div className="v2-container flex h-full items-center justify-between"><HomeLogoLink/><nav className="v2-hide-mobile flex items-center gap-6 text-sm font-medium text-[#3e4842]"><Link href="/cum-functioneaza">Cum funcționează</Link><Link href="/pentru-clienti">Pentru clienți</Link><Link href="/pentru-firme">Pentru firme</Link><Link href="/preturi">Prețuri</Link><Link href="/despre-noi">Despre noi</Link><Link href="/contact">Contact</Link></nav><div className="flex items-center gap-2"><HeaderAuthButtons/><MobileMenu/></div></div></header>;
+export function SiteHeader({home=false}:{home?:boolean}) {
+  return <header className={`design-header ${home?'design-header-home':''}`}><div className="design-container design-header-inner"><div><HomeLogoLink/><span className="design-logo-caption">O casă mai curată. O viață mai bună.</span></div><nav className="design-desktop-nav" aria-label="Navigare principală"><Link href="/#servicii">Servicii</Link><Link href="/cum-functioneaza">Cum funcționează</Link><Link href="/pentru-firme">Pentru firme</Link></nav><div className="design-header-actions"><HeaderAuthButtons/><MobileMenu/></div></div></header>;
 }
 
 export function SiteFooter() {
