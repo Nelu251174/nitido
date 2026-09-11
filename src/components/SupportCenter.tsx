@@ -1,12 +1,12 @@
 "use client";
 
+import {SupportQuestions} from "./SupportQuestions";
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 type Message = { role: "user" | "assistant"; content: string };
 type Status = { available: boolean; authenticated: boolean; role: "client" | "firma" | null; supportHref: string | null; unavailableMessage: string };
 
-const suggestions = ["Cum postez o lucrare?", "Cum acceptă o firmă o lucrare?", "Cum funcționează plata?", "Când vede firma adresa exactă?", "Cum funcționează ratingul?", "Ce se întâmplă la no-show?", "Cum îmi modific contul?", "Cum verific statusul unei lucrări?", "Cum contactez firma care a acceptat?", "Cum verific plata unei lucrări?"];
 const welcome: Message = { role: "assistant", content: "Bun venit! Îți pot explica modul în care funcționează conturile, lucrările, plățile, trackingul și ratingurile NITIDO. Cu ce te pot ajuta?" };
 
 export function SupportCenter() {
@@ -44,7 +44,7 @@ export function SupportCenter() {
   return <>
     <section id="asistent-ai" className="v2-container pt-0 pb-0">
       <div className="grid min-h-fit grid-cols-[.72fr_1.28fr] items-start gap-10 max-[1000px]:grid-cols-1">
-        <div><div className="v2-eyebrow">ASISTENT AI NITIDO</div><h2 className="v2-h2 mt-4">Ajutor rapid, 24/7, pentru întrebări despre platformă.</h2><p className="mt-5 leading-7 text-[#64748b]">Asistentul îți explică pașii și poate folosi contextul contului autentificat numai în limitele permisiunilor tale.</p><div className="mt-8 rounded-2xl border border-[#c9dfd1] bg-[#e8f5f2] p-5"><div className="flex gap-3 text-[#115e59]"><Shield/><div><b className="text-sm">Suport, nu control asupra contului</b><p className="mt-2 text-sm leading-6 text-[#3e4842]">Asistentul AI oferă informații și suport. Operațiunile sensibile se execută doar prin fluxurile securizate ale platformei.</p></div></div></div><h3 className="mt-9 font-bold">Întrebări frecvente</h3><p className="mt-2 text-sm text-[#64748b]">Poți întreba și orice altceva despre NITIDO.</p><div className="mt-4 flex flex-wrap gap-2">{suggestions.slice(0,6).map(question => <button type="button" onClick={() => void send(question)} disabled={loading || status?.available === false} key={question} className="rounded-full border border-[#d8d7d0] bg-white px-4 py-2 text-left text-xs font-semibold hover:border-[#0f766e] disabled:cursor-not-allowed disabled:opacity-50">{question}</button>)}</div></div>
+        <div><div className="v2-eyebrow">ASISTENT AI NITIDO</div><h2 className="v2-h2 mt-4">Ajutor rapid, 24/7, pentru întrebări despre platformă.</h2><p className="mt-5 leading-7 text-[#64748b]">Asistentul îți explică pașii și poate folosi contextul contului autentificat numai în limitele permisiunilor tale.</p><div className="mt-8 rounded-2xl border border-[#c9dfd1] bg-[#e8f5f2] p-5"><div className="flex gap-3 text-[#115e59]"><Shield/><div><b className="text-sm">Suport, nu control asupra contului</b><p className="mt-2 text-sm leading-6 text-[#3e4842]">Asistentul AI oferă informații și suport. Operațiunile sensibile se execută doar prin fluxurile securizate ale platformei.</p></div></div></div><SupportQuestions/></div>
 
         <div className="overflow-hidden rounded-[24px] border border-[#d8d7d0] bg-white shadow-[0_28px_80px_rgba(16,23,17,.12)]">
           <div className="flex items-center justify-between border-b border-[#e2e8f0] px-6 py-5"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0f766e] font-bold text-white">N</span><div><h3 className="font-bold">Asistent AI NITIDO</h3><span className="text-xs text-[#64748b]">{status === null ? "Se verifică disponibilitatea…" : status.available ? "Disponibil" : "Indisponibil temporar"}</span></div></div><button type="button" onClick={reset} className="rounded-lg border border-[#e2e8f0] px-3 py-2 text-xs font-semibold hover:bg-[#f7f9fc]">Conversație nouă</button></div>

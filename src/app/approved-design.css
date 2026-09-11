@@ -30,3 +30,5 @@
 .public-account-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.public-account-actions .v2-btn{white-space:nowrap}@media(max-width:760px){.design-header{height:auto;min-height:78px}.design-header-inner{flex-wrap:wrap;padding-top:12px;padding-bottom:12px;gap:12px}.design-header-actions{flex-wrap:wrap}.public-account-actions .v2-btn{padding:8px 12px;font-size:12px}}
 
 .design-header-home .design-header-actions>.public-account-actions{display:flex}
+
+.estimator-home{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:center;margin-block:36px}.estimator-home h2{font-size:28px;font-weight:700}.estimator-home p{line-height:1.7;margin-block:12px}.home-support{padding-top:56px}.proof-actions{display:grid;gap:18px;margin-top:22px}.proof-pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}.proof-stage{padding:18px;border:1px solid #dce6ef;border-radius:12px;background:#fff}.proof-thumbnails{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.proof-thumbnails img{width:100px;height:80px;object-fit:cover;border-radius:8px}@media(max-width:760px){.estimator-home,.proof-pair{grid-template-columns:1fr}}

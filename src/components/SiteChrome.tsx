@@ -13,7 +13,7 @@ export const FOOTER_LINK_GROUPS = [
 ] as const;
 
 export function SiteHeader({home=false}:{home?:boolean}) {
-  return <header className={`design-header ${home?'design-header-home':''}`}><div className="design-container design-header-inner"><div><HomeLogoLink/><span className="design-logo-caption">O casă mai curată. O viață mai bună.</span></div><nav className="design-desktop-nav" aria-label="Navigare principală"><Link href="/#servicii">Servicii</Link><Link href="/cum-functioneaza">Cum funcționează</Link><Link href="/pentru-firme">Pentru firme</Link></nav><div className="design-header-actions"><HeaderAuthButtons/><MobileMenu/></div></div></header>;
+  return <header className={`design-header ${home?'design-header-home':''}`}><div className="design-container design-header-inner"><div><HomeLogoLink/><span className="design-logo-caption">O casă mai curată. O viață mai bună.</span></div><nav className="design-desktop-nav" aria-label="Navigare principală"><Link href="/#servicii">Servicii</Link><Link href="/cum-functioneaza">Cum funcționează</Link><Link href="/pentru-firme">Pentru firme</Link><Link href="/contact#asistent-ai">Asistent AI</Link></nav><div className="design-header-actions"><HeaderAuthButtons/><MobileMenu/></div></div></header>;
 }
 
 export function SiteFooter() {

@@ -25,7 +25,7 @@ Completează informațiile cerute despre serviciu: tipul spațiului sau al cură
 
 După ce publici lucrarea, NITIDO identifică firmele eligibile din zona respectivă și le trimite alerta de lucrare nouă. Adresa ta exactă nu trebuie expusă firmelor înainte ca lucrarea să fie alocată.
 
-Prima firmă eligibilă care acceptă prin sistemul NITIDO poate primi lucrarea, după validările serverului și ale fluxului de plată aplicabil.
+La Standard, firmele trimit candidaturi, iar clientul alege firma. La Express, prima firmă eligibilă care acceptă prin sistemul NITIDO poate primi lucrarea, după validările serverului și ale fluxului de plată aplicabil.
 
 După confirmarea alocării vei vedea firma care a preluat lucrarea și vei putea urmări statusul din contul tău. NITIDO îți poate trimite și notificarea/SMS-ul de confirmare atunci când acest serviciu este activ.`
   },
@@ -37,7 +37,7 @@ Firma deschide NITIDO, verifică informațiile disponibile înainte de alocare �
 
 Acceptarea nu este decisă de telefon sau de interfață, ci de serverul NITIDO. Sistemul verifică autentificarea firmei, eligibilitatea, statusul lucrării și faptul că lucrarea nu a fost deja preluată.
 
-Regula principală este primul Accept valid confirmat de server. Dacă mai multe firme încearcă simultan, o singură firmă poate câștiga lucrarea.
+La Express, regula principală este primul Accept valid confirmat de server. La Standard, firma trimite candidatura, iar clientul alege dintre firmele candidate. Dacă mai multe firme încearcă simultan, o singură firmă poate câștiga lucrarea.
 
 După alocarea confirmată, firma câștigătoare primește acces la informațiile necesare executării, inclusiv detaliile de locație permise după alocare.
 
