@@ -329,6 +329,15 @@ export default function ClientPage() {
     setPhotos([]);
   }
 
+  // „Postează o lucrare" — resetează la formular ȘI derulează direct la el, ca
+  // utilizatorul să ajungă imediat unde completează, nu doar să vadă un mesaj.
+  function goToForm() {
+    resetToForm();
+    setTimeout(() => {
+      document.getElementById("sec-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+  }
+
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
@@ -352,7 +361,7 @@ export default function ClientPage() {
         <div id="sec-cont" className="mt-auto max-[760px]:mt-6"><div className="text-sm font-semibold">{user.name}</div><div className="text-xs text-[#6b756f] mt-1">{user.email}</div><button onClick={logout} className="text-xs text-[#5c6660] mt-4">Ieși din cont</button></div>
       </aside>
       <main className="flex-1 min-w-0 px-8 py-8 max-[760px]:px-[22px]">
-        <header className="flex items-center justify-between gap-4"><div><div className="text-sm text-[#5c6660]">Bună, {user.name.split(" ")[0]}</div><h1 className="text-[26px] font-bold mt-1">Panoul tău NITIDO</h1></div><button onClick={resetToForm} className="v2-btn v2-btn-primary">Postează o lucrare</button></header>
+        <header className="flex items-center justify-between gap-4"><div><div className="text-sm text-[#5c6660]">Bună, {user.name.split(" ")[0]}</div><h1 className="text-[26px] font-bold mt-1">Panoul tău NITIDO</h1></div><button onClick={goToForm} className="v2-btn v2-btn-primary">Postează o lucrare</button></header>
         <section className="grid grid-cols-4 gap-4 mt-7 max-[1100px]:grid-cols-2"><Kpi value={String(myJobs.filter(j=>["accepted","arrived"].includes(j.status)).length)} label="În lucru"/><Kpi value={String(myJobs.filter(j=>j.status==="waiting").length)} label="În așteptare"/><Kpi value={String(myJobs.filter(j=>j.status==="completed").length)} label="Finalizate"/><Kpi value={String(myJobs.filter(j=>j.proofs?.some(p=>p.type==="COMPLETION")).length)} label="Dovezi finale"/></section>
         <div className="grid grid-cols-[minmax(0,1fr)_360px] gap-5 mt-7 max-[1100px]:grid-cols-1">
         <div className="min-w-0">
@@ -365,6 +374,7 @@ export default function ClientPage() {
         {!job && <div className="mb-5"><AppRatingCard /></div>}
         {!job && <section id="sec-mesaje" className="v2-card p-5 mb-5"><h2 className="font-bold">Mesaje &amp; suport</h2><p className="text-sm text-[#5c6660] mt-2 leading-6">Ai o întrebare despre o lucrare sau despre cont? Echipa NITIDO îți răspunde rapid.</p><div className="mt-3 flex flex-col gap-1 text-sm"><a href="tel:0341402403" className="text-[#14663a] font-semibold">📞 0341 402 403</a><a href="mailto:contact@nitido.ro" className="text-[#14663a] font-semibold">✉️ contact@nitido.ro</a></div><a href="/contact" target="_blank" rel="noopener noreferrer" className="v2-btn v2-btn-secondary mt-4 inline-flex">Deschide asistentul NITIDO</a></section>}
         {!job && <section id="sec-incredere" className="v2-card p-5 mb-5"><h2 className="font-bold">Încredere &amp; Siguranță</h2><ul className="text-sm text-[#5c6660] mt-2 leading-6 list-disc pl-5 space-y-1"><li>Firme verificate în platformă, cu CUI validat la ANAF.</li><li>Banii tăi stau în escrow și se eliberează firmei doar după ce confirmi finalizarea.</li><li>Plata cardului e procesată securizat de Stripe — NITIDO nu îți vede datele cardului.</li><li>Urmărești lucrarea în timp real și primești dovezi foto la final.</li></ul><a href="/incredere" target="_blank" rel="noopener noreferrer" className="v2-btn v2-btn-secondary mt-4 inline-flex">Vezi pagina completă</a></section>}
+        <div id="sec-form" />
         {!job && (
           <Card>
             <h1 className="font-display font-extrabold text-xl text-ink mb-1">
