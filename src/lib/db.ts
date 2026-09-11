@@ -216,6 +216,17 @@ CREATE TABLE IF NOT EXISTS stripe_events (
   processed_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS stripe_bank_payouts (
+ account_id TEXT NOT NULL,
+ payout_id TEXT NOT NULL,
+ amount_minor INTEGER NOT NULL,
+ currency TEXT NOT NULL,
+ status TEXT NOT NULL,
+ arrival_date INTEGER NOT NULL,
+ updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+ PRIMARY KEY(account_id,payout_id)
+);
+
 CREATE TABLE IF NOT EXISTS payment_refunds (
   id TEXT PRIMARY KEY,
   payment_id TEXT NOT NULL REFERENCES payments(id),

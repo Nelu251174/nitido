@@ -63,3 +63,15 @@ Aplicația mobilă diferențiază explicit rambursarea eșuată de cea în proce
 Eșecul întârziat al autorizării nu mai suprascrie o anulare, un no-show, sosirea/finalizarea sau realocarea către altă firmă. Revenirea în waiting este condiționată de starea accepted și firma care a inițiat cererea. Erorile interne ale providerului nu mai sunt trimise utilizatorului.
 
 Șapte teste noi folosesc o autorizare suspendată controlat și modifică starea înainte de eșec; împreună cu cele cinci teste existente de acceptare, 12/12 au trecut local. Aceasta verifică intercalarea cererilor într-un proces, nu concurența distribuită. Registrul durabil al încercărilor, realocarea repetată către aceeași firmă și reconcilierea unei autorizări confirmate după anulare rămân deschise.
+
+## Continuare: notificări atomice și viramente bancare
+
+- Citirile Stripe se termină înainte de tranzacția SQLite. Confirmarea evenimentului și toate modificările sale locale sunt salvate în aceeași tranzacție; o eroare anulează ambele. O cerere concurentă eșuată nu mai șterge confirmarea unei cereri reușite.
+- Comisioanele sunt asociate prin PaymentIntent și charge, cu verificarea sursei tranzacției de balanță și monedei RON. Disputele sunt legate de charge și interogate în starea curentă. Metadatele singure nu mai aleg plata modificată.
+- Evenimentele conturilor conectate nu pot modifica plățile platformei. O autorizare eșuată nu mai schimbă starea transferului firmei. Reversările parțiale nu sunt afișate ca reversări totale.
+- O notificare payout.paid/failed nu mai marchează toate lucrările firmei paid/failed. Tabelul aditiv stripe_bank_payouts păstrează viramentul pe perechea cont Stripe + payout, cu sumă în unități minime, monedă, stare și sosire estimată. Sunt acceptate numai conturi asociate firmelor existente. Providerul este interogat în contextul acelui cont.
+- Admin afișează ultimele 100 de viramente, firmă, sumă, monedă, stare și referință. Asocierea viramentelor cu lucrările necesită reconciliere separată. Nu sunt rescrise stările financiare istorice.
+- 399 teste web/backend trecute în suita locală; 15 teste de webhook, inclusiv rollback prin eroare SQLite, livrări concurente, retrimitere după timeout, payout și limite între conturi. Testele folosesc provider simulat.
+- Limite: verificarea vizuală autentificată a noului tabel și staging Stripe rămân necesare. Nu există încă un inbox complet cu payloaduri, reconciliere pentru resurse necunoscute, legături payout-lucrare sau ordonare strictă între evenimente diferite procesate concurent. Citirea stării curente reduce efectele notificărilor vechi, fără a reprezenta un registru financiar complet.
+- Migrare: tabela nouă este creată prin SCHEMA_SQL fără modificarea datelor existente; poate rămâne la revenirea la versiunea anterioară.
+- Referință: [procesarea notificărilor Stripe](https://docs.stripe.com/webhooks).

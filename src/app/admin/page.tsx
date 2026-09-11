@@ -33,6 +33,10 @@ interface PaymentRow {
   dispute_status: string;
 }
 
+interface BankPayoutRow {account_id:string;payout_id:string;amount_minor:number;currency:string;status:string;arrival_date:number;firm_name:string|null}
+const payoutLabels:Record<string,string>={paid:"Confirmat de Stripe",failed:"Eșuat",pending:"În așteptare",in_transit:"În curs",canceled:"Anulat"};
+function payoutAmount(p:BankPayoutRow){const formatter=new Intl.NumberFormat("ro-RO",{style:"currency",currency:p.currency.toUpperCase()});return formatter.format(p.amount_minor/10**(formatter.resolvedOptions().maximumFractionDigits??2));}
+
 interface NotificationRow {
   id: string;
   event_type: string;
@@ -63,6 +67,7 @@ export default function AdminPage() {
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [firms, setFirms] = useState<FirmRow[]>([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [bankPayouts,setBankPayouts]=useState<BankPayoutRow[]>([]);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [proofs, setProofs] = useState<ProofRow[]>([]);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
@@ -85,6 +90,7 @@ export default function AdminPage() {
     setJobs(data.jobs);
     setFirms(data.firms);
     setPayments(data.payments);
+    setBankPayouts(data.bankPayouts??[]);
     setNotifications(data.notifications ?? []);
     setProofs(data.proofs ?? []);
     setReviews(data.reviews ?? []);
@@ -414,6 +420,11 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
+        </section>
+        <section aria-label="Viramente bancare Stripe">
+          <h2 className="font-display font-bold text-ink mb-3">Viramente bancare către firme</h2>
+          <p className="text-sm text-muted mb-3">Un virament poate cumula mai multe lucrări. Asocierea sumelor cu fiecare lucrare necesită reconciliere financiară.</p>
+          {bankPayouts.length===0?<p className="text-sm text-muted">Încă nu sunt înregistrate notificări de virament bancar.</p>:<div className="overflow-x-auto"><table className="w-full text-sm bg-white border border-line"><thead className="bg-mist text-muted"><tr><th className="text-left p-3">Firmă</th><th className="text-left p-3">Sumă</th><th className="text-left p-3">Stare</th><th className="text-left p-3">Sosire estimată</th><th className="text-left p-3">Referință Stripe</th></tr></thead><tbody>{bankPayouts.map(p=><tr key={`${p.account_id}:${p.payout_id}`} className="border-t border-line"><td className="p-3">{p.firm_name??"Firmă neidentificată"}</td><td className="p-3 whitespace-nowrap">{payoutAmount(p)}</td><td className="p-3">{payoutLabels[p.status]??"Necesită verificare"}</td><td className="p-3">{new Date(p.arrival_date*1000).toLocaleDateString("ro-RO",{timeZone:"Europe/Bucharest"})}</td><td className="p-3 break-all">{p.payout_id}</td></tr>)}</tbody></table></div>}
         </section>
         <section>
           <h2 className="font-display font-bold text-ink mb-3">Notificări SMS</h2>
