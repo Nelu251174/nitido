@@ -26,6 +26,7 @@ export default function FirmaPage() {
   const [filter,setFilter]=useState("all");
   const [search,setSearch]=useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [settlingJob,setSettlingJob]=useState<string|null>(null);
   const [uploadingProof, setUploadingProof] = useState<string | null>(null);
   const [trustProfile, setTrustProfile] = useState<{firms:{average_rating:number|null;review_count:number;completed_jobs:number;verified:number}[];reviews:{id:string;rating:number;reviewText:string|null;reviewer:string;badge:string}[]}>({firms:[],reviews:[]});
   const [quality, setQuality] = useState<{score:number;rating:number;experience:number;reliability:number}|null>(null);
@@ -134,11 +135,15 @@ export default function FirmaPage() {
   }
 
   async function markComplete(jobId: string) {
-    setMessage(null);
-    const res = await fetch(`/api/jobs/${jobId}/complete`, { method: "POST" });
-    const data = await res.json();
-    setMessage(res.ok ? "Lucrarea a fost finalizată. Verifică separat starea plății în secțiunea financiară." : data.error ?? "Nu s-a putut finaliza lucrarea");
-    await refresh();
+    if(settlingJob)return;
+    setMessage(null);setSettlingJob(jobId);
+    try{
+      const res = await fetch(`/api/jobs/${jobId}/complete`, { method: "POST" });
+      const data = await res.json();
+      setMessage(res.ok ? "Finalizarea este confirmată. Starea plății a fost actualizată." : data.error ?? "Nu s-a putut finaliza lucrarea");
+      await refresh();
+    }catch{setMessage("Conexiunea s-a întrerupt. Reîncarcă lista și verifică starea plății înainte să reîncerci.");}
+    finally{setSettlingJob(null);}
   }
 
   async function uploadProof(jobId: string, proofType: "ARRIVAL" | "COMPLETION", file?: File) {
@@ -430,13 +435,19 @@ export default function FirmaPage() {
                   <div className="space-y-3"><div className="rounded-xl border border-line bg-mist p-4"><div className="flex justify-between gap-3 text-sm font-bold"><span>Fotografie la sosire · OBLIGATORIU</span><span className={hasArrival?"text-aqua-deep":"text-coral"}>{hasArrival?"Încărcată":"Lipsă"}</span></div><label className="mt-3 block cursor-pointer rounded-lg border border-line bg-white px-4 py-2 text-center text-sm font-bold">{uploadingProof===`${job.id}:ARRIVAL`?"Se încarcă…":"Încarcă fotografie la sosire"}<input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={Boolean(uploadingProof)} onChange={e=>void uploadProof(job.id,"ARRIVAL",e.target.files?.[0])}/></label></div><Button disabled={!hasArrival} className="w-full disabled:cursor-not-allowed disabled:opacity-50" onClick={() => markArrived(job.id)}>Am ajuns / Începe lucrarea</Button><button onClick={() => cancelJob(job.id)} className="w-full text-xs font-display font-bold text-coral py-1">Renunță la lucrare (o repunem pentru altă firmă)</button></div>
                 )}
                 {job.status === "arrived" && (
-                  <div className="space-y-3"><div className="rounded-xl border border-line bg-mist p-4"><div className="flex justify-between gap-3 text-sm font-bold"><span>Fotografie la finalizare · OBLIGATORIU</span><span className={hasCompletion?"text-aqua-deep":"text-coral"}>{hasCompletion?"Încărcată":"Lipsă"}</span></div><label className="mt-3 block cursor-pointer rounded-lg border border-line bg-white px-4 py-2 text-center text-sm font-bold">{uploadingProof===`${job.id}:COMPLETION`?"Se încarcă…":"Încarcă fotografia finală"}<input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={Boolean(uploadingProof)} onChange={e=>void uploadProof(job.id,"COMPLETION",e.target.files?.[0])}/></label></div><p className="text-xs leading-5 text-muted">Plata este blocată până la finalizarea corectă a lucrării. Pentru eliberarea plății este obligatorie fotografia de finalizare.</p><Button disabled={!hasCompletion} className="w-full disabled:cursor-not-allowed disabled:opacity-50" onClick={() => markComplete(job.id)}>Finalizează lucrarea</Button></div>
+                  <div className="space-y-3"><div className="rounded-xl border border-line bg-mist p-4"><div className="flex justify-between gap-3 text-sm font-bold"><span>Fotografie la finalizare · OBLIGATORIU</span><span className={hasCompletion?"text-aqua-deep":"text-coral"}>{hasCompletion?"Încărcată":"Lipsă"}</span></div><label className="mt-3 block cursor-pointer rounded-lg border border-line bg-white px-4 py-2 text-center text-sm font-bold">{uploadingProof===`${job.id}:COMPLETION`?"Se încarcă…":"Încarcă fotografia finală"}<input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={Boolean(uploadingProof)} onChange={e=>void uploadProof(job.id,"COMPLETION",e.target.files?.[0])}/></label></div><p className="text-xs leading-5 text-muted">Plata este blocată până la finalizarea corectă a lucrării. Pentru eliberarea plății este obligatorie fotografia de finalizare.</p><Button disabled={!hasCompletion || Boolean(settlingJob)} className="w-full disabled:cursor-not-allowed disabled:opacity-50" onClick={() => markComplete(job.id)}>Finalizează lucrarea</Button></div>
                 )}
                 </>})()}
               </Card>
             ))}
           </div>
         </section>
+
+        {historyJobs.some(job=>job.financial?.paymentStatus==="authorized"&&!job.guarantee_of) && <section aria-label="Plăți de confirmat" className="space-y-3">
+          <h2 className="font-display font-bold text-ink">Lucrări finalizate · plăți de confirmat</h2>
+          <p className="text-sm text-muted">Lucrarea este finalizată, dar încasarea nu este încă confirmată. Poți relua verificarea pentru fiecare lucrare.</p>
+          {historyJobs.filter(job=>job.financial?.paymentStatus==="authorized"&&!job.guarantee_of).map(job=><Card key={job.id}><div className="flex flex-wrap items-center justify-between gap-4"><div><h3 className="font-bold">{job.street}, {job.city}</h3><p className="text-sm text-muted">Încasare în așteptarea confirmării</p></div><Button disabled={Boolean(settlingJob)} onClick={()=>void markComplete(job.id)}>{settlingJob===job.id?"Se verifică…":"Reîncearcă încasarea"}</Button></div></Card>)}
+        </section>}
 
         {historyJobs.length > 0 && (
           <section className="grid grid-cols-2 gap-3">
@@ -467,6 +478,12 @@ export default function FirmaPage() {
         <AppRatingCard />
 
         <section><h2 className="font-display font-bold text-ink mb-3 flex items-center gap-2">Reputația firmei {quality && <span className="text-[11px] font-bold text-aqua-deep bg-aqua/10 rounded-full px-2.5 py-1" title="Rating + experiență + fiabilitate">Nitido Quality Index: {quality.score}/100</span>}</h2>{quality && <div className="mb-3 grid grid-cols-3 gap-2">{[["Rating",quality.rating,60],["Experiență",quality.experience,20],["Fiabilitate",quality.reliability,20]].map(([label,val,max])=><div key={label as string} className="bg-white border border-line rounded-xl p-3"><div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold">{label}</div><div className="font-display font-extrabold text-lg text-ink">{val}<span className="text-xs text-muted font-normal">/{max}</span></div></div>)}</div>}<Card>{trustProfile.firms[0]?<><div className="grid grid-cols-3 gap-3 max-sm:grid-cols-1"><div><b className="text-2xl">{trustProfile.firms[0].average_rating?Number(trustProfile.firms[0].average_rating).toFixed(1):"—"} / 5</b><p className="text-xs text-muted">{trustProfile.firms[0].review_count} recenzii verificate</p></div><div><b className="text-2xl">{trustProfile.firms[0].completed_jobs}</b><p className="text-xs text-muted">lucrări finalizate</p></div><div><b className="text-sm text-aqua-deep">{trustProfile.firms[0].verified?"Firmă verificată":"Verificare în curs"}</b></div></div>{trustProfile.reviews.length?<div className="mt-5 space-y-3">{trustProfile.reviews.map(review=><article key={review.id} className="rounded-xl bg-mist p-4"><div className="flex justify-between text-sm"><b>{review.rating} / 5 · {review.reviewer}</b><span className="text-aqua-deep">{review.badge}</span></div>{review.reviewText&&<p className="mt-2 text-sm text-muted">{review.reviewText}</p>}<div className="mt-3 flex gap-2"><select aria-label="Motiv raportare" className="rounded-lg border border-line bg-white px-2 py-1 text-xs" value={reportReasons[review.id]||"alt_motiv"} onChange={e=>setReportReasons(current=>({...current,[review.id]:e.target.value}))}><option value="limbaj_abuziv">Limbaj abuziv</option><option value="date_personale">Date personale</option><option value="spam">Spam</option><option value="informatii_false">Informații false</option><option value="alt_motiv">Alt motiv</option></select><button type="button" className="text-xs font-bold text-coral" onClick={()=>void reportReview(review.id)}>Raportează</button></div></article>)}</div>:<p className="mt-4 text-sm text-muted">Încă nu există suficiente evaluări.</p>}</>:<p className="text-sm text-muted">Încă nu există suficiente evaluări.</p>}</Card></section>
+
+        {historyJobs.some(job=>job.financial?.paymentStatus==="authorized"&&!job.guarantee_of) && <section aria-label="Plăți de confirmat" className="space-y-3">
+          <h2 className="font-display font-bold text-ink">Lucrări finalizate · plăți de confirmat</h2>
+          <p className="text-sm text-muted">Lucrarea este finalizată, dar încasarea nu este încă confirmată. Poți relua verificarea pentru fiecare lucrare.</p>
+          {historyJobs.filter(job=>job.financial?.paymentStatus==="authorized"&&!job.guarantee_of).map(job=><Card key={job.id}><div className="flex flex-wrap items-center justify-between gap-4"><div><h3 className="font-bold">{job.street}, {job.city}</h3><p className="text-sm text-muted">Încasare în așteptarea confirmării</p></div><Button disabled={Boolean(settlingJob)} onClick={()=>void markComplete(job.id)}>{settlingJob===job.id?"Se verifică…":"Reîncearcă încasarea"}</Button></div></Card>)}
+        </section>}
 
         {historyJobs.length > 0 && (
           <section>

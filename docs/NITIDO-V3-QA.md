@@ -30,3 +30,18 @@ Testele apelează handler-ele API cu NextRequest; nu sunt o sesiune completă de
 Nu au fost efectuate încasări, rambursări sau plăți reale, autentificare manuală în conturi reale, teste pe dispozitive fizice, verificare vizuală integrală a dashboardurilor private, test de încărcare sau restaurare de backup. Validarea tehnică a imaginii nu dovedește că fotografia reprezintă lucrarea realizată.
 
 Înainte de producție rămân necesare verificarea autentificată a dashboardurilor în staging, fluxul complet cu Stripe de test, verificarea mobilă pe dispozitive și backup/restore. Lista funcționalităților rămase din brief este în `NITIDO-V3-IMPLEMENTATION.md`.
+
+## Continuare: confirmarea și recuperarea încasării
+
+- Autorizarea verifică `requires_capture`, moneda RON și suma integrală capturabilă. O plată anulată/refundată nu este reutilizată drept autorizare validă. Identificatorul noilor plăți este stabil pentru reluarea aceleiași solicitări după timeout.
+- Capturarea verifică mai întâi PaymentIntent-ul asociat: identificator, metadate lucrare/plată, monedă și sumă. Numai `succeeded` cu suma integrală încasată schimbă starea locală în `captured`. O încasare deja confirmată de Stripe este recuperată fără un nou apel de capturare.
+- Lipsa identificatorului Stripe blochează capturarea și anularea când providerul este configurat. Anularea necesită confirmarea `canceled`.
+- Finalizarea poate fi reapelată de firma titulară pentru recuperarea încasării unei lucrări deja finalizate, cu dovezi valide. Accesul angajaților nu este extins. Răspunsul de eroare nu expune mesajul intern Stripe.
+- Website: secțiune pentru lucrări finalizate cu încasare neconfirmată și buton de reluare. Aplicația Expo: aceeași acțiune în istoricul firmei. Acțiunile au stare de așteptare și tratarea erorilor de conexiune.
+- Verificare locală: 365 teste web/backend în 47 fișiere, inclusiv 14 scenarii cu răspunsuri Stripe simulate și 9 teste API de colaborare; 54 teste mobile, TypeScript mobil, build Next.js și ESLint reușite.
+
+Aceste teste nu sunt tranzacții în Stripe sandbox. Nu există cheie Stripe configurată în mediul local; conectorul prezintă două contexte de test și cere selectarea contului înainte de operațiuni. Nu au fost efectuate mutații Stripe, încasări reale sau publicare în producție. Noile controale din dashboardurile private necesită încă verificare vizuală autentificată și pe dispozitiv.
+
+Auditul financiar nu este închis: rambursările în așteptare, reconcilierea webhookurilor, autorizările expirate, reluarea după schimbarea cardului/sumei și concurența la acceptare necesită continuare. Identificatorul stabil nu înlocuiește un registru durabil al încercărilor și nu extinde perioada de păstrare a idempotency keys la Stripe. Datele financiare istorice nu sunt rescrise automat.
+
+Referință pentru stările providerului: [ciclul PaymentIntent](https://docs.stripe.com/payments/paymentintents/lifecycle).

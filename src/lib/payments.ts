@@ -1,6 +1,6 @@
 import type { Database } from "better-sqlite3";
 import Stripe from "stripe";
-import { newId } from "@/lib/db";
+import { createHash } from "node:crypto";
 import { calcNetForFirm, PLATFORM_COMMISSION } from "@/lib/pricing";
 import { assertCompletionProof, auditWorkflow } from "@/lib/proofOfWork";
 
@@ -27,10 +27,14 @@ export function calculatePaymentSplit(grossAmount: number, discountAmount = 0) {
 
 /** Authorize the authoritative client amount on the platform. No transfer is made here. */
 export async function authorizePayment(db: Database, jobId: string, grossAmount: number, _firmAccountId?: string | null, discountAmount = 0): Promise<string> {
-  const existing = db.prepare("SELECT id FROM payments WHERE job_id=?").get(jobId) as {id:string}|undefined;
-  if (existing) return existing.id;
+  const existing = db.prepare("SELECT id,status FROM payments WHERE job_id=?").get(jobId) as {id:string;status:string}|undefined;
+  if (existing) {
+    if (existing.status !== "authorized") throw new Error("PAYMENT_NOT_AUTHORIZED");
+    return existing.id;
+  }
   const {clientAmount,firmAmount,platformAmount}=calculatePaymentSplit(grossAmount,discountAmount);
-  const id=newId("pay");
+  // Stable metadata across retries after an uncertain provider response.
+  const id=`pay_${createHash("sha256").update(jobId).digest("hex")}`;
   const stripe=getStripeClient();
   let intentId:string|null=null;
   if(stripe){
@@ -51,6 +55,7 @@ export async function authorizePayment(db: Database, jobId: string, grossAmount:
       capture_method:"manual",
       metadata:{jobId,paymentId:id,pricingSource:"server"},
     },{idempotencyKey:`nitido-authorize-${jobId}`});
+    if(intent.status!=="requires_capture" || intent.currency!=="ron" || intent.amount!==clientAmount*100 || intent.amount_capturable!==clientAmount*100) throw new Error("PAYMENT_AUTHORIZATION_NOT_CONFIRMED");
     intentId=intent.id;
   }
   db.prepare(`INSERT INTO payments(id,job_id,amount_gross,commission_amount,amount_net,status,stripe_payment_intent_id) VALUES(?,?,?,?,?,'authorized',?)`).run(id,jobId,clientAmount,platformAmount,firmAmount,intentId);
@@ -66,12 +71,20 @@ export async function capturePayment(db:Database,jobId:string):Promise<void>{
   if(payment.status!=="authorized")throw new Error("PAYMENT_NOT_AUTHORIZED");
   const stripe=getStripeClient();
   let chargeId:string|null=(payment.stripe_charge_id as string|null)??null;
-  if(stripe&&payment.stripe_payment_intent_id){
-    const intent=await stripe.paymentIntents.capture(String(payment.stripe_payment_intent_id),{}, {idempotencyKey:`nitido-capture-${jobId}`});
-    chargeId=typeof intent.latest_charge==="string"?intent.latest_charge:null;
+  if(stripe){
+    if(!payment.stripe_payment_intent_id)throw new Error("STRIPE_PAYMENT_INTENT_MISSING");
+    const intentId=String(payment.stripe_payment_intent_id);
+    let intent=await stripe.paymentIntents.retrieve(intentId);
+    const matchesPayment=(value:Stripe.PaymentIntent)=>value.id===intentId && value.currency==="ron" && value.amount===Number(payment.amount_gross)*100 && value.metadata.jobId===jobId && value.metadata.paymentId===payment.id;
+    if(!matchesPayment(intent))throw new Error("PAYMENT_DETAILS_MISMATCH");
+    if(intent.status==="requires_capture" && intent.amount_capturable===Number(payment.amount_gross)*100){
+      intent=await stripe.paymentIntents.capture(intentId,{}, {idempotencyKey:`nitido-capture-${jobId}`});
+    }
+    if(!matchesPayment(intent) || intent.status!=="succeeded" || intent.amount_received!==Number(payment.amount_gross)*100)throw new Error("PAYMENT_CAPTURE_NOT_CONFIRMED");
+    chargeId=typeof intent.latest_charge==="string"?intent.latest_charge:intent.latest_charge?.id??null;
   }
-  db.prepare("UPDATE payments SET status='captured',stripe_charge_id=COALESCE(?,stripe_charge_id) WHERE id=? AND status='authorized'").run(chargeId,payment.id);
-  auditWorkflow(db,"PAYMENT_CAPTURED",jobId,firmId,null,{paymentId:payment.id});
+  const captured=db.prepare("UPDATE payments SET status='captured',stripe_charge_id=COALESCE(?,stripe_charge_id) WHERE id=? AND status='authorized'").run(chargeId,payment.id);
+  if(captured.changes===1)auditWorkflow(db,"PAYMENT_CAPTURED",jobId,firmId,null,{paymentId:payment.id});
   try{await initiateFirmTransfer(db,jobId);}
   catch(error){
     db.prepare("UPDATE payments SET transfer_status='failed' WHERE id=? AND stripe_transfer_id IS NULL").run(payment.id);
@@ -103,7 +116,11 @@ export async function cancelPayment(db:Database,jobId:string):Promise<void>{
   const payment=db.prepare("SELECT * FROM payments WHERE job_id=? AND status='authorized'").get(jobId) as Record<string,unknown>|undefined;
   if(!payment)return;
   const stripe=getStripeClient();
-  if(stripe&&payment.stripe_payment_intent_id)await stripe.paymentIntents.cancel(String(payment.stripe_payment_intent_id),{}, {idempotencyKey:`nitido-cancel-${jobId}`});
+  if(stripe){
+    if(!payment.stripe_payment_intent_id)throw new Error("STRIPE_PAYMENT_INTENT_MISSING");
+    const intent=await stripe.paymentIntents.cancel(String(payment.stripe_payment_intent_id),{}, {idempotencyKey:`nitido-cancel-${jobId}`});
+    if(intent.status!=="canceled")throw new Error("PAYMENT_CANCELLATION_NOT_CONFIRMED");
+  }
   db.prepare("UPDATE payments SET status='cancelled' WHERE id=? AND status='authorized'").run(payment.id);
 }
 
