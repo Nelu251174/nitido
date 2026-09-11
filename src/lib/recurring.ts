@@ -1,3 +1,5 @@
+import { bucharestScheduledAt } from "@/lib/scheduling";
+export { bucharestScheduledAt } from "@/lib/scheduling";
 import type { Database } from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import {
@@ -48,17 +50,6 @@ export function computeNextDate(frequency: Frequency, from: Date, anchorDay?:num
   else if(frequency==="biweekly")d.setUTCDate(d.getUTCDate()+14);
   else {const day=anchorDay??d.getUTCDate();d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()+1);const last=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();d.setUTCDate(Math.min(day,last))}
   return d.toISOString().slice(0,10);
-}
-export function bucharestScheduledAt(date:string,hour:number):Date {
-  const [year,month,day]=date.split("-").map(Number);
-  const target=Date.UTC(year,month-1,day,hour);let instant=target;
-  for(let i=0;i<3;i++){
-    const parts=new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Bucharest",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"}).formatToParts(new Date(instant));
-    const get=(key:string)=>Number(parts.find(p=>p.type===key)?.value);
-    const displayed=Date.UTC(get("year"),get("month")-1,get("day"),get("hour"),get("minute"),get("second"));
-    instant+=target-displayed;
-  }
-  return new Date(instant);
 }
 
 const VALID_SPACE: readonly SpaceType[] = ["apartament", "casa", "birou", "altul"];

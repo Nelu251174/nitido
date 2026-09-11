@@ -99,6 +99,7 @@ export function assignTeam(db:Database,userId:string,teamId:string,jobId:string)
 export function setChecklist(db:Database,userId:string,jobId:string,key:string,done:boolean){
  const access=executionAccess(db,userId,jobId);
  if(!access||!["accepted","arrived"].includes(access.status))throw new WorkspaceError("Nu poți modifica verificările acestei lucrări.",403);
+ if(db.prepare("SELECT 1 FROM workspace_execution_reports WHERE job_id=?").get(jobId))throw new WorkspaceError("Raportul a fost trimis. Verificările sunt blocate pentru a păstra dovada raportată.",409);
  if(!CHECKLIST.some(i=>i.key===key))throw new WorkspaceError("Verificare invalidă.");
  db.prepare("INSERT INTO workspace_checklist VALUES(?,?,?,?,?) ON CONFLICT(job_id,item_key) DO UPDATE SET done=excluded.done,updated_by=excluded.updated_by,updated_at=excluded.updated_at").run(jobId,key,done?1:0,userId,new Date().toISOString());
 }

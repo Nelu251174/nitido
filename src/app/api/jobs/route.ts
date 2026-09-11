@@ -1,3 +1,5 @@
+import { hasTrustedMutationOrigin } from "@/lib/security";
+import { bookingDateKey, bucharestScheduledAt, hasSchedulingLeadTime, nextBucharestSlot } from "@/lib/scheduling";
 import { AccessError, consumeApproval, enforcePropertyBudget } from "@/lib/collaborationAccess";
 import { ownProperty, linkPropertyJob, WorkspaceError } from "@/lib/workspace";
 import { after, NextRequest, NextResponse } from "next/server";
@@ -10,8 +12,6 @@ import {
   BUFFER_MINUTES,
   MIN_LEAD_HOURS,
   SLOT_HOURS,
-  isSlotValid,
-  nextValidAsapSlot,
   SpaceType,
 } from "@/lib/pricing";
 import { firmCoversCity } from "@/lib/text";
@@ -141,6 +141,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Trebuie să fii autentificat ca client" }, { status: 401 });
   }
 
+  if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:"Origine invalidă"},{status:403});
+
   // Card obligatoriu înainte de postare — la acceptare se pune HOLD pe acest
   // card, deci trebuie salvat dinainte. Dacă Stripe nu e activat, se sare peste.
   const card = getClientCardInfo(db, user.id);
@@ -226,15 +228,14 @@ export async function POST(req: NextRequest) {
   let scheduledAt: Date;
 
   if (whenType === "asap") {
-    const slot = nextValidAsapSlot();
+    const slot = nextBucharestSlot();
     if (!slot) {
       return NextResponse.json(
         { error: "Niciun slot disponibil în următoarele 3 zile" },
         { status: 400 }
       );
     }
-    scheduledAt = new Date(slot.date);
-    scheduledAt.setHours(slot.hour, 0, 0, 0);
+    scheduledAt = slot;
   } else {
     if (!scheduledDate || scheduledHour === undefined || !SLOT_HOURS.includes(scheduledHour as typeof SLOT_HOURS[number])) {
       return NextResponse.json(
@@ -242,8 +243,10 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    const day = new Date(scheduledDate);
-    if (!isSlotValid(day, scheduledHour)) {
+    const day = bookingDateKey(scheduledDate);
+    if(!day)return NextResponse.json({error:"Data programării nu este validă"},{status:400});
+    scheduledAt = bucharestScheduledAt(day,scheduledHour);
+    if (!hasSchedulingLeadTime(scheduledAt)) {
       return NextResponse.json(
         {
           error: `Slotul ales nu respectă pragul minim de ${MIN_LEAD_HOURS} oră/ore până la ora dorită`,
@@ -251,8 +254,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    scheduledAt = new Date(day);
-    scheduledAt.setHours(scheduledHour, 0, 0, 0);
+
   }
 
   // Express 60: suplimentul premium se adaugă la prețul brut. HOLD-ul se pune

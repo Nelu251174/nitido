@@ -1,3 +1,4 @@
+import { hasTrustedMutationOrigin } from "@/lib/security";
 import { NextRequest,NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { db,getFirmByUserId } from "@/lib/db";
@@ -21,8 +22,7 @@ export async function GET(req:NextRequest){
 export async function POST(req:NextRequest){
  const user=await getCurrentUser(req);if(!user)return response({error:"Autentificare nécessaire"},401);
  // Cookie requests must be same-origin; bearer requests are separately authenticated.
- const origin=req.headers.get("origin");
- if(origin&&origin!==req.nextUrl.origin&&!req.headers.get("authorization"))return response({error:"Origine invalidă"},403);
+ if(!hasTrustedMutationOrigin(req))return response({error:"Origine invalidă"},403);
  if(!consumeRateLimit(`workspace:${user.id}`,60,60000))return response({error:"Prea multe cereri. Reîncearcă într-un minut."},429);
  try{
   if(Number(req.headers.get("content-length")??0)>1_100_000)throw new WorkspaceError("Cerere prea mare",413);

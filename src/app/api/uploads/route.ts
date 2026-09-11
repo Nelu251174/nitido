@@ -1,3 +1,5 @@
+import { prepareUploadImage } from "@/lib/uploadImage";
+import { hasTrustedMutationOrigin } from "@/lib/security";
 import { executionAccess } from "@/lib/collaborationAccess";
 import { NextRequest, NextResponse } from "next/server";
 import { db, newId } from "@/lib/db";
@@ -28,8 +30,7 @@ function detectedImageType(buffer: Buffer): { mime: string; ext: string } | null
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req);
   if (!user) return NextResponse.json({ error: "Autentificare necesară" }, { status: 401 });
-  const origin=req.headers.get("origin");
-  if(origin&&origin!==req.nextUrl.origin&&!req.headers.get("authorization"))return NextResponse.json({error:"Origine invalidă"},{status:403});
+  if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:"Origine invalidă"},{status:403});
   if (!consumeRateLimit(`upload:${user.id}:${requestIp(req)}`, 20, 60 * 60 * 1000)) {
     return NextResponse.json({ error: "Prea multe încărcări" }, { status: 429 });
   }
@@ -72,6 +73,10 @@ export async function POST(req: NextRequest) {
   if (!detected || detected.mime !== file.type) {
     return NextResponse.json({ error: "Conținutul fișierului nu corespunde unui format permis" }, { status: 400 });
   }
+  let stored:Buffer;
+  try { stored=await prepareUploadImage(buffer); }
+  catch { return NextResponse.json({error:"Imaginea este deteriorată sau depășește limita de 40 megapixeli. Alege o fotografie validă."},{status:400}); }
+  if(stored.length>MAX_SIZE_BYTES)return NextResponse.json({error:"Imaginea procesată depășește 8 MB. Redu dimensiunea fotografiei."},{status:400});
   const ext = detected.ext;
   const id = newId("photo");
   const filename = `${id}.${ext}`;
@@ -88,15 +93,15 @@ export async function POST(req: NextRequest) {
     if (!job || job.accepted_firm_id !== firm.id || !validState) {
       return NextResponse.json({ error: "Nu poți atașa această dovadă lucrării" }, { status: 403 });
     }
-    fs.writeFileSync(path.join(UPLOAD_DIR, filename), buffer);
+    fs.writeFileSync(path.join(UPLOAD_DIR, filename), stored);
     db.prepare(`INSERT INTO job_photos
       (id,job_id,owner_user_id,uploaded_by_firm_id,proof_type,filename,mime_type,file_size,status,validated_at)
-      VALUES (?,?,?,?,?,?,?,?, 'VALID',datetime('now'))`).run(id, jobId, user.id, firm.id, proofType, filename, detected.mime, file.size);
-    auditWorkflow(db, `${proofType}_PROOF_UPLOADED`, jobId, firm.id, user.id, { proofId: id, mimeType: detected.mime, fileSize: file.size });
+      VALUES (?,?,?,?,?,?,?,?, 'VALID',datetime('now'))`).run(id, jobId, user.id, firm.id, proofType, filename, detected.mime, stored.length);
+    auditWorkflow(db, `${proofType}_PROOF_UPLOADED`, jobId, firm.id, user.id, { proofId: id, mimeType: detected.mime, fileSize: stored.length });
     return NextResponse.json({ id, url: `/api/uploads/${id}`, proofType }, { status: 201 });
   }
 
-  fs.writeFileSync(path.join(UPLOAD_DIR, filename), buffer);
+  fs.writeFileSync(path.join(UPLOAD_DIR, filename), stored);
 
   // job_id rămâne NULL până la crearea lucrării (POST /api/jobs îl leagă apoi).
   db.prepare("INSERT INTO job_photos (id, job_id, owner_user_id, proof_type, context_label, filename, mime_type, file_size, status, validated_at) VALUES (?, NULL, ?, 'CLIENT_CONTEXT', ?, ?, ?, ?, 'VALID', datetime('now'))").run(
@@ -105,7 +110,7 @@ export async function POST(req: NextRequest) {
     contextLabel,
     filename,
     detected.mime,
-    file.size
+    stored.length
   );
 
   return NextResponse.json({ id, url: `/api/uploads/${id}`, room: contextLabel }, { status: 201 });

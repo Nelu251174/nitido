@@ -262,7 +262,7 @@ export default function ClientPage() {
           setSubmitting(false);
           return;
         }
-        body.scheduledDate = scheduledDate.toISOString();
+        body.scheduledDate = `${scheduledDate.getFullYear()}-${String(scheduledDate.getMonth()+1).padStart(2,"0")}-${String(scheduledDate.getDate()).padStart(2,"0")}`;
         body.scheduledHour = scheduledHour;
       }
       const payload=JSON.stringify(body);

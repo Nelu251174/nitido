@@ -1,3 +1,4 @@
+import { hasTrustedMutationOrigin } from "@/lib/security";
 import { after, NextRequest,NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
@@ -23,7 +24,7 @@ export async function GET(req:NextRequest){
 }
 export async function POST(req:NextRequest){
  const user=await getCurrentUser(req);if(!user)return response({error:"Autentificare necesară"},401);
- const origin=req.headers.get('origin');if(origin&&origin!==req.nextUrl.origin&&!req.headers.get('authorization'))return response({error:"Origine invalidă"},403);
+ if(!hasTrustedMutationOrigin(req))return response({error:"Origine invalidă"},403);
  if(!consumeRateLimit(`collaboration:${user.id}`,60,60000))return response({error:"Prea multe cereri. Reîncearcă într-un minut."},429);
  try{
   const raw=await req.text();if(Buffer.byteLength(raw)>20000)throw new AccessError("Cerere prea mare",413);

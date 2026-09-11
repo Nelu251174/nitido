@@ -33,3 +33,10 @@ export function constantTimeEqual(a: string, b: string): boolean {
   const right = Buffer.from(b);
   return left.length === right.length && timingSafeEqual(left, right);
 }
+
+/** Call after getCurrentUser: only an enabled, validated Bearer session may replace cookie-origin protection. */
+export function hasTrustedMutationOrigin(req: NextRequest): boolean {
+  const origin = req.headers.get('origin');
+  if (!origin || origin === req.nextUrl.origin) return true;
+  return process.env.NITIDO_ENABLE_BEARER_AUTH === 'true' && /^Bearer \S+$/.test(req.headers.get('authorization') ?? '');
+}

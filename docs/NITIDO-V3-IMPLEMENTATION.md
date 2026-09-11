@@ -78,3 +78,7 @@ Valorile comerciale, regulile de recepție și anulare, configurările fiscale �
 - Aceste completări nu închid restul listei „Ce mai trebuie pentru întregul brief”. Verificarea în staging, pe dispozitive și cu Stripe de test rămâne obligatorie înainte de producție.
 
 Validarea locală a continuării: 322 teste web/backend (320 în suita completă, apoi 12/12 din modulul de colaborare după extinderea cu încă 2 cazuri), 54 teste mobile, TypeScript web/mobil, ESLint și build Next.js. CI verifică din nou suita completă pe commitul publicat în PR.
+
+## Etapa de verificare integrată
+
+Rezultatele și limitele verificării sunt în [NITIDO-V3-QA.md](NITIDO-V3-QA.md). Au fost corectate controlul originii cererilor cookie, blocarea checklistului după raport, fusul orar al rezervărilor, păstrarea rezervării între login și signup și validarea completă a fișierelor imagine. Verificarea locală are acum 350 teste web/backend trecute, build și lint reușite; homepage, estimatorul și navigarea către formularele de cont au fost verificate în browser desktop. Aceste rezultate nu înlocuiesc staging cu Stripe de test, dispozitive fizice și verificarea dashboardurilor autentificate.
