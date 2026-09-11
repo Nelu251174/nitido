@@ -57,3 +57,9 @@ Referință pentru stările providerului: [ciclul PaymentIntent](https://docs.st
 - Stările sunt definite în [documentația Stripe Refund](https://docs.stripe.com/api/refunds/object).
 
 Aplicația mobilă diferențiază explicit rambursarea eșuată de cea în procesare. Verificare: 57 teste mobile și TypeScript trecute.
+
+## Continuare: rollback la acceptare
+
+Eșecul întârziat al autorizării nu mai suprascrie o anulare, un no-show, sosirea/finalizarea sau realocarea către altă firmă. Revenirea în waiting este condiționată de starea accepted și firma care a inițiat cererea. Erorile interne ale providerului nu mai sunt trimise utilizatorului.
+
+Șapte teste noi folosesc o autorizare suspendată controlat și modifică starea înainte de eșec; împreună cu cele cinci teste existente de acceptare, 12/12 au trecut local. Aceasta verifică intercalarea cererilor într-un proces, nu concurența distribuită. Registrul durabil al încercărilor, realocarea repetată către aceeași firmă și reconcilierea unei autorizări confirmate după anulare rămân deschise.
