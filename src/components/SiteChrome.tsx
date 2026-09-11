@@ -1,6 +1,8 @@
 import Link from "next/link";
 import {HomeLogoLink} from "@/components/HomeLogoLink";
 import {PhoneAppPromo} from "@/components/StoreBadges";
+import {HeaderAuthButtons} from "@/components/HeaderAuthButtons";
+import {MobileMenu} from "@/components/MobileMenu";
 import {CITIES} from "@/lib/cities";
 
 export const FOOTER_LINK_GROUPS = [
@@ -11,7 +13,7 @@ export const FOOTER_LINK_GROUPS = [
 ] as const;
 
 export function SiteHeader() {
-  return <header className="sticky top-0 z-50 h-[66px] border-b border-[#e3e2da] bg-[#f4f3ee]/95 backdrop-blur"><div className="v2-container flex h-full items-center justify-between"><HomeLogoLink/><nav className="v2-hide-mobile flex items-center gap-6 text-sm font-medium text-[#3e4842]"><Link href="/cum-functioneaza">Cum funcționează</Link><Link href="/pentru-clienti">Pentru clienți</Link><Link href="/pentru-firme">Pentru firme</Link><Link href="/preturi">Prețuri</Link><Link href="/despre-noi">Despre noi</Link><Link href="/contact">Contact</Link></nav><div className="flex items-center gap-2"><Link href="/login" className="v2-btn v2-btn-secondary v2-hide-mobile">Autentificare</Link><Link href="/signup" className="v2-btn v2-btn-primary">Înregistrează-te</Link></div></div></header>;
+  return <header className="sticky top-0 z-50 h-[66px] border-b border-[#e3e2da] bg-[#f4f3ee]/95 backdrop-blur"><div className="v2-container flex h-full items-center justify-between"><HomeLogoLink/><nav className="v2-hide-mobile flex items-center gap-6 text-sm font-medium text-[#3e4842]"><Link href="/cum-functioneaza">Cum funcționează</Link><Link href="/pentru-clienti">Pentru clienți</Link><Link href="/pentru-firme">Pentru firme</Link><Link href="/preturi">Prețuri</Link><Link href="/despre-noi">Despre noi</Link><Link href="/contact">Contact</Link></nav><div className="flex items-center gap-2"><HeaderAuthButtons/><MobileMenu/></div></div></header>;
 }
 
 export function SiteFooter() {
