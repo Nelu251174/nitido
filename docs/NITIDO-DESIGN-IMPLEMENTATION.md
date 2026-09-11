@@ -56,3 +56,10 @@ Această tranșă nu reprezintă finalizarea întregului brief. Sunt necesare: c
 - Host: articole de inventar cu unități întregi, intrări/consum, stoc nenegativ, prag minim editabil și alertă vizuală. Jurnalul mișcărilor este persistent, cu prevenirea dublării aceleiași cereri. Interfața afișează ultimele 100 de mișcări din cont, filtrate pe proprietate.
 - Accesul este limitat la titularul firmei/proprietății. Intervalele deblocate și jurnalul mișcărilor sunt păstrate. Nu sunt efectuate achiziții automate sau trimise mesaje.
 - Nu declarăm brief-ul integral închis. Rămân calendarul zi/lună, sincronizarea automată iCal, extraopțiunile și catalogul versionat, configurarea serviciilor email/AI/plăți și acceptanța vizuală autentificată a tuturor ecranelor web/mobile.
+
+
+### Calendar firmă — zi, săptămână și lună
+
+Calendarul include navigare după dată, filtre pentru echipă, tipul spațiului și oraș, precum și blocările reale de disponibilitate. Vizualizările zi/lună includ intervalele care traversează miezul nopții, cu rezerva de deplasare. Calendarul săptămânal păstrează grila 07:00–20:00 și afișează separat programările care depășesc acest interval. Datele sunt calculate pentru Europe/Bucharest; sfârșitul intervalului este exclusiv.
+
+Validare: teste pentru săptămâna de luni, luni cu zile adiacente, navigare la sfârșit de lună/an, an bisect, miezul nopții și schimbarea orei. Această modificare nu reprezintă finalizarea întregului brief; verificarea vizuală autentificată rămâne de făcut.
