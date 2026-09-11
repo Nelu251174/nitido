@@ -1,3 +1,4 @@
+import { AccessError, consumeApproval, enforcePropertyBudget } from "@/lib/collaborationAccess";
 import { ownProperty, linkPropertyJob, WorkspaceError } from "@/lib/workspace";
 import { after, NextRequest, NextResponse } from "next/server";
 import { db, newId, getFirmByUserId } from "@/lib/db";
@@ -274,7 +275,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Una sau mai multe poze nu îți aparțin" }, { status: 403 });
   }
   const id = newId("job");
-  const created = db.transaction((): { job: JobRow; replayed: boolean } => {
+  let created: { job: JobRow; replayed: boolean };
+  try { created = db.transaction((): { job: JobRow; replayed: boolean } => {
     if (requestId) {
       const existing = db.prepare("SELECT * FROM jobs WHERE client_id = ? AND client_request_id = ?").get(user.id, requestId) as JobRow | undefined;
       if (existing) return { job: existing, replayed: true };
@@ -292,8 +294,12 @@ export async function POST(req: NextRequest) {
       for (const photoId of ownedPhotoIds) linkPhoto.run(id, photoId, user.id);
     }
     if(body.propertyId)linkPropertyJob(db,user.id,String(body.propertyId),id);
+    if(body.approvalId)consumeApproval(db,user.id,String(body.approvalId),id);
+    const linked=db.prepare("SELECT property_id FROM workspace_property_jobs WHERE job_id=?").get(id) as {property_id:string}|undefined;
+    if(linked)enforcePropertyBudget(db,linked.property_id,id);
     return { job: db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow, replayed: false };
   })();
+  } catch(e) { if(e instanceof AccessError)return NextResponse.json({error:e.message},{status:e.status}); throw e; }
   if (created.replayed) return NextResponse.json({ job: created.job, replayed: true });
   const job = created.job;
 

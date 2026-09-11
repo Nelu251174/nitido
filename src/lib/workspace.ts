@@ -1,3 +1,4 @@
+import { COLLABORATION_SCHEMA, executionAccess } from "@/lib/collaborationAccess";
 import type { Database } from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 
@@ -6,7 +7,7 @@ CREATE TABLE IF NOT EXISTS workspace_properties (
  id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id), name TEXT NOT NULL,
  city TEXT NOT NULL, street TEXT NOT NULL, sqm INTEGER NOT NULL, space_type TEXT NOT NULL,
  kind TEXT NOT NULL DEFAULT 'home', cost_center TEXT NOT NULL DEFAULT '', budget_bani INTEGER NOT NULL DEFAULT 0,
- notes TEXT NOT NULL DEFAULT '', archived INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
+ notes TEXT NOT NULL DEFAULT '', budget_enforced INTEGER NOT NULL DEFAULT 0, archived INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS workspace_properties_owner ON workspace_properties(owner_id,archived);
 CREATE TABLE IF NOT EXISTS workspace_property_jobs (
@@ -41,7 +42,7 @@ CREATE TABLE IF NOT EXISTS workspace_audit (
  id TEXT PRIMARY KEY, actor_id TEXT NOT NULL REFERENCES users(id), action TEXT NOT NULL,
  resource_id TEXT NOT NULL, created_at TEXT NOT NULL
 );
-`;
+` + COLLABORATION_SCHEMA;
 import { CHECKLIST } from "@/lib/workspaceShared";
 export class WorkspaceError extends Error { constructor(message:string,public status=400){super(message)} }
 export function requireText(value:unknown,label:string,max=250) {
@@ -96,8 +97,8 @@ export function assignTeam(db:Database,userId:string,teamId:string,jobId:string)
  })();
 }
 export function setChecklist(db:Database,userId:string,jobId:string,key:string,done:boolean){
- const job=authorizedJob(db,userId,jobId);
- if(job.firm_user_id!==userId||!["accepted","arrived"].includes(job.status))throw new WorkspaceError("Nu poți modifica verificările acestei lucrări.",403);
+ const access=executionAccess(db,userId,jobId);
+ if(!access||!["accepted","arrived"].includes(access.status))throw new WorkspaceError("Nu poți modifica verificările acestei lucrări.",403);
  if(!CHECKLIST.some(i=>i.key===key))throw new WorkspaceError("Verificare invalidă.");
  db.prepare("INSERT INTO workspace_checklist VALUES(?,?,?,?,?) ON CONFLICT(job_id,item_key) DO UPDATE SET done=excluded.done,updated_by=excluded.updated_by,updated_at=excluded.updated_at").run(jobId,key,done?1:0,userId,new Date().toISOString());
 }

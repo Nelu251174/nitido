@@ -21,6 +21,7 @@ export type SchedulingConfig = { slotHours: number[]; minLeadHours: number };
 
 export type PostJobDraft = {
   propertyId?: string;
+  approvalId?: string;
   spaceType: SpaceType | null;
   sqm: string;
   city: string;

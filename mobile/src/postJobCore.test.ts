@@ -35,3 +35,5 @@ describe("screen integration", () => {
   it("keeps native-only picker code out of the web implementation", () => { expect(source("src/DateSelector.web.tsx")).not.toContain("@react-native-community/datetimepicker"); expect(source("src/DateSelector.native.tsx")).toContain("DateTimePicker"); });
   it("routes authoritative creation to job detail and exposes retry", () => { const post=source("app/(client)/post.tsx"); expect(post).toContain('/(client)/job/[id]'); expect(post).toContain("Reîncearcă încărcarea"); const detail=source("app/(client)/job/[id].tsx"); expect(detail).toContain("Evoluția lucrării"); expect(detail).toContain("Așteptăm o firmă"); });
 });
+
+it("preserves property and approval references in the booking request",async()=>{const request=vi.fn().mockResolvedValue({job:{id:"approved-job"}});await publishClientJob(draft({propertyId:"property-1",approvalId:"approval-1"}),"approval-booking",request);const body=JSON.parse(String(request.mock.calls[0][1].body));expect(body.propertyId).toBe("property-1");expect(body.approvalId).toBe("approval-1");expect(body).not.toHaveProperty("price_gross")});

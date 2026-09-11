@@ -1,5 +1,6 @@
+import { executionAccess } from "@/lib/collaborationAccess";
 import { NextRequest, NextResponse } from "next/server";
-import { db, getFirmByUserId, newId } from "@/lib/db";
+import { db, newId } from "@/lib/db";
 import path from "path";
 import fs from "fs";
 import { getCurrentUser } from "@/lib/auth";
@@ -27,6 +28,8 @@ function detectedImageType(buffer: Buffer): { mime: string; ext: string } | null
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req);
   if (!user) return NextResponse.json({ error: "Autentificare necesară" }, { status: 401 });
+  const origin=req.headers.get("origin");
+  if(origin&&origin!==req.nextUrl.origin&&!req.headers.get("authorization"))return NextResponse.json({error:"Origine invalidă"},{status:403});
   if (!consumeRateLimit(`upload:${user.id}:${requestIp(req)}`, 20, 60 * 60 * 1000)) {
     return NextResponse.json({ error: "Prea multe încărcări" }, { status: 429 });
   }
@@ -73,9 +76,10 @@ export async function POST(req: NextRequest) {
   const id = newId("photo");
   const filename = `${id}.${ext}`;
 
-  if (user.role === "firma") {
-    const firm = getFirmByUserId(user.id);
-    if (!firm) return NextResponse.json({ error: "Profilul firmei nu a fost găsit" }, { status: 403 });
+  if (user.role === "firma" || (jobId && ["ARRIVAL", "COMPLETION"].includes(proofType))) {
+    const access = executionAccess(db,user.id,jobId);
+    if (!access) return NextResponse.json({ error: "Nu ai acces la această lucrare" }, { status: 403 });
+    const firm = {id:access.firm_id};
     if (!jobId || !["ARRIVAL", "COMPLETION"].includes(proofType)) {
       return NextResponse.json({ error: "Lucrarea și tipul dovezii sunt obligatorii" }, { status: 400 });
     }

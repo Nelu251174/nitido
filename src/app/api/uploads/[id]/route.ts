@@ -1,3 +1,4 @@
+import { executionAccess } from "@/lib/collaborationAccess";
 import fs from "fs";
 import path from "path";
 import { NextRequest, NextResponse } from "next/server";
@@ -25,11 +26,12 @@ export async function GET(
   const { id } = await params;
   const photo = db.prepare(
     `SELECT p.filename, p.owner_user_id, p.proof_type,
-            j.client_id, j.accepted_firm_id, j.status AS job_status, j.city AS job_city
+            j.id AS job_id, j.client_id, j.accepted_firm_id, j.status AS job_status, j.city AS job_city
      FROM job_photos p LEFT JOIN jobs j ON j.id = p.job_id WHERE p.id = ?`
   ).get(id) as
     | {
         filename: string;
+        job_id: string | null;
         owner_user_id: string | null;
         proof_type: string;
         client_id: string | null;
@@ -43,8 +45,9 @@ export async function GET(
   const firm = user?.role === "firma" ? getFirmByUserId(user.id) : null;
   const authorized =
     admin ||
-    (user?.role === "client" && (photo.owner_user_id === user.id || photo.client_id === user.id)) ||
-    Boolean(firm && photo.accepted_firm_id === firm.id);
+    (user?.role === "client" && ((!photo.job_id && photo.owner_user_id === user.id) || photo.client_id === user.id)) ||
+    Boolean(firm && photo.accepted_firm_id === firm.id) ||
+    Boolean(user && photo.job_id && executionAccess(db,user.id,photo.job_id));
   if (!authorized) return NextResponse.json({ error: "Acces interzis" }, { status: 403 });
 
   if (path.basename(photo.filename) !== photo.filename) {

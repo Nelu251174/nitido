@@ -61,6 +61,20 @@ Fluxul existent de alocare/plată după generare este păstrat. Rămân necesare
 
 ## Ce mai trebuie pentru întregul brief
 
-Roluri și organizații cu permisiuni pe locație, conturi angajați, invitații și MFA; capacitate reală pe echipă în acceptarea marketplace; recepție/reclamații cu stări financiare complete; reconciliere, SCA și gestionare robustă a autorizărilor expirate; catalog configurabil cu servicii/extras și snapshot de preț; planuri recurente cu politica financiară completă; aprobări de cheltuieli și documente fiscale; sincronizare PMS/iCal automată cu scheduler și tratarea schimbărilor; stocare obiecte și infrastructură distribuită; observabilitate, backup/restore demonstrat, performanță și accesibilitate verificate în browser; configurarea providerilor externi și publicarea în magazine.
+Organizații cu ierarhii complexe și MFA; capacitate reală pe echipă în acceptarea marketplace; recepție/reclamații cu stări financiare complete; reconciliere, SCA și gestionare robustă a autorizărilor expirate; catalog configurabil cu servicii/extras și snapshot de preț; planuri recurente cu politica financiară completă; documente fiscale și politici de aprobare pe mai multe niveluri; sincronizare PMS/iCal automată cu scheduler și tratarea schimbărilor; stocare obiecte și infrastructură distribuită; observabilitate, backup/restore demonstrat, performanță și accesibilitate verificate în browser; configurarea providerilor externi și publicarea în magazine.
 
 Valorile comerciale, regulile de recepție și anulare, configurările fiscale și credențialele providerilor nu au fost inventate și nu au fost activate automat.
+
+## Continuare: colaborare, angajați și aprobări
+
+- `/echipa`: invitații nominale pentru angajați, acces numai la lucrările echipei alocate, checklist, fotografii înainte/după, sosire și raport către titularul firmei. Raportul nu finalizează financiar lucrarea. Titularul verifică în fluxul existent.
+- `/colaborari`: titular, manager și vizualizare pe fiecare locație; cereri cu data și prețul calculat pe server, aprobare/respingere și creare de rezervare din aprobarea disponibilă.
+- `/invitatie`: acceptare în contul cu emailul indicat. Token aleator stocat numai ca hash, expirare 7 zile, revocare. Linkul este copiat/distribuit explicit de titular; nu se trimite email automat.
+- Aplicația Expo include ecranul nativ „Echipă și colaborare”, accesibil din profil. Acceptă cod/link, invită angajați sau manageri, revocă acces, încarcă fotografii de la cameră și gestionează solicitări/aprobări. Vizualizarea completă a fotografiilor și invitațiile de tip vizualizare sunt disponibile în web.
+- Revocarea și realocarea echipei sunt verificate la fiecare operație, inclusiv accesul la fișierul foto. Angajatul nu primește prețuri, credite, identificatori de plată sau datele de contact ale clientului.
+- Limita bugetară se activează explicit pe locație. Aprobările rezervă bugetul; rezervarea consumă aprobarea exact o dată, în aceeași tranzacție cu lucrarea și creditul. Prețul brut include creditul aplicat, fără dublare. Luna se calculează Europe/Bucharest, inclusiv la schimbarea orei.
+- Schema adaugă membri, invitații, rapoarte și aprobări, plus coloana `budget_enforced`. Nu sunt șterse date existente.
+- Acoperire nouă: 12 teste de autorizare, expirare/revocare, realocare, dovezi, roluri, buget, credit, consum unic, schimbarea adresei, retragerea aprobării și rollback; test mobil pentru transmiterea aprobării în rezervare.
+- Aceste completări nu închid restul listei „Ce mai trebuie pentru întregul brief”. Verificarea în staging, pe dispozitive și cu Stripe de test rămâne obligatorie înainte de producție.
+
+Validarea locală a continuării: 322 teste web/backend (320 în suita completă, apoi 12/12 din modulul de colaborare după extinderea cu încă 2 cazuri), 54 teste mobile, TypeScript web/mobil, ESLint și build Next.js. CI verifică din nou suita completă pe commitul publicat în PR.

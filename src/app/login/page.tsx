@@ -28,7 +28,7 @@ export default function LoginPage() {
       if (!res.ok) throw new Error(data.error ?? "Eroare la autentificare");
       const next=new URLSearchParams(window.location.search).get("next");
       const allowed=data.role==="client"?"/client":"/firma";
-      const safeNext=next&&(next===allowed||next.startsWith(allowed+"?")||next.startsWith(allowed+"#")||next.startsWith(allowed+"/"))&&!next.includes("\\")?next:allowed;
+      const safeNext=next&&(["/invitatie","/echipa","/colaborari"].some(p=>next===p||next.startsWith(p+"?"))||next===allowed||next.startsWith(allowed+"?")||next.startsWith(allowed+"#")||next.startsWith(allowed+"/"))&&!next.includes("\\")?next:allowed;
       router.push(safeNext);
       router.refresh();
     } catch (e) {

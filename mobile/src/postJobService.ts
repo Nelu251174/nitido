@@ -13,6 +13,6 @@ export async function publishClientJob(draft: PostJobDraft, idempotencyKey: stri
   return request<CreatedJobResponse>("/api/jobs", {
     method: "POST",
     headers: { "Idempotency-Key": idempotencyKey },
-    body: JSON.stringify({...buildCreatePayload(draft), ...(draft.propertyId?{propertyId:draft.propertyId}:{})}),
+    body: JSON.stringify({...buildCreatePayload(draft), ...(draft.approvalId?{approvalId:draft.approvalId}:{}), ...(draft.propertyId?{propertyId:draft.propertyId}:{})}),
   });
 }

@@ -15,7 +15,7 @@ import type { SpaceType } from "@/types";
 const STEPS = ["Tip serviciu", "Detalii spațiu", "Adresă", "Data", "Ora", "Detalii suplimentare", "Fotografii", "Estimare preț", "Verificare comandă", "Confirmare și publicare"];
 
 export default function PostJob() {
-  const {propertyId}=useLocalSearchParams<{propertyId?:string}>();
+  const {propertyId,approvalId,approvalDate}=useLocalSearchParams<{propertyId?:string;approvalId?:string;approvalDate?:string}>();
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<PostJobDraft>(EMPTY_DRAFT);
   const [quote, setQuote] = useState<JobQuote | null>(null);
@@ -29,7 +29,7 @@ export default function PostJob() {
   const [createdId, setCreatedId] = useState<string | null>(null);
   const requestId = useRef<string | null>(null);
 
-  useEffect(()=>{if(!propertyId)return;let cancelled=false;void api<{properties:{id:string;name:string;city:string;street:string;sqm:number;space_type:SpaceType}[]}>("/api/workspace").then(d=>{if(cancelled)return;const p=d.properties.find(p=>p.id===propertyId);if(!p){setError("Proprietate indisponibilă.");return}setDraft({...EMPTY_DRAFT,propertyId:p.id,city:p.city,street:p.street,sqm:String(p.sqm),spaceType:p.space_type});setQuote(null);setScheduling(null);setStep(0)}).catch(()=>{if(!cancelled)setError("Proprietatea nu a putut fi încărcată.")});return()=>{cancelled=true}},[propertyId]);
+  useEffect(()=>{if(!propertyId)return;let cancelled=false;void api<{properties:{id:string;name:string;city:string;street:string;sqm:number;space_type:SpaceType}[]}>("/api/workspace").then(d=>{if(cancelled)return;const p=d.properties.find(p=>p.id===propertyId);if(!p){setError("Proprietate indisponibilă.");return}setDraft({...EMPTY_DRAFT,approvalId,scheduledDate:approvalDate??EMPTY_DRAFT.scheduledDate,propertyId:p.id,city:p.city,street:p.street,sqm:String(p.sqm),spaceType:p.space_type});setQuote(null);setScheduling(null);setStep(0)}).catch(()=>{if(!cancelled)setError("Proprietatea nu a putut fi încărcată.")});return()=>{cancelled=true}},[propertyId,approvalId,approvalDate]);
 
   function update<K extends keyof PostJobDraft>(key: K, value: PostJobDraft[K]) {
     setDraft(old => ({ ...old, [key]: value }));

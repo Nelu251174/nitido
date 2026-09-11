@@ -84,6 +84,7 @@ export default function ClientPage() {
   const router = useRouter();
   const { user, loading } = useCurrentUser();
 
+  const [approvalId,setApprovalId]=useState<string|null>(null);
   const [propertyId,setPropertyId]=useState<string|null>(null);
   const requestRef=useRef<{payload:string;id:string}|null>(null);
   const [showBooking,setShowBooking]=useState(false);
@@ -132,6 +133,7 @@ export default function ClientPage() {
     const type=params.get("spaceType");if(type&&["apartament","casa","birou","altul"].includes(type))setSpaceType(type as SpaceType);
     const area=Number(params.get("sqm"));if(Number.isInteger(area)&&area>0&&area<=1000)setSqm(area);
     if(params.get("mode")==="express")setMode("express");
+    const approval=params.get("approvalId");if(approval){void fetch("/api/collaboration").then(r=>r.json()).then(d=>{const a=d.approvals?.find((a:{id:string;status:string})=>a.id===approval&&a.status==='approved');if(!a){setError("Aprobarea nu este disponibilă.");return}setApprovalId(a.id);setWhenType("scheduled");setScheduledDate(new Date(`${a.date}T12:00:00`));setScheduledHour(null)}).catch(()=>setError("Aprobarea nu a putut fi încărcată."))}
     const id=params.get("propertyId");if(id){void fetch("/api/workspace").then(r=>{if(!r.ok)throw new Error();return r.json()}).then(d=>{const p=d.properties.find((p:{id:string})=>p.id===id);if(!p){setError("Proprietatea nu este disponibilă.");return}setPropertyId(p.id);setStreet(p.street);setCity(p.city);setSqm(p.sqm);setSpaceType(p.space_type)}).catch(()=>setError("Proprietatea nu a putut fi încărcată."))}
   },[user?.id,user?.role]);
 
@@ -252,6 +254,7 @@ export default function ClientPage() {
         express60: express60Active,
         photoIds: photos.map((p) => p.id),
         propertyId,
+        approvalId,
       };
       if (whenType === "scheduled") {
         if (scheduledHour === null) {
