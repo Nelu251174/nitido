@@ -72,3 +72,8 @@ Rezervările noi păstrează separat versiunea tarifului existent, parametrii sp
 ### Prețul publicat și instrucțiunile clientului — interfață
 Panoul clientului afișează defalcarea inițială salvată (serviciu, Express, credit și total), cu data înregistrării. Nu recalculează istoricul și nu prezintă totalul inițial drept sumă deja încasată. Pentru rezervări vechi sau înregistrări nevalide, afișează explicit lipsa defalcării. Formularul clientului colectează maximum 500 de caractere de instrucțiuni speciale; serverul validează tipul și lungimea. Instrucțiunile salvate sunt vizibile clientului și firmei alocate în lucrarea activă, nu în oportunitățile publice.
 Catalogul extins, câmpurile structurate pentru camere/băi și extraopțiunile tarifabile rămân deschise.
+
+
+### Editor administrativ pentru catalog — versiuni în pregătire
+În Admin → Catalog există un editor pentru întreținere, generală, după renovare, mutare, birouri și Host. Sunt editabile sarcinile incluse/excluse, echipamentul, localitățile propuse, limitele de suprafață, durata și maximum 30 de extraopțiuni cu unitate și tarif în bani. Un tarif null înseamnă neconfigurat, distinct de zero. Salvarea creează o versiune și o intrare de istoric în aceeași tranzacție; versiunea trimisă de editor previne suprascrierea concurentă. Acces administrativ și origine de mutație validate pe server; auditul salvării este atomic.
+Acestea sunt definiții în pregătire: nu activează categorii, nu schimbă tarifele existente și nu apar încă în rezervări. Verificarea capacității eligibile, publicarea comercială și conectarea extraopțiunilor la ofertare/rezervare rămân deschise. Istoricul este păstrat în baza de date; interfața de comparare/restaurare a versiunilor nu este încă implementată.

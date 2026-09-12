@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import {AdminServiceCatalog} from "@/components/AdminServiceCatalog";
 import {AdminOperations} from "@/components/AdminOperations";
 import {BoardSidebar} from "@/components/BoardSidebar";
 import { Logo, Card, Button, inputClass } from "@/components/ui";
@@ -284,6 +285,7 @@ export default function AdminPage() {
         )}
 
         <section id="catalog">
+          <AdminServiceCatalog/>
           <h2 className="font-display font-bold text-ink mb-3">ESTIMATOR LIVE — tipuri afișate clientului</h2>
           <Card>
             <p className="text-xs text-muted mb-3">Controlezi ce vede clientul în calculatorul de preț de pe prima pagină: schimbi eticheta unui tip sau îl ascunzi/afișezi. Prețul rămâne calculat din tariful oficial.</p>

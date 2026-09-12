@@ -1,3 +1,4 @@
+import { initializeCatalog } from "./serviceCatalog";
 import { PRICING_SNAPSHOT_LOCK_SQL } from "./pricingSnapshot";
 import { WORKSPACE_SCHEMA } from "@/lib/workspace";
 import Database from "better-sqlite3";
@@ -383,6 +384,7 @@ CREATE TABLE IF NOT EXISTS estimator_options (
 
 db.exec(SCHEMA_SQL);
 db.exec(WORKSPACE_SCHEMA);
+initializeCatalog(db);
 
 // Migrare simplă pentru coloane noi adăugate DUPĂ ce baza de date există deja
 // în producție — `CREATE TABLE IF NOT EXISTS` de mai sus nu face nimic pe un
