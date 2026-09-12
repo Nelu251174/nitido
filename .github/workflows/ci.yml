@@ -47,20 +47,10 @@ jobs:
           cache: npm
       - name: Instalează dependențele
         run: npm ci
-      - name: Scanează vulnerabilitățile
-        run: |
-          echo "== Raport securitate dependențe =="
-          npm audit || true
-          echo ""
-          echo "== Rezumat =="
-          crt=$(npm audit --json 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const v=JSON.parse(s).metadata.vulnerabilities;console.log((v.critical||0)+' '+(v.high||0)+' '+(v.moderate||0)+' '+(v.low||0));}catch(e){console.log('0 0 0 0');}})")
-          set -- $crt
-          echo "Critice: $1 | Mari: $2 | Medii: $3 | Mici: $4"
-          if [ "${1:-0}" -gt 0 ] || [ "${2:-0}" -gt 0 ]; then
-            echo "::warning::Robotul de securitate a găsit ${1:-0} vulnerabilități critice și ${2:-0} mari. De reparat într-un task dedicat."
-          else
-            echo "✅ Nicio vulnerabilitate critică sau mare."
-          fi
+      - name: Verifică interpretarea raportului de securitate
+        run: node --test scripts/audit-report.test.mjs
+      - name: Scanează dependențele website și mobile
+        run: node scripts/audit-report.mjs
 
   mobile:
     name: Aplicație mobilă (teste + TypeScript)

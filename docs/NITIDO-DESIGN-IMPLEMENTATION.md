@@ -170,3 +170,9 @@ Eliminată citirea integrală în memorie a bazei/fotografiilor pentru backup ș
 Intrările Contact NITIDO/Suport NITIDO din profilurile Client și Firmă deschid ecranul nativ /contact. Acesta oferă apel telefonic, redactarea emailului, asistentul corespunzător rolului și conversațiile lucrărilor. Pagina Încredere trimite către același ecran. Adresele sunt selectabile, iar imposibilitatea deschiderii aplicației telefon/email este afișată. Emailul nu este trimis automat. Navigarea către asistent și conversații este internă.
 
 Verificare: TypeScript, lint și suita mobilă; apelul și emailul necesită verificare pe dispozitiv. Nu constituie validare integrală a brief-ului.
+
+### Validare securitate — fără rezultate zero inventate
+
+Workflow-ul verifică dependențele website și mobile prin scripts/audit-report.mjs. Lipsa răspunsului, erorile npm/rețea, JSON invalid, câmpurile lipsă și totalurile inconsistente fac verificarea să eșueze; nu mai sunt convertite în zero vulnerabilități. Rezultatele high/critical rămân avertismente explicite conform politicii existente; o rulare verde nu implică absența vulnerabilităților. Patru teste pentru interpretarea raportului și lint trecute local. Auditul real este efectuat în GitHub CI, nu simulat de aceste teste.
+
+Blocaj de build nativ reconfirmat în mobile/app.json: extra.eas.projectId este încă OWNER_EAS_PROJECT_ID_REQUIRED. Validarea pe dispozitive și publicarea nu sunt confirmate.
