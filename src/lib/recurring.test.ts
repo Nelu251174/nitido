@@ -211,4 +211,29 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     expect(listRecurringOccurrences(db,"client_1")).toEqual([]);
   });
 
+  it.each([
+    ["weekly", "2026-01-05", "2026-01-12T06:00:00Z", "2026-01-12", "2026-01-12T08:00:00.000Z"],
+    ["biweekly", "2026-01-05", "2026-01-19T06:00:00Z", "2026-01-19", "2026-01-19T08:00:00.000Z"],
+    ["monthly", "2026-01-31", "2026-03-31T06:00:00Z", "2026-03-31", "2026-03-31T07:00:00.000Z"],
+    ["weekly", "2026-03-22", "2026-03-29T06:00:00Z", "2026-03-29", "2026-03-29T07:00:00.000Z"],
+  ])("resumes %s without discarding today's upcoming visit",async(frequency,startDate,now,date,scheduled)=>{
+    seedClientAndFirm(db);
+    const plan=createRecurringPlan(db,{...basePlan,frequency:frequency as "weekly"|"biweekly"|"monthly",startDate});
+    if(!plan.ok)throw new Error("fixture");
+    setPlanStatus(db,plan.planId,"client_1","paused");
+    expect((await generateDueRecurringJobs(db,new Date(now))).created).toEqual([]);
+    setPlanStatus(db,plan.planId,"client_1","active");
+    const result=await generateDueRecurringJobs(db,new Date(now));
+    expect(result.created).toHaveLength(1);
+    expect(listRecurringOccurrences(db,"client_1")).toMatchObject([{occurrence_date:date,scheduled_at:scheduled}]);
+    expect((await generateDueRecurringJobs(db,new Date(now))).created).toEqual([]);
+    expect(db.prepare("SELECT COUNT(*) n FROM jobs").get()).toEqual({n:1});
+  });
+  it("skips today's elapsed visit after an interruption",async()=>{
+    seedClientAndFirm(db);createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-12T08:00:01Z"))).created).toEqual([]);
+    expect(db.prepare("SELECT next_run_date FROM recurring_plans").get()).toEqual({next_run_date:"2026-01-19"});
+    expect(listRecurringOccurrences(db,"client_1")).toEqual([]);
+  });
+
 });

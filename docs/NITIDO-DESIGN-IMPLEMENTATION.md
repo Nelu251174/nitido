@@ -224,3 +224,9 @@ Endpointul cron existent rămâne disponibil și protejat prin CRON_SECRET; acea
 Coolify sandbox verificat: No scheduled tasks; CRON_SECRET nu apare în lista vizibilă de configurări. Nu este declarată automatizare activă. Imaginea Docker include scripts/recurring-runner.mjs; comanda de sarcină este node /app/scripts/recurring-runner.mjs, propunere de frecvență */5 * * * *. Necesită CRON_SECRET în runtime, identic cu cel verificat de API.
 
 Executabilul apelează exclusiv loopback, nu urmează redirecturi, are timeout 55 secunde și nu afișează cheia sau răspunsuri brute. Orice eroare produce exit 1; numărul de vizite se raportează numai după răspuns valid. Timeout-ul nu anulează o procesare deja începută în server; istoricul trebuie verificat. Patru teste izolate sunt incluse în CI. Nu s-a creat ori activat o sarcină în Coolify și nu s-au generat lucrări reale.
+
+### Scheduler activ și recuperarea vizitei curente
+
+CRON_SECRET a fost generat și salvat numai în runtime Coolify sandbox. Sarcina NITIDO recurring visits este activată la fiecare 5 minute; execuția manuală din 12 septembrie 2026, 10:24:08 UTC, a încheiat cu Success și created=0. Redeploy 76efa50 reușit. Aceste rezultate înlocuiesc constatarea anterioară de scheduler absent; nu validează un flux financiar complet.
+
+Corectată recuperarea după pauză sau întrerupere: se elimină doar aparițiile cu ora deja trecută. Vizita de astăzi cu oră viitoare este generată în aceeași execuție, fără a aștepta următoarea rulare și fără recuperări retroactive. Cinci probe noi acoperă săptămânal, două săptămâni, ancora lunară, schimbarea orei și o vizită deja expirată. 27 teste de recurență, TypeScript și lint trecute local. Publicarea modificării de cod necesită CI verde. Brief-ul integral rămâne deschis.

@@ -185,14 +185,19 @@ export async function generateDueRecurringJobs(
     const claimed=db.transaction(()=>{
       const plan=db.prepare("SELECT * FROM recurring_plans WHERE id=? AND status='active' AND next_run_date=?").get(candidate.id,candidate.next_run_date) as PlanRow|undefined;
       if(!plan)return null;
-      const scheduledAt=bucharestScheduledAt(plan.next_run_date,plan.hour);
-      const next=()=>computeNextDate(plan.frequency,new Date(`${plan.next_run_date}T12:00:00Z`),plan.anchor_day??undefined);
-      if(scheduledAt.getTime()<now.getTime()){
-        let date=next();let skipped=0;
-        while(date<=today&&skipped++<5000)date=computeNextDate(plan.frequency,new Date(`${date}T12:00:00Z`),plan.anchor_day??undefined);
-        db.prepare("UPDATE recurring_plans SET next_run_date=? WHERE id=?").run(date,plan.id);
+      // Skip only elapsed occurrences, preserving an upcoming visit today.
+      let occurrenceDate=plan.next_run_date;
+      let scheduledAt=bucharestScheduledAt(occurrenceDate,plan.hour);
+      while(scheduledAt.getTime()<now.getTime()){
+        occurrenceDate=computeNextDate(plan.frequency,new Date(`${occurrenceDate}T12:00:00Z`),plan.anchor_day??undefined);
+        scheduledAt=bucharestScheduledAt(occurrenceDate,plan.hour);
+      }
+      if(occurrenceDate>today){
+        db.prepare("UPDATE recurring_plans SET next_run_date=? WHERE id=?").run(occurrenceDate,plan.id);
         return null;
       }
+      plan.next_run_date=occurrenceDate;
+      const next=()=>computeNextDate(plan.frequency,new Date(`${occurrenceDate}T12:00:00Z`),plan.anchor_day??undefined);
       const existing=db.prepare("SELECT job_id FROM recurring_occurrences WHERE plan_id=? AND occurrence_date=?").get(plan.id,plan.next_run_date) as {job_id:string}|undefined;
       if(existing){
         db.prepare("UPDATE recurring_plans SET next_run_date=?,last_job_id=? WHERE id=?").run(next(),existing.job_id,plan.id);
