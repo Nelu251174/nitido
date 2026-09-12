@@ -148,3 +148,11 @@ Transferul către evaluare păstrează localitatea, suprafața, observațiile, a
 Transferul este temporar, în memoria aplicației, legat de cont, consumat o singură dată și expirat după zece minute; este șters la deconectare. Ruta conține doar identificatorul transferului, fără adresa sau observațiile clientului. Dacă aplicația este închisă sau transferul expiră, interfața explică necesitatea revenirii la rezervare ori completării manuale. Nu reprezintă salvare offline.
 
 Verificare: 84 de teste mobile; TypeScript și lint. Build-ul nativ și verificarea pe dispozitiv rămân necesare.
+
+### Notificări mobile — stare corectă și reîncercare
+
+Ecranul separă permisiunea sistemului, înregistrarea locală, activarea serviciului PUSH_ENABLED și numărul dispozitivelor active din cont. Un alt dispozitiv activ nu este prezentat drept confirmare pentru telefonul curent. Erorile la citire sunt afișate ca stare necunoscută, fără falsă dezactivare. Sunt disponibile setările telefonului, actualizarea manuală și reverificarea la revenire.
+
+Operațiile simultane sunt blocate. Dezactivarea șterge tokenul local numai după confirmarea explicită a serverului, păstrând reîncercarea la eșec. Înregistrarea inițială cere confirmare explicită înainte de salvarea locală. Nu s-au activat infrastructura push sau SMS și nu se pretinde livrare verificată pe dispozitiv.
+
+Verificare locală: 92 teste mobile, TypeScript și lint. Necesită build nativ și testare pe telefon.
