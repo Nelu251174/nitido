@@ -983,6 +983,7 @@ function ReferralCard({ code, creditBalance }: { code: string; creditBalance: nu
 }
 
 function RecurringSection({ defaults }: { defaults: { street: string; postalCode: string; city: string; floor: string; sqm: number; spaceType: SpaceType } }) {
+  const [occurrences,setOccurrences]=useState<Array<{plan_id:string;occurrence_date:string;job_id:string;scheduled_at:string;status:string;city:string}>>([]);
   const [plans, setPlans] = useState<PlanView[]>([]);
   const [open, setOpen] = useState(false);
   const [frequency, setFrequency] = useState<"weekly" | "biweekly" | "monthly">("weekly");
@@ -996,11 +997,13 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
 
   const load = useCallback(async () => {
     const r = await fetch("/api/recurring");
-    if (r.ok) setPlans((await r.json()).plans ?? []);
+    if(!r.ok)throw new Error("Abonamentele nu au putut fi actualizate.");
+    const data=await r.json();
+    setPlans(data.plans??[]);setOccurrences(data.occurrences??[]);
   }, []);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- încărcare inițială a abonamentelor (client-only)
-    void load();
+    void load().catch(()=>setMsg("Abonamentele nu au putut fi încărcate. Reîncarcă pagina."));
   }, [load]);
 
   async function create() {
@@ -1078,6 +1081,11 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
         </div>
       )}
 
+      <details className="mt-4 border-t border-line pt-3">
+        <summary className="cursor-pointer text-sm font-bold">Vizitele abonamentelor</summary>
+        <p className="text-xs text-muted mt-2">Ultimele 200 de vizite înregistrate, inclusiv din abonamente anulate. Lucrările istorice fără legătură înregistrată rămân în Rezervări.</p>
+        {occurrences.length===0?<p className="text-sm mt-3">Nicio vizită înregistrată în acest istoric.</p>:<ul className="divide-y divide-line">{occurrences.map(visit=><li key={visit.job_id} className="py-3 flex flex-wrap justify-between gap-3 text-sm"><span>{new Intl.DateTimeFormat("ro-RO",{timeZone:"Europe/Bucharest",dateStyle:"medium",timeStyle:"short"}).format(new Date(visit.scheduled_at))} · {visit.city}<span className="block text-xs text-muted">{JOB_STATUS[visit.status]??visit.status}</span></span><a className="font-bold text-aqua-deep" href={`/client?jobId=${encodeURIComponent(visit.job_id)}`}>Deschide rezervarea</a></li>)}</ul>}
+      </details>
       {open && (
         <div className="mt-4 border-t border-line pt-4">
           <p className="text-[11px] text-muted mb-2">

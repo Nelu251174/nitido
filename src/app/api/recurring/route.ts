@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getClientCardInfo } from "@/lib/clientPayments";
-import { validateRecurringPlan, type RecurringPlanInput, createRecurringPlan, listPlansForClient, generateDueRecurringJobs } from "@/lib/recurring";
+import { validateRecurringPlan, type RecurringPlanInput, createRecurringPlan, listPlansForClient, listRecurringOccurrences, generateDueRecurringJobs } from "@/lib/recurring";
 import type { SpaceType } from "@/lib/pricing";
 
 // GET — abonamentele clientului. Rulează întâi generarea lucrărilor scadente
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     // Generarea eșuată nu trebuie să blocheze afișarea abonamentelor.
     console.error("[recurring] generate_on_view_failed");
   }
-  return NextResponse.json({ plans: listPlansForClient(db, user.id) },{headers:{"Cache-Control":"private, no-store"}});
+  return NextResponse.json({ plans: listPlansForClient(db, user.id), occurrences:listRecurringOccurrences(db,user.id) },{headers:{"Cache-Control":"private, no-store"}});
 }
 
 // POST — creează un abonament recurent.

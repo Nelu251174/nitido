@@ -204,3 +204,11 @@ Planurile anulate nu pot fi reactivate sau puse pe pauză prin API; anularea rep
 Crearea abonamentului validează tipurile și lungimile înainte de verificarea cardului. Suprafețele peste 1000 m² sunt respinse cu necesitatea evaluării; nu se mai convertesc șiruri/booleeni în suprafețe sau ore și nu se trunchiază observațiile. Ancora lunară se salvează în inserarea inițială. Crearea și schimbarea stării verifică originea după autentificare, limitează frecvența și corpul JSON; identitatea clientului vine din sesiune.
 
 24 de teste țintite trecute (18 recurență, 6 API), inclusiv acces, origine străină, limite și absența operațiunilor la input invalid. Generarea la citirea listei rămâne comportamentul existent; nu se declară rezolvarea schedulerului, a vizitelor deja generate ori a autorizării financiare în avans. Planurile istorice nu sunt rescrise automat.
+
+### Istoricul persistent al vizitelor recurente
+
+Tabela aditivă recurring_occurrences leagă planul, data apariției, lucrarea și momentul programat. Perechea plan/data și ID-ul lucrării sunt unice. Inserarea lucrării, evidența apariției și avansarea seriei sunt într-o tranzacție; o eroare nu lasă lucrarea fără legătură. Reluarea unei date deja înregistrate nu generează o a doua lucrare și nu repetă acceptarea/plata.
+
+Contul clientului afișează ultimele 200 de vizite înregistrate, cu ora București, status operațional și deschiderea rezervării. Sunt incluse seriile anulate; accesul verifică titularul planului și al lucrării. Nu se deduc legături pentru istoricul vechi din last_job_id. Schema nouă poate rămâne la rollback de cod; nu trebuie ștearsă pentru revenire.
+
+28 teste țintite trecute, inclusiv rollback SQLite, reluarea datei, istoric după anulare și izolarea clientului. Nu reprezintă verificare distribuită sau rezolvarea anulării financiare a vizitelor, a pauzelor pe interval ori a generării în avans. Verificarea vizuală autentificată rămâne necesară.

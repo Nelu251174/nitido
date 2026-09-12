@@ -138,6 +138,15 @@ export function listPlansForClient(db: Database, clientId: string) {
     .all(clientId);
 }
 
+/** Historicul demonstrabil, inclusiv seriile anulate; fără backfill presupus. */
+export function listRecurringOccurrences(db:Database,clientId:string){
+  return db.prepare(`SELECT o.plan_id,o.occurrence_date,o.job_id,o.scheduled_at,j.status,j.city
+    FROM recurring_occurrences o JOIN recurring_plans p ON p.id=o.plan_id
+    JOIN jobs j ON j.id=o.job_id
+    WHERE p.client_id=? AND j.client_id=p.client_id
+    ORDER BY o.occurrence_date DESC,o.created_at DESC,o.job_id DESC LIMIT 200`).all(clientId);
+}
+
 export function setPlanStatus(
   db: Database,
   planId: string,
@@ -184,9 +193,15 @@ export async function generateDueRecurringJobs(
         db.prepare("UPDATE recurring_plans SET next_run_date=? WHERE id=?").run(date,plan.id);
         return null;
       }
+      const existing=db.prepare("SELECT job_id FROM recurring_occurrences WHERE plan_id=? AND occurrence_date=?").get(plan.id,plan.next_run_date) as {job_id:string}|undefined;
+      if(existing){
+        db.prepare("UPDATE recurring_plans SET next_run_date=?,last_job_id=? WHERE id=?").run(next(),existing.job_id,plan.id);
+        return null;
+      }
       const jobId=`job_${randomUUID()}`;
       db.prepare(`INSERT INTO jobs(id,client_id,street,postal_code,city,floor,details,sqm,space_type,when_type,scheduled_at,price_gross,credit_applied,duration_minutes,buffer_minutes,photos_count,mode,status)
         VALUES(?,?,?,?,?,?,?,?,?,'scheduled',?,?,0,?,?,0,'express','waiting')`).run(jobId,plan.client_id,plan.street,plan.postal_code,plan.city,plan.floor,plan.details,plan.sqm,plan.space_type,scheduledAt.toISOString(),calcGrossPrice(plan.space_type,plan.sqm),calcDurationMinutes(plan.sqm),BUFFER_MINUTES);
+      db.prepare("INSERT INTO recurring_occurrences(plan_id,occurrence_date,job_id,scheduled_at) VALUES(?,?,?,?)").run(plan.id,plan.next_run_date,jobId,scheduledAt.toISOString());
       db.prepare("UPDATE recurring_plans SET next_run_date=?,last_job_id=? WHERE id=?").run(next(),jobId,plan.id);
       return {jobId,preferredFirmId:plan.preferred_firm_id};
     })();

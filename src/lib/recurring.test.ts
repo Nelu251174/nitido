@@ -8,6 +8,7 @@ import {
   bucharestScheduledAt,
   generateDueRecurringJobs,
   listPlansForClient,
+  listRecurringOccurrences,
   setPlanStatus,
 } from "./recurring";
 
@@ -179,6 +180,35 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     const result=createRecurringPlan(db,{...basePlan,frequency:"monthly",startDate:"2026-01-31"});
     expect(result.ok).toBe(true);
     expect(db.prepare("SELECT anchor_day FROM recurring_plans").get()).toEqual({anchor_day:31});
+  });
+
+  it("records each occurrence and protects against resetting the series cursor",async()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});if(!plan.ok)throw new Error("fixture");
+    const first=await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"));
+    db.prepare("UPDATE recurring_plans SET next_run_date='2026-01-05' WHERE id=?").run(plan.planId);
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"))).created).toEqual([]);
+    expect(db.prepare("SELECT COUNT(*) n FROM jobs").get()).toEqual({n:1});
+    expect(listRecurringOccurrences(db,"client_1")).toMatchObject([{plan_id:plan.planId,job_id:first.created[0],occurrence_date:"2026-01-05",scheduled_at:"2026-01-05T08:00:00.000Z"}]);
+  });
+  it("rolls back job creation and cursor when occurrence persistence fails",async()=>{
+    seedClientAndFirm(db);createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});
+    db.exec("CREATE TRIGGER fail_occurrence BEFORE INSERT ON recurring_occurrences BEGIN SELECT RAISE(ABORT,'simulated storage failure'); END");
+    await expect(generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"))).rejects.toThrow(/simulated/);
+    expect(db.prepare("SELECT COUNT(*) n FROM jobs").get()).toEqual({n:0});
+    expect(db.prepare("SELECT next_run_date,last_job_id FROM recurring_plans").get()).toEqual({next_run_date:"2026-01-05",last_job_id:null});
+  });
+  it("retains cancelled series history and isolates owners",async()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});if(!plan.ok)throw new Error("fixture");
+    await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"));
+    setPlanStatus(db,plan.planId,"client_1","cancelled");
+    expect(listRecurringOccurrences(db,"client_1")).toHaveLength(1);
+    expect(listRecurringOccurrences(db,"other")).toEqual([]);
+  });
+  it("does not infer an occurrence from a legacy last-job pointer",async()=>{
+    seedClientAndFirm(db);createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});
+    await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"));
+    db.exec("DELETE FROM recurring_occurrences");
+    expect(listRecurringOccurrences(db,"client_1")).toEqual([]);
   });
 
 });
