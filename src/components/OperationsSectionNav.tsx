@@ -9,6 +9,7 @@ export function OperationsSectionNav({screen}:{screen:'host'|'business'}){
  {label:'Integrări',href:'#calendar-import',icon:'calendar'},
  ]:[
  {label:'Portofoliu',href:'#locatii',icon:'building'},
+ {label:'Calendar',href:'#calendar-business',icon:'calendar'},
  {label:'Aprobări',href:'#aprobari',icon:'check'},
  {label:'Bugete',href:'#bugete',icon:'chart'},
  {label:'Documente',href:'#rapoarte',icon:'briefcase'},

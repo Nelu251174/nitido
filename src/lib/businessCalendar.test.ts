@@ -1,0 +1,12 @@
+import {it,expect} from 'vitest';
+import {businessCalendarJobs,businessJobEnd,businessJobOnDay} from './businessCalendar';
+import type {JobRow} from './types';
+const job=(id:string,extra:Partial<JobRow>={})=>({id,status:'accepted',accepted_firm_id:'f',scheduled_at:'2026-09-12T20:30:00Z',duration_minutes:120,...extra}) as JobRow;
+const locations=[{id:'p',kind:'business',name:'Birou'},{id:'home',kind:'home',name:'Acasă'}];
+const links=[{property_id:'p',job_id:'a'},{property_id:'p',job_id:'a'},{property_id:'home',job_id:'b'},{property_id:'missing',job_id:'c'}];
+const filters={location:'',firm:'',status:''};
+it('shows only linked business jobs and deduplicates links',()=>{const rows=businessCalendarJobs([job('a'),job('b'),job('c'),job('unlinked')],locations,links,filters);expect(rows.map(r=>r.job.id)).toEqual(['a']);expect(rows[0].locations).toHaveLength(1)});
+it('combines location firm and status filters',()=>{expect(businessCalendarJobs([job('a')],locations,links,{location:'p',firm:'f',status:'accepted'})).toHaveLength(1);for(const filter of [{location:'other'},{firm:'other'},{firm:'unassigned'},{status:'completed'}])expect(businessCalendarJobs([job('a')],locations,links,{...filters,...filter})).toHaveLength(0);expect(businessCalendarJobs([job('a',{accepted_firm_id:null})],locations,links,{...filters,firm:'unassigned'})).toHaveLength(1)});
+it('includes both Romanian days for work crossing midnight',()=>{expect(businessJobOnDay(job('a'),'2026-09-12')).toBe(true);expect(businessJobOnDay(job('a'),'2026-09-13')).toBe(true);expect(businessJobOnDay(job('a'),'2026-09-14')).toBe(false)});
+it('does not include the next day for an exclusive midnight end',()=>{expect(businessJobOnDay(job('a',{duration_minutes:30}),'2026-09-13')).toBe(false)});
+it('keeps unscheduled and invalid intervals out of the calendar',()=>{for(const extra of [{scheduled_at:null},{scheduled_at:'bad'},{duration_minutes:0},{duration_minutes:Infinity}]){expect(businessJobEnd(job('a',extra))).toBeNull();expect(businessJobOnDay(job('a',extra),'2026-09-12')).toBe(false)}});

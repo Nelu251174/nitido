@@ -19,7 +19,8 @@ export async function GET(req:NextRequest){
  const checklist=db.prepare("SELECT c.* FROM workspace_checklist c JOIN jobs j ON j.id=c.job_id LEFT JOIN firms f ON f.id=j.accepted_firm_id WHERE j.client_id=? OR f.user_id=?").all(user.id,user.id);
  const events=user.role==="client"?db.prepare("SELECT e.*,p.name AS property_name FROM workspace_calendar_events e JOIN workspace_properties p ON p.id=e.property_id WHERE p.owner_id=? AND p.archived=0 ORDER BY e.starts_at").all(user.id):[];
  const propertyJobs=user.role==="client"?db.prepare(`SELECT pj.* FROM workspace_property_jobs pj JOIN workspace_properties p ON p.id=pj.property_id JOIN jobs j ON j.id=pj.job_id WHERE p.owner_id=? AND j.client_id=? AND p.archived=0`).all(user.id,user.id):[];
- return response({inventoryHistory:user.role==="client"?inventoryHistory(db,user.id):[],inventory:user.role==="client"?hostInventory(db,user.id):[],blocks:firm?teamBlocks(db,user.id):[],properties,teams,assignments,checklist,events,propertyJobs,hostChecks:user.role==="client"?hostChecks(db,user.id):[]});
+ const firms=user.role==='client'?db.prepare(`SELECT DISTINCT f.id,u.name FROM firms f JOIN users u ON u.id=f.user_id JOIN jobs j ON j.accepted_firm_id=f.id WHERE j.client_id=? ORDER BY u.name`).all(user.id):[];
+ return response({firms,inventoryHistory:user.role==="client"?inventoryHistory(db,user.id):[],inventory:user.role==="client"?hostInventory(db,user.id):[],blocks:firm?teamBlocks(db,user.id):[],properties,teams,assignments,checklist,events,propertyJobs,hostChecks:user.role==="client"?hostChecks(db,user.id):[]});
 }
 export async function POST(req:NextRequest){
  const user=await getCurrentUser(req);if(!user)return response({error:"Autentificare nécessaire"},401);

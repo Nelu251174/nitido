@@ -149,6 +149,15 @@ export default function ClientPage() {
     if (!response.ok) return;
     const data = await response.json();
     setMyJobs(data.jobs ?? []);
+    const params = new URLSearchParams(window.location.search);
+    const requestedJob = params.get("jobId");
+    if (requestedJob) {
+      const ownedJob = (data.jobs ?? []).find((item: JobRow) => item.id === requestedJob);
+      if (ownedJob) { setJob(ownedJob); setShowBooking(false); }
+      else setError("Rezervarea nu este disponibilă în contul tău.");
+      params.delete("jobId");
+      window.history.replaceState({}, "", `/client${params.size ? `?${params}` : ""}${window.location.hash}`);
+    }
   }, []);
 
   useEffect(() => {
