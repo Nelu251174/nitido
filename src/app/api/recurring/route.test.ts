@@ -1,11 +1,11 @@
 import {beforeEach,describe,it,expect,vi} from 'vitest';
 import {NextRequest} from 'next/server';
-const mocks=vi.hoisted(()=>({user:vi.fn(),rate:vi.fn(),card:vi.fn(),create:vi.fn(),change:vi.fn(),generate:vi.fn(),plans:vi.fn(),occurrences:vi.fn(),pause:vi.fn()}));
+const mocks=vi.hoisted(()=>({user:vi.fn(),rate:vi.fn(),card:vi.fn(),create:vi.fn(),change:vi.fn(),generate:vi.fn(),plans:vi.fn(),occurrences:vi.fn(),pause:vi.fn(),removePause:vi.fn()}));
 vi.mock('@/lib/auth',()=>({getCurrentUser:mocks.user}));
 vi.mock('@/lib/db',()=>({db:{}}));
 vi.mock('@/lib/clientPayments',()=>({getClientCardInfo:mocks.card}));
 vi.mock('@/lib/security',async original=>({...await original<typeof import('@/lib/security')>(),consumeRateLimit:mocks.rate}));
-vi.mock('@/lib/recurring',async original=>({...await original<typeof import('@/lib/recurring')>(),createRecurringPlan:mocks.create,setPlanStatus:mocks.change,schedulePlanPause:mocks.pause,generateDueRecurringJobs:mocks.generate,listPlansForClient:mocks.plans,listRecurringOccurrences:mocks.occurrences}));
+vi.mock('@/lib/recurring',async original=>({...await original<typeof import('@/lib/recurring')>(),createRecurringPlan:mocks.create,setPlanStatus:mocks.change,schedulePlanPause:mocks.pause,removePlanPause:mocks.removePause,generateDueRecurringJobs:mocks.generate,listPlansForClient:mocks.plans,listRecurringOccurrences:mocks.occurrences}));
 import {GET,POST} from './route';
 import {POST as change} from './[id]/route';
 const req=(body='{}',origin='https://sandbox.nitido.ro')=>new NextRequest('https://sandbox.nitido.ro/api/recurring',{method:'POST',body,headers:{origin,'content-type':'application/json'}});
@@ -39,6 +39,17 @@ describe('recurring request boundaries',()=>{
    expect(mocks.card).not.toHaveBeenCalled();
    expect((await POST(req(JSON.stringify({...input,endDate:'2026-10-31'})))).status).toBe(201);
    expect(mocks.create).toHaveBeenCalledWith({},expect.objectContaining({endDate:'2026-10-31'}));
+ });
+
+ it('removing a pause uses session ownership and rejects stale intervals and foreign origins',async()=>{
+   mocks.removePause.mockReturnValue({ok:true,planId:'p'});
+   const body=JSON.stringify({action:'remove_pause',clientId:'foreign',startDate:'2026-10-01',endDate:'2026-10-15'});
+   expect((await change(req(body,'https://foreign.example'),params)).status).toBe(403);
+   expect(mocks.removePause).not.toHaveBeenCalled();
+   expect((await change(req(body),params)).status).toBe(200);
+   expect(mocks.removePause).toHaveBeenCalledWith({},'p','c','2026-10-01','2026-10-15');
+   mocks.removePause.mockReturnValue({ok:false,status:409,error:'Updated interval'});
+   expect((await change(req(body),params)).status).toBe(409);
  });
 
 });

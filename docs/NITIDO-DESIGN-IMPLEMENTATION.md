@@ -274,3 +274,9 @@ Resetarea salvează parola, invalidează toate linkurile de resetare ale titular
 API-ul validează originea, corpul JSON, dimensiunea și emailul înainte de căutarea contului. Necesită email configurat și domeniu HTTPS fără credențiale; nu folosește originea cererii pentru link. Mesajul rezultat este neutru pentru cont inexistent și pentru rezultatele trimiterii și nu promite livrarea. Tentativa eșuată este eliminată individual, păstrând linkurile anterioare și auditul linkurilor consumate.
 
 Linkurile noi folosesc fragmentul URL. Pagina acceptă și query-ul vechi, apoi elimină tokenul din adresă păstrându-l în memoria formularului; o reîncărcare necesită redeschiderea linkului din email. Trimiterea simultană a formularului este blocată local. 33 teste țintite trecute în total, inclusiv 16 noi pentru validare, configurație, răspunsuri și eliminare selectivă. Nu s-au trimis emailuri ori schimbat parole reale pentru aceste teste. CI și deployment se confirmă separat.
+
+### Eliminarea pauzei programate
+
+Clientul poate elimina intervalul afișat prin Elimină pauza programată, după confirmarea efectelor. API-ul verifică titularul și intervalul într-o tranzacție; o pauză modificată între timp produce 409. Reîncercarea după eliminare este idempotentă. Planul anulat nu se reactivează, iar pauza generală rămâne neschimbată. Vizitele, plățile și cursorul seriei nu sunt modificate: datele deja omise nu se recreează.
+
+53 teste recurență/API și lint trecute local, inclusiv 4 probe noi. Publicarea necesită CI verde; verificarea vizuală în cont autentificat rămâne separată. Acțiunea nu reprezintă anularea coordonată a vizitelor deja generate sau finalizarea recurenței integrale.

@@ -1057,6 +1057,19 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
     }catch(error){setMsg(error instanceof Error?error.message:"Pauza nu a fost confirmată.")}
     finally{statusLock.current=false;setStatusBusy(false)}
   }
+  async function removePause(plan: PlanView) {
+    if(statusLock.current||busy||!plan.pause_start||!plan.pause_end)return;
+    if(!window.confirm(`Elimini pauza ${plan.pause_start} – ${plan.pause_end}? Vizitele și plățile existente nu se modifică. Datele deja omise nu se recreează. Dacă abonamentul este pe pauză generală, trebuie să apeși separat Reia.`))return;
+    statusLock.current=true;setStatusBusy(true);setMsg(null);
+    try{
+      const response=await fetch(`/api/recurring/${encodeURIComponent(plan.id)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"remove_pause",startDate:plan.pause_start,endDate:plan.pause_end})});
+      const result=await response.json();
+      if(!response.ok||result.ok!==true)throw new Error(result.error||"Eliminarea pauzei nu a fost confirmată.");
+      setMsg("Pauza programată a fost eliminată. Nu au fost modificate vizite sau plăți și nu au fost recreate date omise.");
+      try{await load()}catch{setMsg("Pauza a fost eliminată, dar lista nu s-a reîncărcat. Reîncarcă pagina pentru starea curentă.")}
+    }catch(error){setMsg(error instanceof Error?error.message:"Eliminarea nu a fost confirmată. Reîncarcă lista înainte de a reîncerca.")}
+    finally{statusLock.current=false;setStatusBusy(false)}
+  }
   async function changeStatus(id: string, status: string) {
     if(statusLock.current)return;
     const explanation=status==="cancelled"
@@ -1096,7 +1109,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
               <span className="w-10 h-10 rounded-lg bg-[#e8f5f2] flex items-center justify-center text-[#115e59] font-bold">↻</span>
               <span className="min-w-0 flex-1">
                 {p.end_date&&<span className="block text-xs text-muted">Ultima zi a seriei: {p.end_date} inclusiv</span>}
-                {p.pause_start&&p.pause_end&&<span className="block text-xs text-aqua-deep">Pauză programată: {p.pause_start} – {p.pause_end} inclusiv</span>}
+                {p.pause_start&&p.pause_end&&<span className="block text-xs text-aqua-deep">Pauză programată: {p.pause_start} – {p.pause_end} inclusiv<button type="button" disabled={statusBusy||busy} onClick={()=>void removePause(p)} className="block mt-2 underline disabled:opacity-50">Elimină pauza programată</button></span>}
                 <b className="text-sm block truncate">{FREQ_LABELS[p.frequency]} · {p.space_type} · {p.city}</b>
                 <span className="text-xs text-[#6b756f]">{p.end_date&&p.next_run_date>p.end_date?"Serie încheiată":`Următoarea: ${p.next_run_date}`} · {p.status === "active" ? "activ" : p.status === "paused" ? "pe pauză" : p.status}</span>
               </span>

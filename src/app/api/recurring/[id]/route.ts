@@ -2,7 +2,7 @@ import {consumeRateLimit,hasTrustedMutationOrigin} from "@/lib/security";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { setPlanStatus, schedulePlanPause } from "@/lib/recurring";
+import { setPlanStatus, schedulePlanPause, removePlanPause } from "@/lib/recurring";
 
 // POST — schimbă starea abonamentului (pauză / reactivare / anulare).
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -20,6 +20,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   if(b.action==="pause_interval"){
     const result=schedulePlanPause(db,id,user.id,b.startDate,b.endDate);
+    return NextResponse.json(result.ok?{ok:true}:{error:result.error},{status:result.ok?200:result.status});
+  }
+  if(b.action==="remove_pause"){
+    const result=removePlanPause(db,id,user.id,b.startDate,b.endDate);
     return NextResponse.json(result.ok?{ok:true}:{error:result.error},{status:result.ok?200:result.status});
   }
   if(b.action!==undefined)return NextResponse.json({error:"Action invalidă"},{status:400});

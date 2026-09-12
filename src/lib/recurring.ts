@@ -180,6 +180,21 @@ export function schedulePlanPause(db:Database,planId:string,clientId:string,star
   })();
 }
 
+/** Remove the interval displayed by the client without changing any occurrence. */
+export function removePlanPause(db:Database,planId:string,clientId:string,start:unknown,end:unknown):PlanResult {
+  if(typeof start!=="string"||typeof end!=="string"||!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end))return {ok:false,status:400,error:"Interval de pauză invalid"};
+  return db.transaction(():PlanResult=>{
+    const plan=db.prepare("SELECT status FROM recurring_plans WHERE id=? AND client_id=?").get(planId,clientId) as {status:string}|undefined;
+    if(!plan)return {ok:false,status:404,error:"Abonament inexistent"};
+    if(plan.status==="cancelled")return {ok:false,status:409,error:"Abonamentul este anulat și nu poate fi reluat."};
+    const pause=db.prepare("SELECT start_date,end_date FROM recurring_pauses WHERE plan_id=?").get(planId) as {start_date:string;end_date:string}|undefined;
+    if(!pause)return {ok:true,planId};
+    if(pause.start_date!==start||pause.end_date!==end)return {ok:false,status:409,error:"Pauza a fost modificată între timp. Reîncarcă lista și verifică intervalul."};
+    db.prepare("DELETE FROM recurring_pauses WHERE plan_id=?").run(planId);
+    return {ok:true,planId};
+  })();
+}
+
 export function setPlanStatus(
   db: Database,
   planId: string,
