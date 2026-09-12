@@ -12,18 +12,23 @@ export default function ResetParolaPage() {
 
   // Citim token-ul din URL fără useSearchParams (evită cerința de Suspense la build).
   useEffect(() => {
-    if (tokenRead.current) return;
-    tokenRead.current = true;
-    const url = new URL(window.location.href);
-    const rawToken = url.hash.slice(1) || url.searchParams.get("token");
-    url.hash = "";
-    url.searchParams.delete("token");
-    window.history.replaceState(window.history.state, "", url.pathname + url.search);
-    queueMicrotask(() => { setToken(rawToken); setReady(true); });
+    function readLink() {
+      const url = new URL(window.location.href);
+      const rawToken = url.hash.slice(1) || url.searchParams.get("token");
+      if (!rawToken && tokenRead.current) return;
+      tokenRead.current = true;
+      url.hash = "";
+      url.searchParams.delete("token");
+      window.history.replaceState(window.history.state, "", url.pathname + url.search);
+      queueMicrotask(() => { setToken(rawToken); setReady(true); });
+    }
+    readLink();
+    window.addEventListener("hashchange", readLink);
+    return () => window.removeEventListener("hashchange", readLink);
   }, []);
 
   if (!ready) return <AuthLayout><p className="text-sm text-muted">Se încarcă...</p></AuthLayout>;
-  return token ? <SetNewPassword token={token} /> : <RequestLink />;
+  return token ? <SetNewPassword key={token} token={token} /> : <RequestLink />;
 }
 
 // --- Pasul 1: cere link pe email ---
