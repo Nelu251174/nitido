@@ -1,3 +1,4 @@
+import {EMAIL_VERIFICATION_SCHEMA} from "./emailVerification";
 import { ASSESSMENT_SCHEMA } from "./assessments";
 import { CATALOG_CAPACITY_SCHEMA } from "./catalogCapacity";
 import { initializeCatalog } from "./serviceCatalog";
@@ -389,6 +390,7 @@ db.exec(WORKSPACE_SCHEMA);
 initializeCatalog(db);
 db.exec(CATALOG_CAPACITY_SCHEMA);
 db.exec(ASSESSMENT_SCHEMA);
+db.exec(EMAIL_VERIFICATION_SCHEMA);
 
 // Migrare simplă pentru coloane noi adăugate DUPĂ ce baza de date există deja
 // în producție — `CREATE TABLE IF NOT EXISTS` de mai sus nu face nimic pe un

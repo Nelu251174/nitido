@@ -1,4 +1,5 @@
 "use client";
+import {EmailVerificationNotice} from "@/components/EmailVerificationNotice";
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -382,6 +383,7 @@ export default function FirmaPage() {
           </div>
         </section>
 
+        <EmailVerificationNotice/>
         <FirmSummary jobs={myJobs}/></div><section id="lucrari-active">
           <h2 className="font-display font-bold text-ink mb-3">Lucrări active</h2><Link href="/firma/executie" className="v2-btn v2-btn-primary mb-4">Fotografii la sosire / final și încasare</Link>
           {activeJobs.length === 0 && (

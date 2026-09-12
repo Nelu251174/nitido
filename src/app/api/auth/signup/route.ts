@@ -6,7 +6,8 @@ import { isPlausibleCui, sanitizeCui, verifyCuiWithAnaf } from "@/lib/cui";
 import { sanitizeCoverageCitiesInput } from "@/lib/text";
 import { generateReferralCode, REFERRAL_BONUS_LEI } from "@/lib/referral";
 import { consumeRateLimit, requestIp } from "@/lib/security";
-import { emailConfigured, sendEmail } from "@/lib/email";
+import {sendVerificationEmail} from "@/lib/emailVerification";
+import { emailConfigured } from "@/lib/email";
 
 // Înregistrare — spec secțiunea 4.1 (client) și secțiunea 4, punct 1 (firmă:
 // "date firmă, zonă de acoperire, tipuri de lucrări acceptate").
@@ -135,29 +136,7 @@ export async function POST(req: NextRequest) {
     ).run(firmId, userId, sanitizeCui(cui!), coverageCity, citiesExtra || null, verified);
   }
 
-  // Await the provider response; account creation remains successful if delivery fails.
-  const escapeHtml = (value: string) => value.replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]!));
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://nitido.ro";
-  const dashboardPath = role === "firma" ? "/firma" : "/client";
-  const welcomeEmailSent = await sendEmail({
-    to: email,
-    subject: "Bun venit la NITIDO — contul tău a fost creat",
-    html: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a">
-      <h1 style="font-size:22px;margin:0 0 12px">Bine ai venit, ${escapeHtml(name)}!</h1>
-      <p style="font-size:15px;line-height:1.6;margin:0 0 12px">
-        Contul tău <strong>NITIDO</strong> (${role === "firma" ? "firmă" : "client"}) a fost creat cu succes.
-      </p>
-      <p style="font-size:15px;line-height:1.6;margin:0 0 20px">
-        Te poți conecta oricând cu adresa <strong>${escapeHtml(email)}</strong> și parola aleasă la înregistrare.
-      </p>
-      <p style="margin:0 0 24px">
-        <a href="${siteUrl}${dashboardPath}" style="display:inline-block;background:#1b8a4c;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:bold">Deschide contul</a>
-      </p>
-      <p style="font-size:12px;color:#777;line-height:1.5;margin:0">
-        Dacă nu ai creat tu acest cont, ignoră acest mesaj sau scrie-ne la ${siteUrl.replace(/^https?:\/\//, "")}.
-      </p>
-    </div>`,
-  });
+  const welcomeEmailSent = await sendVerificationEmail(db, userId);
   if (!welcomeEmailSent) console.error("signup_welcome_email_failed", { configured: emailConfigured(), userId });
 
   const sessionToken = await createSession(userId);
