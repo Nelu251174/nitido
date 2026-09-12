@@ -1,3 +1,4 @@
+import {previewPropertyImport,commitPropertyImport} from "@/lib/propertyImport";
 import { hasTrustedMutationOrigin } from "@/lib/security";
 import { NextRequest,NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
@@ -35,6 +36,8 @@ export async function POST(req:NextRequest){
    case "inventory.threshold":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);setInventoryThreshold(db,user.id,requireText(b.itemId,"Articol"),Number(b.threshold));break;
    case "inventory.move":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);moveInventory(db,user.id,requireText(b.itemId,"Articol"),Number(b.delta),requireText(b.note,"Motiv"),requireText(b.requestKey,"Identificator",100));break;
    case "host.check":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);if(typeof b.done!=="boolean")throw new WorkspaceError("Stare invalidă");setHostCheck(db,user.id,requireText(b.eventId,"Sejur"),requireText(b.turnoverAt,"Eliberare"),requireText(b.key,"Verificare"),b.done);break;
+   case "property.preview":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);return response(previewPropertyImport(db,user.id,b.csv));
+   case "property.import":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);return response(commitPropertyImport(db,user.id,b.csv));
    case "property.save":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);return response({id:saveProperty(db,user.id,b)});
    case "property.link":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);linkPropertyJob(db,user.id,requireText(b.propertyId,"Proprietate"),requireText(b.jobId,"Lucrare"));break;
    case "calendar.import":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);return response({count:importCalendar(db,user.id,requireText(b.propertyId,"Proprietate"),requireText(b.source,"Sursă"),requireText(b.ical,"Calendar",1_000_000))});

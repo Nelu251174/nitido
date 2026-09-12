@@ -1,0 +1,15 @@
+import {beforeEach,afterEach,it,expect} from 'vitest';
+import Database from 'better-sqlite3';
+import {SCHEMA_SQL} from './db';
+import {WORKSPACE_SCHEMA} from './workspace';
+import {PROPERTY_CSV_HEADER,previewPropertyImport,commitPropertyImport} from './propertyImport';
+let db:Database.Database;
+beforeEach(()=>{db=new Database(':memory:');db.exec(SCHEMA_SQL);db.exec(WORKSPACE_SCHEMA);db.exec("INSERT INTO users(id,role,name) VALUES('a','client','A'),('b','client','B'),('f','firma','F')")});afterEach(()=>db.close());
+const line='Birou,București,Strada 1,100,birou,business,Office,123.45,Note';
+const csv=(...rows:string[])=>PROPERTY_CSV_HEADER+'\r\n'+rows.join('\r\n');
+it('previews without writes and atomically imports valid rows',()=>{expect(previewPropertyImport(db,'a',csv(line)).rows[0].status).toBe('new');expect(db.prepare('SELECT COUNT(*) n FROM workspace_properties').get()).toEqual({n:0});expect(commitPropertyImport(db,'a',csv(line))).toEqual({created:1,skipped:0});expect(db.prepare('SELECT budget_bani FROM workspace_properties').get()).toEqual({budget_bani:12345})});
+it('deduplicates retries and repeated rows without exposing other owners',()=>{expect(commitPropertyImport(db,'a',csv(line,line))).toEqual({created:1,skipped:1});expect(commitPropertyImport(db,'a',csv(line))).toEqual({created:0,skipped:1});expect(previewPropertyImport(db,'b',csv(line)).rows[0].status).toBe('new');expect(()=>commitPropertyImport(db,'f',csv(line))).toThrow()});
+it('blocks the entire batch when a row is invalid',()=>{const data=csv(line,line.replace('100,birou','0,birou'));expect(previewPropertyImport(db,'a',data).rows[1].errors.length).toBeGreaterThan(0);expect(()=>commitPropertyImport(db,'a',data)).toThrow();expect(db.prepare('SELECT COUNT(*) n FROM workspace_properties').get()).toEqual({n:0})});
+it('supports BOM, quoted commas, escaped quotes and multiline notes',()=>{const data='\uFEFF'+csv('"Birou, A",București,Strada 1,100,birou,business,,0,"Linia 1\nNota ""doi"""');commitPropertyImport(db,'a',data);expect(db.prepare('SELECT name,notes FROM workspace_properties').get()).toEqual({name:'Birou, A',notes:'Linia 1\nNota "doi"'})});
+it('rejects invalid syntax, headers, limits and malformed budgets',()=>{for(const data of ['x',csv('"unfinished'),csv(line)+'\n'.repeat(202),'x'.repeat(500001)])expect(()=>previewPropertyImport(db,'a',data)).toThrow();expect(previewPropertyImport(db,'a',csv(line.replace('123.45','1e3'))).rows[0].status).toBe('invalid')});
+it('revalidates duplicates at commit time after another import',()=>{previewPropertyImport(db,'a',csv(line));commitPropertyImport(db,'a',csv(line));expect(commitPropertyImport(db,'a',csv(line))).toEqual({created:0,skipped:1})});
