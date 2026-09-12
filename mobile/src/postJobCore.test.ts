@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "./apiCore";
-import { buildCreatePayload, canAddPhoto, EMPTY_DRAFT, isDateAllowed, isSlotAllowed, nextPostStep, postJobError, previousPostStep, quoteMatchesDraft, validateSqm, type JobQuote, type PostJobDraft } from "./postJobCore";
+import { buildCreatePayload, draftFromProperty, canAddPhoto, EMPTY_DRAFT, isDateAllowed, isSlotAllowed, nextPostStep, postJobError, previousPostStep, quoteMatchesDraft, validateSqm, type JobQuote, type PostJobDraft } from "./postJobCore";
 import { publishClientJob, requestAuthoritativeQuote } from "./postJobService";
 
 beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime(new Date("2026-08-30T12:00:00Z"))});
@@ -37,3 +37,16 @@ describe("screen integration", () => {
 });
 
 it("preserves property and approval references in the booking request",async()=>{const request=vi.fn().mockResolvedValue({job:{id:"approved-job"}});await publishClientJob(draft({propertyId:"property-1",approvalId:"approval-1"}),"approval-booking",request);const body=JSON.parse(String(request.mock.calls[0][1].body));expect(body.propertyId).toBe("property-1");expect(body.approvalId).toBe("approval-1");expect(body).not.toHaveProperty("price_gross")});
+
+it("prefills property instructions without silently truncating them", () => {
+  const notes = "A".repeat(700);
+  const result = draftFromProperty({id:"p1",city:"Brașov",street:"Test 10",sqm:90,space_type:"casa",notes}, "a1", "2026-09-02");
+  expect(result).toMatchObject({propertyId:"p1",approvalId:"a1",details:notes,scheduledDate:"2026-09-02",sqm:"90",street:"Test 10"});
+  expect(result.photoIds).toEqual([]);
+  expect(result.scheduledHour).toBeNull();
+});
+it("does not reuse a past property booking date", () => {
+  const result = draftFromProperty({id:"p2",city:"Iași",street:"Test 20",sqm:50,space_type:"apartament"}, undefined, "2020-01-01");
+  expect(result.scheduledDate).toBe("");
+  expect(result.details).toBe("");
+});

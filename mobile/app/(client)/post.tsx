@@ -6,7 +6,7 @@ import { api } from "@/api";
 import { DateSelector } from "@/DateSelector";
 import { JOB_TYPE_LABELS, jobTypeLabel } from "@/jobTypes";
 import { AppScreen, PremiumCard, PrimaryButton, Pill } from "@/mobileUi";
-import { canAddPhoto, EMPTY_DRAFT, isDateAllowed, isSlotAllowed, MAX_DETAILS_LENGTH, MAX_PHOTOS, nextPostStep, postJobError, previousPostStep, quoteMatchesDraft, validateSqm, type JobQuote, type PostJobDraft, type SchedulingConfig } from "@/postJobCore";
+import { canAddPhoto, draftFromProperty, EMPTY_DRAFT, isDateAllowed, isSlotAllowed, MAX_DETAILS_LENGTH, MAX_PHOTOS, nextPostStep, postJobError, previousPostStep, quoteMatchesDraft, validateSqm, type JobQuote, type PostJobDraft, type SchedulingConfig } from "@/postJobCore";
 import { uploadClientPhoto, type LocalPhoto } from "@/photoUpload";
 import { publishClientJob, requestAuthoritativeQuote } from "@/postJobService";
 import { colors } from "@/theme";
@@ -16,6 +16,8 @@ const STEPS = ["Tip serviciu", "Detalii spațiu", "Adresă", "Data", "Ora", "Det
 
 export default function PostJob() {
   const {propertyId,approvalId,approvalDate,city,sqm,spaceType,date}=useLocalSearchParams<{propertyId?:string;approvalId?:string;approvalDate?:string;city?:string;sqm?:string;spaceType?:string;date?:string}>();
+  const [loadedPropertyId, setLoadedPropertyId] = useState<string | null>(null);
+  const [propertyRetry, setPropertyRetry] = useState(0);
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<PostJobDraft>(()=>({...EMPTY_DRAFT,city:typeof city === "string" ? city.slice(0,120) : "",sqm:typeof sqm === "string" && /^\d+$/.test(sqm) ? sqm : "",spaceType:typeof spaceType === "string" && Object.hasOwn(JOB_TYPE_LABELS,spaceType) ? spaceType as SpaceType : null,scheduledDate:typeof date === "string" && isDateAllowed(date) ? date : ""}));
   const [quote, setQuote] = useState<JobQuote | null>(null);
@@ -29,7 +31,7 @@ export default function PostJob() {
   const [createdId, setCreatedId] = useState<string | null>(null);
   const requestId = useRef<string | null>(null);
 
-  useEffect(()=>{if(!propertyId)return;let cancelled=false;void api<{properties:{id:string;name:string;city:string;street:string;sqm:number;space_type:SpaceType}[]}>("/api/workspace").then(d=>{if(cancelled)return;const p=d.properties.find(p=>p.id===propertyId);if(!p){setError("Proprietate indisponibilă.");return}setDraft({...EMPTY_DRAFT,approvalId,scheduledDate:approvalDate??EMPTY_DRAFT.scheduledDate,propertyId:p.id,city:p.city,street:p.street,sqm:String(p.sqm),spaceType:p.space_type});setQuote(null);setScheduling(null);setStep(0)}).catch(()=>{if(!cancelled)setError("Proprietatea nu a putut fi încărcată.")});return()=>{cancelled=true}},[propertyId,approvalId,approvalDate]);
+  useEffect(()=>{if(!propertyId)return;let cancelled=false;void api<{properties:{id:string;name:string;city:string;street:string;sqm:number;space_type:SpaceType;notes?:string|null}[]}>("/api/workspace").then(d=>{if(cancelled)return;const p=d.properties.find(p=>p.id===propertyId);if(!p){setError("Proprietate indisponibilă.");return}setDraft(draftFromProperty(p,approvalId,approvalDate));setQuote(null);setScheduling(null);setPhotos([]);setFailedPhoto(null);setCreatedId(null);requestId.current=null;setError(null);setStep(0);setLoadedPropertyId(p.id)}).catch(()=>{if(!cancelled)setError("Proprietatea nu a putut fi încărcată.")});return()=>{cancelled=true}},[propertyId,approvalId,approvalDate,propertyRetry]);
 
   function update<K extends keyof PostJobDraft>(key: K, value: PostJobDraft[K]) {
     setDraft(old => ({ ...old, [key]: value }));
@@ -114,6 +116,11 @@ export default function PostJob() {
     } catch (cause) { setError(postJobError(cause)); }
     finally { setSubmitting(false); }
   }
+
+  if (propertyId && loadedPropertyId !== propertyId) return <AppScreen title="Pregătim rezervarea" subtitle="Încărcăm datele proprietății selectate.">
+    {error ? <><Text accessibilityRole="alert" style={styles.error}>{error}</Text><PrimaryButton title="Reîncearcă" onPress={() => { setError(null); setPropertyRetry(value => value + 1); }}/></> : <Text>Se încarcă proprietatea…</Text>}
+    <PrimaryButton secondary title="Înapoi la proprietăți" onPress={() => router.replace("/(client)/properties")}/>
+  </AppScreen>;
 
   const dateText = draft.scheduledDate ? new Date(`${draft.scheduledDate}T12:00:00`).toLocaleDateString("ro-RO", { day: "numeric", month: "long", year: "numeric" }) : "—";
   return <AppScreen eyebrow={`PASUL ${step + 1} DIN ${STEPS.length}`} title="Postează o lucrare" subtitle={STEPS[step]}>

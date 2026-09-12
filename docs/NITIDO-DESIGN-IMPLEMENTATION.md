@@ -126,3 +126,9 @@ Endpointurile de profil verifică originea, limita de rată, dimensiunea corpulu
 ### Proprietăți native — creare și editare
 În Proprietăți, Business și Host, fiecare locație are acțiune de editare. Formular modal cu identitatea existentă și toate câmpurile: denumire, oraș, adresă, suprafață, tip spațiu, utilizare, centru de cost, buget și preferințe. Crearea nu mai impune apartament pentru Business; implicit birou, cu alegere explicită. Bugetul acceptă virgulă sau punct și este trimis în bani.
 Formularul păstrează datele la eșecul salvării și blochează trimiterea simultană și închiderea în timpul cererii. Modificarea utilizării poate muta proprietatea în alt modul după salvare. Testele verifică păstrarea identității și câmpurilor, conversia bugetului și respingerea suprafețelor/valorilor invalide. Serverul existent aplică autorizarea proprietarului. Nu sunt create rezervări automat. Build-ul instalabil și verificarea pe dispozitiv rămân necesare.
+
+### Rezervare mobilă din proprietate — observații și încărcare
+
+Rezervarea preia acum observațiile proprietății, fără trunchiere automată. Limita de 500 de caractere a cererii rămâne validată la pasul de detalii; notele mai lungi trebuie scurtate explicit de client. Formularul așteaptă încărcarea proprietății și oferă reîncercare la eroare. Încărcarea altei proprietăți resetează fotografiile, estimarea și identificatorul cererii precedente; data trecută nu este precompletată.
+
+Verificare: 66 de teste mobile și TypeScript trecute. Modificarea este pentru sursa aplicației native; necesită build Expo/EAS și verificare pe dispozitiv. Nu reprezintă finalizarea integrală a brief-ului.
