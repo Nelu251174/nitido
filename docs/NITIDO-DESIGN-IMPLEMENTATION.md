@@ -176,3 +176,9 @@ Verificare: TypeScript, lint și suita mobilă; apelul și emailul necesită ver
 Workflow-ul verifică dependențele website și mobile prin scripts/audit-report.mjs. Lipsa răspunsului, erorile npm/rețea, JSON invalid, câmpurile lipsă și totalurile inconsistente fac verificarea să eșueze; nu mai sunt convertite în zero vulnerabilități. Rezultatele high/critical rămân avertismente explicite conform politicii existente; o rulare verde nu implică absența vulnerabilităților. Patru teste pentru interpretarea raportului și lint trecute local. Auditul real este efectuat în GitHub CI, nu simulat de aceste teste.
 
 Blocaj de build nativ reconfirmat în mobile/app.json: extra.eas.projectId este încă OWNER_EAS_PROJECT_ID_REQUIRED. Validarea pe dispozitive și publicarea nu sunt confirmate.
+
+### Remediere dependențe critice și ridicate
+
+Audit real inițial website: 1 critică, 2 ridicate, 6 moderate. Actualizate Next.js și eslint-config-next la 16.3.5, Sharp la 0.35.4, js-yaml tranzitiv la 4.3.2. Audit local după actualizare: 0 critice, 0 ridicate, 6 moderate. Moderate rămase: lanțurile Vitest și Capacitor/xcode/uuid. Auditul mobile anterior: 15 moderate; lockfile-ul mobile nu a fost modificat în această etapă.
+
+Referințe: https://github.com/advisories/GHSA-2xp9-vwfh-vxw4 , https://github.com/advisories/GHSA-rgj7-g3m4-5g8c , https://github.com/advisories/GHSA-2883-xcg3-v3hh . Nu se declară dispariția vulnerabilităților din instanța publicată până la deployment-ul confirmat al versiunii actualizate.
