@@ -250,3 +250,9 @@ Formularul oferă data de sfârșit și explică limita inclusivă, ora Românie
 Formularul păstrează un requestId pentru același conținut până la confirmare și blochează trimiterea simultană cu alte acțiuni de recurență. Serverul păstrează o amprentă a conținutului și ID-ul planului, unic per client/requestId, în aceeași tranzacție cu abonamentul. Reîncercarea returnează planul inițial; conținutul diferit produce 409. Un plan anulat nu este reactivat prin reîncercare. Clienții vechi fără requestId păstrează comportamentul anterior; reîncărcarea paginii înainte de confirmare nu păstrează cheia formularului și necesită verificarea listei.
 
 Erorile de rețea sunt afișate, iar confirmarea creării este separată de reîncărcarea listei. 49 teste țintite, TypeScript și lint trecute; inclusiv rollback la eșecul salvării cheii și izolarea între clienți. CI și publicarea se verifică separat. Nu se declară validarea completă a brief-ului.
+
+### Retrimiterea confirmării email fără pierderea linkului anterior
+
+Dacă furnizorul refuză trimiterea sau cererea eșuează, se restabilește tokenul anterior numai dacă tentativa curentă este încă cea activă. O confirmare consumată între timp ori un token mai nou nu sunt suprascrise. Primul token nestrimis este eliminat. O adresă deja confirmată nu produce o excepție care să întrerupă fluxul apelant.
+
+19 teste de email/API trecute, inclusiv cinci probe noi pentru eșec, concurență și confirmare în timpul trimiterii; TypeScript și lint trecute. Furnizorul este simulat în teste. Nu s-a verificat livrarea în inbox și nu s-a activat un furnizor prin această modificare. Configurarea Resend și verificarea domeniului expeditor rămân cerințe pentru trimitere reală.

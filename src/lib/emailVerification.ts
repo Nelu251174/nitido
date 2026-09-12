@@ -16,7 +16,25 @@ export function confirmEmailVerification(db:Database,token:unknown,now=Date.now(
 export async function sendVerificationEmail(db:Database,userId:string){
  if(!emailConfigured())return false;
  let base:URL;try{base=new URL(process.env.NEXT_PUBLIC_SITE_URL??'');if(base.protocol!=='https:'||base.username||base.password)return false}catch{return false}
- const {token,email}=issueEmailVerification(db,userId);
+ type Previous={email:string;token_hash:string|null;expires_at:number|null;verified_at:number|null};
+ let previous:Previous|undefined;
+ let issued:{token:string;email:string};
+ try{
+   previous=db.prepare('SELECT email,token_hash,expires_at,verified_at FROM email_verifications WHERE user_id=?').get(userId) as Previous|undefined;
+   issued=issueEmailVerification(db,userId);
+ }catch{return false}
+ const {token,email}=issued;
  const url=new URL('/confirma-email',base.origin);url.hash=token;
- return sendEmail({to:email,subject:'NITIDO — confirmă adresa de email',html:`<h1>Bine ai venit la NITIDO</h1><p>Confirmă adresa de email a contului tău. Linkul este valabil 24 de ore și poate fi folosit o singură dată.</p><p><a href="${url.href}">Confirmă adresa de email</a></p><p>Dacă nu ai creat acest cont, ignoră mesajul.</p>`});
+ const accepted=await sendEmail({to:email,subject:'NITIDO — confirmă adresa de email',html:`<h1>Bine ai venit la NITIDO</h1><p>Confirmă adresa de email a contului tău. Linkul este valabil 24 de ore și poate fi folosit o singură dată.</p><p><a href="${url.href}">Confirmă adresa de email</a></p><p>Dacă nu ai creat acest cont, ignoră mesajul.</p>`});
+ if(!accepted){
+   // Restore only this failed attempt; never overwrite a newer token or confirmation.
+   try{db.transaction(()=>{
+     const current=db.prepare('SELECT token_hash,verified_at FROM email_verifications WHERE user_id=?').get(userId) as {token_hash:string|null;verified_at:number|null}|undefined;
+     if(!current||current.token_hash!==hash(token)||current.verified_at!==null)return;
+     if(previous&&previous.email===email){
+       db.prepare('UPDATE email_verifications SET email=?,token_hash=?,expires_at=?,verified_at=? WHERE user_id=?').run(previous.email,previous.token_hash,previous.expires_at,previous.verified_at,userId);
+     }else db.prepare('DELETE FROM email_verifications WHERE user_id=?').run(userId);
+   })()}catch{return false}
+ }
+ return accepted;
 }
