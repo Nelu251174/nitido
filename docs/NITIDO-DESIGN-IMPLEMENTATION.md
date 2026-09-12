@@ -256,3 +256,9 @@ Erorile de rețea sunt afișate, iar confirmarea creării este separată de reî
 Dacă furnizorul refuză trimiterea sau cererea eșuează, se restabilește tokenul anterior numai dacă tentativa curentă este încă cea activă. O confirmare consumată între timp ori un token mai nou nu sunt suprascrise. Primul token nestrimis este eliminat. O adresă deja confirmată nu produce o excepție care să întrerupă fluxul apelant.
 
 19 teste de email/API trecute, inclusiv cinci probe noi pentru eșec, concurență și confirmare în timpul trimiterii; TypeScript și lint trecute. Furnizorul este simulat în teste. Nu s-a verificat livrarea în inbox și nu s-a activat un furnizor prin această modificare. Configurarea Resend și verificarea domeniului expeditor rămân cerințe pentru trimitere reală.
+
+### Suport aliniat cu funcțiile contului
+
+Ghidul comun pentru website și contextul AI are 61 de subiecte. Corectate instrucțiunile pentru resetarea parolei, editarea profilului, telefon, acoperire, email și mesagerie după verificarea formularelor existente. Adăugat ghidul confirmării emailului, inclusiv Spam, expirare și limita retrimiterilor. 20 teste ale ghidului trecute. Providerul AI nu este activat de această schimbare.
+
+Beneficiarul a confirmat primirea emailului în Spam și confirmarea adresei după deployment 8547a7a. Aceasta validează acel flux pentru contul testat, nu livrarea generală în Inbox sau finalizarea brief-ului integral.
