@@ -280,3 +280,9 @@ Linkurile noi folosesc fragmentul URL. Pagina acceptă și query-ul vechi, apoi 
 Clientul poate elimina intervalul afișat prin Elimină pauza programată, după confirmarea efectelor. API-ul verifică titularul și intervalul într-o tranzacție; o pauză modificată între timp produce 409. Reîncercarea după eliminare este idempotentă. Planul anulat nu se reactivează, iar pauza generală rămâne neschimbată. Vizitele, plățile și cursorul seriei nu sunt modificate: datele deja omise nu se recreează.
 
 53 teste recurență/API și lint trecute local, inclusiv 4 probe noi. Publicarea necesită CI verde; verificarea vizuală în cont autentificat rămâne separată. Acțiunea nu reprezintă anularea coordonată a vizitelor deja generate sau finalizarea recurenței integrale.
+
+### Impactul pauzei înainte de confirmare
+
+Clientul verifică intervalul înainte de a confirma. Endpointul preview_pause returnează numărul vizitelor active și cel mult 100 de vizite proprii, fără scrieri sau generare. În caz de conflict, interfața afișează datele, stările și linkurile către rezervări; nu salvează pauza. Dacă lista este liberă, solicită confirmare și API-ul de salvare reverifică în tranzacție. Datele de impact nu sunt afișate pentru un alt interval selectat ulterior.
+
+57 teste recurență/API și lint trecute, inclusiv patru probe noi pentru acces, lipsa scrierilor, validare și apariția unei vizite între verificare și salvare. Nu s-au anulat lucrări și nu s-au executat operațiuni financiare reale. Acceptanța vizuală autentificată, anularea coordonată și brief-ul integral rămân deschise.

@@ -165,10 +165,30 @@ export function listRecurringOccurrences(db:Database,clientId:string){
     ORDER BY o.occurrence_date DESC,o.created_at DESC,o.job_id DESC LIMIT 200`).all(clientId);
 }
 
-/** A pause never silently cancels an existing booking or releases a payment. */
-export function schedulePlanPause(db:Database,planId:string,clientId:string,start:unknown,end:unknown,now=new Date()):PlanResult {
+function pauseIntervalError(start:unknown,end:unknown,now:Date):Extract<PlanResult,{ok:false}>|null {
   const validDate=(value:unknown):value is string=>typeof value==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(`${value}T12:00:00Z`))&&new Date(`${value}T12:00:00Z`).toISOString().slice(0,10)===value;
   if(!validDate(start)||!validDate(end)||start>end||start<ymd(now)||Number(end.slice(0,4))>now.getUTCFullYear()+5)return {ok:false,status:400,error:"Alege un interval valid, de astăzi încolo, în următorii 5 ani."};
+  return null;
+}
+
+export type PausePreview = {ok:true;count:number;visits:Array<{job_id:string;scheduled_at:string;status:string;city:string}>}|Extract<PlanResult,{ok:false}>;
+/** Read-only impact preview; saving must still recheck inside its transaction. */
+export function previewPlanPause(db:Database,planId:string,clientId:string,start:unknown,end:unknown,now=new Date()):PausePreview {
+  const invalid=pauseIntervalError(start,end,now);if(invalid)return invalid;
+  return db.transaction(():PausePreview=>{
+    const plan=db.prepare("SELECT status FROM recurring_plans WHERE id=? AND client_id=?").get(planId,clientId) as {status:string}|undefined;
+    if(!plan)return {ok:false,status:404,error:"Abonament inexistent"};
+    if(plan.status!=="active")return {ok:false,status:409,error:"Pauza pe interval se programează numai pentru un abonament activ."};
+    const clause="FROM recurring_occurrences o JOIN jobs j ON j.id=o.job_id WHERE o.plan_id=? AND o.occurrence_date BETWEEN ? AND ? AND j.status NOT IN ('cancelled','completed')";
+    const count=(db.prepare("SELECT COUNT(*) n "+clause).get(planId,start,end) as {n:number}).n;
+    const visits=db.prepare("SELECT o.job_id,o.scheduled_at,j.status,j.city "+clause+" AND j.client_id=? ORDER BY o.occurrence_date,o.job_id LIMIT 100").all(planId,start,end,clientId) as Extract<PausePreview,{ok:true}>['visits'];
+    return {ok:true,count,visits};
+  })();
+}
+
+/** A pause never silently cancels an existing booking or releases a payment. */
+export function schedulePlanPause(db:Database,planId:string,clientId:string,start:unknown,end:unknown,now=new Date()):PlanResult {
+  const invalid=pauseIntervalError(start,end,now);if(invalid)return invalid;
   return db.transaction(():PlanResult=>{
     const plan=db.prepare("SELECT status FROM recurring_plans WHERE id=? AND client_id=?").get(planId,clientId) as {status:string}|undefined;
     if(!plan)return {ok:false,status:404,error:"Abonament inexistent"};

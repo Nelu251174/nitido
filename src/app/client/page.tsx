@@ -989,6 +989,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
   const [pausePlan,setPausePlan]=useState("");
   const [pauseStart,setPauseStart]=useState("");
   const [pauseEnd,setPauseEnd]=useState("");
+  const [pauseImpact,setPauseImpact]=useState<{planId:string;start:string;end:string;count:number;visits:Array<{job_id:string;scheduled_at:string;status:string;city:string}>}|null>(null);
   const [occurrences,setOccurrences]=useState<Array<{plan_id:string;occurrence_date:string;job_id:string;scheduled_at:string;status:string;city:string}>>([]);
   const [plans, setPlans] = useState<PlanView[]>([]);
   const [open, setOpen] = useState(false);
@@ -1047,13 +1048,23 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
   }
   async function schedulePause(){
     if(statusLock.current||!pausePlan||!pauseStart||!pauseEnd)return;
-    if(!window.confirm(`Pauză între ${pauseStart} și ${pauseEnd}, inclusiv, ora României. Înlocuiește intervalul anterior. Nu se generează vizite în interval; seria continuă automat după acesta, fără recuperări retroactive. Dacă există vizite active, cererea va fi refuzată și le vei gestiona separat din Rezervări. Continui?`))return;
-    statusLock.current=true;setStatusBusy(true);setMsg(null);
+    statusLock.current=true;setStatusBusy(true);setMsg(null);setPauseImpact(null);
     try{
-      const response=await fetch(`/api/recurring/${encodeURIComponent(pausePlan)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"pause_interval",startDate:pauseStart,endDate:pauseEnd})});
+      const url=`/api/recurring/${encodeURIComponent(pausePlan)}`;
+      const dates={startDate:pauseStart,endDate:pauseEnd};
+      const preview=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"preview_pause",...dates})});
+      const impact=await preview.json();
+      if(!preview.ok||impact.ok!==true)throw new Error(impact.error||"Vizitele afectate nu au putut fi verificate.");
+      if(impact.count>0){
+        setPauseImpact({planId:pausePlan,start:pauseStart,end:pauseEnd,count:impact.count,visits:impact.visits});
+        setMsg("Pauza nu a fost salvată. Gestionează vizitele active de mai jos, apoi verifică din nou intervalul.");return;
+      }
+      if(!window.confirm(`Nu există vizite active create în intervalul ${pauseStart} – ${pauseEnd}, inclusiv, ora României. Confirmi pauza? Înlocuiește intervalul anterior. Nu modifică plăți și nu recuperează retroactiv date omise. Situația este reverificată la salvare.`))return;
+      const response=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"pause_interval",...dates})});
       const result=await response.json();
       if(!response.ok||result.ok!==true)throw new Error(result.error||"Pauza nu a fost confirmată.");
-      await load();setPausePlan("");setMsg("Intervalul de pauză a fost salvat. Seria continuă automat după interval.");
+      setPausePlan("");setMsg("Intervalul de pauză a fost salvat. Seria continuă automat după interval.");
+      try{await load()}catch{setMsg("Pauza a fost salvată, dar lista nu s-a reîncărcat. Reîncarcă pagina.")}
     }catch(error){setMsg(error instanceof Error?error.message:"Pauza nu a fost confirmată.")}
     finally{statusLock.current=false;setStatusBusy(false)}
   }
@@ -1136,7 +1147,8 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
           <label className="text-sm">Început pauză<input className="block w-full border rounded p-2" type="date" value={pauseStart} disabled={statusBusy} onChange={event=>setPauseStart(event.target.value)}/></label>
           <label className="text-sm">Sfârșit pauză<input className="block w-full border rounded p-2" type="date" value={pauseEnd} min={pauseStart} disabled={statusBusy} onChange={event=>setPauseEnd(event.target.value)}/></label>
         </div>
-        <button type="button" className="mt-3 text-sm font-bold text-aqua-deep disabled:opacity-50" disabled={statusBusy||!pausePlan||!pauseStart||!pauseEnd} onClick={()=>void schedulePause()}>Confirmă intervalul de pauză</button>
+        <button type="button" className="mt-3 text-sm font-bold text-aqua-deep disabled:opacity-50" disabled={statusBusy||!pausePlan||!pauseStart||!pauseEnd} onClick={()=>void schedulePause()}>Verifică vizitele și continuă</button>
+        {pauseImpact&&pauseImpact.planId===pausePlan&&pauseImpact.start===pauseStart&&pauseImpact.end===pauseEnd&&<div className="mt-3 rounded-xl border border-line p-3"><p className="text-sm font-bold">{pauseImpact.count} vizite active în interval</p><p className="text-xs text-muted mt-1">Sunt afișate cel mult 100 de vizite. Deschiderea rezervării nu o anulează și nu modifică plata.</p><ul className="divide-y divide-line">{pauseImpact.visits.map(visit=><li key={visit.job_id} className="py-2 text-sm"><span>{new Intl.DateTimeFormat("ro-RO",{timeZone:"Europe/Bucharest",dateStyle:"medium",timeStyle:"short"}).format(new Date(visit.scheduled_at))} · {visit.city} · {JOB_STATUS[visit.status]??visit.status}</span><Link className="block underline mt-1" href={`/client?jobId=${encodeURIComponent(visit.job_id)}`}>Deschide rezervarea</Link></li>)}</ul></div>}
       </details>}
 
       <details className="mt-4 border-t border-line pt-3">

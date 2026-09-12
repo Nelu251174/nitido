@@ -12,6 +12,7 @@ import {
   setPlanStatus,
   schedulePlanPause,
   removePlanPause,
+  previewPlanPause,
 } from "./recurring";
 
 function makeTestDb(): Database {
@@ -353,6 +354,34 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     expect(removePlanPause(db,plan.planId,"client_1",{},null)).toMatchObject({ok:false,status:400});
     setPlanStatus(db,plan.planId,"client_1","cancelled");
     expect(removePlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12")).toMatchObject({ok:false,status:409});
+  });
+
+  it("previews active visits without writes and isolates the plan owner",async()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});if(!plan.ok)throw new Error("fixture");
+    await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"));
+    const before=db.prepare("SELECT total_changes() n").get();
+    const now=new Date("2026-01-05T07:00:00Z");
+    expect(previewPlanPause(db,plan.planId,"other","2026-01-05","2026-01-12",now)).toMatchObject({ok:false,status:404});
+    const preview=previewPlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12",now);
+    expect(preview).toMatchObject({ok:true,count:1,visits:[{status:"waiting",city:"Constanța"}]});
+    expect(db.prepare("SELECT total_changes() n").get()).toEqual(before);
+    db.prepare("UPDATE jobs SET status='cancelled'").run();
+    expect(previewPlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12",now)).toEqual({ok:true,count:0,visits:[]});
+  });
+  it("rechecks visits created after a clear preview",async()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});if(!plan.ok)throw new Error("fixture");
+    const now=new Date("2026-01-05T06:00:00Z");
+    expect(previewPlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12",now)).toMatchObject({ok:true,count:0});
+    await generateDueRecurringJobs(db,now);
+    expect(schedulePlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12",now)).toMatchObject({ok:false,status:409});
+    expect(db.prepare("SELECT * FROM recurring_pauses").all()).toEqual([]);
+  });
+  it("validates pause previews before accessing visits",()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});if(!plan.ok)throw new Error("fixture");
+    const now=new Date("2026-01-01");
+    expect(previewPlanPause(db,plan.planId,"client_1","2026-02-30","2026-03-01",now)).toMatchObject({ok:false,status:400});
+    setPlanStatus(db,plan.planId,"client_1","paused");
+    expect(previewPlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12",now)).toMatchObject({ok:false,status:409});
   });
 
 });
