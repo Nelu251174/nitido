@@ -212,3 +212,9 @@ Tabela aditivă recurring_occurrences leagă planul, data apariției, lucrarea �
 Contul clientului afișează ultimele 200 de vizite înregistrate, cu ora București, status operațional și deschiderea rezervării. Sunt incluse seriile anulate; accesul verifică titularul planului și al lucrării. Nu se deduc legături pentru istoricul vechi din last_job_id. Schema nouă poate rămâne la rollback de cod; nu trebuie ștearsă pentru revenire.
 
 28 teste țintite trecute, inclusiv rollback SQLite, reluarea datei, istoric după anulare și izolarea clientului. Nu reprezintă verificare distribuită sau rezolvarea anulării financiare a vizitelor, a pauzelor pe interval ori a generării în avans. Verificarea vizuală autentificată rămâne necesară.
+
+### Citirea abonamentelor fără efect financiar
+
+GET /api/recurring este acum exclusiv citire: nu generează lucrări și nu încearcă autorizări. Generarea explicită folosește POST action=generate, autentificarea clientului, verificarea originii și limita de frecvență; clientId din corp nu poate selecta alt cont. Butonul Generează vizitele scadente cere confirmare și explică posibila autorizare pentru firma preferată. Numărul de vizite create nu este prezentat drept confirmare financiară.
+
+Endpointul cron existent rămâne disponibil și protejat prin CRON_SECRET; această modificare nu configurează un scheduler. Automatizarea efectivă trebuie verificată în infrastructură. 31 teste țintite trecute, inclusiv GET fără mutație, POST limitat la titular și origine străină respinsă. Nu s-au inițiat lucrări sau autorizări în conturi reale pentru validare.

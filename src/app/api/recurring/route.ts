@@ -6,18 +6,11 @@ import { getClientCardInfo } from "@/lib/clientPayments";
 import { validateRecurringPlan, type RecurringPlanInput, createRecurringPlan, listPlansForClient, listRecurringOccurrences, generateDueRecurringJobs } from "@/lib/recurring";
 import type { SpaceType } from "@/lib/pricing";
 
-// GET — abonamentele clientului. Rulează întâi generarea lucrărilor scadente
-// pentru planurile acestui client (backstop: pornește abonamentul la vizită).
+// GET — citire fără generare de lucrări sau operațiuni financiare.
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req);
   if (!user || user.role !== "client") {
     return NextResponse.json({ error: "Autentificare necesară" }, { status: 401 });
-  }
-  try {
-    await generateDueRecurringJobs(db, new Date(), user.id);
-  } catch {
-    // Generarea eșuată nu trebuie să blocheze afișarea abonamentelor.
-    console.error("[recurring] generate_on_view_failed");
   }
   return NextResponse.json({ plans: listPlansForClient(db, user.id), occurrences:listRecurringOccurrences(db,user.id) },{headers:{"Cache-Control":"private, no-store"}});
 }
@@ -36,6 +29,11 @@ export async function POST(req: NextRequest) {
   try{b=JSON.parse(raw)}catch{return NextResponse.json({error:"Cerere JSON invalidă"},{status:400})}
   if(!b||typeof b!=="object"||Array.isArray(b))return NextResponse.json({error:"Cerere invalidă"},{status:400});
 
+  if(b.action==="generate"){
+    const result=await generateDueRecurringJobs(db,new Date(),user.id);
+    return NextResponse.json({ok:true,created:result.created.length},{headers:{"Cache-Control":"private, no-store"}});
+  }
+  if(b.action!==undefined)return NextResponse.json({error:"Acțiune invalidă"},{status:400});
   const input:RecurringPlanInput = {
     clientId: user.id,
     preferredFirmId: typeof b?.preferredFirmId === "string" ? b.preferredFirmId : null,

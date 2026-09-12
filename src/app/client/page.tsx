@@ -1026,6 +1026,19 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
       setBusy(false);
     }
   }
+  async function generateVisits(){
+    if(statusLock.current||busy)return;
+    if(!window.confirm("Generezi vizitele scadente ale abonamentelor active? Pentru firma preferată, sistemul poate încerca alocarea și autorizarea cardului conform regulilor existente. Vizitele trecute sunt omise."))return;
+    statusLock.current=true;setStatusBusy(true);setMsg(null);
+    try{
+      const r=await fetch("/api/recurring",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"generate"})});
+      const result=await r.json();
+      if(!r.ok||result.ok!==true||!Number.isInteger(result.created)||result.created<0)throw new Error("Generarea nu a fost confirmată. Verifică istoricul înainte de reîncercare.");
+      await load();
+      setMsg(result.created?`${result.created} vizite create. Verifică alocarea și plata în fiecare rezervare.`:"Nu există vizite noi scadente de generat.");
+    }catch(cause){setMsg(cause instanceof Error?cause.message:"Generarea nu a fost confirmată. Verifică istoricul.")}
+    finally{statusLock.current=false;setStatusBusy(false)}
+  }
   async function changeStatus(id: string, status: string) {
     if(statusLock.current)return;
     const explanation=status==="cancelled"
@@ -1054,8 +1067,9 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
           {open ? "Închide" : "+ Adaugă"}
         </button>
       </div>
-      <p className="text-xs text-muted mt-1">Aceeași echipă, la interval fix. Se creează automat următoarea lucrare.</p>
+      <p className="text-xs text-muted mt-1">Vizite la interval fix. Firma preferată depinde de disponibilitate. Deschiderea acestei liste nu generează lucrări.</p>
 
+      <button type="button" disabled={statusBusy||busy} onClick={()=>void generateVisits()} className="mt-3 text-sm font-bold text-aqua-deep disabled:opacity-50">Generează vizitele scadente</button>
       {msg && <p role="status" className="text-sm mt-3">{msg}</p>}
       {plans.length > 0 && (
         <div className="mt-3 divide-y divide-[#e2e8f0]">
