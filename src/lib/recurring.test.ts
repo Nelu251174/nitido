@@ -160,4 +160,25 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     expect(setPlanStatus(db,created.planId,"client_1","active").ok).toBe(true);
   });
 
+  it("rejects oversized recurring requests without creating a plan",()=>{
+    seedClientAndFirm(db);
+    expect(createRecurringPlan(db,{...basePlan,sqm:1001,startDate:"2026-01-05"})).toMatchObject({ok:false,status:422});
+    expect(listPlansForClient(db,"client_1")).toEqual([]);
+    expect(createRecurringPlan(db,{...basePlan,sqm:1000,startDate:"2026-01-05"}).ok).toBe(true);
+  });
+  it("rejects malformed text and quantities instead of coercing or truncating them",()=>{
+    seedClientAndFirm(db);
+    for(const fields of [{city:{}},{street:" "},{details:"x".repeat(501)},{floor:[]},{sqm:"75"},{hour:"10"},{startDate:{}},{startDate:"2026-02-30"}]){
+      expect(createRecurringPlan(db,{...basePlan,startDate:"2026-01-05",...fields} as never).ok).toBe(false);
+    }
+    expect(listPlansForClient(db,"client_1")).toEqual([]);
+  });
+  it("stores the monthly anchor with the initial insert",()=>{
+    seedClientAndFirm(db);
+    db.exec("CREATE TRIGGER reject_anchor_update BEFORE UPDATE OF anchor_day ON recurring_plans BEGIN SELECT RAISE(ABORT,'no follow-up update'); END");
+    const result=createRecurringPlan(db,{...basePlan,frequency:"monthly",startDate:"2026-01-31"});
+    expect(result.ok).toBe(true);
+    expect(db.prepare("SELECT anchor_day FROM recurring_plans").get()).toEqual({anchor_day:31});
+  });
+
 });

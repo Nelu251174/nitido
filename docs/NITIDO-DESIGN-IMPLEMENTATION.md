@@ -198,3 +198,9 @@ Etapa web precedentă be08e57 a fost publicată în sandbox și verificată în 
 Planurile anulate nu pot fi reactivate sau puse pe pauză prin API; anularea repetată rămâne idempotentă. Verificarea titularului și modificarea sunt într-o tranzacție. Interfața cere confirmare înainte de pauză/anulare, explică păstrarea vizitelor deja generate, blochează apăsările simultane și afișează erorile ori confirmarea serverului și când formularul de creare este închis.
 
 15 teste de recurență trecute, inclusiv trei probe noi pentru starea terminală, accesul altui client și păstrarea lucrării generate. Această etapă nu implementează anularea financiară a vizitelor existente, pauza pe interval sau orizontul de generare; acestea rămân deschise.
+
+### Recurență — limite și protecția cererilor
+
+Crearea abonamentului validează tipurile și lungimile înainte de verificarea cardului. Suprafețele peste 1000 m² sunt respinse cu necesitatea evaluării; nu se mai convertesc șiruri/booleeni în suprafețe sau ore și nu se trunchiază observațiile. Ancora lunară se salvează în inserarea inițială. Crearea și schimbarea stării verifică originea după autentificare, limitează frecvența și corpul JSON; identitatea clientului vine din sesiune.
+
+24 de teste țintite trecute (18 recurență, 6 API), inclusiv acces, origine străină, limite și absența operațiunilor la input invalid. Generarea la citirea listei rămâne comportamentul existent; nu se declară rezolvarea schedulerului, a vizitelor deja generate ori a autorizării financiare în avans. Planurile istorice nu sunt rescrise automat.

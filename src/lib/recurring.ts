@@ -55,48 +55,60 @@ export function computeNextDate(frequency: Frequency, from: Date, anchorDay?:num
 const VALID_SPACE: readonly SpaceType[] = ["apartament", "casa", "birou", "altul"];
 
 /** Creează un abonament recurent. */
-export function createRecurringPlan(db: Database, input: RecurringPlanInput): PlanResult {
+export function validateRecurringPlan(input: RecurringPlanInput): Extract<PlanResult,{ok:false}>|null {
+  if(!input||typeof input!=="object")return {ok:false,error:"Date abonament invalide",status:400};
+  for(const [key,max,required] of [["clientId",200,true],["street",300,true],["city",120,true],["postalCode",30,false],["floor",100,false],["details",500,false],["preferredFirmId",200,false]] as const){
+    const value=input[key];
+    if(value==null&&!required)continue;
+    if(typeof value!=="string"||value.length>max||(required&&!value.trim()))return {ok:false,error:"Date abonament invalide sau prea lungi",status:400};
+  }
   if (!input.street || !input.city || !input.sqm || !input.spaceType || !input.frequency) {
     return { ok: false, error: "Câmpuri obligatorii lipsă", status: 400 };
   }
   if (!Number.isInteger(input.sqm) || input.sqm <= 0) {
     return { ok: false, error: "Suprafața trebuie să fie un număr întreg pozitiv", status: 400 };
   }
+  if(input.sqm>1000)return {ok:false,error:"Suprafețele peste 1000 m² necesită evaluare personalizată înainte de abonare.",status:422};
   if (!VALID_SPACE.includes(input.spaceType)) {
     return { ok: false, error: "Tip spațiu invalid", status: 400 };
   }
   if (!["weekly", "biweekly", "monthly"].includes(input.frequency)) {
     return { ok: false, error: "Frecvență invalidă", status: 400 };
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.startDate)) {
+  if (typeof input.startDate!=="string"||!/^\d{4}-\d{2}-\d{2}$/.test(input.startDate)) {
     return { ok: false, error: "Dată de start invalidă", status: 400 };
   }
 
   if (!Number.isInteger(input.hour)||![8,10,12,14,16,18].includes(input.hour))return {ok:false,error:"Oră invalidă",status:400};
   const parsed=new Date(`${input.startDate}T12:00:00Z`);
   if(!Number.isFinite(parsed.getTime())||parsed.toISOString().slice(0,10)!==input.startDate)return {ok:false,error:"Dată invalidă",status:400};
+  return null;
+}
+
+export function createRecurringPlan(db: Database, input: RecurringPlanInput): PlanResult {
+  const invalid=validateRecurringPlan(input);if(invalid)return invalid;
   const planId = `plan_${randomUUID()}`;
   db.prepare(
     `INSERT INTO recurring_plans
        (id, client_id, preferred_firm_id, frequency, street, postal_code, city, floor,
-        sqm, space_type, hour, details, status, next_run_date)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)`
+        sqm, space_type, hour, details, status, next_run_date, anchor_day)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`
   ).run(
     planId,
     input.clientId,
     input.preferredFirmId ?? null,
     input.frequency,
-    input.street,
+    input.street.trim(),
     input.postalCode ?? null,
-    input.city,
+    input.city.trim(),
     input.floor ?? null,
     input.sqm,
     input.spaceType,
     input.hour,
     typeof input.details === "string" ? input.details.trim().slice(0, 500) || null : null,
-    input.startDate
+    input.startDate,
+    Number(input.startDate.slice(8,10))
   );
-  db.prepare("UPDATE recurring_plans SET anchor_day=? WHERE id=?").run(Number(input.startDate.slice(8,10)),planId);
   return { ok: true, planId };
 }
 
