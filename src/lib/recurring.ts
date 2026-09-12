@@ -32,6 +32,7 @@ export interface RecurringPlanInput {
   spaceType: SpaceType;
   hour: number;
   details?: string | null;
+  endDate?: string | null;
   startDate: string; // YYYY-MM-DD — prima zi de rulare
 }
 
@@ -82,6 +83,11 @@ export function validateRecurringPlan(input: RecurringPlanInput): Extract<PlanRe
   if (!Number.isInteger(input.hour)||![8,10,12,14,16,18].includes(input.hour))return {ok:false,error:"Oră invalidă",status:400};
   const parsed=new Date(`${input.startDate}T12:00:00Z`);
   if(!Number.isFinite(parsed.getTime())||parsed.toISOString().slice(0,10)!==input.startDate)return {ok:false,error:"Dată invalidă",status:400};
+  if(input.endDate!=null){
+    if(typeof input.endDate!=="string"||!/^\d{4}-\d{2}-\d{2}$/.test(input.endDate))return {ok:false,status:400,error:"Dată de sfârșit invalidă"};
+    const end=new Date(`${input.endDate}T12:00:00Z`);
+    if(!Number.isFinite(end.getTime())||end.toISOString().slice(0,10)!==input.endDate||input.endDate<input.startDate)return {ok:false,status:400,error:"Data de sfârșit trebuie să fie validă și să nu fie înaintea primei vizite."};
+  }
   return null;
 }
 
@@ -91,8 +97,8 @@ export function createRecurringPlan(db: Database, input: RecurringPlanInput): Pl
   db.prepare(
     `INSERT INTO recurring_plans
        (id, client_id, preferred_firm_id, frequency, street, postal_code, city, floor,
-        sqm, space_type, hour, details, status, next_run_date, anchor_day)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`
+        sqm, space_type, hour, details, status, next_run_date, anchor_day, end_date)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`
   ).run(
     planId,
     input.clientId,
@@ -107,7 +113,8 @@ export function createRecurringPlan(db: Database, input: RecurringPlanInput): Pl
     input.hour,
     typeof input.details === "string" ? input.details.trim().slice(0, 500) || null : null,
     input.startDate,
-    Number(input.startDate.slice(8,10))
+    Number(input.startDate.slice(8,10)),
+    input.endDate ?? null
   );
   return { ok: true, planId };
 }
@@ -127,6 +134,7 @@ interface PlanRow {
   details: string | null;
   next_run_date: string;
   anchor_day: number|null;
+  end_date: string|null;
 }
 
 /** Planurile unui client (active + pauză), pentru afișare în cont. */
@@ -191,15 +199,15 @@ export async function generateDueRecurringJobs(
 ): Promise<{ created: string[] }> {
   const today = ymd(now);
   const due = (clientId
-    ? db.prepare("SELECT * FROM recurring_plans WHERE status = 'active' AND next_run_date <= ? AND client_id = ?").all(today, clientId)
-    : db.prepare("SELECT * FROM recurring_plans WHERE status = 'active' AND next_run_date <= ?").all(today)) as PlanRow[];
+    ? db.prepare("SELECT * FROM recurring_plans WHERE status = 'active' AND (end_date IS NULL OR next_run_date <= end_date) AND next_run_date <= ? AND client_id = ?").all(today, clientId)
+    : db.prepare("SELECT * FROM recurring_plans WHERE status = 'active' AND (end_date IS NULL OR next_run_date <= end_date) AND next_run_date <= ?").all(today)) as PlanRow[];
 
   const created: string[] = [];
   for (const candidate of due) {
     // Claim and advance synchronously before any Stripe/network work can yield.
     const claimed=db.transaction(()=>{
       const plan=db.prepare("SELECT * FROM recurring_plans WHERE id=? AND status='active' AND next_run_date=?").get(candidate.id,candidate.next_run_date) as PlanRow|undefined;
-      if(!plan)return null;
+      if(!plan||(plan.end_date&&plan.next_run_date>plan.end_date))return null;
       // Skip only elapsed occurrences, preserving an upcoming visit today.
       let occurrenceDate=plan.next_run_date;
       let scheduledAt=bucharestScheduledAt(occurrenceDate,plan.hour);
@@ -208,7 +216,7 @@ export async function generateDueRecurringJobs(
         occurrenceDate=computeNextDate(plan.frequency,new Date(`${occurrenceDate}T12:00:00Z`),plan.anchor_day??undefined);
         scheduledAt=bucharestScheduledAt(occurrenceDate,plan.hour);
       }
-      if(occurrenceDate>today){
+      if(occurrenceDate>today||(plan.end_date&&occurrenceDate>plan.end_date)){
         db.prepare("UPDATE recurring_plans SET next_run_date=? WHERE id=?").run(occurrenceDate,plan.id);
         return null;
       }

@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
     hour: b?.hour,
     details: b?.details ?? null,
     startDate: b?.startDate,
+    endDate: b?.endDate,
   };
   const invalid=validateRecurringPlan(input);
   if(invalid)return NextResponse.json({error:invalid.error},{status:invalid.status});

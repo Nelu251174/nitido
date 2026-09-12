@@ -368,6 +368,7 @@ CREATE TABLE IF NOT EXISTS recurring_plans (
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','paused','cancelled')),
   next_run_date TEXT NOT NULL,
   anchor_day INTEGER,
+  end_date TEXT,
   last_job_id TEXT REFERENCES jobs(id),
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -474,6 +475,7 @@ ensureColumn("payments", "stripe_transfer_id", "TEXT");
 ensureColumn("payments", "payout_status", "TEXT NOT NULL DEFAULT 'unknown'");
 ensureColumn("payments", "refund_status", "TEXT NOT NULL DEFAULT 'none'");
 ensureColumn("recurring_plans", "anchor_day", "INTEGER");
+ensureColumn("recurring_plans", "end_date", "TEXT");
 ensureColumn("workspace_properties", "budget_enforced", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("workspace_approvals", "snapshot_street", "TEXT NOT NULL DEFAULT ''");
 ensureColumn("workspace_approvals", "snapshot_city", "TEXT NOT NULL DEFAULT ''");

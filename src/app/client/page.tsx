@@ -51,6 +51,7 @@ interface OfferView {
 }
 
 interface PlanView {
+  end_date?: string|null;
   pause_start?: string|null;
   pause_end?: string|null;
   id: string;
@@ -993,6 +994,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
   const [open, setOpen] = useState(false);
   const [frequency, setFrequency] = useState<"weekly" | "biweekly" | "monthly">("weekly");
   const [startDate, setStartDate] = useState(() => new Date(Date.now() + 86_400_000).toISOString().slice(0, 10));
+  const [endDate,setEndDate]=useState("");
   const [hour, setHour] = useState(10);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -1018,7 +1020,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
       const r = await fetch("/api/recurring", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...defaults, frequency, hour, startDate }),
+        body: JSON.stringify({ ...defaults, frequency, hour, startDate, endDate:endDate||null }),
       });
       const d = await r.json();
       if (!r.ok) {
@@ -1094,9 +1096,10 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
             <div key={p.id} className="py-3 flex items-center gap-3">
               <span className="w-10 h-10 rounded-lg bg-[#e8f5f2] flex items-center justify-center text-[#115e59] font-bold">↻</span>
               <span className="min-w-0 flex-1">
+                {p.end_date&&<span className="block text-xs text-muted">Ultima zi a seriei: {p.end_date} inclusiv</span>}
                 {p.pause_start&&p.pause_end&&<span className="block text-xs text-aqua-deep">Pauză programată: {p.pause_start} – {p.pause_end} inclusiv</span>}
                 <b className="text-sm block truncate">{FREQ_LABELS[p.frequency]} · {p.space_type} · {p.city}</b>
-                <span className="text-xs text-[#6b756f]">Următoarea: {p.next_run_date} · {p.status === "active" ? "activ" : p.status === "paused" ? "pe pauză" : p.status}</span>
+                <span className="text-xs text-[#6b756f]">{p.end_date&&p.next_run_date>p.end_date?"Serie încheiată":`Următoarea: ${p.next_run_date}`} · {p.status === "active" ? "activ" : p.status === "paused" ? "pe pauză" : p.status}</span>
               </span>
               {p.status !== "cancelled" && (
                 <span className="flex gap-2 flex-shrink-0">
@@ -1160,6 +1163,10 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
             </Field>
           </div>
           
+          <Field label="Data de sfârșit (opțional)">
+            <input type="date" className={inputClass} min={startDate} value={endDate} onChange={event=>setEndDate(event.target.value)} />
+          </Field>
+          <p className="text-xs text-muted mt-2">Fără dată de sfârșit, seria continuă până o oprești. Data aleasă este inclusivă, în ora României; nu se generează vizite după ea. Pentru o zi lunară inexistentă se folosește ultima zi a lunii, apoi se revine la ziua inițială.</p>
           <Button className="w-full mt-3" onClick={create} disabled={busy}>
             {busy ? "Se creează..." : "Creează abonamentul"}
           </Button>

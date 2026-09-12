@@ -34,4 +34,11 @@ describe('recurring request boundaries',()=>{
    expect((await change(req(body),params)).status).toBe(409);
  });
 
+ it('validates end dates before card checks and forwards valid limits',async()=>{
+   expect((await POST(req(JSON.stringify({...input,endDate:'2026-09-30'})))).status).toBe(400);
+   expect(mocks.card).not.toHaveBeenCalled();
+   expect((await POST(req(JSON.stringify({...input,endDate:'2026-10-31'})))).status).toBe(201);
+   expect(mocks.create).toHaveBeenCalledWith({},expect.objectContaining({endDate:'2026-10-31'}));
+ });
+
 });

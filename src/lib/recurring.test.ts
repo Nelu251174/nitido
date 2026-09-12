@@ -273,4 +273,31 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     expect(db.prepare("SELECT next_run_date FROM recurring_plans").get()).toEqual({next_run_date:"2026-03-31"});
   });
 
+  it("includes the end date and never creates a later occurrence",async()=>{
+    seedClientAndFirm(db);createRecurringPlan(db,{...basePlan,startDate:"2026-01-05",endDate:"2026-01-05"});
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"))).created).toHaveLength(1);
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-12T06:00:00Z"))).created).toEqual([]);
+    expect(listRecurringOccurrences(db,"client_1")).toHaveLength(1);
+    expect(listPlansForClient(db,"client_1")).toMatchObject([{end_date:"2026-01-05"}]);
+  });
+  it("a pause cannot extend the subscription beyond its end date",async()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05",endDate:"2026-01-12"});if(!plan.ok)throw new Error("fixture");
+    schedulePlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12",new Date("2026-01-01T00:00:00Z"));
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"))).created).toEqual([]);
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-19T06:00:00Z"))).created).toEqual([]);
+    expect(listRecurringOccurrences(db,"client_1")).toEqual([]);
+  });
+  it("rejects invalid end dates and retains open-ended subscriptions",()=>{
+    seedClientAndFirm(db);
+    for(const endDate of ["2026-01-04","2026-02-30","",{},false])expect(createRecurringPlan(db,{...basePlan,startDate:"2026-01-05",endDate} as never)).toMatchObject({ok:false,status:400});
+    expect(listPlansForClient(db,"client_1")).toEqual([]);
+    expect(createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"}).ok).toBe(true);
+    expect(listPlansForClient(db,"client_1")).toMatchObject([{end_date:null}]);
+  });
+  it("does not recover missed visits after the end of a series",async()=>{
+    seedClientAndFirm(db);createRecurringPlan(db,{...basePlan,startDate:"2026-01-05",endDate:"2026-01-12"});
+    expect((await generateDueRecurringJobs(db,new Date("2026-02-02T06:00:00Z"))).created).toEqual([]);
+    expect(listRecurringOccurrences(db,"client_1")).toEqual([]);
+  });
+
 });

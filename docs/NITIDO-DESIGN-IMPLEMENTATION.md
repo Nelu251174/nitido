@@ -238,3 +238,9 @@ Adăugată tabela recurring_pauses, un interval inclusiv per plan, fără modifi
 API validează datele, titularul și starea într-o tranzacție. Dacă există vizite active deja generate în interval, răspunsul 409 cere gestionarea lor explicită în Rezervări; nu se pretinde anularea lor sau eliberarea banilor/capacității. Intervalul existent este afișat în cont. O pauză generală manuală rămâne separată și necesită Reia. Eliminarea unei pauze sau rescrierea intervalului nu recuperează aparițiile deja omise.
 
 41 de teste țintite trecute, TypeScript și lint trecute. Schema este aditivă; nu se șterge la rollback. CI și publicarea acestei versiuni se verifică separat. Rămân deschise confirmarea vizuală autentificată, anularea coordonată a vizitelor deja generate, orizontul de generare și validarea financiară integrală.
+
+### Data opțională de sfârșit a seriei
+
+Abonamentele noi acceptă endDate opțional, validat calendaristic și comparat cu prima dată înainte de verificarea cardului. Coloana end_date se adaugă compatibil bazelor existente; null păstrează seriile fără termen. Generatorul include ultima zi și nu creează vizite ulterioare, inclusiv după pauză sau întrerupere. Planurile și istoricul rămân disponibile; încheierea seriei nu anulează lucrări existente și nu schimbă plăți.
+
+Formularul oferă data de sfârșit și explică limita inclusivă, ora României și regula ultimei zile a lunii. Lista afișează limita și indică încheierea când următoarea dată depășește limita. 46 de teste țintite, TypeScript și lint trecute local. Necesită CI și deployment confirmate separat; verificarea vizuală autentificată și întregul brief nu sunt declarate finalizate.
