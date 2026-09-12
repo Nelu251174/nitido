@@ -28,6 +28,8 @@ jobs:
         run: npx eslint
       - name: Teste (vitest)
         run: npx vitest run
+      - name: Probă izolată backup și restaurare
+        run: node --test scripts/recovery.test.mjs
       - name: Build
         env:
           STRIPE_SECRET_KEY: sk_test_ci_dummy

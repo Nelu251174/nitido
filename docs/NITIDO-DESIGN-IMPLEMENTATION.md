@@ -156,3 +156,7 @@ Ecranul separă permisiunea sistemului, înregistrarea locală, activarea servic
 Operațiile simultane sunt blocate. Dezactivarea șterge tokenul local numai după confirmarea explicită a serverului, păstrând reîncercarea la eșec. Înregistrarea inițială cere confirmare explicită înainte de salvarea locală. Nu s-au activat infrastructura push sau SMS și nu se pretinde livrare verificată pe dispozitiv.
 
 Verificare locală: 92 teste mobile, TypeScript și lint. Necesită build nativ și testare pe telefon.
+
+### Backup și restaurare — utilitar și probă izolată
+
+Adăugat scripts/recovery.mjs pentru snapshot SQLite plus fotografii, manifest SHA-256 și restaurare exclusiv într-o destinație nouă. Procedura cere oprirea scrierilor. Două teste de recuperare izolate trecute și integrate în CI; 527 teste web/backend trecute în această etapă. Documentație: NITIDO-RECOVERY.md. Nu s-a operat asupra volumelor de producție și nu este declarată validarea integrală a brief-ului.
