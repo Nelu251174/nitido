@@ -132,3 +132,11 @@ Formularul păstrează datele la eșecul salvării și blochează trimiterea sim
 Rezervarea preia acum observațiile proprietății, fără trunchiere automată. Limita de 500 de caractere a cererii rămâne validată la pasul de detalii; notele mai lungi trebuie scurtate explicit de client. Formularul așteaptă încărcarea proprietății și oferă reîncercare la eroare. Încărcarea altei proprietăți resetează fotografiile, estimarea și identificatorul cererii precedente; data trecută nu este precompletată.
 
 Verificare: 66 de teste mobile și TypeScript trecute. Modificarea este pentru sursa aplicației native; necesită build Expo/EAS și verificare pe dispozitiv. Nu reprezintă finalizarea integrală a brief-ului.
+
+### Evaluări personalizate în aplicația mobilă
+
+Ecran nativ client disponibil din Cont → Evaluări personalizate și din rezervare pentru suprafețe peste 1000 m². Formularul include cele șase categorii, localitate, suprafață, camere, băi, dificultate, aparate, geamuri, lenjerie, ore suplimentare și instrucțiuni. Folosește API-ul existent /api/assessments, cu identitatea verificată pe server. Nu creează rezervări, nu estimează un preț final și nu autorizează carduri.
+
+Sunt afișate ultimele 200 de cereri, stările și conversațiile cu administrarea. Clientul poate răspunde cererilor deschise sau le poate anula după confirmare. Salvarea include versiunea serverului; conflictele sunt afișate, lista se reîncarcă și mesajul nesalvat este păstrat. Reîncercarea aceleiași cereri după o eroare de rețea folosește același identificator cât timp ecranul rămâne montat. Nu este o coadă offline persistentă.
+
+Validare locală: 80 de teste mobile, TypeScript și lint. Necesită în continuare configurarea autentificării native, build Expo/EAS și verificare pe dispozitiv. Brief-ul integral și verificarea vizuală a tuturor planșelor nu sunt declarate finalizate.
