@@ -218,3 +218,9 @@ Contul clientului afișează ultimele 200 de vizite înregistrate, cu ora Bucure
 GET /api/recurring este acum exclusiv citire: nu generează lucrări și nu încearcă autorizări. Generarea explicită folosește POST action=generate, autentificarea clientului, verificarea originii și limita de frecvență; clientId din corp nu poate selecta alt cont. Butonul Generează vizitele scadente cere confirmare și explică posibila autorizare pentru firma preferată. Numărul de vizite create nu este prezentat drept confirmare financiară.
 
 Endpointul cron existent rămâne disponibil și protejat prin CRON_SECRET; această modificare nu configurează un scheduler. Automatizarea efectivă trebuie verificată în infrastructură. 31 teste țintite trecute, inclusiv GET fără mutație, POST limitat la titular și origine străină respinsă. Nu s-au inițiat lucrări sau autorizări în conturi reale pentru validare.
+
+### Automatizare recurență — executabil și verificare infrastructură
+
+Coolify sandbox verificat: No scheduled tasks; CRON_SECRET nu apare în lista vizibilă de configurări. Nu este declarată automatizare activă. Imaginea Docker include scripts/recurring-runner.mjs; comanda de sarcină este node /app/scripts/recurring-runner.mjs, propunere de frecvență */5 * * * *. Necesită CRON_SECRET în runtime, identic cu cel verificat de API.
+
+Executabilul apelează exclusiv loopback, nu urmează redirecturi, are timeout 55 secunde și nu afișează cheia sau răspunsuri brute. Orice eroare produce exit 1; numărul de vizite se raportează numai după răspuns valid. Timeout-ul nu anulează o procesare deja începută în server; istoricul trebuie verificat. Patru teste izolate sunt incluse în CI. Nu s-a creat ori activat o sarcină în Coolify și nu s-au generat lucrări reale.

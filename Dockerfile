@@ -29,6 +29,7 @@ RUN groupadd --system --gid 1001 nodejs \
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/recurring-runner.mjs ./scripts/recurring-runner.mjs
 
 # Directoare persistente — legate ca volume în docker-compose.yml, ca baza de
 # date SQLite și pozele încărcate să supraviețuiască la redeploy.
