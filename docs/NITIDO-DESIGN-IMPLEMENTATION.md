@@ -186,3 +186,9 @@ Referințe: https://github.com/advisories/GHSA-2xp9-vwfh-vxw4 , https://github.c
 ### Ajutor disponibil fără provider AI
 
 Cele șase întrebări rapide din SupportCenter deschid răspunsul corespunzător din supportKnowledge într-un panou separat, etichetat explicit drept ghid fără AI. Nu mai sunt dezactivate odată cu providerul și nu sunt injectate în istoricul conversației AI. Formularul AI este activ numai după confirmarea available=true. Lint trecut; necesită CI și verificare în sandbox după publicare. Providerul AI nu a fost configurat sau activat prin această modificare.
+
+### Disponibilitatea AI și reîncercarea pe mobil
+
+Ecranul nativ verifică disponibilitatea la deschidere și permite reverificare manuală. Răspunsurile incomplete nu activează trimiterea. Întrebarea rămâne în formular la eroare, iar istoricul este extins numai după un răspuns valid. Limita este aliniată la server: 1000 de caractere. Apăsările simultane sunt blocate, iar răspunsurile unei vizite anterioare nu modifică noua vizită. Nu s-a activat providerul AI și nu s-a publicat un build instalabil.
+
+Etapa web precedentă be08e57 a fost publicată în sandbox și verificată în browser: toate cele șase întrebări rapide deschid răspunsul din ghid, iar închiderea funcționează. Formularul AI rămâne dezactivat când providerul este indisponibil.
