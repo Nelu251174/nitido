@@ -244,3 +244,9 @@ API validează datele, titularul și starea într-o tranzacție. Dacă există v
 Abonamentele noi acceptă endDate opțional, validat calendaristic și comparat cu prima dată înainte de verificarea cardului. Coloana end_date se adaugă compatibil bazelor existente; null păstrează seriile fără termen. Generatorul include ultima zi și nu creează vizite ulterioare, inclusiv după pauză sau întrerupere. Planurile și istoricul rămân disponibile; încheierea seriei nu anulează lucrări existente și nu schimbă plăți.
 
 Formularul oferă data de sfârșit și explică limita inclusivă, ora României și regula ultimei zile a lunii. Lista afișează limita și indică încheierea când următoarea dată depășește limita. 46 de teste țintite, TypeScript și lint trecute local. Necesită CI și deployment confirmate separat; verificarea vizuală autentificată și întregul brief nu sunt declarate finalizate.
+
+### Reîncercarea creării fără duplicarea abonamentului
+
+Formularul păstrează un requestId pentru același conținut până la confirmare și blochează trimiterea simultană cu alte acțiuni de recurență. Serverul păstrează o amprentă a conținutului și ID-ul planului, unic per client/requestId, în aceeași tranzacție cu abonamentul. Reîncercarea returnează planul inițial; conținutul diferit produce 409. Un plan anulat nu este reactivat prin reîncercare. Clienții vechi fără requestId păstrează comportamentul anterior; reîncărcarea paginii înainte de confirmare nu păstrează cheia formularului și necesită verificarea listei.
+
+Erorile de rețea sunt afișate, iar confirmarea creării este separată de reîncărcarea listei. 49 teste țintite, TypeScript și lint trecute; inclusiv rollback la eșecul salvării cheii și izolarea între clienți. CI și publicarea se verifică separat. Nu se declară validarea completă a brief-ului.

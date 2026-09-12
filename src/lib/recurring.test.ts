@@ -300,4 +300,27 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     expect(listRecurringOccurrences(db,"client_1")).toEqual([]);
   });
 
+  it("retries a creation request without duplicating the subscription",()=>{
+    seedClientAndFirm(db);const input={...basePlan,startDate:"2026-01-05",requestId:"request-1234567890"};
+    const first=createRecurringPlan(db,input);
+    expect(createRecurringPlan(db,input)).toEqual(first);
+    expect(listPlansForClient(db,"client_1")).toHaveLength(1);
+    expect(createRecurringPlan(db,{...input,sqm:90})).toMatchObject({ok:false,status:409});
+    expect(listPlansForClient(db,"client_1")).toHaveLength(1);
+  });
+  it("isolates request identities by client and does not revive a cancelled plan",()=>{
+    seedClientAndFirm(db);db.prepare("INSERT INTO users(id,role,name) VALUES('other','client','Other')").run();
+    const input={...basePlan,startDate:"2026-01-05",requestId:"request-1234567890"};
+    const first=createRecurringPlan(db,input);if(!first.ok)throw new Error("fixture");
+    setPlanStatus(db,first.planId,"client_1","cancelled");
+    expect(createRecurringPlan(db,input)).toEqual(first);
+    expect(listPlansForClient(db,"client_1")).toEqual([]);
+    const other=createRecurringPlan(db,{...input,clientId:"other"});expect(other.ok).toBe(true);expect(other).not.toEqual(first);
+  });
+  it("rolls back the plan if the creation receipt cannot be stored",()=>{
+    seedClientAndFirm(db);db.exec("CREATE TRIGGER reject_receipt BEFORE INSERT ON recurring_creation_requests BEGIN SELECT RAISE(ABORT,'receipt failed'); END");
+    expect(()=>createRecurringPlan(db,{...basePlan,startDate:"2026-01-05",requestId:"request-1234567890"})).toThrow(/receipt failed/);
+    expect(listPlansForClient(db,"client_1")).toEqual([]);
+  });
+
 });

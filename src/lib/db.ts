@@ -375,6 +375,14 @@ CREATE TABLE IF NOT EXISTS recurring_plans (
 CREATE INDEX IF NOT EXISTS idx_recurring_due ON recurring_plans(status, next_run_date);
 CREATE INDEX IF NOT EXISTS idx_recurring_client ON recurring_plans(client_id, status);
 
+CREATE TABLE IF NOT EXISTS recurring_creation_requests (
+  client_id TEXT NOT NULL REFERENCES users(id),
+  request_id TEXT NOT NULL,
+  payload_hash TEXT NOT NULL,
+  plan_id TEXT NOT NULL REFERENCES recurring_plans(id),
+  PRIMARY KEY(client_id, request_id)
+);
+
 CREATE TABLE IF NOT EXISTS recurring_pauses (
   plan_id TEXT PRIMARY KEY REFERENCES recurring_plans(id),
   start_date TEXT NOT NULL,

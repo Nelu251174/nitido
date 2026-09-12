@@ -999,6 +999,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
+  const creationRequest=useRef<{payload:string;id:string}|null>(null);
   const statusLock = useRef(false);
   const [statusBusy,setStatusBusy]=useState(false);
 
@@ -1014,24 +1015,22 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
   }, [load]);
 
   async function create() {
-    setBusy(true);
-    setMsg(null);
+    if(statusLock.current)return;
+    statusLock.current=true;setBusy(true);setMsg(null);
     try {
-      const r = await fetch("/api/recurring", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...defaults, frequency, hour, startDate, endDate:endDate||null }),
-      });
-      const d = await r.json();
-      if (!r.ok) {
-        setMsg(d.error ?? "Nu s-a putut crea abonamentul");
-        return;
-      }
-      setOpen(false);
-      await load();
-    } finally {
-      setBusy(false);
-    }
+      const input={...defaults,frequency,hour,startDate,endDate:endDate||null};
+      const payload=JSON.stringify(input);
+      if(!creationRequest.current||creationRequest.current.payload!==payload)creationRequest.current={payload,id:crypto.randomUUID()};
+      const r=await fetch("/api/recurring",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...input,requestId:creationRequest.current.id})});
+      const d=await r.json();
+      if(!r.ok)throw new Error(typeof d.error==="string"?d.error:"Nu s-a putut crea abonamentul.");
+      if(typeof d.planId!=="string"||!d.planId)throw new Error("Crearea nu a fost confirmată. Verifică abonamentele înainte de a modifica formularul.");
+      creationRequest.current=null;setOpen(false);
+      try{await load();setMsg("Abonamentul a fost creat.")}
+      catch{setMsg("Abonamentul a fost creat, dar lista nu s-a actualizat. Reîncarcă pagina pentru verificare.")}
+    } catch(error){
+      setMsg(error instanceof Error&&!(error instanceof TypeError)?error.message:"Crearea nu a fost confirmată. Reîncearcă fără să modifici datele sau verifică lista abonamentelor.");
+    } finally {statusLock.current=false;setBusy(false)}
   }
   async function generateVisits(){
     if(statusLock.current||busy)return;
@@ -1167,7 +1166,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
             <input type="date" className={inputClass} min={startDate} value={endDate} onChange={event=>setEndDate(event.target.value)} />
           </Field>
           <p className="text-xs text-muted mt-2">Fără dată de sfârșit, seria continuă până o oprești. Data aleasă este inclusivă, în ora României; nu se generează vizite după ea. Pentru o zi lunară inexistentă se folosește ultima zi a lunii, apoi se revine la ziua inițială.</p>
-          <Button className="w-full mt-3" onClick={create} disabled={busy}>
+          <Button className="w-full mt-3" onClick={create} disabled={busy||statusBusy}>
             {busy ? "Se creează..." : "Creează abonamentul"}
           </Button>
         </div>

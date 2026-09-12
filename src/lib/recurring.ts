@@ -1,7 +1,7 @@
 import { bucharestScheduledAt } from "@/lib/scheduling";
 export { bucharestScheduledAt } from "@/lib/scheduling";
 import type { Database } from "better-sqlite3";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import {
   calcGrossPrice,
   calcDurationMinutes,
@@ -21,6 +21,7 @@ import { acceptJobAtomic } from "@/lib/acceptJob";
 export type Frequency = "weekly" | "biweekly" | "monthly";
 
 export interface RecurringPlanInput {
+  requestId?: string;
   clientId: string;
   preferredFirmId?: string | null;
   frequency: Frequency;
@@ -58,6 +59,7 @@ const VALID_SPACE: readonly SpaceType[] = ["apartament", "casa", "birou", "altul
 /** Creează un abonament recurent. */
 export function validateRecurringPlan(input: RecurringPlanInput): Extract<PlanResult,{ok:false}>|null {
   if(!input||typeof input!=="object")return {ok:false,error:"Date abonament invalide",status:400};
+  if(input.requestId!==undefined&&(typeof input.requestId!=="string"||!/^[-a-zA-Z0-9]{16,100}$/.test(input.requestId)))return {ok:false,status:400,error:"Identificator de cerere invalid"};
   for(const [key,max,required] of [["clientId",200,true],["street",300,true],["city",120,true],["postalCode",30,false],["floor",100,false],["details",500,false],["preferredFirmId",200,false]] as const){
     const value=input[key];
     if(value==null&&!required)continue;
@@ -93,6 +95,12 @@ export function validateRecurringPlan(input: RecurringPlanInput): Extract<PlanRe
 
 export function createRecurringPlan(db: Database, input: RecurringPlanInput): PlanResult {
   const invalid=validateRecurringPlan(input);if(invalid)return invalid;
+  const payloadHash=createHash("sha256").update(JSON.stringify([input.preferredFirmId??null,input.frequency,input.street.trim(),input.postalCode??null,input.city.trim(),input.floor??null,input.sqm,input.spaceType,input.hour,input.details?.trim()||null,input.startDate,input.endDate??null])).digest("hex");
+  return db.transaction(():PlanResult=>{
+  if(input.requestId){
+    const prior=db.prepare("SELECT plan_id,payload_hash FROM recurring_creation_requests WHERE client_id=? AND request_id=?").get(input.clientId,input.requestId) as {plan_id:string;payload_hash:string}|undefined;
+    if(prior)return prior.payload_hash===payloadHash?{ok:true,planId:prior.plan_id}:{ok:false,status:409,error:"Cererea a fost deja folosită cu alte date. Verifică abonamentele înainte de a crea unul nou."};
+  }
   const planId = `plan_${randomUUID()}`;
   db.prepare(
     `INSERT INTO recurring_plans
@@ -116,7 +124,9 @@ export function createRecurringPlan(db: Database, input: RecurringPlanInput): Pl
     Number(input.startDate.slice(8,10)),
     input.endDate ?? null
   );
+  if(input.requestId)db.prepare("INSERT INTO recurring_creation_requests(client_id,request_id,payload_hash,plan_id) VALUES(?,?,?,?)").run(input.clientId,input.requestId,payloadHash,planId);
   return { ok: true, planId };
+  })();
 }
 
 interface PlanRow {

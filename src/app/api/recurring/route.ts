@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
   if(b.action!==undefined)return NextResponse.json({error:"Acțiune invalidă"},{status:400});
   const input:RecurringPlanInput = {
     clientId: user.id,
+    requestId: b?.requestId,
     preferredFirmId: typeof b?.preferredFirmId === "string" ? b.preferredFirmId : null,
     frequency: b?.frequency,
     street: b?.street,
