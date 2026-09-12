@@ -1,3 +1,4 @@
+import {persistSignup,signupInputError} from "@/lib/signupPersistence";
 import { NextRequest, NextResponse } from "next/server";
 import { db, newId, getUserByEmail, getUserByReferralCode } from "@/lib/db";
 import { hashPassword, createSession } from "@/lib/auth";
@@ -19,7 +20,14 @@ export async function POST(req: NextRequest) {
   if (!consumeRateLimit(`signup:${requestIp(req)}`, 5, 60 * 60 * 1000)) {
     return NextResponse.json({ error: "Prea multe conturi create. Încearcă mai târziu." }, { status: 429 });
   }
-  const body = await req.json().catch(() => ({}));
+  const raw = await req.text();
+  if (Buffer.byteLength(raw)>12000) return NextResponse.json({error:"Cerere prea mare"},{status:413});
+  let body;
+  try { body=JSON.parse(raw); } catch { return NextResponse.json({error:"Date invalide"},{status:400}); }
+  const inputError=signupInputError(body);
+  if(inputError)return NextResponse.json({error:inputError},{status:400});
+  body.email=body.email.trim();
+  body.name=body.name.trim();
   const { role, name, email, password, phone, cui, coverageCity, coverageCitiesExtra, referralCode } =
     body as {
       role: "client" | "firma";
@@ -93,47 +101,22 @@ export async function POST(req: NextRequest) {
   // cod invalid/inexistent NU blochează înregistrarea, doar nu se acordă
   // bonusul (nu penalizăm un simplu typo). Vezi src/lib/referral.ts.
   const referrer = referralCode ? getUserByReferralCode(referralCode.trim().toUpperCase()) : undefined;
-  const newUserCredit = referrer ? REFERRAL_BONUS_LEI : 0;
 
   let ownReferralCode = generateReferralCode(name);
   while (getUserByReferralCode(ownReferralCode)) {
     ownReferralCode = generateReferralCode(name);
   }
 
-  db.prepare(
-    `INSERT INTO users
-      (id, role, name, email, phone, password_hash, referral_code, referred_by_code, credit_balance)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    userId,
-    role,
-    name,
-    email,
-    normalizedPhone,
-    passwordHash,
-    ownReferralCode,
-    referrer ? referrer.referral_code : null,
-    newUserCredit
-  );
-
-  if (referrer) {
-    db.prepare("UPDATE users SET credit_balance = credit_balance + ? WHERE id = ?").run(
-      REFERRAL_BONUS_LEI,
-      referrer.id
-    );
-  }
-
-  if (role === "firma") {
-    const firmId = newId("firm");
-    // Verificată (verified=1) doar dacă ANAF a confirmat efectiv firma activă.
-    // Dacă ANAF a fost indisponibil la momentul înregistrării (status
-    // "unavailable"), firma intră neverificată (0) — vezi admin, secțiunea
-    // firme, pentru revizuire manuală ulterioară.
-    const verified = cuiVerification?.status === "valid" ? 1 : 0;
-    const citiesExtra = coverageCitiesExtra ? sanitizeCoverageCitiesInput(coverageCitiesExtra) : null;
-    db.prepare(
-      "INSERT INTO firms (id, user_id, cui, coverage_city, coverage_cities_extra, verified) VALUES (?, ?, ?, ?, ?, ?)"
-    ).run(firmId, userId, sanitizeCui(cui!), coverageCity, citiesExtra || null, verified);
+  try {
+    persistSignup(db, {
+      userId, role, name, email, phone:normalizedPhone, passwordHash, referralCode:ownReferralCode,
+      referrer:referrer?{id:referrer.id,code:referrer.referral_code!}:null, bonus:REFERRAL_BONUS_LEI,
+      ...(role==='firma'?{firm:{id:newId('firm'),cui:sanitizeCui(cui!),city:coverageCity!.trim(),citiesExtra:coverageCitiesExtra?sanitizeCoverageCitiesInput(coverageCitiesExtra)||null:null,verified:cuiVerification?.status==='valid'}}:{})
+    });
+  } catch (error) {
+    if(getUserByEmail(email))return NextResponse.json({error:"Există deja un cont cu acest email"},{status:409});
+    console.error('signup_persistence_failed', {code:error instanceof Error?error.name:'unknown'});
+    return NextResponse.json({error:"Contul nu a putut fi creat. Nu au fost salvate date parțiale. Reîncearcă."},{status:500});
   }
 
   const welcomeEmailSent = await sendVerificationEmail(db, userId);
