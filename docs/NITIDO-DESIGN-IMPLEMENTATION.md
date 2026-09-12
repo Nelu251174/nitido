@@ -182,3 +182,7 @@ Blocaj de build nativ reconfirmat în mobile/app.json: extra.eas.projectId este 
 Audit real inițial website: 1 critică, 2 ridicate, 6 moderate. Actualizate Next.js și eslint-config-next la 16.3.5, Sharp la 0.35.4, js-yaml tranzitiv la 4.3.2. Audit local după actualizare: 0 critice, 0 ridicate, 6 moderate. Moderate rămase: lanțurile Vitest și Capacitor/xcode/uuid. Auditul mobile anterior: 15 moderate; lockfile-ul mobile nu a fost modificat în această etapă.
 
 Referințe: https://github.com/advisories/GHSA-2xp9-vwfh-vxw4 , https://github.com/advisories/GHSA-rgj7-g3m4-5g8c , https://github.com/advisories/GHSA-2883-xcg3-v3hh . Nu se declară dispariția vulnerabilităților din instanța publicată până la deployment-ul confirmat al versiunii actualizate.
+
+### Ajutor disponibil fără provider AI
+
+Cele șase întrebări rapide din SupportCenter deschid răspunsul corespunzător din supportKnowledge într-un panou separat, etichetat explicit drept ghid fără AI. Nu mai sunt dezactivate odată cu providerul și nu sunt injectate în istoricul conversației AI. Formularul AI este activ numai după confirmarea available=true. Lint trecut; necesită CI și verificare în sandbox după publicare. Providerul AI nu a fost configurat sau activat prin această modificare.

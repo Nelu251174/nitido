@@ -1,5 +1,6 @@
 "use client";
 
+import {SUPPORT_TOPICS} from "@/lib/supportKnowledge";
 import {SupportQuestions} from "./SupportQuestions";
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
@@ -12,6 +13,7 @@ const welcome: Message = { role: "assistant", content: "Bun venit! Îți pot exp
 
 export function SupportCenter() {
   const [messages, setMessages] = useState<Message[]>([welcome]);
+  const [guide, setGuide] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export function SupportCenter() {
 
   async function send(question?: string) {
     const content = (question ?? input).trim();
-    if (!content || loading || content.length > 1_000) return;
+    if (!content || loading || status?.available !== true || content.length > 1_000) return;
     const next = [...messages, { role: "user" as const, content }].slice(-12);
     setMessages(next); setInput(""); setError(null); setLoading(true);
     try {
@@ -45,14 +47,14 @@ export function SupportCenter() {
   return <>
     <section id="asistent-ai" className="v2-container pt-0 pb-0">
       <div className="grid min-h-fit grid-cols-[.72fr_1.28fr] items-start gap-10 max-[1000px]:grid-cols-1">
-        <div><div className="v2-eyebrow">ASISTENT AI NITIDO</div><h2 className="v2-h2 mt-4">Ajutor rapid, 24/7, pentru întrebări despre platformă.</h2><p className="mt-5 leading-7 text-[#64748b]">Asistentul îți explică pașii și poate folosi contextul contului autentificat numai în limitele permisiunilor tale.</p><div className="mt-8 rounded-2xl border border-[#c9dfd1] bg-[#e8f5f2] p-5"><div className="flex gap-3 text-[#115e59]"><Shield/><div><b className="text-sm">Suport, nu control asupra contului</b><p className="mt-2 text-sm leading-6 text-[#3e4842]">Asistentul AI oferă informații și suport. Operațiunile sensibile se execută doar prin fluxurile securizate ale platformei.</p></div></div></div><div className="mt-6 flex flex-wrap gap-2">{suggestions.slice(0,6).map(question => <button type="button" key={question} onClick={() => void send(question)} disabled={loading || status?.available === false} className="rounded-full border border-line px-3 py-2 text-xs disabled:opacity-50">{question}</button>)}</div><SupportQuestions/></div>
+        <div><div className="v2-eyebrow">ASISTENT AI NITIDO</div><h2 className="v2-h2 mt-4">Ajutor rapid, 24/7, pentru întrebări despre platformă.</h2><p className="mt-5 leading-7 text-[#64748b]">Asistentul îți explică pașii și poate folosi contextul contului autentificat numai în limitele permisiunilor tale.</p><div className="mt-8 rounded-2xl border border-[#c9dfd1] bg-[#e8f5f2] p-5"><div className="flex gap-3 text-[#115e59]"><Shield/><div><b className="text-sm">Suport, nu control asupra contului</b><p className="mt-2 text-sm leading-6 text-[#3e4842]">Asistentul AI oferă informații și suport. Operațiunile sensibile se execută doar prin fluxurile securizate ale platformei.</p></div></div></div><div className="mt-6 flex flex-wrap gap-2">{suggestions.slice(0,6).map(question => <button type="button" key={question} onClick={() => setGuide(question)} aria-expanded={guide===question} aria-controls="support-guide-answer" className="rounded-full border border-line px-3 py-2 text-xs disabled:opacity-50">{question}</button>)}</div><div id="support-guide-answer" aria-live="polite">{guide&&<article className="mt-4 rounded-2xl border border-line bg-white p-5"><p className="text-xs font-semibold text-[#115e59]">Răspuns din ghidul NITIDO · fără AI</p><h3 className="mt-2 font-bold">{guide}</h3><p className="mt-3 whitespace-pre-wrap text-sm leading-6">{SUPPORT_TOPICS.find(topic=>topic.title===guide)?.answer ?? "Consultă ghidul de mai jos sau contactează echipa NITIDO pentru detalii."}</p><button type="button" onClick={()=>setGuide(null)} className="mt-3 text-sm underline">Închide răspunsul</button></article>}</div><SupportQuestions/></div>
 
         <div className="overflow-hidden rounded-[24px] border border-[#d8d7d0] bg-white shadow-[0_28px_80px_rgba(16,23,17,.12)]">
           <div className="flex items-center justify-between border-b border-[#e2e8f0] px-6 py-5"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0f766e] font-bold text-white">N</span><div><h3 className="font-bold">Asistent AI NITIDO</h3><span className="text-xs text-[#64748b]">{status === null ? "Se verifică disponibilitatea…" : status.available ? "Disponibil" : "Indisponibil temporar"}</span></div></div><button type="button" onClick={reset} className="rounded-lg border border-[#e2e8f0] px-3 py-2 text-xs font-semibold hover:bg-[#f7f9fc]">Conversație nouă</button></div>
           <div ref={chatMessagesRef} aria-live="polite" className="h-[430px] space-y-4 overflow-y-auto bg-[#faf9f5] p-6 max-sm:h-[390px] max-sm:p-4">{messages.map((message,index)=><div key={`${message.role}-${index}`} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-6 ${message.role === "user" ? "rounded-br-md bg-[#0f766e] text-white" : "rounded-bl-md border border-[#e2e8f0] bg-white text-[#29322d]"}`}>{message.content}</div></div>)}{loading&&<div className="flex justify-start"><div className="rounded-2xl rounded-bl-md border border-[#e2e8f0] bg-white px-4 py-3 text-sm text-[#64748b]"><span className="inline-flex gap-1"><i className="h-2 w-2 animate-pulse rounded-full bg-[#0f766e]"/><i className="h-2 w-2 animate-pulse rounded-full bg-[#0f766e] [animation-delay:150ms]"/><i className="h-2 w-2 animate-pulse rounded-full bg-[#0f766e] [animation-delay:300ms]"/></span></div></div>}</div>
           {status?.available === false && <div className="border-t border-[#efdba9] bg-[#fff8e8] px-6 py-4 text-sm leading-6 text-[#725117]">{status.unavailableMessage}</div>}
           {error && <div role="alert" className="border-t border-[#f0c8c8] bg-[#fff2f2] px-6 py-4 text-sm text-[#8f2f2f]"><b>Nu am putut răspunde.</b> {error}<div className="mt-2 flex gap-4"><a href="tel:0341402403" className="font-bold underline">Sună suportul</a><a href="mailto:contact@nitido.ro" className="font-bold underline">Trimite email</a></div></div>}
-          <form onSubmit={submit} className="border-t border-[#e2e8f0] p-4"><div className="flex gap-2"><label className="sr-only" htmlFor="support-question">Întrebarea ta</label><input id="support-question" value={input} onChange={event=>setInput(event.target.value)} maxLength={1000} disabled={loading || status?.available === false} placeholder="Scrie întrebarea ta…" className="min-w-0 flex-1 rounded-xl border border-[#d8d7d0] bg-white px-4 py-3 text-sm outline-none focus:border-[#0f766e] disabled:bg-[#f0efe9]"/><button type="submit" disabled={!input.trim() || loading || status?.available === false} className="v2-btn v2-btn-primary disabled:cursor-not-allowed disabled:opacity-50">Trimite</button></div><p className="mt-3 text-[11px] leading-5 text-[#7b847e]">Nu introduce parole, coduri de autentificare sau date complete ale cardului.</p></form>
+          <form onSubmit={submit} className="border-t border-[#e2e8f0] p-4"><div className="flex gap-2"><label className="sr-only" htmlFor="support-question">Întrebarea ta</label><input id="support-question" value={input} onChange={event=>setInput(event.target.value)} maxLength={1000} disabled={loading || status?.available !== true} placeholder="Scrie întrebarea ta…" className="min-w-0 flex-1 rounded-xl border border-[#d8d7d0] bg-white px-4 py-3 text-sm outline-none focus:border-[#0f766e] disabled:bg-[#f0efe9]"/><button type="submit" disabled={!input.trim() || loading || status?.available !== true} className="v2-btn v2-btn-primary disabled:cursor-not-allowed disabled:opacity-50">Trimite</button></div><p className="mt-3 text-[11px] leading-5 text-[#7b847e]">Nu introduce parole, coduri de autentificare sau date complete ale cardului.</p></form>
         </div>
       </div>
     </section>
