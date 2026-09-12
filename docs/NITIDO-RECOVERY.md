@@ -26,3 +26,9 @@ SHA-256 detectează coruperea accidentală, nu înlocuiește criptarea, semnarea
 `node --test scripts/recovery.test.mjs` creează date sintetice într-un director temporar, păstrează o relație client–lucrare și o fotografie binară, restaurează și compară rezultatul. Verifică refuzarea backupului fără confirmarea opririi scrierilor, suprascrierii, coruperii și traversării directoarelor. Testele sunt integrate în CI.
 
 Această probă nu confirmă o restaurare efectuată pe Hetzner/Coolify, completitudinea unei copii reale, timpi RPO/RTO, retenția sau accesibilitatea off-site.
+
+## Scalare și verificarea intrărilor
+
+Copierea și calcularea SHA-256 folosesc fluxuri de date, fără încărcarea întregii baze sau fotografii în memorie. Memoria pentru manifest și lista numelor rămâne proporțională cu numărul fișierelor. Manifestul citit la restaurare este limitat la 16 MiB; dimensiunile și hashurile sunt validate înainte de crearea destinației.
+
+Trei probe automate trecute: recuperare SQLite/fotografie, refuzarea traversării directoarelor, fișier de peste 3 MiB procesat în mai multe fragmente și metadate invalide. Acest test nu reprezintă un benchmark de volum real.

@@ -19,4 +19,21 @@ test('isolated backup and restore preserves SQLite relations and photo bytes; re
  await fs.writeFile(path.join(archive,'public/uploads/job/before.png'),'damaged');const rejected=path.join(root,'rejected');await assert.rejects(restore(archive,rejected),/checksum/);await assert.rejects(fs.stat(rejected),/ENOENT/);
  }finally{db?.close();await fs.rm(root,{recursive:true,force:true});}
 });
-test('restore rejects traversal paths without creating a destination',async()=>{const root=await fs.mkdtemp(path.join(os.tmpdir(),'nitido-invalid-'));try{await fs.writeFile(path.join(root,'manifest.json'),JSON.stringify({version:1,files:[{path:'public/uploads/../../../escape',size:0,sha256:''}]}));await assert.rejects(restore(root,path.join(os.tmpdir(),'nitido-unwanted-restore')),/Invalid manifest path/);}finally{await fs.rm(root,{recursive:true,force:true});}});
+test('restore rejects traversal paths without creating a destination',async()=>{const root=await fs.mkdtemp(path.join(os.tmpdir(),'nitido-invalid-'));try{await fs.writeFile(path.join(root,'manifest.json'),JSON.stringify({version:1,files:[{path:'public/uploads/../../../escape',size:0,sha256:'a'.repeat(64)}]}));await assert.rejects(restore(root,path.join(os.tmpdir(),'nitido-unwanted-restore')),/Invalid manifest path/);}finally{await fs.rm(root,{recursive:true,force:true});}});
+
+test('multi-chunk files survive restoration and invalid metadata is rejected',async()=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'nitido-stream-'));
+ try{
+ const source=path.join(root,'source'),archive=path.join(root,'backup'),destination=path.join(root,'restored');
+ await fs.mkdir(path.join(source,'data'),{recursive:true});await fs.mkdir(path.join(source,'public/uploads'),{recursive:true});
+ const db=new Database(path.join(source,'data/nitido.db'));db.exec('CREATE TABLE example(id INTEGER PRIMARY KEY)');db.close();
+ const photo=Buffer.alloc(3*1024*1024+19,73);photo[photo.length-1]=42;
+ await fs.writeFile(path.join(source,'public/uploads/large.bin'),photo);
+ const manifest=await backup(source,archive,{quiesced:true});assert.equal(manifest.files.find(f=>f.path.endsWith('large.bin')).size,photo.length);
+ await restore(archive,destination);assert.deepEqual(await fs.readFile(path.join(destination,'public/uploads/large.bin')),photo);
+ const invalid=path.join(root,'invalid');await fs.mkdir(invalid);
+ for(const entry of [null,{path:'data/nitido.db',size:-1,sha256:'a'.repeat(64)},{path:'data/nitido.db',size:1,sha256:'invalid'}]){
+ await fs.writeFile(path.join(invalid,'manifest.json'),JSON.stringify({version:1,files:[entry]}));await assert.rejects(restore(invalid,path.join(root,'rejected')),/Invalid manifest path/);await assert.rejects(fs.stat(path.join(root,'rejected')),/ENOENT/);
+ }
+ }finally{await fs.rm(root,{recursive:true,force:true});}
+});

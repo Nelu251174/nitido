@@ -160,3 +160,7 @@ Verificare locală: 92 teste mobile, TypeScript și lint. Necesită build nativ 
 ### Backup și restaurare — utilitar și probă izolată
 
 Adăugat scripts/recovery.mjs pentru snapshot SQLite plus fotografii, manifest SHA-256 și restaurare exclusiv într-o destinație nouă. Procedura cere oprirea scrierilor. Două teste de recuperare izolate trecute și integrate în CI; 527 teste web/backend trecute în această etapă. Documentație: NITIDO-RECOVERY.md. Nu s-a operat asupra volumelor de producție și nu este declarată validarea integrală a brief-ului.
+
+### Verificare suplimentară backup — fișiere procesate în flux
+
+Eliminată citirea integrală în memorie a bazei/fotografiilor pentru backup și restaurare. Sunt validate metadatele manifestului și limitată dimensiunea acestuia. Trei probe izolate și lint au trecut. Rularea GitHub anterioară 34683687760 a fost confirmată cu succes; modificarea curentă necesită propria rulare CI. Nu echivalează cu verificare de performanță pe infrastructura reală sau finalizare integrală.
