@@ -140,3 +140,11 @@ Ecran nativ client disponibil din Cont → Evaluări personalizate și din rezer
 Sunt afișate ultimele 200 de cereri, stările și conversațiile cu administrarea. Clientul poate răspunde cererilor deschise sau le poate anula după confirmare. Salvarea include versiunea serverului; conflictele sunt afișate, lista se reîncarcă și mesajul nesalvat este păstrat. Reîncercarea aceleiași cereri după o eroare de rețea folosește același identificator cât timp ecranul rămâne montat. Nu este o coadă offline persistentă.
 
 Validare locală: 80 de teste mobile, TypeScript și lint. Necesită în continuare configurarea autentificării native, build Expo/EAS și verificare pe dispozitiv. Brief-ul integral și verificarea vizuală a tuturor planșelor nu sunt declarate finalizate.
+
+### Continuitatea rezervare → evaluare pe mobil
+
+Transferul către evaluare păstrează localitatea, suprafața, observațiile, adresa, etajul/accesul, codul poștal și data/ora dorită. Birourile selectează categoria office; restul spațiilor pornesc de la general, editabilă de client. Datele sunt prezentate înainte de trimitere și nu sunt trimise automat serverului. Fotografiile și aprobările nu sunt convertite în cerere de evaluare.
+
+Transferul este temporar, în memoria aplicației, legat de cont, consumat o singură dată și expirat după zece minute; este șters la deconectare. Ruta conține doar identificatorul transferului, fără adresa sau observațiile clientului. Dacă aplicația este închisă sau transferul expiră, interfața explică necesitatea revenirii la rezervare ori completării manuale. Nu reprezintă salvare offline.
+
+Verificare: 84 de teste mobile; TypeScript și lint. Build-ul nativ și verificarea pe dispozitiv rămân necesare.

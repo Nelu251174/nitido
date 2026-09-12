@@ -1,3 +1,5 @@
+import {useAuth} from "@/auth";
+import {assessmentFromBooking,assessmentHandoff} from "@/assessmentHandoff";
 import { useRef, useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -15,6 +17,7 @@ import type { SpaceType } from "@/types";
 const STEPS = ["Tip serviciu", "Detalii spațiu", "Adresă", "Data", "Ora", "Detalii suplimentare", "Fotografii", "Estimare preț", "Verificare comandă", "Confirmare și publicare"];
 
 export default function PostJob() {
+  const {user}=useAuth();
   const {propertyId,approvalId,approvalDate,city,sqm,spaceType,date}=useLocalSearchParams<{propertyId?:string;approvalId?:string;approvalDate?:string;city?:string;sqm?:string;spaceType?:string;date?:string}>();
   const [loadedPropertyId, setLoadedPropertyId] = useState<string | null>(null);
   const [propertyRetry, setPropertyRetry] = useState(0);
@@ -128,7 +131,7 @@ export default function PostJob() {
     <View accessibilityLabel={`Pasul ${step + 1} din ${STEPS.length}`} style={styles.progress}><View style={[styles.fill, { width: `${((step + 1) / STEPS.length) * 100}%` }]}/></View>
     {step === 0 ? <ServiceStep value={draft.spaceType} onChange={value => update("spaceType", value)}/> : null}
     {step === 1 ? <PremiumCard><Field label="Suprafața spațiului" value={draft.sqm} onChange={value => update("sqm", value.replace(/\D/g, ""))} keyboard="number-pad" suffix="m²"/><Text style={styles.note}>Introdu suprafața în metri pătrați. Vei vedea estimarea înainte de confirmare.</Text></PremiumCard> : null}
-    {step === 1 && Number(draft.sqm) > 1000 ? <PremiumCard><Text style={styles.note}>Suprafața depășește limita estimării automate. Trimite detaliile către echipa NITIDO.</Text><PrimaryButton title="Solicită o evaluare" onPress={() => router.push({pathname:"/(client)/assessments",params:{city:draft.city,sqm:draft.sqm}})}/></PremiumCard> : null}
+    {step === 1 && Number(draft.sqm) > 1000 ? <PremiumCard><Text style={styles.note}>Suprafața depășește limita estimării automate. Trimite detaliile către echipa NITIDO.</Text><PrimaryButton title="Solicită o evaluare" onPress={() => { if(!user)return; const handoffId=assessmentHandoff.put(user.id,assessmentFromBooking(draft)); router.push({pathname:"/(client)/assessments",params:{handoffId}}); }}/></PremiumCard> : null}
     {step === 2 ? <PremiumCard><Field label="Oraș" value={draft.city} onChange={value => update("city", value)} placeholder="București"/><Field label="Stradă și număr" value={draft.street} onChange={value => update("street", value)} placeholder="Strada Exemplu 10"/><Field label="Cod poștal (opțional)" value={draft.postalCode} onChange={value => update("postalCode", value)} keyboard="number-pad"/><Field label="Etaj / acces (opțional)" value={draft.floor} onChange={value => update("floor", value)}/><Text style={styles.privacy}><Ionicons name="lock-closed"/> Adresa exactă rămâne protejată înainte de alocarea firmei.</Text></PremiumCard> : null}
     {step === 3 ? <PremiumCard><Text style={styles.label}>Data lucrării</Text><DateSelector value={draft.scheduledDate} onChange={value => update("scheduledDate", value)}/><Text style={styles.note}>Alege ziua în care dorești să înceapă curățenia.</Text></PremiumCard> : null}
     {step === 4 ? <PremiumCard><Text style={styles.label}>Ora de începere</Text><View style={styles.slots}>{(scheduling?.slotHours ?? []).map(hour => <Pressable accessibilityRole="radio" accessibilityState={{ checked: draft.scheduledHour === hour }} key={hour} onPress={() => update("scheduledHour", hour)} style={[styles.slot, draft.scheduledHour === hour && styles.selected]}><Text style={[styles.slotText, draft.scheduledHour === hour && styles.selectedText]}>{String(hour).padStart(2, "0")}:00</Text></Pressable>)}</View><Text style={styles.note}>Intervalele și avansul minim de {scheduling?.minLeadHours ?? "—"} oră/ore sunt furnizate de backend.</Text></PremiumCard> : null}

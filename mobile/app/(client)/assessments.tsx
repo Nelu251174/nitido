@@ -1,3 +1,6 @@
+import {useEffect} from "react";
+import {useAuth} from "@/auth";
+import {assessmentHandoff} from "@/assessmentHandoff";
 import {useCallback,useRef,useState} from 'react';
 import {useFocusEffect,useLocalSearchParams} from 'expo-router';
 import {Alert,Pressable,StyleSheet,Text,TextInput,View} from 'react-native';
@@ -7,10 +10,29 @@ import {colors} from '@/theme';
 import {actOnAssessment,assessmentInput,assessmentIsOpen,assessmentSubmitter,ASSESSMENT_CATEGORIES,emptyAssessment,QUANTITIES,STATUS_LABELS,type Assessment,type AssessmentDraft} from '@/assessmentCore';
 const message=(e:unknown)=>e instanceof Error?e.message:'Conexiunea a fost întreruptă. Reîncearcă.';
 export default function Assessments(){
- const params=useLocalSearchParams<{city?:string;sqm?:string}>();
+ const params=useLocalSearchParams<{city?:string;sqm?:string;handoffId?:string}>();
+ const {user}=useAuth();
+ return <AssessmentScreen key={`${user?.id??''}:${params.handoffId??''}`} params={params} owner={user?.id??''}/>;
+}
+function AssessmentScreen({params,owner}:{params:{city?:string;sqm?:string;handoffId?:string};owner:string}){
+ const transferred=useRef(false);
+
  const [draft,setDraft]=useState(()=>emptyAssessment(typeof params.city==='string'?params.city.slice(0,100):'',typeof params.sqm==='string'?params.sqm:'100'));
  const [items,setItems]=useState<Assessment[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[loaded,setLoaded]=useState(false);
  const lock=useRef(false),generation=useRef(0);
+ useEffect(()=>{
+  if(transferred.current||!params.handoffId)return;
+  const handoffId=params.handoffId;
+  let active=true;
+  void Promise.resolve().then(()=>{
+  if(!active||transferred.current)return;
+  transferred.current=true;
+  const incoming=assessmentHandoff.take(owner,handoffId);
+  if(incoming){setDraft(incoming);setNotice('Datele rezervării au fost preluate. Verifică și completează cererea înainte de trimitere.');}
+  else setError('Datele temporare nu mai sunt disponibile. Revino la rezervare sau completează formularul.');
+  });
+  return()=>{active=false;};
+ },[owner,params.handoffId]);
  const submit=useRef<ReturnType<typeof assessmentSubmitter>|null>(null);
  const load=useCallback(async()=>{const current=++generation.current;setLoading(true);try{const result=await api<{requests:Assessment[]}>('/api/assessments');if(current!==generation.current)return;if(!Array.isArray(result.requests))throw new Error('Lista cererilor nu a putut fi citită.');setItems(result.requests);setLoaded(true);}catch(e){if(current===generation.current)setError(message(e));}finally{if(current===generation.current)setLoading(false);}},[]);
  useFocusEffect(useCallback(()=>{void load();return()=>{generation.current++;};},[load]));
