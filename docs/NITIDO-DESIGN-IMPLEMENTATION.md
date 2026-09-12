@@ -268,3 +268,9 @@ Beneficiarul a confirmat primirea emailului în Spam și confirmarea adresei dup
 Resetarea salvează parola, invalidează toate linkurile de resetare ale titularului și revocă sesiunile într-o singură tranzacție. Hashing-ul precedă tranzacția; tokenul este reverificat în aceasta, inclusiv expirarea. Eșecul oricărei scrieri păstrează parola, linkul și sesiunile anterioare. API-ul validează originea, dimensiunea și tipurile datelor și limita bcrypt de 72 de octeți; răspunsurile sunt no-store și nu expun erori interne.
 
 17 teste țintite trecute: rollback SQLite în trei puncte, linkuri expirate/reutilizate, izolarea conturilor, cereri intercalate și validări API. Nu s-a schimbat parola unui cont real în această verificare. Brief-ul integral și acceptanța vizuală completă rămân deschise.
+
+### Solicitarea recuperării — configurare și răspunsuri corecte
+
+API-ul validează originea, corpul JSON, dimensiunea și emailul înainte de căutarea contului. Necesită email configurat și domeniu HTTPS fără credențiale; nu folosește originea cererii pentru link. Mesajul rezultat este neutru pentru cont inexistent și pentru rezultatele trimiterii și nu promite livrarea. Tentativa eșuată este eliminată individual, păstrând linkurile anterioare și auditul linkurilor consumate.
+
+Linkurile noi folosesc fragmentul URL. Pagina acceptă și query-ul vechi, apoi elimină tokenul din adresă păstrându-l în memoria formularului; o reîncărcare necesită redeschiderea linkului din email. Trimiterea simultană a formularului este blocată local. 33 teste țintite trecute în total, inclusiv 16 noi pentru validare, configurație, răspunsuri și eliminare selectivă. Nu s-au trimis emailuri ori schimbat parole reale pentru aceste teste. CI și deployment se confirmă separat.

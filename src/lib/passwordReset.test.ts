@@ -1,7 +1,7 @@
 import {beforeEach,afterEach,describe,it,expect} from 'vitest';
 import Database from 'better-sqlite3';
 import {SCHEMA_SQL} from './db';
-import {createResetToken,applyPasswordReset} from './passwordReset';
+import {createResetToken,applyPasswordReset,discardResetToken} from './passwordReset';
 let db:Database.Database;
 beforeEach(()=>{
  db=new Database(':memory:');db.exec(SCHEMA_SQL);
@@ -39,6 +39,16 @@ describe('atomic password recovery',()=>{
   expect(applyPasswordReset(db,token,'new-hash')).toBe(false);
   expect(password()).toEqual({password_hash:'original'});
   expect(db.prepare('SELECT id FROM sessions').all()).toHaveLength(2);
+ });
+ it('discards only a failed attempt and preserves other links and consumed audit rows',()=>{
+  const earlier=createResetToken(db,'a'),failed=createResetToken(db,'a'),other=createResetToken(db,'b');
+  discardResetToken(db,failed);
+  expect(applyPasswordReset(db,failed,'bad')).toBe(false);
+  expect(applyPasswordReset(db,earlier,'good')).toBe(true);
+  const before=db.prepare('SELECT COUNT(*) n FROM password_reset_tokens').get();
+  discardResetToken(db,earlier);
+  expect(db.prepare('SELECT COUNT(*) n FROM password_reset_tokens').get()).toEqual(before);
+  expect(applyPasswordReset(db,other,'other')).toBe(true);
  });
  it('rejects an unknown token',()=>{expect(applyPasswordReset(db,'unknown','hash')).toBe(false);expect(password()).toEqual({password_hash:'original'})});
 });

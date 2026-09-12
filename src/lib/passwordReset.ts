@@ -32,3 +32,8 @@ export function applyPasswordReset(db: Database, rawToken: string, passwordHash:
     return true;
   })();
 }
+
+/** Remove only the failed delivery attempt; preserve other issued links. */
+export function discardResetToken(db: Database, rawToken: string): void {
+  db.prepare("DELETE FROM password_reset_tokens WHERE token_hash=? AND used_at IS NULL").run(hashToken(rawToken));
+}

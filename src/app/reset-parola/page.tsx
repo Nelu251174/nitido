@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, FormEvent } from "react";
+import { useEffect, useState, useRef, FormEvent } from "react";
 import Link from "next/link";
 import { Field, inputClass, Button } from "@/components/ui";
 import { AuthLayout } from "@/components/AuthLayout";
@@ -8,12 +8,18 @@ import { AuthLayout } from "@/components/AuthLayout";
 export default function ResetParolaPage() {
   const [token, setToken] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const tokenRead = useRef(false);
 
   // Citim token-ul din URL fără useSearchParams (evită cerința de Suspense la build).
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- token citit din URL după montare (client-only)
-    setToken(new URLSearchParams(window.location.search).get("token"));
-    setReady(true);
+    if (tokenRead.current) return;
+    tokenRead.current = true;
+    const url = new URL(window.location.href);
+    const rawToken = url.hash.slice(1) || url.searchParams.get("token");
+    url.hash = "";
+    url.searchParams.delete("token");
+    window.history.replaceState(window.history.state, "", url.pathname + url.search);
+    queueMicrotask(() => { setToken(rawToken); setReady(true); });
   }, []);
 
   if (!ready) return <AuthLayout><p className="text-sm text-muted">Se încarcă...</p></AuthLayout>;
@@ -24,11 +30,14 @@ export default function ResetParolaPage() {
 function RequestLink() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const requestLock = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(e?: FormEvent) {
     e?.preventDefault();
+    if (requestLock.current) return;
+    requestLock.current = true;
     setError(null);
     setBusy(true);
     try {
@@ -43,6 +52,7 @@ function RequestLink() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Eroare necunoscută");
     } finally {
+      requestLock.current = false;
       setBusy(false);
     }
   }
@@ -53,7 +63,7 @@ function RequestLink() {
       <p className="text-sm text-muted mb-6">Îți trimitem un link de resetare pe email.</p>
       {sent ? (
         <div className="rounded-xl border border-line bg-mist p-4 text-sm text-ink">
-          Dacă există un cont cu acest email, ți-am trimis un link de resetare. Verifică-ți inboxul (și folderul Spam).
+          Cererea a fost procesată. Dacă adresa corespunde unui cont și mesajul poate fi trimis, vei primi un link de resetare. Verifică Inbox și Spam. Livrarea nu este confirmată aici.
           <div className="mt-4"><Link href="/login" className="text-aqua-deep font-display font-bold">← Înapoi la autentificare</Link></div>
         </div>
       ) : (
