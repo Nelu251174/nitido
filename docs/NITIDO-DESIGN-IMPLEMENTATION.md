@@ -63,3 +63,7 @@ Această tranșă nu reprezintă finalizarea întregului brief. Sunt necesare: c
 Calendarul include navigare după dată, filtre pentru echipă, tipul spațiului și oraș, precum și blocările reale de disponibilitate. Vizualizările zi/lună includ intervalele care traversează miezul nopții, cu rezerva de deplasare. Calendarul săptămânal păstrează grila 07:00–20:00 și afișează separat programările care depășesc acest interval. Datele sunt calculate pentru Europe/Bucharest; sfârșitul intervalului este exclusiv.
 
 Validare: teste pentru săptămâna de luni, luni cu zile adiacente, navigare la sfârșit de lună/an, an bisect, miezul nopții și schimbarea orei. Această modificare nu reprezintă finalizarea întregului brief; verificarea vizuală autentificată rămâne de făcut.
+
+
+### Înregistrarea tarifului publicat
+Rezervările noi păstrează separat versiunea tarifului existent, parametrii spațiului, durata, bufferul și defalcarea în bani (serviciu, Express 60, credit, total client). Înregistrarea este scrisă în aceeași tranzacție cu rezervarea și nu poate fi rescrisă sau ștearsă prin UPDATE. Ajustările ulterioare ale prețului operațional nu modifică această evidență inițială. Rezervările istorice nu primesc retroactiv o versiune presupusă. API-ul de estimare include aceeași structură, fără a reprezenta o rezervare garantată sau un tarif blocat. Catalogul de extraopțiuni și afișarea acestei defalcări în toate interfețele rămân de implementat.

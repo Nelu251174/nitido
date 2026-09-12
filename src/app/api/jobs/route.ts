@@ -1,3 +1,4 @@
+import { pricingSnapshot } from "@/lib/pricingSnapshot";
 import { hasTrustedMutationOrigin } from "@/lib/security";
 import { bookingDateKey, bucharestScheduledAt, hasSchedulingLeadTime, nextBucharestSlot } from "@/lib/scheduling";
 import { AccessError, consumeApproval, enforcePropertyBudget } from "@/lib/collaborationAccess";
@@ -214,7 +215,7 @@ export async function POST(req: NextRequest) {
   if (sqm <= 0) {
     return NextResponse.json({ error: "Suprafața trebuie să fie pozitivă" }, { status: 400 });
   }
-  if (!Number.isInteger(sqm)) {
+  if (!Number.isSafeInteger(sqm)) {
     return NextResponse.json({ error: "Suprafața trebuie să fie un număr întreg" }, { status: 400 });
   }
   if (!validSpaceTypes.includes(spaceType)) {
@@ -264,6 +265,7 @@ export async function POST(req: NextRequest) {
   // garanția nu e respectată, suplimentul se scoate din nou (vezi express60.ts).
   const express60Fee = isExpress60 ? EXPRESS_60_FEE_LEI : 0;
   const priceGross = calcGrossPrice(spaceType, sqm) + express60Fee;
+  if(!Number.isSafeInteger(priceGross*100))return NextResponse.json({error:"Suprafața depășește limita de calcul"},{status:400});
   const durationMinutes = calcDurationMinutes(sqm);
 
   // Aplicare automată a creditului disponibil (program de recomandare — vezi
@@ -293,6 +295,7 @@ export async function POST(req: NextRequest) {
          express_60, express_60_fee, express_60_deadline, express_60_status, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting')`
     ).run(id,user.id,street,postalCode ?? null,city,floor ?? null,typeof details === "string" ? details.trim() || null : null,requestId,sqm,spaceType,whenType,scheduledAt.toISOString(),priceGross,creditUsed,durationMinutes,BUFFER_MINUTES,ownedPhotoIds.length,jobMode,isExpress60?1:0,express60Fee,isExpress60?express60Deadline(new Date().toISOString()).toISOString():null,isExpress60?"pending":null);
+    db.prepare("UPDATE jobs SET pricing_snapshot=? WHERE id=?").run(JSON.stringify(pricingSnapshot({spaceType,sqm,expressFeeLei:express60Fee,creditLei:creditUsed})),id);
     if (ownedPhotoIds.length > 0) {
       const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL");
       for (const photoId of ownedPhotoIds) linkPhoto.run(id, photoId, user.id);

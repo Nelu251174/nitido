@@ -1,3 +1,4 @@
+import { PRICING_SNAPSHOT_LOCK_SQL } from "./pricingSnapshot";
 import { WORKSPACE_SCHEMA } from "@/lib/workspace";
 import Database from "better-sqlite3";
 import path from "path";
@@ -412,6 +413,9 @@ ensureColumn("users", "company_cui", "TEXT");
 ensureColumn("users", "company_address", "TEXT");
 ensureColumn("jobs", "credit_applied", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("jobs", "details", "TEXT");
+ensureColumn("jobs", "pricing_snapshot", "TEXT");
+// Published pricing is an audit record, separate from later refunds/adjustments.
+db.exec(PRICING_SNAPSHOT_LOCK_SQL);
 ensureColumn("jobs", "client_request_id", "TEXT");
 // Etapa 2 — modul de preluare (implicit 'express' pentru lucrările existente,
 // ca să nu se schimbe comportamentul actual). CHECK-ul e aplicat doar pe baze

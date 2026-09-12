@@ -1,3 +1,4 @@
+import { pricingSnapshot } from "@/lib/pricingSnapshot";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import {
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
   if (typeof spaceType !== "string" || !SPACE_TYPES.includes(spaceType as SpaceType)) {
     return NextResponse.json({ error: "Tipul serviciului nu este valid" }, { status: 400 });
   }
-  if (!Number.isInteger(sqm) || sqm <= 0) {
+  if (!Number.isSafeInteger(sqm) || sqm <= 0 || !Number.isSafeInteger(calcGrossPrice(spaceType as SpaceType,sqm)*100)) {
     return NextResponse.json({ error: "Suprafața trebuie să fie un număr întreg pozitiv" }, { status: 400 });
   }
 
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
       priceGross: calcGrossPrice(spaceType as SpaceType, sqm),
       durationMinutes: calcDurationMinutes(sqm),
       currency: "RON",
+      pricing: pricingSnapshot({spaceType:spaceType as SpaceType,sqm,expressFeeLei:0,creditLei:0}),
     },
     scheduling: { slotHours: SLOT_HOURS, minLeadHours: MIN_LEAD_HOURS },
   });

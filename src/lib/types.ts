@@ -28,6 +28,7 @@ export interface JobRow {
   express_60_status?: "pending" | "met" | "breached" | null;
   scheduled_at: string | null;
   price_gross: number;
+  pricing_snapshot?: string | null;
   credit_applied: number;
   duration_minutes: number;
   buffer_minutes: number;
