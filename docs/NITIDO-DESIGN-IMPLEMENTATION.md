@@ -230,3 +230,11 @@ Executabilul apelează exclusiv loopback, nu urmează redirecturi, are timeout 5
 CRON_SECRET a fost generat și salvat numai în runtime Coolify sandbox. Sarcina NITIDO recurring visits este activată la fiecare 5 minute; execuția manuală din 12 septembrie 2026, 10:24:08 UTC, a încheiat cu Success și created=0. Redeploy 76efa50 reușit. Aceste rezultate înlocuiesc constatarea anterioară de scheduler absent; nu validează un flux financiar complet.
 
 Corectată recuperarea după pauză sau întrerupere: se elimină doar aparițiile cu ora deja trecută. Vizita de astăzi cu oră viitoare este generată în aceeași execuție, fără a aștepta următoarea rulare și fără recuperări retroactive. Cinci probe noi acoperă săptămânal, două săptămâni, ancora lunară, schimbarea orei și o vizită deja expirată. 27 teste de recurență, TypeScript și lint trecute local. Publicarea modificării de cod necesită CI verde. Brief-ul integral rămâne deschis.
+
+### Pauză recurentă pe interval de date
+
+Adăugată tabela recurring_pauses, un interval inclusiv per plan, fără modificarea vizitelor sau plăților existente. Clientul alege abonamentul activ și datele; confirmarea explică înlocuirea intervalului anterior, reluarea automată și lipsa recuperării retroactive. Generatorul omite aparițiile din interval și păstrează frecvența, ancora lunară și ora București.
+
+API validează datele, titularul și starea într-o tranzacție. Dacă există vizite active deja generate în interval, răspunsul 409 cere gestionarea lor explicită în Rezervări; nu se pretinde anularea lor sau eliberarea banilor/capacității. Intervalul existent este afișat în cont. O pauză generală manuală rămâne separată și necesită Reia. Eliminarea unei pauze sau rescrierea intervalului nu recuperează aparițiile deja omise.
+
+41 de teste țintite trecute, TypeScript și lint trecute. Schema este aditivă; nu se șterge la rollback. CI și publicarea acestei versiuni se verifică separat. Rămân deschise confirmarea vizuală autentificată, anularea coordonată a vizitelor deja generate, orizontul de generare și validarea financiară integrală.

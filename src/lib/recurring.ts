@@ -133,7 +133,7 @@ interface PlanRow {
 export function listPlansForClient(db: Database, clientId: string) {
   return db
     .prepare(
-      "SELECT * FROM recurring_plans WHERE client_id = ? AND status != 'cancelled' ORDER BY created_at DESC"
+      "SELECT p.*, r.start_date AS pause_start, r.end_date AS pause_end FROM recurring_plans p LEFT JOIN recurring_pauses r ON r.plan_id=p.id WHERE p.client_id = ? AND p.status != 'cancelled' ORDER BY p.created_at DESC"
     )
     .all(clientId);
 }
@@ -145,6 +145,21 @@ export function listRecurringOccurrences(db:Database,clientId:string){
     JOIN jobs j ON j.id=o.job_id
     WHERE p.client_id=? AND j.client_id=p.client_id
     ORDER BY o.occurrence_date DESC,o.created_at DESC,o.job_id DESC LIMIT 200`).all(clientId);
+}
+
+/** A pause never silently cancels an existing booking or releases a payment. */
+export function schedulePlanPause(db:Database,planId:string,clientId:string,start:unknown,end:unknown,now=new Date()):PlanResult {
+  const validDate=(value:unknown):value is string=>typeof value==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(`${value}T12:00:00Z`))&&new Date(`${value}T12:00:00Z`).toISOString().slice(0,10)===value;
+  if(!validDate(start)||!validDate(end)||start>end||start<ymd(now)||Number(end.slice(0,4))>now.getUTCFullYear()+5)return {ok:false,status:400,error:"Alege un interval valid, de astăzi încolo, în următorii 5 ani."};
+  return db.transaction(():PlanResult=>{
+    const plan=db.prepare("SELECT status FROM recurring_plans WHERE id=? AND client_id=?").get(planId,clientId) as {status:string}|undefined;
+    if(!plan)return {ok:false,status:404,error:"Abonament inexistent"};
+    if(plan.status!=="active")return {ok:false,status:409,error:"Pauza pe interval se programează numai pentru un abonament activ."};
+    const existing=db.prepare(`SELECT COUNT(*) n FROM recurring_occurrences o JOIN jobs j ON j.id=o.job_id WHERE o.plan_id=? AND o.occurrence_date BETWEEN ? AND ? AND j.status NOT IN ('cancelled','completed')`).get(planId,start,end) as {n:number};
+    if(existing.n)return {ok:false,status:409,error:`Există ${existing.n} vizite active în interval. Gestionează anularea lor din Rezervări, apoi programează pauza. Nicio vizită sau plată nu a fost modificată.`};
+    db.prepare("INSERT INTO recurring_pauses(plan_id,start_date,end_date) VALUES(?,?,?) ON CONFLICT(plan_id) DO UPDATE SET start_date=excluded.start_date,end_date=excluded.end_date").run(planId,start,end);
+    return {ok:true,planId};
+  })();
 }
 
 export function setPlanStatus(
@@ -188,7 +203,8 @@ export async function generateDueRecurringJobs(
       // Skip only elapsed occurrences, preserving an upcoming visit today.
       let occurrenceDate=plan.next_run_date;
       let scheduledAt=bucharestScheduledAt(occurrenceDate,plan.hour);
-      while(scheduledAt.getTime()<now.getTime()){
+      const pause=db.prepare("SELECT start_date,end_date FROM recurring_pauses WHERE plan_id=?").get(plan.id) as {start_date:string;end_date:string}|undefined;
+      while(scheduledAt.getTime()<now.getTime()||(pause&&occurrenceDate>=pause.start_date&&occurrenceDate<=pause.end_date)){
         occurrenceDate=computeNextDate(plan.frequency,new Date(`${occurrenceDate}T12:00:00Z`),plan.anchor_day??undefined);
         scheduledAt=bucharestScheduledAt(occurrenceDate,plan.hour);
       }

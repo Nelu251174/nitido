@@ -51,6 +51,8 @@ interface OfferView {
 }
 
 interface PlanView {
+  pause_start?: string|null;
+  pause_end?: string|null;
   id: string;
   frequency: "weekly" | "biweekly" | "monthly";
   next_run_date: string;
@@ -983,6 +985,9 @@ function ReferralCard({ code, creditBalance }: { code: string; creditBalance: nu
 }
 
 function RecurringSection({ defaults }: { defaults: { street: string; postalCode: string; city: string; floor: string; sqm: number; spaceType: SpaceType } }) {
+  const [pausePlan,setPausePlan]=useState("");
+  const [pauseStart,setPauseStart]=useState("");
+  const [pauseEnd,setPauseEnd]=useState("");
   const [occurrences,setOccurrences]=useState<Array<{plan_id:string;occurrence_date:string;job_id:string;scheduled_at:string;status:string;city:string}>>([]);
   const [plans, setPlans] = useState<PlanView[]>([]);
   const [open, setOpen] = useState(false);
@@ -1039,6 +1044,18 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
     }catch(cause){setMsg(cause instanceof Error?cause.message:"Generarea nu a fost confirmată. Verifică istoricul.")}
     finally{statusLock.current=false;setStatusBusy(false)}
   }
+  async function schedulePause(){
+    if(statusLock.current||!pausePlan||!pauseStart||!pauseEnd)return;
+    if(!window.confirm(`Pauză între ${pauseStart} și ${pauseEnd}, inclusiv, ora României. Înlocuiește intervalul anterior. Nu se generează vizite în interval; seria continuă automat după acesta, fără recuperări retroactive. Dacă există vizite active, cererea va fi refuzată și le vei gestiona separat din Rezervări. Continui?`))return;
+    statusLock.current=true;setStatusBusy(true);setMsg(null);
+    try{
+      const response=await fetch(`/api/recurring/${encodeURIComponent(pausePlan)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"pause_interval",startDate:pauseStart,endDate:pauseEnd})});
+      const result=await response.json();
+      if(!response.ok||result.ok!==true)throw new Error(result.error||"Pauza nu a fost confirmată.");
+      await load();setPausePlan("");setMsg("Intervalul de pauză a fost salvat. Seria continuă automat după interval.");
+    }catch(error){setMsg(error instanceof Error?error.message:"Pauza nu a fost confirmată.")}
+    finally{statusLock.current=false;setStatusBusy(false)}
+  }
   async function changeStatus(id: string, status: string) {
     if(statusLock.current)return;
     const explanation=status==="cancelled"
@@ -1077,6 +1094,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
             <div key={p.id} className="py-3 flex items-center gap-3">
               <span className="w-10 h-10 rounded-lg bg-[#e8f5f2] flex items-center justify-center text-[#115e59] font-bold">↻</span>
               <span className="min-w-0 flex-1">
+                {p.pause_start&&p.pause_end&&<span className="block text-xs text-aqua-deep">Pauză programată: {p.pause_start} – {p.pause_end} inclusiv</span>}
                 <b className="text-sm block truncate">{FREQ_LABELS[p.frequency]} · {p.space_type} · {p.city}</b>
                 <span className="text-xs text-[#6b756f]">Următoarea: {p.next_run_date} · {p.status === "active" ? "activ" : p.status === "paused" ? "pe pauză" : p.status}</span>
               </span>
@@ -1094,6 +1112,17 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
           ))}
         </div>
       )}
+
+      {plans.some(plan=>plan.status==="active")&&<details className="mt-4 border-t border-line pt-3">
+        <summary className="cursor-pointer text-sm font-bold">Programează pauză pe interval</summary>
+        <p className="text-xs text-muted mt-2">Interval inclusiv, ora României. Înlocuiește pauza programată anterior. Vizitele deja create trebuie gestionate separat din Rezervări. Datele omise nu se recuperează retroactiv.</p>
+        <div className="grid gap-3 mt-3 sm:grid-cols-3">
+          <label className="text-sm">Abonament<select className="block w-full border rounded p-2" value={pausePlan} onChange={event=>setPausePlan(event.target.value)} disabled={statusBusy}><option value="">Alege abonamentul</option>{plans.filter(plan=>plan.status==="active").map(plan=><option key={plan.id} value={plan.id}>{plan.city} · {FREQ_LABELS[plan.frequency]} · {plan.next_run_date}</option>)}</select></label>
+          <label className="text-sm">Început pauză<input className="block w-full border rounded p-2" type="date" value={pauseStart} disabled={statusBusy} onChange={event=>setPauseStart(event.target.value)}/></label>
+          <label className="text-sm">Sfârșit pauză<input className="block w-full border rounded p-2" type="date" value={pauseEnd} min={pauseStart} disabled={statusBusy} onChange={event=>setPauseEnd(event.target.value)}/></label>
+        </div>
+        <button type="button" className="mt-3 text-sm font-bold text-aqua-deep disabled:opacity-50" disabled={statusBusy||!pausePlan||!pauseStart||!pauseEnd} onClick={()=>void schedulePause()}>Confirmă intervalul de pauză</button>
+      </details>}
 
       <details className="mt-4 border-t border-line pt-3">
         <summary className="cursor-pointer text-sm font-bold">Vizitele abonamentelor</summary>

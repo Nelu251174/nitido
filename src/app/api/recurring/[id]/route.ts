@@ -2,7 +2,7 @@ import {consumeRateLimit,hasTrustedMutationOrigin} from "@/lib/security";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { setPlanStatus } from "@/lib/recurring";
+import { setPlanStatus, schedulePlanPause } from "@/lib/recurring";
 
 // POST — schimbă starea abonamentului (pauză / reactivare / anulare).
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -18,6 +18,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try{b=JSON.parse(raw)}catch{return NextResponse.json({error:"Cerere JSON invalidă"},{status:400})}
   if(!b||typeof b!=="object"||Array.isArray(b))return NextResponse.json({error:"Cerere invalidă"},{status:400});
   const { id } = await params;
+  if(b.action==="pause_interval"){
+    const result=schedulePlanPause(db,id,user.id,b.startDate,b.endDate);
+    return NextResponse.json(result.ok?{ok:true}:{error:result.error},{status:result.ok?200:result.status});
+  }
+  if(b.action!==undefined)return NextResponse.json({error:"Action invalidă"},{status:400});
   const status = b?.status;
   if (status !== "active" && status !== "paused" && status !== "cancelled") {
     return NextResponse.json({ error: "Stare invalidă" }, { status: 400 });

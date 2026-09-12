@@ -1,11 +1,11 @@
 import {beforeEach,describe,it,expect,vi} from 'vitest';
 import {NextRequest} from 'next/server';
-const mocks=vi.hoisted(()=>({user:vi.fn(),rate:vi.fn(),card:vi.fn(),create:vi.fn(),change:vi.fn(),generate:vi.fn(),plans:vi.fn(),occurrences:vi.fn()}));
+const mocks=vi.hoisted(()=>({user:vi.fn(),rate:vi.fn(),card:vi.fn(),create:vi.fn(),change:vi.fn(),generate:vi.fn(),plans:vi.fn(),occurrences:vi.fn(),pause:vi.fn()}));
 vi.mock('@/lib/auth',()=>({getCurrentUser:mocks.user}));
 vi.mock('@/lib/db',()=>({db:{}}));
 vi.mock('@/lib/clientPayments',()=>({getClientCardInfo:mocks.card}));
 vi.mock('@/lib/security',async original=>({...await original<typeof import('@/lib/security')>(),consumeRateLimit:mocks.rate}));
-vi.mock('@/lib/recurring',async original=>({...await original<typeof import('@/lib/recurring')>(),createRecurringPlan:mocks.create,setPlanStatus:mocks.change,generateDueRecurringJobs:mocks.generate,listPlansForClient:mocks.plans,listRecurringOccurrences:mocks.occurrences}));
+vi.mock('@/lib/recurring',async original=>({...await original<typeof import('@/lib/recurring')>(),createRecurringPlan:mocks.create,setPlanStatus:mocks.change,schedulePlanPause:mocks.pause,generateDueRecurringJobs:mocks.generate,listPlansForClient:mocks.plans,listRecurringOccurrences:mocks.occurrences}));
 import {GET,POST} from './route';
 import {POST as change} from './[id]/route';
 const req=(body='{}',origin='https://sandbox.nitido.ro')=>new NextRequest('https://sandbox.nitido.ro/api/recurring',{method:'POST',body,headers:{origin,'content-type':'application/json'}});
@@ -22,5 +22,16 @@ describe('recurring request boundaries',()=>{
  it('listing subscriptions never triggers creation or authorization',async()=>{mocks.plans.mockReturnValue([]);mocks.occurrences.mockReturnValue([]);const response=await GET(new NextRequest('https://sandbox.nitido.ro/api/recurring'));expect(response.status).toBe(200);expect(response.headers.get('cache-control')).toBe('private, no-store');expect(mocks.generate).not.toHaveBeenCalled();expect(mocks.create).not.toHaveBeenCalled();expect(mocks.card).not.toHaveBeenCalled()});
  it('explicit generation is restricted to the authenticated client',async()=>{mocks.generate.mockResolvedValue({created:['j1']});const response=await POST(req(JSON.stringify({action:'generate',clientId:'foreign'})));expect(await response.json()).toEqual({ok:true,created:1});expect(mocks.generate).toHaveBeenCalledWith({},expect.any(Date),'c')});
  it('blocks foreign-origin generation and unknown actions',async()=>{expect((await POST(req('{"action":"generate"}','https://foreign.example'))).status).toBe(403);expect((await POST(req('{"action":"unknown"}'))).status).toBe(400);expect(mocks.generate).not.toHaveBeenCalled()});
+
+ it('pause interval uses session ownership and rejects foreign origins',async()=>{
+   mocks.pause.mockReturnValue({ok:true,planId:'p'});
+   const body=JSON.stringify({action:'pause_interval',clientId:'foreign',startDate:'2026-10-01',endDate:'2026-10-15'});
+   expect((await change(req(body,'https://foreign.example'),params)).status).toBe(403);
+   expect(mocks.pause).not.toHaveBeenCalled();
+   expect((await change(req(body),params)).status).toBe(200);
+   expect(mocks.pause).toHaveBeenCalledWith({},'p','c','2026-10-01','2026-10-15');
+   mocks.pause.mockReturnValue({ok:false,status:409,error:'Active visits'});
+   expect((await change(req(body),params)).status).toBe(409);
+ });
 
 });
