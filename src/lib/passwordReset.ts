@@ -18,12 +18,17 @@ export function createResetToken(db: Database, userId: string): string {
   return raw;
 }
 
-/** Validează și consumă (marchează folosit) un token. Întoarce user_id sau null. */
-export function consumeResetToken(db: Database, rawToken: string): string | null {
-  const row = db
-    .prepare("SELECT id,user_id,expires_at,used_at FROM password_reset_tokens WHERE token_hash=?")
-    .get(hashToken(rawToken)) as { id: string; user_id: string; expires_at: string; used_at: string | null } | undefined;
-  if (!row || row.used_at || new Date(row.expires_at) < new Date()) return null;
-  db.prepare("UPDATE password_reset_tokens SET used_at=datetime('now') WHERE id=?").run(row.id);
-  return row.user_id;
+/** Consume the link, change the password and revoke sessions as one operation. */
+export function applyPasswordReset(db: Database, rawToken: string, passwordHash: string): boolean {
+  return db.transaction(() => {
+    const row = db.prepare("SELECT id,user_id,expires_at,used_at FROM password_reset_tokens WHERE token_hash=?")
+      .get(hashToken(rawToken)) as {id:string;user_id:string;expires_at:string;used_at:string|null}|undefined;
+    if (!row || row.used_at || !Number.isFinite(Date.parse(row.expires_at)) || Date.parse(row.expires_at) <= Date.now()) return false;
+    const changed = db.prepare("UPDATE users SET password_hash=? WHERE id=?").run(passwordHash,row.user_id);
+    if (changed.changes !== 1) return false;
+    // Every older outstanding link loses authority after a successful reset.
+    db.prepare("UPDATE password_reset_tokens SET used_at=datetime('now') WHERE user_id=? AND used_at IS NULL").run(row.user_id);
+    db.prepare("DELETE FROM sessions WHERE user_id=?").run(row.user_id);
+    return true;
+  })();
 }

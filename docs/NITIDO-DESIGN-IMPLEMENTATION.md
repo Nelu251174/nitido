@@ -262,3 +262,9 @@ Dacă furnizorul refuză trimiterea sau cererea eșuează, se restabilește toke
 Ghidul comun pentru website și contextul AI are 61 de subiecte. Corectate instrucțiunile pentru resetarea parolei, editarea profilului, telefon, acoperire, email și mesagerie după verificarea formularelor existente. Adăugat ghidul confirmării emailului, inclusiv Spam, expirare și limita retrimiterilor. 20 teste ale ghidului trecute. Providerul AI nu este activat de această schimbare.
 
 Beneficiarul a confirmat primirea emailului în Spam și confirmarea adresei după deployment 8547a7a. Aceasta validează acel flux pentru contul testat, nu livrarea generală în Inbox sau finalizarea brief-ului integral.
+
+### Recuperarea parolei — salvare atomică
+
+Resetarea salvează parola, invalidează toate linkurile de resetare ale titularului și revocă sesiunile într-o singură tranzacție. Hashing-ul precedă tranzacția; tokenul este reverificat în aceasta, inclusiv expirarea. Eșecul oricărei scrieri păstrează parola, linkul și sesiunile anterioare. API-ul validează originea, dimensiunea și tipurile datelor și limita bcrypt de 72 de octeți; răspunsurile sunt no-store și nu expun erori interne.
+
+17 teste țintite trecute: rollback SQLite în trei puncte, linkuri expirate/reutilizate, izolarea conturilor, cereri intercalate și validări API. Nu s-a schimbat parola unui cont real în această verificare. Brief-ul integral și acceptanța vizuală completă rămân deschise.
