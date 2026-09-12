@@ -164,3 +164,9 @@ Adăugat scripts/recovery.mjs pentru snapshot SQLite plus fotografii, manifest S
 ### Verificare suplimentară backup — fișiere procesate în flux
 
 Eliminată citirea integrală în memorie a bazei/fotografiilor pentru backup și restaurare. Sunt validate metadatele manifestului și limitată dimensiunea acestuia. Trei probe izolate și lint au trecut. Rularea GitHub anterioară 34683687760 a fost confirmată cu succes; modificarea curentă necesită propria rulare CI. Nu echivalează cu verificare de performanță pe infrastructura reală sau finalizare integrală.
+
+### Contact mobil — acțiuni conectate
+
+Intrările Contact NITIDO/Suport NITIDO din profilurile Client și Firmă deschid ecranul nativ /contact. Acesta oferă apel telefonic, redactarea emailului, asistentul corespunzător rolului și conversațiile lucrărilor. Pagina Încredere trimite către același ecran. Adresele sunt selectabile, iar imposibilitatea deschiderii aplicației telefon/email este afișată. Emailul nu este trimis automat. Navigarea către asistent și conversații este internă.
+
+Verificare: TypeScript, lint și suita mobilă; apelul și emailul necesită verificare pe dispozitiv. Nu constituie validare integrală a brief-ului.
