@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import {PublishedPriceBreakdown} from "@/components/PublishedPriceBreakdown";
 import {ClientOverview} from "@/components/ClientOverview";
 import {DesignIcon} from "@/components/DesignIcon";
 import {WorkspaceNav} from "@/components/WorkspaceNav";
@@ -95,6 +96,7 @@ export default function ClientPage() {
   const [postalCode, setPostalCode] = useState("");
   const [city, setCity] = useState("");
   const [floor, setFloor] = useState("");
+  const [details,setDetails]=useState("");
   const [sqm, setSqm] = useState(75);
   const [spaceType, setSpaceType] = useState<SpaceType>("apartament");
   const [whenType, setWhenType] = useState<"asap" | "scheduled">("asap");
@@ -256,6 +258,7 @@ export default function ClientPage() {
         whenType,
         mode: express60Active ? "express" : mode,
         express60: express60Active,
+        details,
         photoIds: photos.map((p) => p.id),
         propertyId,
         approvalId,
@@ -369,6 +372,7 @@ export default function ClientPage() {
     setFirmName(null);
     setRatingDone(false);
     setPhotos([]);
+    setDetails("");
   }
 
   // „Postează o lucrare" — resetează la formular ȘI derulează direct la el, ca
@@ -499,6 +503,7 @@ export default function ClientPage() {
               Completează detaliile — vezi prețul instant, apoi firmele din zonă primesc alerta.
             </p>
 
+            <Field label="Instrucțiuni speciale (opțional)"><textarea className={inputClass} rows={3} maxLength={500} value={details} onChange={e=>setDetails(e.target.value)} placeholder="Materiale sensibile, animale de companie, preferințe de curățenie…"/><small>{details.length}/500 · Vizibile firmei după alocare. Nu introduce coduri de acces sau parole.</small></Field>
             <Field label="Stradă și număr">
               <input className={inputClass} value={street} onChange={(e) => setStreet(e.target.value)} />
             </Field>
@@ -779,6 +784,8 @@ export default function ClientPage() {
           </Card>
         )}
 
+        {job && <PublishedPriceBreakdown snapshot={job.pricing_snapshot}/>}
+        {job?.details && <section className="design-panel"><h2>Instrucțiunile tale</h2><p className="whitespace-pre-wrap break-words">{job.details}</p></section>}
         {job && job.status === "waiting" && (
           <Card>
             <h1 className="font-display font-extrabold text-xl text-ink mb-1">Lucrare postată!</h1>

@@ -67,3 +67,8 @@ Validare: teste pentru săptămâna de luni, luni cu zile adiacente, navigare la
 
 ### Înregistrarea tarifului publicat
 Rezervările noi păstrează separat versiunea tarifului existent, parametrii spațiului, durata, bufferul și defalcarea în bani (serviciu, Express 60, credit, total client). Înregistrarea este scrisă în aceeași tranzacție cu rezervarea și nu poate fi rescrisă sau ștearsă prin UPDATE. Ajustările ulterioare ale prețului operațional nu modifică această evidență inițială. Rezervările istorice nu primesc retroactiv o versiune presupusă. API-ul de estimare include aceeași structură, fără a reprezenta o rezervare garantată sau un tarif blocat. Catalogul de extraopțiuni și afișarea acestei defalcări în toate interfețele rămân de implementat.
+
+
+### Prețul publicat și instrucțiunile clientului — interfață
+Panoul clientului afișează defalcarea inițială salvată (serviciu, Express, credit și total), cu data înregistrării. Nu recalculează istoricul și nu prezintă totalul inițial drept sumă deja încasată. Pentru rezervări vechi sau înregistrări nevalide, afișează explicit lipsa defalcării. Formularul clientului colectează maximum 500 de caractere de instrucțiuni speciale; serverul validează tipul și lungimea. Instrucțiunile salvate sunt vizibile clientului și firmei alocate în lucrarea activă, nu în oportunitățile publice.
+Catalogul extins, câmpurile structurate pentru camere/băi și extraopțiunile tarifabile rămân deschise.

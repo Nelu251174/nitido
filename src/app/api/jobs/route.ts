@@ -224,7 +224,7 @@ export async function POST(req: NextRequest) {
   if (whenType !== "asap" && whenType !== "scheduled") {
     return NextResponse.json({ error: "Tipul programării nu este valid" }, { status: 400 });
   }
-  if (typeof details === "string" && details.length > 500) {
+  if (details !== undefined && (typeof details !== "string" || details.length > 500)) {
     return NextResponse.json({ error: "Detaliile pot avea maximum 500 de caractere" }, { status: 400 });
   }
 
