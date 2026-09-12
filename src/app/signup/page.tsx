@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Field, inputClass, Button } from "@/components/ui";
 import { AuthLayout } from "@/components/AuthLayout";
+import {postAuthDestination,authSwitchHref} from "@/lib/authRedirect";
 
 export default function SignupPage() {
   return (
@@ -60,7 +61,7 @@ function SignupForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Eroare la înregistrare");
-      router.push(role === "client" ? "/client" : "/firma");
+      router.push(postAuthDestination(searchParams.get("next"),role));
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Eroare necunoscută");
@@ -185,7 +186,7 @@ function SignupForm() {
 
       <p className="text-xs text-muted text-center mt-5">
         Ai deja cont?{" "}
-        <Link href="/login" className="text-aqua-deep font-semibold">
+        <Link href={authSwitchHref("login",searchParams.get("next"),role)} className="text-aqua-deep font-semibold">
           Autentifică-te
         </Link>
       </p>

@@ -85,13 +85,14 @@ export async function acceptJobAtomic(
       firm.stripe_account_id,
       job.credit_applied ?? 0
     );
-  } catch (err) {
+  } catch {
     db.prepare(
-      `UPDATE jobs SET status = 'waiting', accepted_firm_id = NULL, accepted_at = NULL WHERE id = ?`
-    ).run(jobId);
+      `UPDATE jobs SET status = 'waiting', accepted_firm_id = NULL, accepted_at = NULL
+       WHERE id = ? AND status = 'accepted' AND accepted_firm_id = ?`
+    ).run(jobId,firmId);
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Autorizare plată eșuată",
+      error: "Autorizarea plății nu a putut fi confirmată. Reîncarcă starea lucrării.",
       status: 502,
     };
   }

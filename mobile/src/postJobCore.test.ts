@@ -1,9 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "./apiCore";
-import { buildCreatePayload, canAddPhoto, EMPTY_DRAFT, isDateAllowed, isSlotAllowed, nextPostStep, postJobError, previousPostStep, quoteMatchesDraft, validateSqm, type JobQuote, type PostJobDraft } from "./postJobCore";
+import { buildCreatePayload, draftFromProperty, canAddPhoto, EMPTY_DRAFT, isDateAllowed, isSlotAllowed, nextPostStep, postJobError, previousPostStep, quoteMatchesDraft, validateSqm, type JobQuote, type PostJobDraft } from "./postJobCore";
 import { publishClientJob, requestAuthoritativeQuote } from "./postJobService";
+
+beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime(new Date("2026-08-30T12:00:00Z"))});
+afterEach(()=>vi.useRealTimers());
 
 const draft = (overrides: Partial<PostJobDraft> = {}): PostJobDraft => ({ ...EMPTY_DRAFT, spaceType: "apartament", sqm: "80", city: "București", street: "Strada Test 10", scheduledDate: "2026-09-02", scheduledHour: 10, ...overrides });
 const quote: JobQuote = { spaceType: "apartament", sqm: 80, priceGross: 550, durationMinutes: 150, currency: "RON" };
@@ -31,4 +34,19 @@ describe("screen integration", () => {
   it("keeps exact address out of the pre-allocation firm card", () => { const card = source("src/jobUi.tsx"); expect(card).not.toContain("job.street"); expect(card).toContain("Adresa exactă"); });
   it("keeps native-only picker code out of the web implementation", () => { expect(source("src/DateSelector.web.tsx")).not.toContain("@react-native-community/datetimepicker"); expect(source("src/DateSelector.native.tsx")).toContain("DateTimePicker"); });
   it("routes authoritative creation to job detail and exposes retry", () => { const post=source("app/(client)/post.tsx"); expect(post).toContain('/(client)/job/[id]'); expect(post).toContain("Reîncearcă încărcarea"); const detail=source("app/(client)/job/[id].tsx"); expect(detail).toContain("Evoluția lucrării"); expect(detail).toContain("Așteptăm o firmă"); });
+});
+
+it("preserves property and approval references in the booking request",async()=>{const request=vi.fn().mockResolvedValue({job:{id:"approved-job"}});await publishClientJob(draft({propertyId:"property-1",approvalId:"approval-1"}),"approval-booking",request);const body=JSON.parse(String(request.mock.calls[0][1].body));expect(body.propertyId).toBe("property-1");expect(body.approvalId).toBe("approval-1");expect(body).not.toHaveProperty("price_gross")});
+
+it("prefills property instructions without silently truncating them", () => {
+  const notes = "A".repeat(700);
+  const result = draftFromProperty({id:"p1",city:"Brașov",street:"Test 10",sqm:90,space_type:"casa",notes}, "a1", "2026-09-02");
+  expect(result).toMatchObject({propertyId:"p1",approvalId:"a1",details:notes,scheduledDate:"2026-09-02",sqm:"90",street:"Test 10"});
+  expect(result.photoIds).toEqual([]);
+  expect(result.scheduledHour).toBeNull();
+});
+it("does not reuse a past property booking date", () => {
+  const result = draftFromProperty({id:"p2",city:"Iași",street:"Test 20",sqm:50,space_type:"apartament"}, undefined, "2020-01-01");
+  expect(result.scheduledDate).toBe("");
+  expect(result.details).toBe("");
 });

@@ -7,6 +7,7 @@ export type JobStatus =
   | "no_show";
 
 export interface JobRow {
+  authorizationStatus?:string|null;
   id: string;
   client_id: string;
   street: string;
@@ -27,6 +28,7 @@ export interface JobRow {
   express_60_status?: "pending" | "met" | "breached" | null;
   scheduled_at: string | null;
   price_gross: number;
+  pricing_snapshot?: string | null;
   credit_applied: number;
   duration_minutes: number;
   buffer_minutes: number;
@@ -37,6 +39,8 @@ export interface JobRow {
   arrived_confirmed_at: string | null;
   completed_at: string | null;
   created_at: string;
+  financial?: {paymentStatus:string;transferStatus:string;payoutStatus:string;refundStatus:string;disputeStatus:string;firmPayout?:number}|null;
+  firm_payout?:number|null;
   photos?: string[];
   // Nitido Scan (Pachet C): pozele de context ale clientului, etichetate pe
   // încăpere, vizibile firmei încă din feed.

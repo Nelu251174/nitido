@@ -33,10 +33,14 @@ export async function createOnboardingLink(db:Database,userId:string,baseUrl:str
   return link.url;
 }
 
-export async function refreshRecipientCapability(db:Database,accountId:string):Promise<void>{
+export async function readRecipientCapability(accountId:string){
   const stripe=getStripeClient();if(!stripe)throw new Error("STRIPE_NOT_CONFIGURED");
   const account=await stripe.v2.core.accounts.retrieve(accountId,{include:["configuration.recipient","requirements"]});
-  const capability=account.configuration?.recipient?.capabilities?.stripe_balance?.stripe_transfers?.status;
-  const active=capability==="active";
-  db.prepare("UPDATE firms SET stripe_account_status=?,stripe_transfers_capability=? WHERE stripe_account_id=?").run(active?"ready":"restricted",capability??"inactive",accountId);
+  const capability=account.configuration?.recipient?.capabilities?.stripe_balance?.stripe_transfers?.status??"inactive";
+  return {status:capability==="active"?"ready":"restricted",capability};
+}
+
+export async function refreshRecipientCapability(db:Database,accountId:string):Promise<void>{
+  const {status,capability}=await readRecipientCapability(accountId);
+  db.prepare("UPDATE firms SET stripe_account_status=?,stripe_transfers_capability=? WHERE stripe_account_id=?").run(status,capability,accountId);
 }

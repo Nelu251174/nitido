@@ -19,6 +19,8 @@ export async function GET(_req: NextRequest) {
     )
     .all() as { id: string; name: string; verified: number }[];
   const payments = db.prepare("SELECT id,job_id,amount_gross,commission_amount,amount_net,status,stripe_fee_amount,transfer_status,payout_status,refund_status,dispute_status,created_at FROM payments ORDER BY created_at DESC").all();
+  const authorizationIssues=db.prepare("SELECT job_id,status,created_ms,stripe_payment_intent_id FROM payment_authorization_attempts WHERE status NOT IN ('requires_capture','succeeded') ORDER BY created_ms DESC LIMIT 100").all();
+  const bankPayouts=db.prepare(`SELECT b.*, (SELECT u.name FROM firms f JOIN users u ON u.id=f.user_id WHERE f.stripe_account_id=b.account_id LIMIT 1) AS firm_name FROM stripe_bank_payouts b ORDER BY b.updated_at DESC LIMIT 100`).all();
   const notifications = (db.prepare(`SELECT id,event_type,channel,recipient,status,attempt_count,last_error,created_at,sent_at
     FROM notification_outbox ORDER BY created_at DESC LIMIT 100`).all() as {recipient:string;[key:string]:unknown}[])
     .map(({recipient,...row})=>({...row,recipient_masked:maskSmsRecipient(recipient)}));
@@ -80,5 +82,5 @@ export async function GET(_req: NextRequest) {
     topFirms,
   };
 
-  return NextResponse.json({ jobs, firms, payments, notifications:[...pushNotifications,...notifications].sort((a,b)=>String((b as Record<string,unknown>).created_at).localeCompare(String((a as Record<string,unknown>).created_at))).slice(0,100), proofs, reviews, stats });
+  return NextResponse.json({ jobs, firms, payments, bankPayouts, authorizationIssues, notifications:[...pushNotifications,...notifications].sort((a,b)=>String((b as Record<string,unknown>).created_at).localeCompare(String((a as Record<string,unknown>).created_at))).slice(0,100), proofs, reviews, stats });
 }

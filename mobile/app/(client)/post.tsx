@@ -1,12 +1,14 @@
-import { useRef, useState } from "react";
+import {useAuth} from "@/auth";
+import {assessmentFromBooking,assessmentHandoff} from "@/assessmentHandoff";
+import { useRef, useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { api } from "@/api";
 import { DateSelector } from "@/DateSelector";
 import { JOB_TYPE_LABELS, jobTypeLabel } from "@/jobTypes";
 import { AppScreen, PremiumCard, PrimaryButton, Pill } from "@/mobileUi";
-import { canAddPhoto, EMPTY_DRAFT, isDateAllowed, isSlotAllowed, MAX_DETAILS_LENGTH, MAX_PHOTOS, nextPostStep, postJobError, previousPostStep, quoteMatchesDraft, validateSqm, type JobQuote, type PostJobDraft, type SchedulingConfig } from "@/postJobCore";
+import { canAddPhoto, draftFromProperty, EMPTY_DRAFT, isDateAllowed, isSlotAllowed, MAX_DETAILS_LENGTH, MAX_PHOTOS, nextPostStep, postJobError, previousPostStep, quoteMatchesDraft, validateSqm, type JobQuote, type PostJobDraft, type SchedulingConfig } from "@/postJobCore";
 import { uploadClientPhoto, type LocalPhoto } from "@/photoUpload";
 import { publishClientJob, requestAuthoritativeQuote } from "@/postJobService";
 import { colors } from "@/theme";
@@ -15,8 +17,12 @@ import type { SpaceType } from "@/types";
 const STEPS = ["Tip serviciu", "Detalii spațiu", "Adresă", "Data", "Ora", "Detalii suplimentare", "Fotografii", "Estimare preț", "Verificare comandă", "Confirmare și publicare"];
 
 export default function PostJob() {
+  const {user}=useAuth();
+  const {propertyId,approvalId,approvalDate,city,sqm,spaceType,date}=useLocalSearchParams<{propertyId?:string;approvalId?:string;approvalDate?:string;city?:string;sqm?:string;spaceType?:string;date?:string}>();
+  const [loadedPropertyId, setLoadedPropertyId] = useState<string | null>(null);
+  const [propertyRetry, setPropertyRetry] = useState(0);
   const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<PostJobDraft>(EMPTY_DRAFT);
+  const [draft, setDraft] = useState<PostJobDraft>(()=>({...EMPTY_DRAFT,city:typeof city === "string" ? city.slice(0,120) : "",sqm:typeof sqm === "string" && /^\d+$/.test(sqm) ? sqm : "",spaceType:typeof spaceType === "string" && Object.hasOwn(JOB_TYPE_LABELS,spaceType) ? spaceType as SpaceType : null,scheduledDate:typeof date === "string" && isDateAllowed(date) ? date : ""}));
   const [quote, setQuote] = useState<JobQuote | null>(null);
   const [scheduling, setScheduling] = useState<SchedulingConfig | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
@@ -28,6 +34,8 @@ export default function PostJob() {
   const [createdId, setCreatedId] = useState<string | null>(null);
   const requestId = useRef<string | null>(null);
 
+  useEffect(()=>{if(!propertyId)return;let cancelled=false;void api<{properties:{id:string;name:string;city:string;street:string;sqm:number;space_type:SpaceType;notes?:string|null}[]}>("/api/workspace").then(d=>{if(cancelled)return;const p=d.properties.find(p=>p.id===propertyId);if(!p){setError("Proprietate indisponibilă.");return}setDraft(draftFromProperty(p,approvalId,approvalDate));setQuote(null);setScheduling(null);setPhotos([]);setFailedPhoto(null);setCreatedId(null);requestId.current=null;setError(null);setStep(0);setLoadedPropertyId(p.id)}).catch(()=>{if(!cancelled)setError("Proprietatea nu a putut fi încărcată.")});return()=>{cancelled=true}},[propertyId,approvalId,approvalDate,propertyRetry]);
+
   function update<K extends keyof PostJobDraft>(key: K, value: PostJobDraft[K]) {
     setDraft(old => ({ ...old, [key]: value }));
     if (key === "spaceType" || key === "sqm") { setQuote(null); setScheduling(null); }
@@ -36,6 +44,7 @@ export default function PostJob() {
 
   async function requestQuote() {
     if (!draft.spaceType || validateSqm(draft.sqm)) return false;
+    if (Number(draft.sqm) > 1000) { setError("Pentru suprafețe de peste 1000 m², solicită o evaluare personalizată."); return false; }
     setQuoteLoading(true); setError(null);
     try {
       const result = await requestAuthoritativeQuote(draft, api);
@@ -112,13 +121,19 @@ export default function PostJob() {
     finally { setSubmitting(false); }
   }
 
+  if (propertyId && loadedPropertyId !== propertyId) return <AppScreen title="Pregătim rezervarea" subtitle="Încărcăm datele proprietății selectate.">
+    {error ? <><Text accessibilityRole="alert" style={styles.error}>{error}</Text><PrimaryButton title="Reîncearcă" onPress={() => { setError(null); setPropertyRetry(value => value + 1); }}/></> : <Text>Se încarcă proprietatea…</Text>}
+    <PrimaryButton secondary title="Înapoi la proprietăți" onPress={() => router.replace("/(client)/properties")}/>
+  </AppScreen>;
+
   const dateText = draft.scheduledDate ? new Date(`${draft.scheduledDate}T12:00:00`).toLocaleDateString("ro-RO", { day: "numeric", month: "long", year: "numeric" }) : "—";
   return <AppScreen eyebrow={`PASUL ${step + 1} DIN ${STEPS.length}`} title="Postează o lucrare" subtitle={STEPS[step]}>
     <View accessibilityLabel={`Pasul ${step + 1} din ${STEPS.length}`} style={styles.progress}><View style={[styles.fill, { width: `${((step + 1) / STEPS.length) * 100}%` }]}/></View>
     {step === 0 ? <ServiceStep value={draft.spaceType} onChange={value => update("spaceType", value)}/> : null}
-    {step === 1 ? <PremiumCard><Field label="Suprafața spațiului" value={draft.sqm} onChange={value => update("sqm", value.replace(/\D/g, ""))} keyboard="number-pad" suffix="m²"/><Text style={styles.note}>Backendul acceptă o suprafață întreagă pozitivă. Prețul este solicitat separat de la NITIDO.</Text></PremiumCard> : null}
+    {step === 1 ? <PremiumCard><Field label="Suprafața spațiului" value={draft.sqm} onChange={value => update("sqm", value.replace(/\D/g, ""))} keyboard="number-pad" suffix="m²"/><Text style={styles.note}>Introdu suprafața în metri pătrați. Vei vedea estimarea înainte de confirmare.</Text></PremiumCard> : null}
+    {step === 1 && Number(draft.sqm) > 1000 ? <PremiumCard><Text style={styles.note}>Suprafața depășește limita estimării automate. Trimite detaliile către echipa NITIDO.</Text><PrimaryButton title="Solicită o evaluare" onPress={() => { if(!user)return; const handoffId=assessmentHandoff.put(user.id,assessmentFromBooking(draft)); router.push({pathname:"/(client)/assessments",params:{handoffId}}); }}/></PremiumCard> : null}
     {step === 2 ? <PremiumCard><Field label="Oraș" value={draft.city} onChange={value => update("city", value)} placeholder="București"/><Field label="Stradă și număr" value={draft.street} onChange={value => update("street", value)} placeholder="Strada Exemplu 10"/><Field label="Cod poștal (opțional)" value={draft.postalCode} onChange={value => update("postalCode", value)} keyboard="number-pad"/><Field label="Etaj / acces (opțional)" value={draft.floor} onChange={value => update("floor", value)}/><Text style={styles.privacy}><Ionicons name="lock-closed"/> Adresa exactă rămâne protejată înainte de alocarea firmei.</Text></PremiumCard> : null}
-    {step === 3 ? <PremiumCard><Text style={styles.label}>Data lucrării</Text><DateSelector value={draft.scheduledDate} onChange={value => update("scheduledDate", value)}/><Text style={styles.note}>Data este transmisă fără conversii UTC care ar putea schimba ziua aleasă.</Text></PremiumCard> : null}
+    {step === 3 ? <PremiumCard><Text style={styles.label}>Data lucrării</Text><DateSelector value={draft.scheduledDate} onChange={value => update("scheduledDate", value)}/><Text style={styles.note}>Alege ziua în care dorești să înceapă curățenia.</Text></PremiumCard> : null}
     {step === 4 ? <PremiumCard><Text style={styles.label}>Ora de începere</Text><View style={styles.slots}>{(scheduling?.slotHours ?? []).map(hour => <Pressable accessibilityRole="radio" accessibilityState={{ checked: draft.scheduledHour === hour }} key={hour} onPress={() => update("scheduledHour", hour)} style={[styles.slot, draft.scheduledHour === hour && styles.selected]}><Text style={[styles.slotText, draft.scheduledHour === hour && styles.selectedText]}>{String(hour).padStart(2, "0")}:00</Text></Pressable>)}</View><Text style={styles.note}>Intervalele și avansul minim de {scheduling?.minLeadHours ?? "—"} oră/ore sunt furnizate de backend.</Text></PremiumCard> : null}
     {step === 5 ? <PremiumCard><Text style={styles.label}>Observații pentru firmă (opțional)</Text><TextInput accessibilityLabel="Detalii suplimentare" multiline maxLength={MAX_DETAILS_LENGTH} value={draft.details} onChangeText={value => update("details", value)} placeholder="Acces, parcare, animale de companie sau cerințe speciale" style={styles.textarea}/><Text style={styles.counter}>{draft.details.length}/{MAX_DETAILS_LENGTH}</Text></PremiumCard> : null}
     {step === 6 ? <PremiumCard><Text style={styles.label}>Fotografii ale spațiului (opțional)</Text><Text style={styles.note}>Maximum 5 imagini JPEG, PNG, WebP sau GIF, de cel mult 8 MB fiecare.</Text><View style={styles.photoActions}><PrimaryButton secondary loading={photoLoading} icon="camera-outline" title="Cameră" onPress={() => void selectPhoto(true)}/><PrimaryButton secondary loading={photoLoading} icon="images-outline" title="Galerie" onPress={() => void selectPhoto(false)}/>{failedPhoto?<PrimaryButton secondary loading={photoLoading} icon="refresh" title="Reîncearcă încărcarea" onPress={() => void retryPhoto()}/>:null}</View><View style={styles.photos}>{photos.map(photo => <View key={photo.id} style={styles.photo}><Image alt="Fotografie atașată lucrării" source={{ uri: photo.uri }} style={styles.photoImage}/><Pressable accessibilityLabel="Elimină fotografia" onPress={() => removePhoto(photo.id)} style={styles.remove}><Ionicons name="close" color={colors.white} size={17}/></Pressable></View>)}</View><Text style={styles.note}>{photos.length} din {MAX_PHOTOS} fotografii încărcate și validate de server.</Text></PremiumCard> : null}
@@ -132,7 +147,7 @@ export default function PostJob() {
   </AppScreen>;
 }
 
-function ServiceStep({ value, onChange }: { value: SpaceType | null; onChange: (value: SpaceType) => void }) { return <View style={styles.grid}>{Object.entries(JOB_TYPE_LABELS).map(([key, label]) => <Pressable accessibilityRole="radio" accessibilityState={{ checked: value === key }} key={key} onPress={() => onChange(key as SpaceType)} style={[styles.service, value === key && styles.selected]}><View style={styles.serviceIcon}><Ionicons name={key === "birou" ? "business-outline" : "home-outline"} size={23} color={colors.green}/></View><Text style={styles.serviceTitle}>{label}</Text><Text style={styles.serviceBody}>Categorie acceptată de backendul NITIDO.</Text></Pressable>)}</View>; }
+function ServiceStep({ value, onChange }: { value: SpaceType | null; onChange: (value: SpaceType) => void }) { return <View style={styles.grid}>{Object.entries(JOB_TYPE_LABELS).map(([key, label]) => <Pressable accessibilityRole="radio" accessibilityState={{ checked: value === key }} key={key} onPress={() => onChange(key as SpaceType)} style={[styles.service, value === key && styles.selected]}><View style={styles.serviceIcon}><Ionicons name={key === "birou" ? "business-outline" : "home-outline"} size={23} color={colors.green}/></View><Text style={styles.serviceTitle}>{label}</Text><Text style={styles.serviceBody}>Alege spațiul pentru care dorești curățenie.</Text></Pressable>)}</View>; }
 function Field({ label, value, onChange, placeholder, keyboard = "default", suffix }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; keyboard?: "default" | "number-pad"; suffix?: string }) { return <View><Text style={styles.label}>{label}</Text><View style={styles.fieldRow}><TextInput accessibilityLabel={label} keyboardType={keyboard} value={value} onChangeText={onChange} placeholder={placeholder} style={styles.field}/>{suffix ? <Text style={styles.suffix}>{suffix}</Text> : null}</View></View>; }
 function Review({ draft, dateText, quote }: { draft: PostJobDraft; dateText: string; quote: JobQuote | null }) { const rows = [["Tip lucrare", draft.spaceType ? jobTypeLabel(draft.spaceType) : "—"], ["Suprafață", `${draft.sqm} m²`], ["Adresă", `${draft.street}, ${draft.city}`], ["Dată", dateText], ["Oră", draft.scheduledHour === null ? "—" : `${String(draft.scheduledHour).padStart(2, "0")}:00`], ["Detalii", draft.details || "Fără observații"], ["Fotografii", String(draft.photoIds.length)], ["Preț total", quote ? `${quote.priceGross} lei` : "—"]]; return <PremiumCard>{rows.map(([label, value]) => <View key={label} style={styles.reviewRow}><Text style={styles.reviewLabel}>{label}</Text><Text style={styles.reviewValue}>{value}</Text></View>)}</PremiumCard>; }
 

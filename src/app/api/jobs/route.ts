@@ -1,15 +1,19 @@
+import { pricingSnapshot } from "@/lib/pricingSnapshot";
+import { hasTrustedMutationOrigin } from "@/lib/security";
+import { bookingDateKey, bucharestScheduledAt, hasSchedulingLeadTime, nextBucharestSlot } from "@/lib/scheduling";
+import { AccessError, consumeApproval, enforcePropertyBudget } from "@/lib/collaborationAccess";
+import { ownProperty, linkPropertyJob, WorkspaceError } from "@/lib/workspace";
 import { after, NextRequest, NextResponse } from "next/server";
 import { db, newId, getFirmByUserId } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import {
+  AUTOMATIC_MAX_SQM,
   calcGrossPrice,
   calcDurationMinutes,
   calcNetForFirm,
   BUFFER_MINUTES,
   MIN_LEAD_HOURS,
   SLOT_HOURS,
-  isSlotValid,
-  nextValidAsapSlot,
   SpaceType,
 } from "@/lib/pricing";
 import { firmCoversCity } from "@/lib/text";
@@ -67,6 +71,8 @@ export async function GET(req: NextRequest) {
       .map((entry) => entry.j);
   }
 
+  const authorizationByJob=new Map<string,string>();
+  if(user.role==="client")for(const row of db.prepare("SELECT a.job_id,a.status FROM payment_authorization_attempts a JOIN jobs j ON j.id=a.job_id WHERE j.client_id=? AND j.status='waiting'").all(user.id) as {job_id:string;status:string}[])authorizationByJob.set(row.job_id,row.status);
   const photosByJob = new Map<string, string[]>();
   const scanByJob = new Map<string, {id:string;url:string;room:string|null;roomLabel:string}[]>();
   const proofsByJob = new Map<string, {id:string;type:"ARRIVAL"|"COMPLETION";url:string;createdAt:string}[]>();
@@ -99,7 +105,7 @@ export async function GET(req: NextRequest) {
 
   const jobsWithPhotos = jobs.map((j) => {
     const canSeePrivate = user.role === "client" || j.accepted_firm_id === firmId;
-    if (canSeePrivate) {const payment=paymentsByJob.get(j.id)??null;return { ...j, photos: photosByJob.get(j.id) ?? [], scan: scanByJob.get(j.id) ?? [], proofs: proofsByJob.get(j.id) ?? [], ownReview:user.role==="client"?ownReviewsByJob.get(j.id)??null:undefined, financial:payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null,...(user.role==="firma"?{firm_payout:payment?.firmPayout??null}:{}) };}
+    if (canSeePrivate) {const payment=paymentsByJob.get(j.id)??null;return { ...j, ...(user.role==="client"?{authorizationStatus:authorizationByJob.get(j.id)??null}:{}), photos: photosByJob.get(j.id) ?? [], scan: scanByJob.get(j.id) ?? [], proofs: proofsByJob.get(j.id) ?? [], ownReview:user.role==="client"?ownReviewsByJob.get(j.id)??null:undefined, financial:payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null,...(user.role==="firma"?{firm_payout:payment?.firmPayout??null}:{}) };}
     return {
       id: j.id,
       city: j.city,
@@ -119,7 +125,7 @@ export async function GET(req: NextRequest) {
       express_60_status: j.express_60_status,
       // Nitido Scan: firma vede pozele de context etichetate încă din feed,
       // ca să estimeze mai bine înainte de a prelua/oferta.
-      scan: scanByJob.get(j.id) ?? [],
+      scan: [],
     };
   });
   // Pentru firme: lista lucrărilor la care firma a trimis deja o ofertă (ca UI-ul
@@ -139,17 +145,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Trebuie să fii autentificat ca client" }, { status: 401 });
   }
 
-  // Card obligatoriu înainte de postare — la acceptare se pune HOLD pe acest
-  // card, deci trebuie salvat dinainte. Dacă Stripe nu e activat, se sare peste.
-  const card = getClientCardInfo(db, user.id);
-  if (card.stripeConfigured && !card.hasCard) {
-    return NextResponse.json(
-      { error: "Adaugă un card înainte de a posta o lucrare.", needsCard: true },
-      { status: 402 }
-    );
-  }
+  if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:"Origine invalidă"},{status:403});
 
-  const body = await req.json();
+  const body = await req.json().catch(()=>null);
+  if(!body||typeof body!=="object")return NextResponse.json({error:"Cerere invalidă"},{status:400});
+  if(body.propertyId){try{ownProperty(db,user.id,String(body.propertyId))}catch(e){return NextResponse.json({error:e instanceof WorkspaceError?e.message:"Proprietate invalidă"},{status:404})}}
 
   const {
     street,
@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
   if (sqm <= 0) {
     return NextResponse.json({ error: "Suprafața trebuie să fie pozitivă" }, { status: 400 });
   }
-  if (!Number.isInteger(sqm)) {
+  if (!Number.isSafeInteger(sqm)) {
     return NextResponse.json({ error: "Suprafața trebuie să fie un număr întreg" }, { status: 400 });
   }
   if (!validSpaceTypes.includes(spaceType)) {
@@ -215,22 +215,33 @@ export async function POST(req: NextRequest) {
   if (whenType !== "asap" && whenType !== "scheduled") {
     return NextResponse.json({ error: "Tipul programării nu este valid" }, { status: 400 });
   }
-  if (typeof details === "string" && details.length > 500) {
+  if (details !== undefined && (typeof details !== "string" || details.length > 500)) {
     return NextResponse.json({ error: "Detaliile pot avea maximum 500 de caractere" }, { status: 400 });
+  }
+
+  if(sqm>AUTOMATIC_MAX_SQM)return NextResponse.json({error:"Suprafața necesită evaluare asistată înainte de rezervare.",assessmentRequired:true,assessmentUrl:"/client/evaluari"},{status:422});
+
+  // Card obligatoriu înainte de postare — la acceptare se pune HOLD pe acest
+  // card, deci trebuie salvat dinainte. Dacă Stripe nu e activat, se sare peste.
+  const card = getClientCardInfo(db, user.id);
+  if (card.stripeConfigured && !card.hasCard) {
+    return NextResponse.json(
+      { error: "Adaugă un card înainte de a posta o lucrare.", needsCard: true },
+      { status: 402 }
+    );
   }
 
   let scheduledAt: Date;
 
   if (whenType === "asap") {
-    const slot = nextValidAsapSlot();
+    const slot = nextBucharestSlot();
     if (!slot) {
       return NextResponse.json(
         { error: "Niciun slot disponibil în următoarele 3 zile" },
         { status: 400 }
       );
     }
-    scheduledAt = new Date(slot.date);
-    scheduledAt.setHours(slot.hour, 0, 0, 0);
+    scheduledAt = slot;
   } else {
     if (!scheduledDate || scheduledHour === undefined || !SLOT_HOURS.includes(scheduledHour as typeof SLOT_HOURS[number])) {
       return NextResponse.json(
@@ -238,8 +249,10 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    const day = new Date(scheduledDate);
-    if (!isSlotValid(day, scheduledHour)) {
+    const day = bookingDateKey(scheduledDate);
+    if(!day)return NextResponse.json({error:"Data programării nu este validă"},{status:400});
+    scheduledAt = bucharestScheduledAt(day,scheduledHour);
+    if (!hasSchedulingLeadTime(scheduledAt)) {
       return NextResponse.json(
         {
           error: `Slotul ales nu respectă pragul minim de ${MIN_LEAD_HOURS} oră/ore până la ora dorită`,
@@ -247,8 +260,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    scheduledAt = new Date(day);
-    scheduledAt.setHours(scheduledHour, 0, 0, 0);
+
   }
 
   // Express 60: suplimentul premium se adaugă la prețul brut. HOLD-ul se pune
@@ -256,6 +268,7 @@ export async function POST(req: NextRequest) {
   // garanția nu e respectată, suplimentul se scoate din nou (vezi express60.ts).
   const express60Fee = isExpress60 ? EXPRESS_60_FEE_LEI : 0;
   const priceGross = calcGrossPrice(spaceType, sqm) + express60Fee;
+  if(!Number.isSafeInteger(priceGross*100))return NextResponse.json({error:"Suprafața depășește limita de calcul"},{status:400});
   const durationMinutes = calcDurationMinutes(sqm);
 
   // Aplicare automată a creditului disponibil (program de recomandare — vezi
@@ -271,7 +284,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Una sau mai multe poze nu îți aparțin" }, { status: 403 });
   }
   const id = newId("job");
-  const created = db.transaction((): { job: JobRow; replayed: boolean } => {
+  let created: { job: JobRow; replayed: boolean };
+  try { created = db.transaction((): { job: JobRow; replayed: boolean } => {
     if (requestId) {
       const existing = db.prepare("SELECT * FROM jobs WHERE client_id = ? AND client_request_id = ?").get(user.id, requestId) as JobRow | undefined;
       if (existing) return { job: existing, replayed: true };
@@ -284,12 +298,18 @@ export async function POST(req: NextRequest) {
          express_60, express_60_fee, express_60_deadline, express_60_status, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting')`
     ).run(id,user.id,street,postalCode ?? null,city,floor ?? null,typeof details === "string" ? details.trim() || null : null,requestId,sqm,spaceType,whenType,scheduledAt.toISOString(),priceGross,creditUsed,durationMinutes,BUFFER_MINUTES,ownedPhotoIds.length,jobMode,isExpress60?1:0,express60Fee,isExpress60?express60Deadline(new Date().toISOString()).toISOString():null,isExpress60?"pending":null);
+    db.prepare("UPDATE jobs SET pricing_snapshot=? WHERE id=?").run(JSON.stringify(pricingSnapshot({spaceType,sqm,expressFeeLei:express60Fee,creditLei:creditUsed})),id);
     if (ownedPhotoIds.length > 0) {
       const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL");
       for (const photoId of ownedPhotoIds) linkPhoto.run(id, photoId, user.id);
     }
+    if(body.propertyId)linkPropertyJob(db,user.id,String(body.propertyId),id);
+    if(body.approvalId)consumeApproval(db,user.id,String(body.approvalId),id);
+    const linked=db.prepare("SELECT property_id FROM workspace_property_jobs WHERE job_id=?").get(id) as {property_id:string}|undefined;
+    if(linked)enforcePropertyBudget(db,linked.property_id,id);
     return { job: db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow, replayed: false };
   })();
+  } catch(e) { if(e instanceof AccessError)return NextResponse.json({error:e.message},{status:e.status}); throw e; }
   if (created.replayed) return NextResponse.json({ job: created.job, replayed: true });
   const job = created.job;
 

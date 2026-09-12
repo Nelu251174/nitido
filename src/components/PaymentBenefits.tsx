@@ -1,0 +1,7 @@
+import Link from 'next/link';
+import {PaymentTrustCard} from './PaymentTrustCard';
+import {DesignIcon} from './DesignIcon';
+const client=['Preț estimativ înainte de postare','Firme verificate în zona ta','Adresa exactă se partajează doar după alocare','Urmărire status și mesaje ale lucrării','Reguli clare pentru anulare și neprezentare','Suport dacă apare o problemă'];
+const firm=['Lucrări noi în zona deservită','Trimiți candidatura la Standard sau accepți lucrări Express','Traseu și adresă după alocare','Rating și istoric verificabil','Fotografii la sosire și la final','Încasarea de pe card după finalizare și confirmarea procesatorului'];
+function Benefits({title,items,href,action}:{title:string;items:string[];href:string;action:string}){return <article className="payment-benefit-side"><p className="v2-eyebrow">{title}</p><h3>Mai mult control, mai puține incertitudini.</h3><ul>{items.map(item=><li key={item}><DesignIcon name="check" size={20}/><span>{item}</span></li>)}</ul><Link href={href}>{action} →</Link></article>}
+export function PaymentBenefits(){return <section id="plata-protejata" className="design-container payment-benefits"><h2 className="text-3xl font-bold">Cum sunt protejate lucrarea și plata</h2><div className="payment-benefits-grid"><Benefits title="PENTRU CLIENȚI" items={client} href="/pentru-clienti" action="Vezi avantajele pentru clienți"/><PaymentTrustCard/><Benefits title="PENTRU FIRME" items={firm} href="/pentru-firme" action="Vezi avantajele pentru firme"/></div></section>}

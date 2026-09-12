@@ -1,3 +1,4 @@
+import {revokePushRegistration} from "./pushSettingsCore";
 import { useEffect } from "react";
 import { Platform } from "react-native";
 import { router } from "expo-router";
@@ -19,10 +20,12 @@ export async function registerPush(){
   if(!Device.isDevice)throw new Error("Notificările push necesită un dispozitiv fizic.");
   const permission=await Notifications.requestPermissionsAsync();if(permission.status!=="granted")return false;
   const nativeToken=await Notifications.getDevicePushTokenAsync();const token=String(nativeToken.data);
-  await api("/api/push/register",{method:"POST",body:JSON.stringify({platform:Platform.OS==="ios"?"IOS":"ANDROID",deviceToken:token})});
+  const result=await api<{ok:boolean}>("/api/push/register",{method:"POST",body:JSON.stringify({platform:Platform.OS==="ios"?"IOS":"ANDROID",deviceToken:token})});
+  if(result.ok!==true)throw new Error("Serverul nu a confirmat înregistrarea telefonului.");
   await SecureStore.setItemAsync(PUSH_TOKEN_KEY,token);return true;
 }
-export async function unregisterCurrentPush(){const token=await SecureStore.getItemAsync(PUSH_TOKEN_KEY);if(!token)return;try{await api("/api/push/unregister",{method:"POST",body:JSON.stringify({deviceToken:token})})}finally{await SecureStore.deleteItemAsync(PUSH_TOKEN_KEY)}}
+export async function currentPushSettings(){const [token,permission]=await Promise.all([SecureStore.getItemAsync(PUSH_TOKEN_KEY),Notifications.getPermissionsAsync()]);return {registeredLocally:Boolean(token),permissionGranted:permission.status==="granted"};}
+export async function unregisterCurrentPush(){const token=await SecureStore.getItemAsync(PUSH_TOKEN_KEY);await revokePushRegistration(token,api,()=>SecureStore.deleteItemAsync(PUSH_TOKEN_KEY));}
 export async function refreshRegisteredPushToken(){const previous=await SecureStore.getItemAsync(PUSH_TOKEN_KEY);if(!previous||!Device.isDevice)return false;const permission=await Notifications.getPermissionsAsync();if(permission.status!=="granted")return false;const current=String((await Notifications.getDevicePushTokenAsync()).data);if(current!==previous)await api("/api/push/unregister",{method:"POST",body:JSON.stringify({deviceToken:previous})});await api("/api/push/register",{method:"POST",body:JSON.stringify({platform:Platform.OS==="ios"?"IOS":"ANDROID",deviceToken:current})});await SecureStore.setItemAsync(PUSH_TOKEN_KEY,current);return true}
 function responseData(response:Notifications.NotificationResponse){const data=response.notification.request.content.data??{};return {event:typeof data.event_type==="string"?data.event_type:"",jobId:typeof data.job_id==="string"?data.job_id:""};}
 export function useNotificationRouting(role:UserRole|null){useEffect(()=>{const routeResponse=(response:Notifications.NotificationResponse)=>{const {event,jobId}=responseData(response);if(!event)return;if(!role){pendingRoute=jobId?`${event}:${jobId}`:null;router.push("/(auth)/login");return;}router.push(notificationRoute(role,event,jobId) as never);};const last=Notifications.getLastNotificationResponse();if(last)routeResponse(last);const subscription=Notifications.addNotificationResponseReceivedListener(routeResponse);if(role){void refreshRegisteredPushToken().catch(()=>undefined);if(pendingRoute){const [event,jobId]=pendingRoute.split(":");pendingRoute=null;router.push(notificationRoute(role,event,jobId) as never);}}return()=>subscription.remove()},[role])}

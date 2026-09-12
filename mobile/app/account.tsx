@@ -1,0 +1,15 @@
+import {useEffect,useState} from 'react';
+import {Text,TextInput,View} from 'react-native';
+import {useAuth} from '@/auth';
+import {api} from '@/api';
+import {AppScreen,PremiumCard,PrimaryButton} from '@/mobileUi';
+import {colors} from '@/theme';
+export default function Account(){
+ const {user,restore}=useAuth();const [form,setForm]=useState<Record<string,string>|null>(null),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[reload,setReload]=useState(0);
+ const endpoint=user?.role==='firma'?'/api/account/firm':'/api/account/client';
+ useEffect(()=>{let alive=true;if(!user)return;api<Record<string,unknown>>(endpoint).then(d=>{if(alive){const result:Record<string,string>={};for(const [k,v] of Object.entries(d))if(typeof v==='string')result[k]=v;setForm(result);setError('')}}).catch(e=>{if(alive)setError(e instanceof Error?e.message:'Profil indisponibil')});return()=>{alive=false}},[endpoint,user,reload]);
+ async function save(){if(!form||busy)return;setBusy(true);setError('');setNotice('');try{await api(endpoint,{method:'POST',body:JSON.stringify(form)});setNotice('Datele au fost salvate. Dacă ai schimbat emailul, confirmă noua adresă din profil.');await restore()}catch(e){setError(e instanceof Error?e.message:'Salvarea nu a reușit.')}finally{setBusy(false)}}
+ if(!user)return <AppScreen title="Datele contului"><Text>Autentifică-te pentru a edita datele.</Text></AppScreen>;
+ const fields=user.role==='firma'?[['name','Numele firmei',150],['phone','Telefon',40],['coverageCity','Oraș principal',100],['coverageCitiesExtra','Orașe suplimentare',2000],['description','Descriere',1000],['workingHours','Program de lucru',200],['services','Servicii',400],['website','Website',200]] as const:[['name','Nume',150],['email','Email',254],['phone','Telefon',40]] as const;
+ return <AppScreen title={user.role==='firma'?'Date firmă și acoperire':'Date personale'} subtitle="Modificările se salvează în contul autentificat.">{error?<Text accessibilityRole="alert" style={{color:colors.danger}}>{error}</Text>:null}{notice?<Text accessibilityRole="alert" style={{color:colors.greenDark}}>{notice}</Text>:null}{form?<PremiumCard>{fields.map(([key,label,max])=><View key={key} style={{gap:8}}><Text style={{fontWeight:'600',color:colors.ink}}>{label}</Text><TextInput accessibilityLabel={label} editable={!busy} maxLength={max} value={form[key]??''} onChangeText={value=>{setForm({...form,[key]:value});setNotice('')}} autoCapitalize={key==='email'||key==='website'?'none':'sentences'} keyboardType={key==='phone'?'phone-pad':key==='email'?'email-address':'default'} multiline={key==='description'||key==='services'} style={{borderWidth:1,borderColor:colors.border,borderRadius:12,padding:14,minHeight:48,color:colors.ink}}/></View>)}{user.role==='firma'?<Text style={{color:colors.muted}}>CUI-ul și verificarea firmei nu se modifică din acest formular.</Text>:null}<PrimaryButton title="Salvează modificările" loading={busy} onPress={()=>void save()}/></PremiumCard>:<PrimaryButton secondary title="Reîncarcă profilul" onPress={()=>setReload(n=>n+1)}/>}</AppScreen>
+}

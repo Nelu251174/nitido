@@ -5,9 +5,14 @@ import { SCHEMA_SQL } from "./db";
 import {
   createRecurringPlan,
   computeNextDate,
+  bucharestScheduledAt,
   generateDueRecurringJobs,
   listPlansForClient,
+  listRecurringOccurrences,
   setPlanStatus,
+  schedulePlanPause,
+  removePlanPause,
+  previewPlanPause,
 } from "./recurring";
 
 function makeTestDb(): Database {
@@ -62,7 +67,7 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     const firmId = seedClientAndFirm(db);
     createRecurringPlan(db, { ...basePlan, preferredFirmId: firmId, startDate: "2026-01-05" });
 
-    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-06T09:00:00"));
+    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-05T06:00:00Z"));
     expect(created).toHaveLength(1);
 
     const job = db.prepare("SELECT status, accepted_firm_id, mode FROM jobs WHERE id = ?").get(created[0]) as { status: string; accepted_firm_id: string; mode: string };
@@ -78,7 +83,7 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
   it("nu generează nimic dacă nu e scadent încă", async () => {
     seedClientAndFirm(db);
     createRecurringPlan(db, { ...basePlan, preferredFirmId: "firm_pref", startDate: "2026-02-01" });
-    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-06T09:00:00"));
+    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-05T06:00:00Z"));
     expect(created).toHaveLength(0);
   });
 
@@ -88,7 +93,7 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     createRecurringPlan(db, { ...basePlan, preferredFirmId: "firm_pref", startDate: "2026-01-05" });
     createRecurringPlan(db, { ...basePlan, clientId: "client_2", preferredFirmId: "firm_pref", startDate: "2026-01-05" });
 
-    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-06T09:00:00"), "client_1");
+    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-05T06:00:00Z"), "client_1");
     expect(created).toHaveLength(1);
     const c2jobs = db.prepare("SELECT COUNT(*) AS n FROM jobs WHERE client_id='client_2'").get() as { n: number };
     expect(c2jobs.n).toBe(0);
@@ -99,7 +104,7 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     const r = createRecurringPlan(db, { ...basePlan, preferredFirmId: "firm_pref", startDate: "2026-01-05" });
     const planId = r.ok ? r.planId : "";
     expect(setPlanStatus(db, planId, "client_1", "paused").ok).toBe(true);
-    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-06T09:00:00"));
+    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-05T06:00:00Z"));
     expect(created).toHaveLength(0);
   });
 
@@ -107,9 +112,276 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     seedClientAndFirm(db);
     db.prepare("UPDATE firms SET coverage_city='Brașov' WHERE id='firm_pref'").run();
     createRecurringPlan(db, { ...basePlan, preferredFirmId: "firm_pref", startDate: "2026-01-05" });
-    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-06T09:00:00"));
+    const { created } = await generateDueRecurringJobs(db, new Date("2026-01-05T06:00:00Z"));
     expect(created).toHaveLength(1);
     const job = db.prepare("SELECT status FROM jobs WHERE id = ?").get(created[0]) as { status: string };
     expect(job.status).toBe("waiting");
   });
+  it("clamps a monthly occurrence and restores its anchor day",()=>{
+    expect(computeNextDate("monthly",new Date("2026-01-31T12:00:00Z"),31)).toBe("2026-02-28");
+    expect(computeNextDate("monthly",new Date("2026-02-28T12:00:00Z"),31)).toBe("2026-03-31");
+  });
+  it("keeps local booking time across daylight saving changes",()=>{
+    expect(bucharestScheduledAt("2026-03-28",10).toISOString()).toBe("2026-03-28T08:00:00.000Z");
+    expect(bucharestScheduledAt("2026-03-29",10).toISOString()).toBe("2026-03-29T07:00:00.000Z");
+  });
+  it("skips missed occurrences instead of creating past bookings",async()=>{
+    seedClientAndFirm(db);createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-06T09:00:00Z"))).created).toHaveLength(0);
+    expect((db.prepare("SELECT next_run_date FROM recurring_plans").get() as {next_run_date:string}).next_run_date).toBe("2026-01-12");
+  });
+  it("does not create duplicates when schedulers run concurrently",async()=>{
+    const firmId=seedClientAndFirm(db);createRecurringPlan(db,{...basePlan,preferredFirmId:firmId,startDate:"2026-01-05"});
+    const results=await Promise.all([generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z")),generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"))]);
+    expect(results.flatMap(r=>r.created)).toHaveLength(1);
+  });
+
+  it("cancelled plans remain terminal and cancellation is repeatable",async()=>{
+    seedClientAndFirm(db);
+    const created=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});
+    if(!created.ok)throw new Error("fixture");
+    expect(setPlanStatus(db,created.planId,"client_1","cancelled").ok).toBe(true);
+    expect(setPlanStatus(db,created.planId,"client_1","active")).toMatchObject({ok:false,status:409});
+    expect(setPlanStatus(db,created.planId,"client_1","paused")).toMatchObject({ok:false,status:409});
+    expect(setPlanStatus(db,created.planId,"client_1","cancelled").ok).toBe(true);
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"))).created).toEqual([]);
+  });
+  it("another client cannot pause a plan and invalid state leaves it unchanged",()=>{
+    seedClientAndFirm(db);const created=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});
+    if(!created.ok)throw new Error("fixture");
+    expect(setPlanStatus(db,created.planId,"other","paused")).toMatchObject({ok:false,status:404});
+    expect(setPlanStatus(db,created.planId,"client_1","invalid" as never)).toMatchObject({ok:false,status:400});
+    expect(db.prepare("SELECT status FROM recurring_plans WHERE id=?").get(created.planId)).toEqual({status:"active"});
+  });
+  it("pausing a series preserves its already generated visit",async()=>{
+    seedClientAndFirm(db);const created=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});
+    if(!created.ok)throw new Error("fixture");
+    const jobs=await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"));
+    const before=db.prepare("SELECT * FROM jobs WHERE id=?").get(jobs.created[0]);
+    expect(setPlanStatus(db,created.planId,"client_1","paused").ok).toBe(true);
+    expect(db.prepare("SELECT * FROM jobs WHERE id=?").get(jobs.created[0])).toEqual(before);
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-12T06:00:00Z"))).created).toEqual([]);
+    expect(setPlanStatus(db,created.planId,"client_1","active").ok).toBe(true);
+  });
+
+  it("rejects oversized recurring requests without creating a plan",()=>{
+    seedClientAndFirm(db);
+    expect(createRecurringPlan(db,{...basePlan,sqm:1001,startDate:"2026-01-05"})).toMatchObject({ok:false,status:422});
+    expect(listPlansForClient(db,"client_1")).toEqual([]);
+    expect(createRecurringPlan(db,{...basePlan,sqm:1000,startDate:"2026-01-05"}).ok).toBe(true);
+  });
+  it("rejects malformed text and quantities instead of coercing or truncating them",()=>{
+    seedClientAndFirm(db);
+    for(const fields of [{city:{}},{street:" "},{details:"x".repeat(501)},{floor:[]},{sqm:"75"},{hour:"10"},{startDate:{}},{startDate:"2026-02-30"}]){
+      expect(createRecurringPlan(db,{...basePlan,startDate:"2026-01-05",...fields} as never).ok).toBe(false);
+    }
+    expect(listPlansForClient(db,"client_1")).toEqual([]);
+  });
+  it("stores the monthly anchor with the initial insert",()=>{
+    seedClientAndFirm(db);
+    db.exec("CREATE TRIGGER reject_anchor_update BEFORE UPDATE OF anchor_day ON recurring_plans BEGIN SELECT RAISE(ABORT,'no follow-up update'); END");
+    const result=createRecurringPlan(db,{...basePlan,frequency:"monthly",startDate:"2026-01-31"});
+    expect(result.ok).toBe(true);
+    expect(db.prepare("SELECT anchor_day FROM recurring_plans").get()).toEqual({anchor_day:31});
+  });
+
+  it("records each occurrence and protects against resetting the series cursor",async()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});if(!plan.ok)throw new Error("fixture");
+    const first=await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"));
+    db.prepare("UPDATE recurring_plans SET next_run_date='2026-01-05' WHERE id=?").run(plan.planId);
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"))).created).toEqual([]);
+    expect(db.prepare("SELECT COUNT(*) n FROM jobs").get()).toEqual({n:1});
+    expect(listRecurringOccurrences(db,"client_1")).toMatchObject([{plan_id:plan.planId,job_id:first.created[0],occurrence_date:"2026-01-05",scheduled_at:"2026-01-05T08:00:00.000Z"}]);
+  });
+  it("rolls back job creation and cursor when occurrence persistence fails",async()=>{
+    seedClientAndFirm(db);createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});
+    db.exec("CREATE TRIGGER fail_occurrence BEFORE INSERT ON recurring_occurrences BEGIN SELECT RAISE(ABORT,'simulated storage failure'); END");
+    await expect(generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"))).rejects.toThrow(/simulated/);
+    expect(db.prepare("SELECT COUNT(*) n FROM jobs").get()).toEqual({n:0});
+    expect(db.prepare("SELECT next_run_date,last_job_id FROM recurring_plans").get()).toEqual({next_run_date:"2026-01-05",last_job_id:null});
+  });
+  it("retains cancelled series history and isolates owners",async()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});if(!plan.ok)throw new Error("fixture");
+    await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"));
+    setPlanStatus(db,plan.planId,"client_1","cancelled");
+    expect(listRecurringOccurrences(db,"client_1")).toHaveLength(1);
+    expect(listRecurringOccurrences(db,"other")).toEqual([]);
+  });
+  it("does not infer an occurrence from a legacy last-job pointer",async()=>{
+    seedClientAndFirm(db);createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});
+    await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"));
+    db.exec("DELETE FROM recurring_occurrences");
+    expect(listRecurringOccurrences(db,"client_1")).toEqual([]);
+  });
+
+  it.each([
+    ["weekly", "2026-01-05", "2026-01-12T06:00:00Z", "2026-01-12", "2026-01-12T08:00:00.000Z"],
+    ["biweekly", "2026-01-05", "2026-01-19T06:00:00Z", "2026-01-19", "2026-01-19T08:00:00.000Z"],
+    ["monthly", "2026-01-31", "2026-03-31T06:00:00Z", "2026-03-31", "2026-03-31T07:00:00.000Z"],
+    ["weekly", "2026-03-22", "2026-03-29T06:00:00Z", "2026-03-29", "2026-03-29T07:00:00.000Z"],
+  ])("resumes %s without discarding today's upcoming visit",async(frequency,startDate,now,date,scheduled)=>{
+    seedClientAndFirm(db);
+    const plan=createRecurringPlan(db,{...basePlan,frequency:frequency as "weekly"|"biweekly"|"monthly",startDate});
+    if(!plan.ok)throw new Error("fixture");
+    setPlanStatus(db,plan.planId,"client_1","paused");
+    expect((await generateDueRecurringJobs(db,new Date(now))).created).toEqual([]);
+    setPlanStatus(db,plan.planId,"client_1","active");
+    const result=await generateDueRecurringJobs(db,new Date(now));
+    expect(result.created).toHaveLength(1);
+    expect(listRecurringOccurrences(db,"client_1")).toMatchObject([{occurrence_date:date,scheduled_at:scheduled}]);
+    expect((await generateDueRecurringJobs(db,new Date(now))).created).toEqual([]);
+    expect(db.prepare("SELECT COUNT(*) n FROM jobs").get()).toEqual({n:1});
+  });
+  it("skips today's elapsed visit after an interruption",async()=>{
+    seedClientAndFirm(db);createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-12T08:00:01Z"))).created).toEqual([]);
+    expect(db.prepare("SELECT next_run_date FROM recurring_plans").get()).toEqual({next_run_date:"2026-01-19"});
+    expect(listRecurringOccurrences(db,"client_1")).toEqual([]);
+  });
+
+  it("skips an inclusive pause and resumes the original weekly series",async()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});if(!plan.ok)throw new Error("fixture");
+    expect(schedulePlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12",new Date("2026-01-01T00:00:00Z")).ok).toBe(true);
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"))).created).toEqual([]);
+    expect(db.prepare("SELECT next_run_date FROM recurring_plans").get()).toEqual({next_run_date:"2026-01-19"});
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-19T06:00:00Z"))).created).toHaveLength(1);
+    expect(listRecurringOccurrences(db,"client_1")).toMatchObject([{occurrence_date:"2026-01-19"}]);
+  });
+  it("refuses to hide generated active bookings or modify their payment state",async()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});if(!plan.ok)throw new Error("fixture");
+    await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"));
+    const before=db.prepare("SELECT * FROM jobs").all();
+    expect(schedulePlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12",new Date("2026-01-01T00:00:00Z"))).toMatchObject({ok:false,status:409});
+    expect(db.prepare("SELECT * FROM recurring_pauses").all()).toEqual([]);
+    expect(db.prepare("SELECT * FROM jobs").all()).toEqual(before);
+  });
+  it("validates dates, owner and plan state before persisting a pause",()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});if(!plan.ok)throw new Error("fixture");
+    const now=new Date("2026-01-01T00:00:00Z");
+    for(const [a,b] of [[{},"2026-01-12"],["2026-02-30","2026-03-01"],["2026-01-12","2026-01-05"],["2025-12-31","2026-01-12"]])expect(schedulePlanPause(db,plan.planId,"client_1",a,b,now)).toMatchObject({ok:false,status:400});
+    expect(schedulePlanPause(db,plan.planId,"other","2026-01-05","2026-01-12",now)).toMatchObject({ok:false,status:404});
+    setPlanStatus(db,plan.planId,"client_1","cancelled");
+    expect(schedulePlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12",now)).toMatchObject({ok:false,status:409});
+    expect(db.prepare("SELECT * FROM recurring_pauses").all()).toEqual([]);
+  });
+  it("retains monthly anchor through a pause and replaces the single interval",async()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,frequency:"monthly",startDate:"2026-01-31"});if(!plan.ok)throw new Error("fixture");
+    const now=new Date("2026-01-01T00:00:00Z");
+    schedulePlanPause(db,plan.planId,"client_1","2026-01-31","2026-01-31",now);
+    schedulePlanPause(db,plan.planId,"client_1","2026-01-31","2026-02-28",now);
+    expect(db.prepare("SELECT COUNT(*) n FROM recurring_pauses").get()).toEqual({n:1});
+    expect(listPlansForClient(db,"client_1")).toMatchObject([{pause_start:"2026-01-31",pause_end:"2026-02-28"}]);
+    await generateDueRecurringJobs(db,new Date("2026-01-31T06:00:00Z"));
+    expect(db.prepare("SELECT next_run_date FROM recurring_plans").get()).toEqual({next_run_date:"2026-03-31"});
+  });
+
+  it("includes the end date and never creates a later occurrence",async()=>{
+    seedClientAndFirm(db);createRecurringPlan(db,{...basePlan,startDate:"2026-01-05",endDate:"2026-01-05"});
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"))).created).toHaveLength(1);
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-12T06:00:00Z"))).created).toEqual([]);
+    expect(listRecurringOccurrences(db,"client_1")).toHaveLength(1);
+    expect(listPlansForClient(db,"client_1")).toMatchObject([{end_date:"2026-01-05"}]);
+  });
+  it("a pause cannot extend the subscription beyond its end date",async()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05",endDate:"2026-01-12"});if(!plan.ok)throw new Error("fixture");
+    schedulePlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12",new Date("2026-01-01T00:00:00Z"));
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"))).created).toEqual([]);
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-19T06:00:00Z"))).created).toEqual([]);
+    expect(listRecurringOccurrences(db,"client_1")).toEqual([]);
+  });
+  it("rejects invalid end dates and retains open-ended subscriptions",()=>{
+    seedClientAndFirm(db);
+    for(const endDate of ["2026-01-04","2026-02-30","",{},false])expect(createRecurringPlan(db,{...basePlan,startDate:"2026-01-05",endDate} as never)).toMatchObject({ok:false,status:400});
+    expect(listPlansForClient(db,"client_1")).toEqual([]);
+    expect(createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"}).ok).toBe(true);
+    expect(listPlansForClient(db,"client_1")).toMatchObject([{end_date:null}]);
+  });
+  it("does not recover missed visits after the end of a series",async()=>{
+    seedClientAndFirm(db);createRecurringPlan(db,{...basePlan,startDate:"2026-01-05",endDate:"2026-01-12"});
+    expect((await generateDueRecurringJobs(db,new Date("2026-02-02T06:00:00Z"))).created).toEqual([]);
+    expect(listRecurringOccurrences(db,"client_1")).toEqual([]);
+  });
+
+  it("retries a creation request without duplicating the subscription",()=>{
+    seedClientAndFirm(db);const input={...basePlan,startDate:"2026-01-05",requestId:"request-1234567890"};
+    const first=createRecurringPlan(db,input);
+    expect(createRecurringPlan(db,input)).toEqual(first);
+    expect(listPlansForClient(db,"client_1")).toHaveLength(1);
+    expect(createRecurringPlan(db,{...input,sqm:90})).toMatchObject({ok:false,status:409});
+    expect(listPlansForClient(db,"client_1")).toHaveLength(1);
+  });
+  it("isolates request identities by client and does not revive a cancelled plan",()=>{
+    seedClientAndFirm(db);db.prepare("INSERT INTO users(id,role,name) VALUES('other','client','Other')").run();
+    const input={...basePlan,startDate:"2026-01-05",requestId:"request-1234567890"};
+    const first=createRecurringPlan(db,input);if(!first.ok)throw new Error("fixture");
+    setPlanStatus(db,first.planId,"client_1","cancelled");
+    expect(createRecurringPlan(db,input)).toEqual(first);
+    expect(listPlansForClient(db,"client_1")).toEqual([]);
+    const other=createRecurringPlan(db,{...input,clientId:"other"});expect(other.ok).toBe(true);expect(other).not.toEqual(first);
+  });
+  it("rolls back the plan if the creation receipt cannot be stored",()=>{
+    seedClientAndFirm(db);db.exec("CREATE TRIGGER reject_receipt BEFORE INSERT ON recurring_creation_requests BEGIN SELECT RAISE(ABORT,'receipt failed'); END");
+    expect(()=>createRecurringPlan(db,{...basePlan,startDate:"2026-01-05",requestId:"request-1234567890"})).toThrow(/receipt failed/);
+    expect(listPlansForClient(db,"client_1")).toEqual([]);
+  });
+
+  it("removes only the displayed pause idempotently without resuming a general pause",()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});if(!plan.ok)throw new Error("fixture");
+    schedulePlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12",new Date("2026-01-01"));
+    setPlanStatus(db,plan.planId,"client_1","paused");
+    const before=db.prepare("SELECT * FROM recurring_plans WHERE id=?").get(plan.planId);
+    expect(removePlanPause(db,plan.planId,"other","2026-01-05","2026-01-12")).toMatchObject({ok:false,status:404});
+    expect(removePlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-19")).toMatchObject({ok:false,status:409});
+    expect(db.prepare("SELECT * FROM recurring_pauses").all()).toHaveLength(1);
+    for(let i=0;i<2;i++)expect(removePlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12").ok).toBe(true);
+    expect(db.prepare("SELECT * FROM recurring_plans WHERE id=?").get(plan.planId)).toEqual(before);
+    expect(db.prepare("SELECT * FROM recurring_pauses").all()).toEqual([]);
+  });
+  it("does not rewind skipped dates or change generated visits",async()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});if(!plan.ok)throw new Error("fixture");
+    await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"));
+    schedulePlanPause(db,plan.planId,"client_1","2026-01-12","2026-01-19",new Date("2026-01-06"));
+    await generateDueRecurringJobs(db,new Date("2026-01-12T06:00:00Z"));
+    const jobs=db.prepare("SELECT * FROM jobs").all();
+    const before=db.prepare("SELECT * FROM recurring_plans WHERE id=?").get(plan.planId);
+    expect(removePlanPause(db,plan.planId,"client_1","2026-01-12","2026-01-19").ok).toBe(true);
+    expect(db.prepare("SELECT * FROM recurring_plans WHERE id=?").get(plan.planId)).toEqual(before);
+    expect(db.prepare("SELECT * FROM jobs").all()).toEqual(jobs);
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-19T06:00:00Z"))).created).toEqual([]);
+  });
+  it("rejects cancelled plans and invalid pause identities",()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});if(!plan.ok)throw new Error("fixture");
+    expect(removePlanPause(db,plan.planId,"client_1",{},null)).toMatchObject({ok:false,status:400});
+    setPlanStatus(db,plan.planId,"client_1","cancelled");
+    expect(removePlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12")).toMatchObject({ok:false,status:409});
+  });
+
+  it("previews active visits without writes and isolates the plan owner",async()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});if(!plan.ok)throw new Error("fixture");
+    await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"));
+    const before=db.prepare("SELECT total_changes() n").get();
+    const now=new Date("2026-01-05T07:00:00Z");
+    expect(previewPlanPause(db,plan.planId,"other","2026-01-05","2026-01-12",now)).toMatchObject({ok:false,status:404});
+    const preview=previewPlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12",now);
+    expect(preview).toMatchObject({ok:true,count:1,visits:[{status:"waiting",city:"Constanța"}]});
+    expect(db.prepare("SELECT total_changes() n").get()).toEqual(before);
+    db.prepare("UPDATE jobs SET status='cancelled'").run();
+    expect(previewPlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12",now)).toEqual({ok:true,count:0,visits:[]});
+  });
+  it("rechecks visits created after a clear preview",async()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});if(!plan.ok)throw new Error("fixture");
+    const now=new Date("2026-01-05T06:00:00Z");
+    expect(previewPlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12",now)).toMatchObject({ok:true,count:0});
+    await generateDueRecurringJobs(db,now);
+    expect(schedulePlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12",now)).toMatchObject({ok:false,status:409});
+    expect(db.prepare("SELECT * FROM recurring_pauses").all()).toEqual([]);
+  });
+  it("validates pause previews before accessing visits",()=>{
+    seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});if(!plan.ok)throw new Error("fixture");
+    const now=new Date("2026-01-01");
+    expect(previewPlanPause(db,plan.planId,"client_1","2026-02-30","2026-03-01",now)).toMatchObject({ok:false,status:400});
+    setPlanStatus(db,plan.planId,"client_1","paused");
+    expect(previewPlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12",now)).toMatchObject({ok:false,status:409});
+  });
+
 });

@@ -1,0 +1,12 @@
+import {beforeEach,afterEach,it,expect} from 'vitest';
+import Database from 'better-sqlite3';
+import {SCHEMA_SQL} from './db';
+import {persistSignup,signupInputError,type SignupRecords} from './signupPersistence';
+let db:Database.Database;
+beforeEach(()=>{db=new Database(':memory:');db.exec(SCHEMA_SQL);db.exec("INSERT INTO users(id,role,name,referral_code,credit_balance) VALUES('ref','client','Ref','REF',10)")});afterEach(()=>db.close());
+const input=():SignupRecords=>({userId:'new',role:'firma',name:'Firma',email:'new@example.com',phone:'+40722111222',passwordHash:'hash',referralCode:'NEW',referrer:{id:'ref',code:'REF'},bonus:20,firm:{id:'firm',cui:'123',city:'București',citiesExtra:null,verified:false}});
+it('creates all records and applies the bonus once',()=>{persistSignup(db,input());expect(db.prepare("SELECT credit_balance FROM users WHERE id='ref'").get()).toEqual({credit_balance:30});expect(db.prepare("SELECT verified FROM firms WHERE id='firm'").get()).toEqual({verified:0});expect(()=>persistSignup(db,input())).toThrow();expect(db.prepare("SELECT credit_balance FROM users WHERE id='ref'").get()).toEqual({credit_balance:30})});
+it('rolls back the user and referral bonus when firm creation fails',()=>{db.exec("CREATE TRIGGER reject_firm BEFORE INSERT ON firms BEGIN SELECT RAISE(ABORT,'injected failure'); END");expect(()=>persistSignup(db,input())).toThrow();expect(db.prepare("SELECT id FROM users WHERE id='new'").get()).toBeUndefined();expect(db.prepare("SELECT credit_balance FROM users WHERE id='ref'").get()).toEqual({credit_balance:10})});
+it('rolls back when the referrer no longer matches',()=>{const value=input();value.referrer!.code='CHANGED';expect(()=>persistSignup(db,value)).toThrow();expect(db.prepare("SELECT id FROM users WHERE id='new'").get()).toBeUndefined()});
+it('requires firm records only for a firm role',()=>{const value=input();delete value.firm;expect(()=>persistSignup(db,value)).toThrow();value.role='client';persistSignup(db,value);expect(db.prepare('SELECT COUNT(*) n FROM firms').get()).toEqual({n:0})});
+it('rejects malformed shapes and values without calling string methods on them',()=>{const valid={name:'Nelu',email:'n@example.com',password:'validpass123',phone:'0722111222',role:'client'};expect(signupInputError(valid)).toBeNull();for(const value of [null,[],42,{...valid,email:{}},{...valid,password:123},{...valid,referralCode:[]},{...valid,email:'invalid'},{...valid,name:' '.repeat(5)},{...valid,password:'x'.repeat(1025)}])expect(signupInputError(value)).not.toBeNull()});

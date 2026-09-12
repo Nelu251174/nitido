@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Internal supervised preview; production origins are unaffected.
+  allowedDevOrigins: ["terminal.local"],
   // Build lean pentru Docker — copiază doar fișierele necesare la runtime
   // (folosit de Dockerfile-ul din rădăcina proiectului).
   output: "standalone",

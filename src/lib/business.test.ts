@@ -66,3 +66,16 @@ describe("business — Nitido Office (cont business + raport execuție)", () => 
     expect(rep.totalJobs).toBe(1);
   });
 });
+
+ describe("business input boundaries", () => {
+  it("rejects malformed values without changing an existing profile", () => {
+    const db = makeTestDb(); seed(db);
+    setBusinessProfile(db, "client_1", {companyName:"Original", companyCui:"RO123"});
+    for (const companyName of [123, {}, [], "x".repeat(201)]) {
+      expect(setBusinessProfile(db,"client_1",{companyName,companyCui:"RO999"})).toMatchObject({ok:false,status:400});
+      expect(getBusinessProfile(db,"client_1").companyName).toBe("Original");
+    }
+    expect(setBusinessProfile(db,"fu",{companyName:"Firm",companyCui:"RO123"})).toMatchObject({ok:false,status:404});
+    db.close();
+  });
+});

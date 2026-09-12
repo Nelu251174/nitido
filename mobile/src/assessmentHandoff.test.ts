@@ -1,0 +1,8 @@
+import {expect,it} from 'vitest';
+import {assessmentFromBooking,createAssessmentHandoff} from './assessmentHandoff';
+import {EMPTY_DRAFT} from './postJobCore';
+const draft=()=>assessmentFromBooking({...EMPTY_DRAFT,city:'Iași',sqm:'1200',street:'Test 10',floor:'2',postalCode:'700000',spaceType:'birou',details:'Material sensibil',scheduledDate:'2026-10-01',scheduledHour:8});
+it('preserves booking instructions, address and preferred time for review',()=>{expect(draft()).toMatchObject({city:'Iași',sqm:'1200',category:'office'});expect(draft().notes).toBe('Material sensibil\nAdresă: Test 10\nEtaj / acces: 2\nCod poștal: 700000\nData dorită: 2026-10-01 · ora 08:00');});
+it('never hands one client data to another and consumes the transfer only once',()=>{const store=createAssessmentHandoff(()=>1);const id=store.put('a',draft());expect(store.take('b',id)).toBeNull();expect(store.take('a',id)).toEqual(draft());expect(store.take('a',id)).toBeNull();});
+it('expires transfers after ten minutes and clears them on logout',()=>{let time=0;const store=createAssessmentHandoff(()=>time);const id=store.put('a',draft());time=600000;expect(store.take('a',id)).toBeNull();const next=store.put('a',draft());store.clear();expect(store.take('a',next)).toBeNull();});
+it('does not mutate stored data and replaces obsolete transfers',()=>{const store=createAssessmentHandoff(()=>0),input=draft();const old=store.put('a',input);input.notes='changed';expect(store.take('a',old)?.notes).toContain('Material sensibil');const first=store.put('a',draft()),second=store.put('a',draft());expect(store.take('a',first)).toBeNull();expect(store.take('a',second)).toEqual(draft());});

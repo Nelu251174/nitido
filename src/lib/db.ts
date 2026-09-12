@@ -1,3 +1,9 @@
+import {EMAIL_VERIFICATION_SCHEMA} from "./emailVerification";
+import { ASSESSMENT_SCHEMA } from "./assessments";
+import { CATALOG_CAPACITY_SCHEMA } from "./catalogCapacity";
+import { initializeCatalog } from "./serviceCatalog";
+import { PRICING_SNAPSHOT_LOCK_SQL } from "./pricingSnapshot";
+import { WORKSPACE_SCHEMA } from "@/lib/workspace";
 import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
@@ -215,6 +221,26 @@ CREATE TABLE IF NOT EXISTS stripe_events (
   processed_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS payment_authorization_attempts (
+ job_id TEXT PRIMARY KEY REFERENCES jobs(id),
+ request_json TEXT NOT NULL,
+ provider_key_hash TEXT NOT NULL,
+ created_ms INTEGER NOT NULL,
+ stripe_payment_intent_id TEXT,
+ status TEXT NOT NULL DEFAULT 'pending'
+);
+
+CREATE TABLE IF NOT EXISTS stripe_bank_payouts (
+ account_id TEXT NOT NULL,
+ payout_id TEXT NOT NULL,
+ amount_minor INTEGER NOT NULL,
+ currency TEXT NOT NULL,
+ status TEXT NOT NULL,
+ arrival_date INTEGER NOT NULL,
+ updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+ PRIMARY KEY(account_id,payout_id)
+);
+
 CREATE TABLE IF NOT EXISTS payment_refunds (
   id TEXT PRIMARY KEY,
   payment_id TEXT NOT NULL REFERENCES payments(id),
@@ -341,11 +367,40 @@ CREATE TABLE IF NOT EXISTS recurring_plans (
   details TEXT,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','paused','cancelled')),
   next_run_date TEXT NOT NULL,
+  anchor_day INTEGER,
+  end_date TEXT,
   last_job_id TEXT REFERENCES jobs(id),
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_recurring_due ON recurring_plans(status, next_run_date);
 CREATE INDEX IF NOT EXISTS idx_recurring_client ON recurring_plans(client_id, status);
+
+CREATE TABLE IF NOT EXISTS recurring_creation_requests (
+  client_id TEXT NOT NULL REFERENCES users(id),
+  request_id TEXT NOT NULL,
+  payload_hash TEXT NOT NULL,
+  plan_id TEXT NOT NULL REFERENCES recurring_plans(id),
+  PRIMARY KEY(client_id, request_id)
+);
+
+CREATE TABLE IF NOT EXISTS recurring_pauses (
+  plan_id TEXT PRIMARY KEY REFERENCES recurring_plans(id),
+  start_date TEXT NOT NULL,
+  end_date TEXT NOT NULL,
+  CHECK(start_date <= end_date)
+);
+
+-- Evidența vizitelor generate; o dată din serie poate crea o singură lucrare.
+CREATE TABLE IF NOT EXISTS recurring_occurrences (
+  plan_id TEXT NOT NULL REFERENCES recurring_plans(id),
+  occurrence_date TEXT NOT NULL,
+  job_id TEXT NOT NULL UNIQUE REFERENCES jobs(id),
+  scheduled_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY(plan_id, occurrence_date)
+);
+CREATE INDEX IF NOT EXISTS idx_recurring_occurrence_date ON recurring_occurrences(occurrence_date DESC);
+
 
 -- Opțiunile din ESTIMATOR LIVE, gestionate de admin (ce tipuri vede clientul).
 -- Cheia e limitată la tipurile cu tarif oficial; adminul schimbă doar
@@ -359,6 +414,11 @@ CREATE TABLE IF NOT EXISTS estimator_options (
 `;
 
 db.exec(SCHEMA_SQL);
+db.exec(WORKSPACE_SCHEMA);
+initializeCatalog(db);
+db.exec(CATALOG_CAPACITY_SCHEMA);
+db.exec(ASSESSMENT_SCHEMA);
+db.exec(EMAIL_VERIFICATION_SCHEMA);
 
 // Migrare simplă pentru coloane noi adăugate DUPĂ ce baza de date există deja
 // în producție — `CREATE TABLE IF NOT EXISTS` de mai sus nu face nimic pe un
@@ -389,6 +449,9 @@ ensureColumn("users", "company_cui", "TEXT");
 ensureColumn("users", "company_address", "TEXT");
 ensureColumn("jobs", "credit_applied", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("jobs", "details", "TEXT");
+ensureColumn("jobs", "pricing_snapshot", "TEXT");
+// Published pricing is an audit record, separate from later refunds/adjustments.
+db.exec(PRICING_SNAPSHOT_LOCK_SQL);
 ensureColumn("jobs", "client_request_id", "TEXT");
 // Etapa 2 — modul de preluare (implicit 'express' pentru lucrările existente,
 // ca să nu se schimbe comportamentul actual). CHECK-ul e aplicat doar pe baze
@@ -419,6 +482,12 @@ ensureColumn("payments", "transfer_status", "TEXT NOT NULL DEFAULT 'not_started'
 ensureColumn("payments", "stripe_transfer_id", "TEXT");
 ensureColumn("payments", "payout_status", "TEXT NOT NULL DEFAULT 'unknown'");
 ensureColumn("payments", "refund_status", "TEXT NOT NULL DEFAULT 'none'");
+ensureColumn("recurring_plans", "anchor_day", "INTEGER");
+ensureColumn("recurring_plans", "end_date", "TEXT");
+ensureColumn("workspace_properties", "budget_enforced", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("workspace_approvals", "snapshot_street", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("workspace_approvals", "snapshot_city", "TEXT NOT NULL DEFAULT ''");
+db.exec("UPDATE recurring_plans SET anchor_day=CAST(substr(next_run_date,9,2) AS INTEGER) WHERE anchor_day IS NULL");
 ensureColumn("payments", "dispute_status", "TEXT NOT NULL DEFAULT 'none'");
 db.exec("CREATE INDEX IF NOT EXISTS idx_job_photos_proof ON job_photos(job_id, uploaded_by_firm_id, proof_type, status)");
 db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_ratings_one_per_job ON ratings(job_id)");
