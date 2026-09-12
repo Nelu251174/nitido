@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import {AdminServiceCatalog} from "@/components/AdminServiceCatalog";
+import {AdminAssessments} from "@/components/AdminAssessments";
 import {AdminOperations} from "@/components/AdminOperations";
 import {BoardSidebar} from "@/components/BoardSidebar";
 import { Logo, Card, Button, inputClass } from "@/components/ui";
@@ -284,6 +285,7 @@ export default function AdminPage() {
           </section>
         )}
 
+        <AdminAssessments/>
         <section id="catalog">
           <AdminServiceCatalog/>
           <h2 className="font-display font-bold text-ink mb-3">ESTIMATOR LIVE — tipuri afișate clientului</h2>

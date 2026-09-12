@@ -11,6 +11,7 @@ import {JobExecutionDetail} from "@/components/JobExecutionDetail";
 import {JOB_STATUS} from "@/lib/workspaceShared";
 import { Logo, Card, Field, inputClass, Button, StatusTrack, StarRating } from "@/components/ui";
 import {
+  AUTOMATIC_MAX_SQM,
   calcGrossPrice,
   SLOT_HOURS,
   isSlotValid,
@@ -218,6 +219,7 @@ export default function ClientPage() {
     }
   }
 
+  const needsAssessment=sqm>AUTOMATIC_MAX_SQM;
   const basePrice = useMemo(() => {
     try {
       return calcGrossPrice(spaceType, sqm);
@@ -732,7 +734,7 @@ export default function ClientPage() {
               )}
             </div>
 
-            <div className="bg-mist border border-aqua rounded-xl p-3.5 my-4">
+            {needsAssessment?<section className="design-panel"><h2>Este necesară o evaluare</h2><p>Suprafața depășește limita calculatorului automat.</p><Link className="design-button" href={`/client/evaluari?${new URLSearchParams({city,sqm:String(sqm)})}`}>Trimite spre evaluare</Link></section>:<div className="bg-mist border border-aqua rounded-xl p-3.5 my-4">
               {express60Active && (
                 <div className="flex justify-between items-center text-[11.5px] text-muted mb-1.5 pb-1.5 border-b border-line/60">
                   <span>Curățenie {basePrice} lei · 🔥 Express 60 +{express60Fee} lei</span>
@@ -756,11 +758,11 @@ export default function ClientPage() {
                   Ai folosit {creditUsed} lei din creditul de recomandare
                 </p>
               )}
-            </div>
+            </div>}
 
             {error && <p className="text-coral text-xs mb-3">{error}</p>}
 
-            {cardConfigured && hasCard === false && (
+            {!needsAssessment && cardConfigured && hasCard === false && (
               <div id="sec-plata" className="mb-3 rounded-xl border border-[#e2e8f0] bg-[#f7f9fc] p-4">
                 <div className="text-sm font-bold text-[#111827]">Adaugă un card pentru plată</div>
                 <p className="text-xs text-[#64748b] mt-1 leading-5">
@@ -772,13 +774,13 @@ export default function ClientPage() {
                 </Button>
               </div>
             )}
-            {cardConfigured && hasCard === true && (
+            {!needsAssessment && cardConfigured && hasCard === true && (
               <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-[#115e59]">
                 <span>✓</span> Card salvat — plată securizată
               </p>
             )}
 
-            <Button className="w-full" onClick={postJob} disabled={submitting || (cardConfigured && hasCard !== true) || !street.trim() || !city.trim()}>
+            <Button className="w-full" onClick={postJob} disabled={needsAssessment || submitting || (cardConfigured && hasCard !== true) || !street.trim() || !city.trim()}>
               {submitting ? "Se postează..." : "Postează lucrarea"}
             </Button>
           </Card>

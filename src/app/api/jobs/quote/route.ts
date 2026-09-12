@@ -2,6 +2,7 @@ import { pricingSnapshot } from "@/lib/pricingSnapshot";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import {
+  AUTOMATIC_MAX_SQM,
   calcDurationMinutes,
   calcGrossPrice,
   MIN_LEAD_HOURS,
@@ -27,6 +28,8 @@ export async function POST(req: NextRequest) {
   if (!Number.isSafeInteger(sqm) || sqm <= 0 || !Number.isSafeInteger(calcGrossPrice(spaceType as SpaceType,sqm)*100)) {
     return NextResponse.json({ error: "Suprafața trebuie să fie un număr întreg pozitiv" }, { status: 400 });
   }
+
+  if(sqm>AUTOMATIC_MAX_SQM)return NextResponse.json({error:"Suprafața necesită evaluare asistată înainte de rezervare.",assessmentRequired:true,assessmentUrl:"/client/evaluari"},{status:422});
 
   return NextResponse.json({
     quote: {

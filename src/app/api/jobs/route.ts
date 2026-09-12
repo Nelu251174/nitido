@@ -7,6 +7,7 @@ import { after, NextRequest, NextResponse } from "next/server";
 import { db, newId, getFirmByUserId } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import {
+  AUTOMATIC_MAX_SQM,
   calcGrossPrice,
   calcDurationMinutes,
   calcNetForFirm,
@@ -146,16 +147,6 @@ export async function POST(req: NextRequest) {
 
   if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:"Origine invalidă"},{status:403});
 
-  // Card obligatoriu înainte de postare — la acceptare se pune HOLD pe acest
-  // card, deci trebuie salvat dinainte. Dacă Stripe nu e activat, se sare peste.
-  const card = getClientCardInfo(db, user.id);
-  if (card.stripeConfigured && !card.hasCard) {
-    return NextResponse.json(
-      { error: "Adaugă un card înainte de a posta o lucrare.", needsCard: true },
-      { status: 402 }
-    );
-  }
-
   const body = await req.json().catch(()=>null);
   if(!body||typeof body!=="object")return NextResponse.json({error:"Cerere invalidă"},{status:400});
   if(body.propertyId){try{ownProperty(db,user.id,String(body.propertyId))}catch(e){return NextResponse.json({error:e instanceof WorkspaceError?e.message:"Proprietate invalidă"},{status:404})}}
@@ -226,6 +217,18 @@ export async function POST(req: NextRequest) {
   }
   if (details !== undefined && (typeof details !== "string" || details.length > 500)) {
     return NextResponse.json({ error: "Detaliile pot avea maximum 500 de caractere" }, { status: 400 });
+  }
+
+  if(sqm>AUTOMATIC_MAX_SQM)return NextResponse.json({error:"Suprafața necesită evaluare asistată înainte de rezervare.",assessmentRequired:true,assessmentUrl:"/client/evaluari"},{status:422});
+
+  // Card obligatoriu înainte de postare — la acceptare se pune HOLD pe acest
+  // card, deci trebuie salvat dinainte. Dacă Stripe nu e activat, se sare peste.
+  const card = getClientCardInfo(db, user.id);
+  if (card.stripeConfigured && !card.hasCard) {
+    return NextResponse.json(
+      { error: "Adaugă un card înainte de a posta o lucrare.", needsCard: true },
+      { status: 402 }
+    );
   }
 
   let scheduledAt: Date;

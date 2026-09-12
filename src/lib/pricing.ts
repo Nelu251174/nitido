@@ -3,6 +3,9 @@
 
 export type SpaceType = "apartament" | "casa" | "birou" | "altul";
 
+// Maximum area supported by the existing automatic booking calculator.
+export const AUTOMATIC_MAX_SQM = 1000;
+
 export const PLATFORM_COMMISSION = 0.18; // 18% comision platformă, fix — spec secțiunea 7
 
 export const SLOT_HOURS = [8, 10, 12, 14, 16, 18] as const;
