@@ -132,4 +132,32 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     expect(results.flatMap(r=>r.created)).toHaveLength(1);
   });
 
+  it("cancelled plans remain terminal and cancellation is repeatable",async()=>{
+    seedClientAndFirm(db);
+    const created=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});
+    if(!created.ok)throw new Error("fixture");
+    expect(setPlanStatus(db,created.planId,"client_1","cancelled").ok).toBe(true);
+    expect(setPlanStatus(db,created.planId,"client_1","active")).toMatchObject({ok:false,status:409});
+    expect(setPlanStatus(db,created.planId,"client_1","paused")).toMatchObject({ok:false,status:409});
+    expect(setPlanStatus(db,created.planId,"client_1","cancelled").ok).toBe(true);
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"))).created).toEqual([]);
+  });
+  it("another client cannot pause a plan and invalid state leaves it unchanged",()=>{
+    seedClientAndFirm(db);const created=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});
+    if(!created.ok)throw new Error("fixture");
+    expect(setPlanStatus(db,created.planId,"other","paused")).toMatchObject({ok:false,status:404});
+    expect(setPlanStatus(db,created.planId,"client_1","invalid" as never)).toMatchObject({ok:false,status:400});
+    expect(db.prepare("SELECT status FROM recurring_plans WHERE id=?").get(created.planId)).toEqual({status:"active"});
+  });
+  it("pausing a series preserves its already generated visit",async()=>{
+    seedClientAndFirm(db);const created=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});
+    if(!created.ok)throw new Error("fixture");
+    const jobs=await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"));
+    const before=db.prepare("SELECT * FROM jobs WHERE id=?").get(jobs.created[0]);
+    expect(setPlanStatus(db,created.planId,"client_1","paused").ok).toBe(true);
+    expect(db.prepare("SELECT * FROM jobs WHERE id=?").get(jobs.created[0])).toEqual(before);
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-12T06:00:00Z"))).created).toEqual([]);
+    expect(setPlanStatus(db,created.planId,"client_1","active").ok).toBe(true);
+  });
+
 });

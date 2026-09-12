@@ -991,6 +991,9 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
+  const statusLock = useRef(false);
+  const [statusBusy,setStatusBusy]=useState(false);
+
   const load = useCallback(async () => {
     const r = await fetch("/api/recurring");
     if (r.ok) setPlans((await r.json()).plans ?? []);
@@ -1021,12 +1024,20 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
     }
   }
   async function changeStatus(id: string, status: string) {
-    await fetch(`/api/recurring/${id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    await load();
+    if(statusLock.current)return;
+    const explanation=status==="cancelled"
+      ? "Anulezi definitiv abonamentul? Nu se vor mai genera vizite. Vizitele deja create rămân active și se gestionează separat din Rezervări. Această acțiune nu anulează plăți."
+      : "Pui abonamentul pe pauză? Nu se vor genera vizite cât timp este pe pauză. Vizitele deja create rămân active și se gestionează separat din Rezervări.";
+    if(status!=="active"&&!window.confirm(explanation))return;
+    statusLock.current=true;setStatusBusy(true);setMsg(null);
+    try{
+      const response=await fetch(`/api/recurring/${id}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status})});
+      const result=await response.json();
+      if(!response.ok||result.ok!==true)throw new Error(typeof result.error==="string"?result.error:"Modificarea nu a fost confirmată.");
+      await load();
+      setMsg(status==="active"?"Abonamentul a fost reluat.":status==="paused"?"Abonamentul este pe pauză. Verifică separat vizitele deja create în Rezervări.":"Abonamentul a fost anulat. Verifică separat vizitele deja create în Rezervări.");
+    }catch(cause){setMsg(cause instanceof Error?cause.message:"Nu am putut actualiza abonamentul. Încearcă din nou.")}
+    finally{statusLock.current=false;setStatusBusy(false)}
   }
 
   return (
@@ -1042,6 +1053,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
       </div>
       <p className="text-xs text-muted mt-1">Aceeași echipă, la interval fix. Se creează automat următoarea lucrare.</p>
 
+      {msg && <p role="status" className="text-sm mt-3">{msg}</p>}
       {plans.length > 0 && (
         <div className="mt-3 divide-y divide-[#e2e8f0]">
           {plans.map((p) => (
@@ -1054,11 +1066,11 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
               {p.status !== "cancelled" && (
                 <span className="flex gap-2 flex-shrink-0">
                   {p.status === "active" ? (
-                    <button onClick={() => changeStatus(p.id, "paused")} className="text-xs font-bold text-muted">Pauză</button>
+                    <button disabled={statusBusy} onClick={() => changeStatus(p.id, "paused")} className="text-xs font-bold text-muted">Pauză</button>
                   ) : (
-                    <button onClick={() => changeStatus(p.id, "active")} className="text-xs font-bold text-aqua-deep">Reia</button>
+                    <button disabled={statusBusy} onClick={() => changeStatus(p.id, "active")} className="text-xs font-bold text-aqua-deep">Reia</button>
                   )}
-                  <button onClick={() => changeStatus(p.id, "cancelled")} className="text-xs font-bold text-coral">Anulează</button>
+                  <button disabled={statusBusy} onClick={() => changeStatus(p.id, "cancelled")} className="text-xs font-bold text-coral">Anulează</button>
                 </span>
               )}
             </div>
@@ -1096,7 +1108,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
               </select>
             </Field>
           </div>
-          {msg && <p className="text-coral text-xs mt-1">{msg}</p>}
+          
           <Button className="w-full mt-3" onClick={create} disabled={busy}>
             {busy ? "Se creează..." : "Creează abonamentul"}
           </Button>

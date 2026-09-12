@@ -132,12 +132,14 @@ export function setPlanStatus(
   clientId: string,
   status: "active" | "paused" | "cancelled"
 ): PlanResult {
-  const plan = db
-    .prepare("SELECT id FROM recurring_plans WHERE id = ? AND client_id = ?")
-    .get(planId, clientId) as { id: string } | undefined;
-  if (!plan) return { ok: false, error: "Abonament inexistent", status: 404 };
-  db.prepare("UPDATE recurring_plans SET status = ? WHERE id = ?").run(status, planId);
-  return { ok: true, planId };
+  if (!["active", "paused", "cancelled"].includes(status)) return {ok:false,error:"Stare invalidă",status:400};
+  return db.transaction((): PlanResult => {
+    const plan=db.prepare("SELECT status FROM recurring_plans WHERE id=? AND client_id=?").get(planId,clientId) as {status:string}|undefined;
+    if(!plan)return {ok:false,error:"Abonament inexistent",status:404};
+    if(plan.status==="cancelled"&&status!=="cancelled")return {ok:false,error:"Un abonament anulat nu poate fi reactivat. Creează un abonament nou.",status:409};
+    db.prepare("UPDATE recurring_plans SET status=? WHERE id=? AND client_id=?").run(status,planId,clientId);
+    return {ok:true,planId};
+  })();
 }
 
 /**

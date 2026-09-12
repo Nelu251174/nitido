@@ -192,3 +192,9 @@ Cele șase întrebări rapide din SupportCenter deschid răspunsul corespunzăto
 Ecranul nativ verifică disponibilitatea la deschidere și permite reverificare manuală. Răspunsurile incomplete nu activează trimiterea. Întrebarea rămâne în formular la eroare, iar istoricul este extins numai după un răspuns valid. Limita este aliniată la server: 1000 de caractere. Apăsările simultane sunt blocate, iar răspunsurile unei vizite anterioare nu modifică noua vizită. Nu s-a activat providerul AI și nu s-a publicat un build instalabil.
 
 Etapa web precedentă be08e57 a fost publicată în sandbox și verificată în browser: toate cele șase întrebări rapide deschid răspunsul din ghid, iar închiderea funcționează. Formularul AI rămâne dezactivat când providerul este indisponibil.
+
+### Recurență — anulare definitivă și feedback
+
+Planurile anulate nu pot fi reactivate sau puse pe pauză prin API; anularea repetată rămâne idempotentă. Verificarea titularului și modificarea sunt într-o tranzacție. Interfața cere confirmare înainte de pauză/anulare, explică păstrarea vizitelor deja generate, blochează apăsările simultane și afișează erorile ori confirmarea serverului și când formularul de creare este închis.
+
+15 teste de recurență trecute, inclusiv trei probe noi pentru starea terminală, accesul altui client și păstrarea lucrării generate. Această etapă nu implementează anularea financiară a vizitelor existente, pauza pe interval sau orizontul de generare; acestea rămân deschise.
