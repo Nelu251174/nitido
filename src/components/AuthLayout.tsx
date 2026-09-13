@@ -41,7 +41,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
             ].map((t) => (
               <div key={t} className="flex items-center gap-2.5 text-white/80 text-sm">
                 <svg width="18" height="18" viewBox="0 0 16 16" fill="none" className="flex-shrink-0">
-                  <circle cx="8" cy="8" r="8" fill="#17B8A6" />
+                  <circle cx="8" cy="8" r="8" fill="var(--nitido-brand-on-dark)" />
                   <path
                     d="M4.5 8.2l2.2 2.2L11.5 5.5"
                     stroke="white"

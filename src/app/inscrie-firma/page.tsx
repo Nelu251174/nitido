@@ -39,11 +39,11 @@ export default function InscrieFirmaPage() {
       {/* Hero */}
       <section className="v2-container py-16 pb-14 max-md:py-12">
         <div className="max-w-3xl">
-          <div className="inline-flex rounded-full bg-[#e4f0e8] text-[#115e59] px-4 py-2 text-xs font-bold mb-6">
+          <div className="inline-flex rounded-full bg-[var(--nitido-brand-soft)] text-[var(--nitido-brand-dark)] px-4 py-2 text-xs font-bold mb-6">
             Parteneri NITIDO · București &amp; Constanța
           </div>
           <h1 className="text-[56px] max-md:text-[38px] leading-[1.05] tracking-[-.035em] font-bold">
-            Firma ta de curățenie primește lucrări plătite. <span className="text-[#0f766e]">Fără abonament.</span>
+            Firma ta de curățenie primește lucrări plătite. <span className="text-[var(--nitido-brand)]">Fără abonament.</span>
           </h1>
           <p className="mt-6 text-[17px] leading-7 text-[#3e4842] max-w-2xl">
             NITIDO.RO aduce clienți verificați, cu card salvat, direct în zona ta. Trimiți ofertă sau preiei urgențele
@@ -55,7 +55,7 @@ export default function InscrieFirmaPage() {
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-2 mt-8 text-sm text-[#64748b]">
             {["Fără taxă de înscriere", "Comision fix 18%", "Verificare ANAF"].map((x) => (
-              <span key={x} className="flex gap-2 items-center text-[#115e59]">
+              <span key={x} className="flex gap-2 items-center text-[var(--nitido-brand-dark)]">
                 <span className="font-bold">✓</span>
                 <i className="not-italic text-[#64748b]">{x}</i>
               </span>
@@ -87,7 +87,7 @@ export default function InscrieFirmaPage() {
         <div className="grid grid-cols-3 gap-4 mt-9 max-md:grid-cols-1">
           {STEPS.map((s) => (
             <article key={s.n} className="v2-card p-[26px]">
-              <div className="text-sm font-bold text-[#0f766e]">{s.n}</div>
+              <div className="text-sm font-bold text-[var(--nitido-brand)]">{s.n}</div>
               <h3 className="font-bold text-lg mt-8">{s.title}</h3>
               <p className="text-sm text-[#64748b] leading-6 mt-2">{s.text}</p>
             </article>
@@ -99,7 +99,7 @@ export default function InscrieFirmaPage() {
       <section className="bg-white">
         <div className="v2-container v2-section">
           <div className="rounded-[20px] bg-[#111827] p-8 text-white md:p-12">
-            <div className="text-xs font-bold text-[#8fd8ae]">LANSARE PILOT</div>
+            <div className="text-xs font-bold text-[var(--nitido-brand-on-dark)]">LANSARE PILOT</div>
             <h2 className="mt-4 max-w-3xl text-4xl font-bold max-md:text-3xl">
               Căutăm firme în București și Constanța.
             </h2>
@@ -109,7 +109,7 @@ export default function InscrieFirmaPage() {
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               {["București", "Constanța"].map((c) => (
-                <span key={c} className="rounded-full bg-[#0f766e]/20 text-[#8fd8ae] px-4 py-2 text-sm font-bold">
+                <span key={c} className="rounded-full bg-[var(--nitido-brand)]/20 text-[var(--nitido-brand-on-dark)] px-4 py-2 text-sm font-bold">
                   📍 {c}
                 </span>
               ))}

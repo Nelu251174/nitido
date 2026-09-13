@@ -485,7 +485,7 @@ export default function ClientPage() {
         <WorkspaceNav role="client" onNavigate={href=>{if(href==='/client'||href.startsWith('/client#')){setJob(null);setShowBooking(false)}}}/>
         {menuOpen && (
           <nav className="hidden max-[760px]:flex flex-col mt-3 rounded-2xl border border-[#e2e8f0] bg-white overflow-hidden text-sm font-semibold">
-            {navItems.map((it,i)=><button key={it.label} type="button" onClick={()=>{it.onSelect();setMenuOpen(false);}} className={`text-left px-4 py-3.5 text-[#3e4842] active:bg-[#e8f5f2] ${i>0?"border-t border-[#ecebe4]":""}`}>{it.label}</button>)}
+            {navItems.map((it,i)=><button key={it.label} type="button" onClick={()=>{it.onSelect();setMenuOpen(false);}} className={`text-left px-4 py-3.5 text-[#3e4842] active:bg-[var(--nitido-brand-soft)] ${i>0?"border-t border-[#ecebe4]":""}`}>{it.label}</button>)}
             <button type="button" onClick={()=>{setMenuOpen(false);logout();}} className="text-left px-4 py-3.5 text-[#c0392b] border-t border-[#ecebe4]">Ieși din cont</button>
           </nav>
         )}
@@ -500,20 +500,20 @@ export default function ClientPage() {
         <div className={`client-content-grid ${showBooking&&!job?"with-detail":""}`}>
         <div className="min-w-0">
         {myJobs.filter(j=>j.status==="waiting"&&["requires_action","requires_confirmation"].includes(j.authorizationStatus??"")).map(j=><section key={j.id} className="v2-card p-5 mb-4"><h2 className="font-bold">Confirmarea cardului este necesară</h2><p className="text-sm text-muted mt-2">{j.city} · {j.sqm} m². Banca solicită confirmarea autorizării pentru această lucrare.</p><Link href={`/client/plata/${encodeURIComponent(j.id)}`} className="inline-block mt-3 font-bold text-aqua-deep underline">Confirmă prin bancă</Link></section>)}
-        {!job&&!showBooking&&myJobs.length>0&&<section id="sec-lucrari" className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold">Rezervările tale recente</h2><span className="text-xs text-[#6b756f]">{myJobs.length} total</span></div><input aria-label="Caută rezervări" className={`${inputClass} mt-3`} value={historyFilter} onChange={e=>setHistoryFilter(e.target.value)} placeholder="Caută rezervare sau status…"/><div className="mt-3 divide-y divide-[#e2e8f0]">{myJobs.filter(item=>`${item.city} ${item.street} ${JOB_STATUS[item.status]}`.toLowerCase().includes(historyFilter.toLowerCase())).map(item=><button key={item.id} onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[#e8f5f2] flex items-center justify-center text-[#115e59] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate">{item.space_type} · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm} m² · {JOB_STATUS[item.status]}</span></span><b className="text-sm">{item.price_gross} lei</b></button>)}</div></section>}
+        {!job&&!showBooking&&myJobs.length>0&&<section id="sec-lucrari" className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold">Rezervările tale recente</h2><span className="text-xs text-[#6b756f]">{myJobs.length} total</span></div><input aria-label="Caută rezervări" className={`${inputClass} mt-3`} value={historyFilter} onChange={e=>setHistoryFilter(e.target.value)} placeholder="Caută rezervare sau status…"/><div className="mt-3 divide-y divide-[#e2e8f0]">{myJobs.filter(item=>`${item.city} ${item.street} ${JOB_STATUS[item.status]}`.toLowerCase().includes(historyFilter.toLowerCase())).map(item=><button key={item.id} onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[var(--nitido-brand-soft)] flex items-center justify-center text-[var(--nitido-brand-dark)] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate">{item.space_type} · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm} m² · {JOB_STATUS[item.status]}</span></span><b className="text-sm">{item.price_gross} lei</b></button>)}</div></section>}
         {!job && !showBooking && <RecurringSection defaults={{ street, postalCode, city, floor, sqm, spaceType }} />}
         {!job && !showBooking && <BusinessSection />}
         {!job && !showBooking && user?.referral_code && (
           <ReferralCard code={user.referral_code} creditBalance={creditBalance} />
         )}
         {!job && !showBooking && <div className="mb-5"><AppRatingCard /></div>}
-        {!job && !showBooking && <section id="sec-mesaje" className="v2-card p-5 mb-5"><h2 className="font-bold">Mesaje &amp; suport</h2><p className="text-sm text-[#64748b] mt-2 leading-6">Ai o întrebare despre o lucrare sau despre cont? Echipa NITIDO îți răspunde rapid.</p><div className="mt-3 flex flex-col gap-1 text-sm"><a href="tel:0341402403" className="text-[#115e59] font-semibold">📞 0341 402 403</a><a href="mailto:contact@nitido.ro" className="text-[#115e59] font-semibold">✉️ contact@nitido.ro</a></div><Link href="/contact#asistent-ai" className="v2-btn v2-btn-secondary mt-4 inline-flex">Deschide asistentul NITIDO</Link></section>}
+        {!job && !showBooking && <section id="sec-mesaje" className="v2-card p-5 mb-5"><h2 className="font-bold">Mesaje &amp; suport</h2><p className="text-sm text-[#64748b] mt-2 leading-6">Ai o întrebare despre o lucrare sau despre cont? Echipa NITIDO îți răspunde rapid.</p><div className="mt-3 flex flex-col gap-1 text-sm"><a href="tel:0341402403" className="text-[var(--nitido-brand-dark)] font-semibold">📞 0341 402 403</a><a href="mailto:contact@nitido.ro" className="text-[var(--nitido-brand-dark)] font-semibold">✉️ contact@nitido.ro</a></div><Link href="/contact#asistent-ai" className="v2-btn v2-btn-secondary mt-4 inline-flex">Deschide asistentul NITIDO</Link></section>}
         {!job && !showBooking && <section id="sec-incredere" className="v2-card p-5 mb-5"><h2 className="font-bold">Încredere &amp; Siguranță</h2><ul className="text-sm text-[#64748b] mt-2 leading-6 list-disc pl-5 space-y-1"><li>Firme verificate în platformă, cu CUI validat la ANAF.</li><li>Autorizarea cardului și încasarea sunt etape distincte. Starea plății este afișată separat de starea lucrării.</li><li>Plata cardului e procesată securizat de Stripe — NITIDO nu îți vede datele cardului.</li><li>Urmărești lucrarea în timp real și primești dovezi foto la final.</li></ul><Link href="/incredere" className="v2-btn v2-btn-secondary mt-4 inline-flex">Vezi pagina completă</Link></section>}
         {!job && !showBooking && (
           <section id="sec-cont" className="v2-card p-5 mb-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="font-bold">Contul meu</h2>
-              {!editingProfile && <button type="button" onClick={openProfileEditor} className="inline-flex items-center rounded-full border border-[#d8d7d0] px-3.5 py-1.5 text-sm font-semibold text-[#115e59] transition-colors duration-150 hover:border-[#0f766e] hover:bg-[#e8f5f2]">Editează profilul</button>}
+              {!editingProfile && <button type="button" onClick={openProfileEditor} className="inline-flex items-center rounded-full border border-[#d8d7d0] px-3.5 py-1.5 text-sm font-semibold text-[var(--nitido-brand-dark)] transition-colors duration-150 hover:border-[var(--nitido-brand)] hover:bg-[var(--nitido-brand-soft)]">Editează profilul</button>}
             </div>
             {!editingProfile ? (
               <div className="mt-3 grid gap-3 sm:grid-cols-2 text-sm">
@@ -819,7 +819,7 @@ export default function ClientPage() {
               </div>
             )}
             {!needsAssessment && cardConfigured && hasCard === true && (
-              <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-[#115e59]">
+              <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-[var(--nitido-brand-dark)]">
                 <span>✓</span> Card salvat — plată securizată
               </p>
             )}
@@ -1147,7 +1147,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
         <div className="mt-3 divide-y divide-[#e2e8f0]">
           {plans.map((p) => (
             <div key={p.id} className="py-3 flex items-center gap-3">
-              <span className="w-10 h-10 rounded-lg bg-[#e8f5f2] flex items-center justify-center text-[#115e59] font-bold">↻</span>
+              <span className="w-10 h-10 rounded-lg bg-[var(--nitido-brand-soft)] flex items-center justify-center text-[var(--nitido-brand-dark)] font-bold">↻</span>
               <span className="min-w-0 flex-1">
                 {p.end_date&&<span className="block text-xs text-muted">Ultima zi a seriei: {p.end_date} inclusiv</span>}
                 {p.pause_start&&p.pause_end&&<span className="block text-xs text-aqua-deep">Pauză programată: {p.pause_start} – {p.pause_end} inclusiv<button type="button" disabled={statusBusy||busy} onClick={()=>void removePause(p)} className="block mt-2 underline disabled:opacity-50">Elimină pauza programată</button></span>}

@@ -95,7 +95,7 @@ export function PwaProvider() {
       </button>
       <button
         onClick={install}
-        style={{ background: "#39c97c", color: "#111827", border: "none", fontWeight: 700, fontSize: 13, padding: "9px 16px", borderRadius: 10, cursor: "pointer" }}
+        style={{ background: "var(--nitido-brand-on-dark)", color: "#111827", border: "none", fontWeight: 700, fontSize: 13, padding: "9px 16px", borderRadius: 10, cursor: "pointer" }}
       >
         Instalează
       </button>
