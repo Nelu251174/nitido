@@ -2,6 +2,8 @@
 
 Sursa numerotării: `NITIDO-MASTER-SOURCE.md`, §18. Documentul urmărește execuția și acceptarea separat. Nu reprezintă acceptarea beneficiarului.
 
+Continuare E2 după configurarea ADMIN: beneficiarul a confirmat loginul în sandbox și păstrarea filtrului ANAF pentru toate firmele. Următoarea livrare corectează integritatea retrimiterii push: dispozitive revocate, preferințe, eligibilitate și concurență între workers. [Dovezi și limite](NITIDO-PUSH-DELIVERY-INTEGRITY.md). Actualizările mai vechi de mai jos sunt istoric, nu starea curentă a înrolării ADMIN.
+
 Actualizare operațională 13 septembrie 2026: candidatul `356fade` este instalat în sandbox și healthy, inclusiv configuratorul public în trei pași și păstrarea formularului la adăugarea cardului. Restaurarea izolată a copiei producției a fost verificată pe candidatul anterior `c04d0d4`; dovezile nu sunt atribuite automat candidatului nou. Webhookurile Stripe și schedulerul financiar sunt configurate în sandbox. Producția rulează încă `f3584d3`. Dovezi, limite și restanțe: [NITIDO-STAGING-20260913.md](NITIDO-STAGING-20260913.md).
 
 | Etapă | Starea execuției | Condiție rămasă pentru închidere |
