@@ -3,15 +3,9 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 
-/**
- * Meniu pentru telefon (hamburger). Pe ecran mare, navigația din antet e
- * vizibilă direct (nav cu clasa `v2-hide-mobile`); pe telefon acea navigație e
- * ascunsă și NU exista niciun buton de meniu — de aici impresia că „butoanele
- * de sus nu funcționează". Componenta asta adaugă butonul de meniu (☰) care
- * apare doar pe telefon (`v2-only-mobile`) și deschide un panou cu aceleași
- * linkuri. Butoanele de cont din panou țin cont de sesiune (dacă ești logat,
- * apare „Contul meu", nu „Autentificare"), ca să nu pară că ai fost delogat.
- */
+import { HeaderAuthButtons } from "./HeaderAuthButtons";
+
+/** Public mobile navigation shares the same account entry as the desktop header. */
 const LINKS: Array<[string, string]> = [
   ["/cum-functioneaza", "Cum funcționează"],
   ["/pentru-clienti", "Pentru clienți"],
@@ -21,27 +15,8 @@ const LINKS: Array<[string, string]> = [
   ["/contact", "Contact"],
 ];
 
-type Me = { role: "client" | "firma" } | null;
-
 export function MobileMenu() {
   const [open, setOpen] = useState(false);
-  const [me, setMe] = useState<Me | undefined>(undefined);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/auth/me")
-      .then((r) => (r.ok ? r.json() : { user: null }))
-      .then((d) => {
-        if (!cancelled) setMe(d.user ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setMe(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   // Blochează scroll-ul paginii cât timp meniul e deschis.
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
@@ -49,8 +24,6 @@ export function MobileMenu() {
       document.body.style.overflow = "";
     };
   }, [open]);
-
-  const accountHref = me && me.role === "firma" ? "/firma" : "/client";
 
   return (
     <>
@@ -80,20 +53,7 @@ export function MobileMenu() {
               </Link>
             ))}
             <div className="flex flex-col gap-3 mt-6">
-              {me ? (
-                <Link href={accountHref} onClick={() => setOpen(false)} className="v2-btn v2-btn-primary w-full justify-center">
-                  Contul meu
-                </Link>
-              ) : (
-                <>
-                  <Link href="/login" onClick={() => setOpen(false)} className="v2-btn v2-btn-secondary w-full justify-center">
-                    Autentificare
-                  </Link>
-                  <Link href="/signup" onClick={() => setOpen(false)} className="v2-btn v2-btn-primary w-full justify-center">
-                    Înregistrează-te
-                  </Link>
-                </>
-              )}
+              <HeaderAuthButtons onNavigate={() => setOpen(false)} />
             </div>
           </nav>
         </div>

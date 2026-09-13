@@ -1,32 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
-type Me = { role: "client" | "firma"; name: string } | null;
-
-// Keep both role entry points visible, including while session data loads.
-export function HeaderAuthButtons() {
-  const [me, setMe] = useState<Me | undefined>(undefined);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/auth/me")
-      .then((r) => (r.ok ? r.json() : { user: null }))
-      .then((d) => {
-        if (!cancelled) setMe(d.user ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setMe(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
+// Resolve the current session on the server at click time, including ADMIN.
+// A normal anchor avoids a prefetched destination surviving a role change.
+export function HeaderAuthButtons({onNavigate}:{onNavigate?:()=>void} = {}) {
   return <div className="public-account-actions">
-    <Link href="/login?role=client" className="v2-btn v2-btn-secondary">Login client</Link>
-    <Link href="/login?role=firma" className="v2-btn v2-btn-secondary">Login firmă</Link>
-    {me && <Link href={me.role === "firma" ? "/firma" : "/client"} className="v2-btn v2-btn-primary">Contul meu</Link>}
+    <Link href="/login?role=client" onClick={onNavigate} className="v2-btn v2-btn-secondary">Login client</Link>
+    <Link href="/login?role=firma" onClick={onNavigate} className="v2-btn v2-btn-secondary">Login firmă</Link>
+    <a href="/cont" onClick={onNavigate} className="v2-btn v2-btn-primary">Contul meu</a>
   </div>;
 }
