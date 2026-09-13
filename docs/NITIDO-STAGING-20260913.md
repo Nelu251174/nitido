@@ -2,7 +2,7 @@
 
 ## Versiuni efectiv instalate
 
-- Sandbox: `4c344670f33cdf5a247a946eee3e0c42119b9beb`, PR #49, configurator public în trei pași instalat, healthcheck trecut și probe browser consemnate în [NITIDO-BOOKING-WIZARD.md](NITIDO-BOOKING-WIZARD.md). Istoricul candidaților anteriori este păstrat mai jos.
+- Sandbox: `457ff907ce129f731c396c12794be6dc15ee2f88`, PR #49, continuitatea formularului la adăugarea cardului instalată și healthcheck trecut. [Dovezi și limite](NITIDO-CARD-BOOKING-CONTINUITY.md). Configuratorul public a fost verificat pe candidatul anterior: [NITIDO-BOOKING-WIZARD.md](NITIDO-BOOKING-WIZARD.md). Istoricul candidaților anteriori este păstrat mai jos.
 - Producție: `f3584d3dfc8a859f6780e2dff21e440d106a0456`. PR #49 nu este instalat în producție.
 - Accesul administrativ Coolify și terminalul serverului au fost verificate prin `https://coolify.nitido.ro` în sesiunea de operare. Aceasta nu garantează persistența autentificării în sesiuni viitoare.
 
