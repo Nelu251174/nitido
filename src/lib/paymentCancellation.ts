@@ -29,7 +29,7 @@ export function authorizationMustStop(db:Database,jobId:string):boolean{
 }
 
 /** Never creates a PaymentIntent. Unknown identities stay pending for reconciliation. */
-export async function reconcilePaymentCancellation(db:Database,jobId:string,stripe:Stripe|null,options:{sandboxOnly?:boolean}={}){
+export async function reconcilePaymentCancellation(db:Database,jobId:string,stripe:Stripe|null,options:{sandboxOnly?:boolean;beforeMutation?:()=>void}={}){
  requestPaymentCancellation(db,jobId);
  try{
    const rows=db.prepare('SELECT id,status,amount_gross,stripe_payment_intent_id FROM payments WHERE job_id=?').all(jobId) as {id:string;status:string;amount_gross:number;stripe_payment_intent_id:string|null}[];
@@ -52,11 +52,13 @@ export async function reconcilePaymentCancellation(db:Database,jobId:string,stri
      if(!matches(intent))throw Error('PAYMENT_DETAILS_MISMATCH');
      if(intent.status!=='canceled'){
        if(!['requires_capture','requires_payment_method','requires_confirmation','requires_action'].includes(intent.status))throw Error('PAYMENT_CANCELLATION_NOT_CONFIRMED');
+       options.beforeMutation?.();
        intent=await stripe.paymentIntents.cancel(intentId,{}, {idempotencyKey:`nitido-cancel-${jobId}`});
      }
      if(!matches(intent)||intent.status!=='canceled')throw Error('PAYMENT_CANCELLATION_NOT_CONFIRMED');
    }
    db.transaction(()=>{
+     options.beforeMutation?.();
      if(db.prepare("SELECT 1 FROM payments WHERE job_id=? AND status NOT IN ('authorized','cancelled')").get(jobId))throw Error('PAYMENT_CANCELLATION_RECONCILIATION_REQUIRED');
      const current=db.prepare('SELECT id,amount_gross,stripe_payment_intent_id FROM payments WHERE job_id=?').all(jobId) as typeof rows;
      if(current.length>1||current.some(row=>row.id!==paymentId||row.amount_gross*100!==amount||row.stripe_payment_intent_id!==(intentId??null)))throw Error('PAYMENT_DETAILS_MISMATCH');

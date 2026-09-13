@@ -5,6 +5,7 @@ import Link from "next/link";
 import {AdminServiceCatalog} from "@/components/AdminServiceCatalog";
 import {AdminAssessments} from "@/components/AdminAssessments";
 import {AdminOperations} from "@/components/AdminOperations";
+import {FinancialRecoveryStatus,type RecoveryRun,type RecoveryParked} from "@/components/FinancialRecoveryStatus";
 import {CancellationRecovery} from "@/components/CancellationRecovery";
 import {PayoutReconciliation} from "@/components/PayoutReconciliation";
 import {BoardSidebar} from "@/components/BoardSidebar";
@@ -78,6 +79,8 @@ export default function AdminPage() {
   const [firms, setFirms] = useState<FirmRow[]>([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [authorizationIssues,setAuthorizationIssues]=useState<AuthorizationIssue[]>([]);
+  const [recoveryRuns,setRecoveryRuns]=useState<RecoveryRun[]>([]);
+  const [recoveryParked,setRecoveryParked]=useState<RecoveryParked[]>([]);
   const [cancellationIssues,setCancellationIssues]=useState<CancellationIssue[]>([]);
   const [webhookIssues,setWebhookIssues]=useState<WebhookIssue[]>([]);
   const [bankPayouts,setBankPayouts]=useState<BankPayoutRow[]>([]);
@@ -104,6 +107,8 @@ export default function AdminPage() {
     setFirms(data.firms);
     setPayments(data.payments);
     setBankPayouts(data.bankPayouts??[]);
+    setRecoveryRuns(data.recoveryRuns??[]);
+    setRecoveryParked(data.recoveryParked??[]);
     setCancellationIssues(data.cancellationIssues??[]);
     setWebhookIssues(data.webhookIssues??[]);
     setAuthorizationIssues(data.authorizationIssues??[]);
@@ -436,6 +441,7 @@ export default function AdminPage() {
             </table>
           </div>
         </section>
+        <FinancialRecoveryStatus runs={recoveryRuns} parked={recoveryParked}/>
         <section aria-label="Anulări de plată neconfirmate">
           <h2 className="font-semibold mb-2">Anulări de plată neconfirmate</h2>
           <p className="text-sm text-muted mb-3">Rezervările de mai jos trebuie verificate înainte de închiderea financiară. Anularea lucrării nu confirmă singură eliberarea banilor.</p>

@@ -1,6 +1,14 @@
 # NITIDO v3 — verificare integrată și corecții
 
-## Continuare actuală — recuperarea anulărilor și concurență Stripe
+## Continuare actuală — worker de recuperare sandbox
+
+Procesarea periodică folosește inboxul verificat și anulările deja solicitate. Sunt implementate rezervarea persistentă a execuției, protecția după restart, pauzele între încercări, oprirea la limita automată și vizibilitatea în admin. Webhookul și workerul folosesc același procesor cu protecțiile financiare existente.
+
+Validare locală: 747 teste web/backend în 80 fișiere și 19 teste operaționale; TypeScript, lint și build Next.js. CI pe commitul nou se confirmă separat în PR. Providerul este simulat în teste. Schedulerul nu este activat pe staging, nu s-a verificat imaginea Docker pe țintă și nu s-au efectuat operațiuni în contul Stripe al beneficiarului.
+
+Operare și limite: [NITIDO-FINANCIAL-RECOVERY.md](NITIDO-FINANCIAL-RECOVERY.md). Etapa activă rămâne E2, conform [NITIDO-STAGES.md](NITIDO-STAGES.md). Afirmațiile istorice de mai jos privind lipsa unui worker sunt înlocuite de această implementare limitată la sandbox.
+
+## Continuare precedentă — recuperarea anulărilor și concurență Stripe
 
 Cererile de anulare sunt persistente și auditate; autorizările întârziate cu ID cunoscut sunt compensate înainte de a deveni plăți autorizate local. Rescue/no-show păstrează atomic efectele locale, chiar când Stripe nu răspunde. Admin are reluare strict în sandbox pentru cereri restante pe lucrări închise. Acceptarea verifică tokenul încercării și starea finală; confirmarea 3DS refuză anulările persistente.
 

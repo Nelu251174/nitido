@@ -1,10 +1,17 @@
 # NITIDO — poarta de lansare și continuarea P0
 
 Sursa cerințelor: brief master v1.0, secțiunile 13, 14, 16, 18–20; PR #49.
-Baza continuării actuale: f1b4d93e4ff5e6568c9519eead66a98304eff107.
+Baza continuării actuale: c8ba38baee8d7e2c12b265130c56d0c8fc14b493.
 Verdict: **NO-GO producție**. Implementarea și verificarea în sandbox continuă; brief-ul integral nu este închis.
 
-## Continuarea actuală: autorizări întârziate și notificări concurente
+## Continuarea actuală: recuperare periodică sandbox
+
+- Worker pentru notificările restante și anulările deja solicitate; verifică mediul sandbox și contul Stripe înainte de procesare. Recuperează evenimentul exact prin API autentificat, apoi folosește procesorul comun cu webhookul public.
+- Rezervare de execuție în SQLite, protecție după expirare/restart, maximum 10 elemente pe lot, buget de pornire de 40 secunde și retry cu pauze. După 8 încercări automate, restanța cere intervenție.
+- Istoric și excepții în admin; runner inclus în containerul standalone. Flagul este dezactivat implicit. Programarea și probele reale în staging nu sunt efectuate.
+- Operare, dependențe, limite, migrare și probe: [NITIDO-FINANCIAL-RECOVERY.md](NITIDO-FINANCIAL-RECOVERY.md). Situația etapelor E0–E5: [NITIDO-STAGES.md](NITIDO-STAGES.md).
+
+## Funcționalitatea precedentă: autorizări întârziate și notificări concurente
 
 - Cerere persistentă de anulare înainte de Stripe, inclusiv când autorizarea este încă în curs și nu există plată locală. Rescue și no-show salvează tranziția, repostarea/consecința și cererea în aceeași tranzacție. Un timeout Stripe nu pierde aceste efecte și nu declară rezervarea eliberată.
 - O autorizare revenită după anulare/no-show sau după o cerere de anulare nu este inserată/reutilizată drept `authorized`. Recuperarea citește PaymentIntent-ul cunoscut, verifică ID, sumă, RON și metadate, anulează doar stări compatibile și cere `canceled`. Dacă Stripe confirmase deja anularea după timeout, reluarea recuperează starea fără un nou apel de anulare. Nu creează un PaymentIntent pentru a-l anula.
@@ -61,8 +68,8 @@ Validatorul verifică forma dovezilor, SHA, proprietarul verificării, momentul 
 
 ## Dovezi locale ale acestei continuări
 
-- 706 teste web/backend în 78 fișiere: PASS, cu 48 de cazuri noi față de baza acestei continuări. Acoperă compensare, identitate, audit, recuperare admin, acceptare, 3DS și notificări concurente.
-- 14 teste Node pentru gate/preflight, backup/restore și runner recurență: PASS.
+- 747 teste web/backend în 80 fișiere: PASS, cu 41 de cazuri noi pentru recuperare și accesul schedulerului. Include restart pe SQLite persistent, două conexiuni, expirarea rezervării, concurență cu webhookul, cont/mod greșit, pauze și limite.
+- 19 teste Node pentru gate/preflight, backup/restore, runner recurență și runner recuperare: PASS.
 - TypeScript web, ESLint și build Next.js: PASS.
 - Preflight în mediul de dezvoltare: blocat corect; cheile Stripe, identitatea contului și configurația staging nu sunt injectate aici. Acest rezultat nu descrie configurația containerului de la sandbox.nitido.ro.
 - Browser: pagina de login admin din sandbox este accesibilă; lipsa unei sesiuni autentificate împiedică verificarea dashboardului. Nu sunt declarate capturi sau verificări autentificate efectuate.
@@ -70,14 +77,16 @@ Validatorul verifică forma dovezilor, SHA, proprietarul verificării, momentul 
 
 ## Migrare și rollback
 
+Recuperarea periodică adaugă `financial_recovery_lock`, `financial_recovery_runs` și `financial_recovery_items`. Opriți programarea și dezactivați flagul înainte de rollback, apoi verificați încheierea lotului deja pornit. Păstrați istoricul și restanțele. Procesorul comun înlocuiește implementarea din ruta webhook fără eliminarea verificării semnăturii.
+
 Această continuare adaugă `job_acceptance_claims`, `payment_cancellation_requests` și `stripe_resource_versions`, fără backfill financiar. Nu ștergeți cererile, auditul sau versiunile. Nu rulați simultan handlerul vechi și cel nou: versiunea veche nu respectă protecțiile. Înainte de rollback, opriți preluarea de lucrări și consumarea notificărilor, inventariați cererile neconfirmate și păstrați mecanismul de reconciliere disponibil; reluarea pe codul vechi necesită evaluarea explicită a acestor restanțe. Aditivitatea schemei nu garantează singură siguranța financiară a rollbackului.
 
 Tabelele `payout_reconciliation_runs` și `stripe_webhook_inbox` sunt aditive. Pornirea pe schema existentă le creează fără backfill sau schimbarea sumelor/statusurilor istorice. Codul anterior poate ignora aceste tabele la rollback; nu le ștergeți. `stripe_events` păstrează dovezile anterioare de procesare. Evenimentele deja înregistrate înainte de această versiune nu sunt replayate financiar automat.
 
 ## Limite păstrate explicit
 
-- Nu este un registru financiar complet, un inbox de payloaduri brute sau un worker de replay automat. Retrimiterea cere Stripe și, după intervalul disponibil pentru retrimitere, reconciliere operațională separată.
-- Compensarea autorizării întârziate cu identitate cunoscută și protecția între notificările concurente sunt implementate și testabile în repository. Confirmarea lor în Stripe sandbox rămâne deschisă. Rezultatele necunoscute după oprirea procesului, fără ID de provider, cer reconciliere separată; nu există worker automat de recuperare.
+- Workerul nou recuperează automat, după activare în sandbox, numai restanțe deja înregistrate. Nu este registru financiar complet, scanare integrală a contului sau inbox de payloaduri brute. Evenimentele în afara ferestrei Events API necesită reconciliere separată.
+- Compensarea autorizării întârziate cu identitate cunoscută și protecția între notificările concurente sunt implementate și testabile în repository. Confirmarea lor în Stripe sandbox rămâne deschisă. Rezultatele necunoscute după oprirea procesului, fără ID de provider, cer reconciliere separată; workerul nu inventează asocierea și nu creează alte intenții.
 - Versiunile protejează scrierile efectuate de acest handler webhook pe aceeași bază SQLite. Nu asigură ordonarea globală după timpul Stripe, consistența între baze independente sau coordonarea tuturor scrierilor API/worker. Generațiile de reautorizare, reconcilierea tuturor resurselor istorice și viramentele manuale rămân deschise.
 - Nu au fost făcute tranzacții Stripe reale, capturări, rambursări sau transferuri în contul utilizatorului pentru aceste teste. Reconcilierea nouă blochează cheile live.
 - Loginul admin de la `https://sandbox.nitido.ro/admin` este accesibil, dar browserul acestei sesiuni nu este autentificat. Nu se declară QA vizual autentificat pe baza testelor handlerelor.

@@ -1,3 +1,4 @@
+import type Stripe from "stripe";
 import type {Database} from "better-sqlite3";
 import {getStripeClient} from "@/lib/payments";
 
@@ -33,8 +34,8 @@ export async function createOnboardingLink(db:Database,userId:string,baseUrl:str
   return link.url;
 }
 
-export async function readRecipientCapability(accountId:string){
-  const stripe=getStripeClient();if(!stripe)throw new Error("STRIPE_NOT_CONFIGURED");
+export async function readRecipientCapability(accountId:string,stripe:Stripe|null=getStripeClient()){
+  if(!stripe)throw new Error("STRIPE_NOT_CONFIGURED");
   const account=await stripe.v2.core.accounts.retrieve(accountId,{include:["configuration.recipient","requirements"]});
   const capability=account.configuration?.recipient?.capabilities?.stripe_balance?.stripe_transfers?.status??"inactive";
   return {status:capability==="active"?"ready":"restricted",capability};

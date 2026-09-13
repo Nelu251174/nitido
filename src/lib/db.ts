@@ -1,3 +1,4 @@
+import {FINANCIAL_RECOVERY_SCHEMA} from "./financialRecoverySchema";
 import {PAYMENT_RECOVERY_SCHEMA} from "./paymentCancellation";
 import {PAYOUT_RECONCILIATION_SCHEMA} from "./payoutReconciliation";
 import {STRIPE_INBOX_SCHEMA} from "./stripeInbox";
@@ -31,6 +32,7 @@ db.pragma("foreign_keys = ON");
 // Exportată separat ca teste (vitest) să poată crea o bază de date in-memory
 // cu aceeași schemă, izolată de fișierul de date reale.
 export const SCHEMA_SQL = `
+${FINANCIAL_RECOVERY_SCHEMA}
 ${PAYMENT_RECOVERY_SCHEMA}
 ${PAYOUT_RECONCILIATION_SCHEMA}
 ${STRIPE_INBOX_SCHEMA}
