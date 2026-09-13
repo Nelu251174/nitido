@@ -1,7 +1,7 @@
 import {beforeEach,afterEach,describe,it,expect} from "vitest";
 import Database from "better-sqlite3";
 import {SCHEMA_SQL} from "./db";
-import {inventoryHistory,setInventoryThreshold,hostInventory,createInventoryItem,moveInventory,createTeamBlock,cancelTeamBlock,teamBlocks,hostChecks,setHostCheck,WORKSPACE_SCHEMA,saveProperty,ownProperty,linkPropertyJob,assignTeam,sendJobMessage,setChecklist,importCalendar,parseCalendar} from "./workspace";
+import {messageInbox,readJobMessages,inventoryHistory,setInventoryThreshold,hostInventory,createInventoryItem,moveInventory,createTeamBlock,cancelTeamBlock,teamBlocks,hostChecks,setHostCheck,WORKSPACE_SCHEMA,saveProperty,ownProperty,linkPropertyJob,assignTeam,sendJobMessage,setChecklist,importCalendar,parseCalendar} from "./workspace";
 let db:Database.Database;
 beforeEach(()=>{db=new Database(":memory:");db.pragma("foreign_keys=ON");db.exec(SCHEMA_SQL);db.exec(WORKSPACE_SCHEMA);db.exec("INSERT INTO users(id,role,name) VALUES('a','client','A'),('b','client','B'),('f','firma','F'),('g','firma','G');INSERT INTO firms(id,user_id,coverage_city) VALUES('firm','f','București'),('other','g','București')");});
 afterEach(()=>db.close());
@@ -47,4 +47,11 @@ describe('Host stock ledger',()=>{
  it('records supply and consumption atomically without duplicate retries',()=>{const id=item();moveInventory(db,'a',id,5,'Aprovizionare','r1');moveInventory(db,'a',id,5,'Aprovizionare','r1');moveInventory(db,'a',id,-3,'Pregătire sejur','r2');expect(hostInventory(db,'a')[0]).toMatchObject({quantity:2,threshold:2});expect(db.prepare('SELECT * FROM workspace_inventory_movements').all()).toHaveLength(2)});
  it('rejects negative stock, fractional quantities and conflicting retry keys',()=>{const id=item();expect(()=>moveInventory(db,'a',id,-1,'Consum','r0')).toThrow();expect(()=>moveInventory(db,'a',id,1.5,'Intrare','r0')).toThrow();moveInventory(db,'a',id,5,'Intrare','r1');expect(()=>moveInventory(db,'a',id,6,'Intrare','r1')).toThrow();expect(hostInventory(db,'a')[0]).toMatchObject({quantity:5});expect(db.prepare('SELECT * FROM workspace_inventory_movements').all()).toHaveLength(1)});
  it('isolates property owners and rejects archived and non-host stock',()=>{const id=item();expect(hostInventory(db,'b')).toHaveLength(0);expect(()=>moveInventory(db,'b',id,5,'Intrare','r1')).toThrow();const home=saveProperty(db,'a',property);expect(()=>createInventoryItem(db,'a',home,'Săpun','buc',1)).toThrow();db.exec('UPDATE workspace_properties SET archived=1');expect(()=>moveInventory(db,'a',id,5,'Intrare','r2')).toThrow();expect(hostInventory(db,'a')).toHaveLength(0)});
+});
+
+describe('Unread messages',()=>{
+ it('shows existing incoming messages only to the allocated recipient',()=>{job('chat');sendJobMessage(db,'a','chat','Hello','r1');expect(messageInbox(db,'f')).toEqual([{jobId:'chat',unread:1}]);expect(messageInbox(db,'a')).toEqual([]);expect(messageInbox(db,'g')).toEqual([])});
+ it('does not duplicate retries and marks only the displayed messages as read',()=>{job('chat');const first=sendJobMessage(db,'a','chat','First','r1');sendJobMessage(db,'a','chat','First','r1');sendJobMessage(db,'a','chat','Second','r2');readJobMessages(db,'f','chat',[first]);readJobMessages(db,'f','chat',[first]);expect(messageInbox(db,'f')[0].unread).toBe(1);expect(messageInbox(db,'a')).toEqual([])});
+ it('tracks replies separately and rejects unrelated accounts',()=>{job('chat');const reply=sendJobMessage(db,'f','chat','Reply','r1');expect(messageInbox(db,'a')[0].unread).toBe(1);expect(()=>readJobMessages(db,'g','chat',[reply])).toThrow();readJobMessages(db,'a','chat',[reply]);expect(messageInbox(db,'a')).toEqual([])});
+ it('cannot acknowledge a message from a different job or retain access after reassignment',()=>{job('one');job('two');const id=sendJobMessage(db,'a','two','Hello','r1');readJobMessages(db,'f','one',[id]);expect(messageInbox(db,'f')[0].unread).toBe(1);db.exec("UPDATE jobs SET accepted_firm_id='other' WHERE id='two'");expect(messageInbox(db,'f')).toEqual([]);expect(()=>readJobMessages(db,'f','two',[id])).toThrow()});
 });

@@ -38,6 +38,10 @@ CREATE TABLE IF NOT EXISTS workspace_messages (
  UNIQUE(sender_id,request_id)
 );
 CREATE INDEX IF NOT EXISTS workspace_messages_job ON workspace_messages(job_id,created_at);
+CREATE TABLE IF NOT EXISTS workspace_message_reads (
+ message_id TEXT NOT NULL REFERENCES workspace_messages(id) ON DELETE CASCADE,
+ user_id TEXT NOT NULL REFERENCES users(id), PRIMARY KEY(message_id,user_id)
+);
 CREATE TABLE IF NOT EXISTS workspace_calendar_events (
  id TEXT PRIMARY KEY, property_id TEXT NOT NULL REFERENCES workspace_properties(id), source TEXT NOT NULL,
  uid TEXT NOT NULL, starts_at TEXT NOT NULL, ends_at TEXT NOT NULL, summary TEXT NOT NULL,
@@ -234,4 +238,21 @@ export function parseCalendar(input:string) {
 export function importCalendar(db:Database,userId:string,propertyId:string,source:string,input:string){
  ownProperty(db,userId,propertyId);const key=requireText(source,"Sursă",80),events=parseCalendar(input),now=new Date().toISOString();
  return db.transaction(()=>{for(const e of events){if(!e.starts_at){db.prepare("UPDATE workspace_calendar_events SET status='cancelled',imported_at=? WHERE property_id=? AND source=? AND uid=?").run(now,propertyId,key,e.uid);continue}db.prepare("INSERT INTO workspace_calendar_events VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(property_id,source,uid) DO UPDATE SET starts_at=excluded.starts_at,ends_at=excluded.ends_at,status=excluded.status,imported_at=excluded.imported_at").run(randomUUID(),propertyId,key,e.uid,e.starts_at,e.ends_at,"Perioadă ocupată",e.status,now)}audit(db,userId,"calendar.import",propertyId);return events.length})();
+}
+
+export function messageInbox(db:Database,userId:string){
+ return db.prepare(`SELECT j.id AS jobId,COUNT(m.id) AS unread
+ FROM jobs j LEFT JOIN firms f ON f.id=j.accepted_firm_id
+ JOIN workspace_messages m ON m.job_id=j.id AND m.sender_id!=?
+ LEFT JOIN workspace_message_reads r ON r.message_id=m.id AND r.user_id=?
+ WHERE (j.client_id=? OR f.user_id=?) AND j.accepted_firm_id IS NOT NULL
+ AND r.message_id IS NULL AND (m.sender_id=j.client_id OR m.sender_id=f.user_id)
+ GROUP BY j.id ORDER BY MAX(m.created_at) DESC`).all(userId,userId,userId,userId) as {jobId:string;unread:number}[];
+}
+export function readJobMessages(db:Database,userId:string,jobId:string,ids:unknown){
+ const job=authorizedJob(db,userId,jobId);
+ if(!Array.isArray(ids)||ids.length>200||ids.some(id=>typeof id!=="string"||id.length>100))throw new WorkspaceError("Mesaje invalide",400);
+ const insert=db.prepare(`INSERT OR IGNORE INTO workspace_message_reads(message_id,user_id)
+ SELECT id,? FROM workspace_messages WHERE id=? AND job_id=? AND sender_id!=? AND sender_id IN (?,?)`);
+ db.transaction(()=>{for(const id of ids)insert.run(userId,id,jobId,userId,job.client_id,job.firm_user_id)})();
 }
