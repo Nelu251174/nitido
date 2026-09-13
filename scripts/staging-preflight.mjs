@@ -8,6 +8,7 @@ export function inspectStaging(env){
  add('stripe_server_test_key',/^(sk|rk)_test_[A-Za-z0-9]+$/.test(secret)&&!/(dummy|fixture|example)/i.test(secret));
  add('stripe_publishable_test_key',/^pk_test_[A-Za-z0-9]+$/.test(publicKey)&&!/(dummy|fixture|example)/i.test(publicKey));
  add('stripe_webhook_signing_secret',/^whsec_[A-Za-z0-9]+$/.test(env.STRIPE_WEBHOOK_SECRET??'')&&!/(dummy|fixture|example)/i.test(env.STRIPE_WEBHOOK_SECRET??''));
+ add('stripe_connect_webhook_signing_secret',/^whsec_[A-Za-z0-9]+$/.test(env.STRIPE_CONNECT_WEBHOOK_SECRET??'')&&!/(dummy|fixture|example)/i.test(env.STRIPE_CONNECT_WEBHOOK_SECRET??'')&&env.STRIPE_CONNECT_WEBHOOK_SECRET!==env.STRIPE_WEBHOOK_SECRET);
  let origin=null;
  try{const url=new URL(env.NEXT_PUBLIC_SITE_URL);if(url.protocol==='https:'&&!url.username&&!url.password&&url.pathname==='/'&&!url.search&&!url.hash)origin=url.origin;}catch{}
  add('staging_origin',origin==='https://sandbox.nitido.ro');
