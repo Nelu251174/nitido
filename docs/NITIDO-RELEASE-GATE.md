@@ -1,10 +1,16 @@
 # NITIDO — poarta de lansare și continuarea P0
 
 Sursa cerințelor: brief master v1.0, secțiunile 13, 14, 16, 18–20; PR #49.
-Baza continuării actuale: e17f7143fdad207028d3000286cc3be176a2fdea.
+Baza continuării actuale: 15a3df4c9059d8d12a80ef122412f97e63cb2769.
 Verdict: **NO-GO producție**. Implementarea și verificarea în sandbox continuă; brief-ul integral nu este închis.
 
-## Continuarea actuală: rezervare atomică și selecție Standard
+## Continuarea actuală: recuperarea confirmării Standard
+
+Dovadă durabilă salvată în tranzacția plății autorizate și reluare idempotentă a confirmării locale, disponibilă clientului pe web/mobil. Nu apelează Stripe și nu modifică plăți; verifică tokenul, identitatea, sumele și stările înainte de actualizarea atomică a ofertelor și auditului.
+
+[NITIDO-SELECTION-RECOVERY.md](NITIDO-SELECTION-RECOVERY.md) documentează domeniul, migrarea și cazurile încă deschise. Probele autentificate în staging și identitatea financiară la procesator rămân necesare. Aprobarea de publicare este primită; nu se cere repetarea ei.
+
+## Continuarea precedentă: rezervare atomică și selecție Standard
 
 Verificarea eligibilității/capacității și rezervarea firmei sunt în aceeași tranzacție SQLite. Suprapunerile folosesc durata și bufferul persistente. Selecția reverifică oferta, retragerea nu poate interveni după rezervare, iar confirmarea ofertelor este atomică. Conflictele de capacitate sunt distincte de o lucrare preluată de altă firmă.
 
@@ -82,6 +88,13 @@ Validatorul verifică forma dovezilor, SHA, proprietarul verificării, momentul 
 `deploy.yml` continuă să declanșeze Coolify la push în `feat/design-handoff-website-mobile-v2`. Acest PR rămâne pe branch-ul de lucru. Validatorul nu a fost conectat automat la publicare și nu înlocuiește aprobarea Owner sau protecțiile GitHub/Coolify. Nu faceți merge pentru a testa staging.
 
 ## Dovezi locale ale acestei continuări
+
+- 880 teste web/backend în 85 fișiere: PASS; 38 cazuri noi pentru dovadă, recuperare și autorizarea endpointului.
+- 93 teste mobile în 11 fișiere și TypeScript mobil: PASS.
+- ESLint și build Next.js cu TypeScript: PASS.
+- CI se verifică pe candidatul publicat, cu rezultatul în PR #49. Probele runtime nu sunt înlocuite de testele automate.
+
+## Dovezi ale continuării precedente de alocare
 
 - 842 teste web/backend în 83 fișiere: PASS. Include 41 scenarii noi cu două conexiuni SQLite, intercalare între citire și rezervare, durate/buffere, retragere, compensare și rollback.
 - 93 teste mobile în 11 fișiere și TypeScript mobil: PASS.

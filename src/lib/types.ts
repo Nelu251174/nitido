@@ -7,6 +7,7 @@ export type JobStatus =
   | "no_show";
 
 export interface JobRow {
+  selectionRecovery?: "pending" | null;
   authorizationStatus?:string|null;
   id: string;
   client_id: string;

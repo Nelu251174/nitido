@@ -28,7 +28,7 @@ export function calculatePaymentSplit(grossAmount: number, discountAmount = 0) {
 }
 
 /** Authorize the authoritative client amount on the platform. No transfer is made here. */
-export async function authorizePayment(db: Database, jobId: string, grossAmount: number, _firmAccountId?: string | null, discountAmount = 0): Promise<string> {
+export async function authorizePayment(db: Database, jobId: string, grossAmount: number, _firmAccountId?: string | null, discountAmount = 0, onAuthorized?: (paymentId: string) => void): Promise<string> {
   const {clientAmount,firmAmount,platformAmount}=calculatePaymentSplit(grossAmount,discountAmount);
   const stripe=getStripeClient();
   const stopCancelledAuthorization=async()=>{
@@ -54,8 +54,12 @@ export async function authorizePayment(db: Database, jobId: string, grossAmount:
       }
       if(intent.status!=="requires_capture"||intent.amount_capturable!==clientAmount*100)throw new Error("PAYMENT_AUTHORIZATION_NOT_CONFIRMED");
     }
+    db.transaction(()=>{
+      if(authorizationMustStop(db,jobId))throw Error('PAYMENT_AUTHORIZATION_CANCELLED');
     const current=db.prepare("SELECT status,stripe_payment_intent_id,amount_gross FROM payments WHERE id=?").get(existing.id) as typeof existing|undefined;
     if(!current||current.status!=='authorized'||current.stripe_payment_intent_id!==existing.stripe_payment_intent_id||current.amount_gross!==clientAmount)throw Error('PAYMENT_AUTHORIZATION_RECONCILIATION_REQUIRED');
+      onAuthorized?.(existing.id);
+    }).immediate();
     return existing.id;
   }
   // Stable metadata across retries after an uncertain provider response.
@@ -92,6 +96,7 @@ export async function authorizePayment(db: Database, jobId: string, grossAmount:
     db.prepare(`INSERT INTO payments(id,job_id,amount_gross,commission_amount,amount_net,status,stripe_payment_intent_id) VALUES(?,?,?,?,?,'authorized',?) ON CONFLICT(id) DO NOTHING`).run(id,jobId,clientAmount,platformAmount,firmAmount,intentId);
     const saved=db.prepare("SELECT status,stripe_payment_intent_id,amount_gross FROM payments WHERE id=?").get(id) as {status:string;stripe_payment_intent_id:string|null;amount_gross:number}|undefined;
     if(!saved||saved.status!=="authorized"||saved.stripe_payment_intent_id!==intentId||saved.amount_gross!==clientAmount)throw new Error("PAYMENT_AUTHORIZATION_RECONCILIATION_REQUIRED");
+    onAuthorized?.(id);
   })();}catch(error){
     if(authorizationMustStop(db,jobId))await stopCancelledAuthorization();
     throw error;

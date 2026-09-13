@@ -20,6 +20,10 @@ Selecția Standard citea oferta înainte de rezervare. Retragerea putea interven
 - Conflictele de capacitate folosesc `CAPACITY_UNAVAILABLE`. API-ul nu le mai etichetează drept `ALREADY_TAKEN`, ceea ce permite mobilului să afișeze motivul real.
 - Erorile de rezervare/lock produc răspuns controlat, fără detalii interne și fără apel de plată înainte de rezervarea reușită.
 
+## Continuare: recuperare asistată pentru dovezile noi
+
+[NITIDO-SELECTION-RECOVERY.md](NITIDO-SELECTION-RECOVERY.md) adaugă dovada durabilă și reluarea de către client pentru confirmările Standard incomplete. Cazurile fără dovadă și automatizarea integrală rămân deschise. Secțiunea următoare descrie restanța versiunii de bază și limitele care nu sunt închise integral.
+
 ## Cazuri care rămân pentru reconciliere
 
 Dacă plata a fost confirmată, dar finalizarea locală a ofertelor eșuează, rezervarea lucrării se păstrează, ofertele rămân neconfirmate și răspunsul este 503. Nu se eliberează lucrarea și nu se pornește automat o plată nouă. Dacă salvarea compensării după o eroare de autorizare este blocată, capacitatea rămâne ocupată până la verificarea stării.

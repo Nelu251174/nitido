@@ -15,6 +15,13 @@ După E2 urmează 3 etape principale: E3, E4 și E5. Rămân de închis și rest
 
 ## Livrarea curentă în E2
 
+- Dovadă durabilă a selecției Standard salvată împreună cu autorizarea locală a plății.
+- Recuperare după restart, fără o nouă autorizare sau încasare; verificări de identitate, sumă, token și stare, cu audit idempotent.
+- Acțiune de recuperare în detaliul lucrării pe web și mobil; acces numai pentru clientul proprietar.
+- Limite, migrare și probe: [NITIDO-SELECTION-RECOVERY.md](NITIDO-SELECTION-RECOVERY.md). Cazurile fără dovadă și recuperarea automată integrală rămân deschise.
+
+## Livrarea precedentă: integritatea alocării
+
 - Disponibilitatea firmei și rezervarea lucrării sunt verificate în aceeași tranzacție SQLite, inclusiv la selecția Standard.
 - Durata și timpul de deplasare salvate pe lucrare determină suprapunerile; planificările active incomplete nu sunt tratate drept capacitate liberă.
 - Retragerea ofertelor este coordonată cu selecția și autorizarea; actualizările finale ale ofertelor sunt atomice.

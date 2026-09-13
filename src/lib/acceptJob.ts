@@ -1,3 +1,4 @@
+import {recordSelectionConfirmation,confirmSelectionReceipt} from "./selectionRecovery";
 import type { Database } from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { authorizationMustStop } from '@/lib/paymentCancellation';
@@ -51,7 +52,7 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
   }
   if (!reserved.ok) return reserved;
   try {
-    await authorizePayment(db, jobId, reserved.job.price_gross, reserved.firm.stripe_account_id, reserved.job.credit_applied ?? 0);
+    await authorizePayment(db, jobId, reserved.job.price_gross, reserved.firm.stripe_account_id, reserved.job.credit_applied ?? 0, selection ? paymentId => recordSelectionConfirmation(db, {jobId,claim,offerId:selection.offerId,clientId:selection.clientId,firmId,priceGross:reserved.job.price_gross,creditApplied:reserved.job.credit_applied}, paymentId) : undefined);
   } catch {
     try {
       db.prepare(`UPDATE jobs SET status='waiting',accepted_firm_id=NULL,accepted_at=NULL
@@ -71,6 +72,7 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
         if (!db.prepare("SELECT 1 FROM offers WHERE id=? AND job_id=? AND firm_id=? AND status='pending'").get(selection.offerId, jobId, firmId)) return fail('Oferta necesită reconciliere. Reîncarcă lucrarea.');
         db.prepare("UPDATE offers SET status='accepted',updated_at=datetime('now') WHERE id=?").run(selection.offerId);
         db.prepare("UPDATE offers SET status='rejected',updated_at=datetime('now') WHERE job_id=? AND id!=? AND status='pending'").run(jobId, selection.offerId);
+        confirmSelectionReceipt(db, jobId, claim);
       }
       return { ok: true as const };
     }).immediate();

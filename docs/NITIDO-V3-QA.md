@@ -1,3 +1,11 @@
+# Continuare E2 — recuperarea confirmării Standard
+
+Bază: `15a3df4c9059d8d12a80ef122412f97e63cb2769`. 880 teste web/backend în 85 fișiere și 93 teste mobile în 11 fișiere: PASS. Lint, TypeScript web/mobil și build Next.js: PASS. Cele 38 de teste noi verifică dovada tranzacțională, reluarea după restart și izolarea endpointului. Reluarea nu apelează Stripe și nu modifică înregistrările financiare.
+
+Funcția este disponibilă pe web și Expo, dar nu este declarată verificată vizual pe staging sau pe dispozitive. Cazurile fără dovadă și automatizarea integrală rămân deschise. Detalii: [NITIDO-SELECTION-RECOVERY.md](NITIDO-SELECTION-RECOVERY.md). CI pe candidatul publicat se consemnează în PR #49. Aprobarea de producție este primită; instalarea nu este efectuată.
+
+---
+
 # Continuare E2 — integritatea alocării
 
 Bază: `e17f7143fdad207028d3000286cc3be176a2fdea`. 842 teste web/backend în 83 fișiere, lint și build Next.js cu TypeScript: PASS. Cele 41 de scenarii noi verifică disponibilitatea firmei în tranzacția de rezervare, duratele/bufferele persistente, intercalări pe două conexiuni SQLite și retragerea/confirmarea ofertelor Standard. 93 teste mobile în 11 fișiere și TypeScript mobil: PASS. Testul mobil adăugat verifică păstrarea motivului real pentru lipsa capacității.
