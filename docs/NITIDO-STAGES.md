@@ -17,6 +17,8 @@ După E2 urmează 3 etape principale: E3, E4 și E5. Rămân de închis și rest
 
 ## Livrarea curentă în E2
 
+- Cererea de actualizare producție verificată direct pe server: backup proaspăt și pornire izolată pe candidatul actual trecute; promovare blocată de configurația live și gate-uri neînchise. [Rezultate concrete](NITIDO-PRODUCTION-PREFLIGHT-20260913.md).
+
 - Calendarul clientului folosește ora României și reverifică intervalele expirate înainte de publicare. Instalat în sandbox; 62 teste de regresie trecute. [Dovezi și limite](NITIDO-CLIENT-CALENDAR.md).
 
 - Continuitatea formularului la adăugarea cardului implementată, testată și instalată în sandbox; proba autentificată completă rămâne deschisă. [NITIDO-CARD-BOOKING-CONTINUITY.md](NITIDO-CARD-BOOKING-CONTINUITY.md).
