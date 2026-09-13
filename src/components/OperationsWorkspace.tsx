@@ -16,6 +16,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {useRouter} from "next/navigation";
 import {useCurrentUser} from "@/lib/useCurrentUser";
+import {authSwitchHref} from "@/lib/authRedirect";
 import {JobRow} from "@/lib/types";
 import {CHECKLIST,JOB_STATUS,money} from "@/lib/workspaceShared";
 import {WorkspaceNav} from "@/components/WorkspaceNav";
@@ -31,7 +32,7 @@ export function OperationsWorkspace({screen,role}:{screen:string;role:"client"|"
  const [data,setData]=useState<WorkspaceData>(EMPTY),[jobs,setJobs]=useState<JobRow[]>([]),[error,setError]=useState<string|null>(null),[notice,setNotice]=useState<string|null>(null),[pending,setPending]=useState(true),[busy,setBusy]=useState(false),[query,setQuery]=useState(""),[selected,setSelected]=useState(""),[teamName,setTeamName]=useState(""),[form,setForm]=useState<Partial<Property>|null>(null),[source,setSource]=useState("Calendar principal"),[propertyId,setPropertyId]=useState("");
  const [title,subtitle]=TITLES[screen]??TITLES.proprietati;
  const refresh=useCallback(async()=>{try{const results=await Promise.all([fetch("/api/workspace"),fetch("/api/jobs")]);if(results.some(r=>!r.ok))throw new Error("Datele nu pot fi încărcate.");const [workspace,jobData]=await Promise.all(results.map(r=>r.json()));setData(workspace);setJobs(jobData.jobs??[]);setError(null)}catch(e){setError(e instanceof Error?e.message:"Eroare de conexiune")}finally{setPending(false)}},[]);
- useEffect(()=>{if(!loading&&(!user||user.role!==role))router.replace("/login")},[loading,user,role,router]);
+ useEffect(()=>{if(!loading&&(!user||user.role!==role))router.replace(authSwitchHref("login",window.location.pathname+window.location.search+window.location.hash,role))},[loading,user,role,router]);
  // eslint-disable-next-line react-hooks/set-state-in-effect -- initial authenticated remote fetch
  useEffect(()=>{if(user?.role===role)void refresh()},[user?.id,user?.role,role,refresh]);
  async function mutate(payload:Record<string,unknown>,success:string){setBusy(true);setError(null);setNotice(null);try{const res=await fetch("/api/workspace",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const d=await res.json();if(!res.ok)throw new Error(d.error);await refresh();setNotice(success);return true}catch(e){setError(e instanceof Error?e.message:"Nu s-a putut salva");return false}finally{setBusy(false)}}

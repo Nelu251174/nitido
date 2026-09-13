@@ -11,6 +11,7 @@ import { calcNetForFirm } from "@/lib/pricing";
 import { mapsDirectionsUrl } from "@/lib/maps";
 import { JobRow } from "@/lib/types";
 import { useCurrentUser } from "@/lib/useCurrentUser";
+import { authSwitchHref } from "@/lib/authRedirect";
 import { AppRatingCard } from "@/components/AppRatingCard";
 
 // Buton de acțiune uniform pentru antet/carduri: contur (linie) + schimbare de
@@ -39,7 +40,7 @@ export default function FirmaPage() {
 
   useEffect(() => {
     if (loading) return;
-    if (!user || user.role !== "firma") router.replace("/login");
+    if (!user || user.role !== "firma") router.replace(authSwitchHref("login", window.location.pathname + window.location.search + window.location.hash, "firma"));
   }, [loading, user, router]);
 
   async function openProfileEditor(){
