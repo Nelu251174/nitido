@@ -1,3 +1,11 @@
+# Continuare E2 — integritatea alocării
+
+Bază: `e17f7143fdad207028d3000286cc3be176a2fdea`. 842 teste web/backend în 83 fișiere, lint și build Next.js cu TypeScript: PASS. Cele 41 de scenarii noi verifică disponibilitatea firmei în tranzacția de rezervare, duratele/bufferele persistente, intercalări pe două conexiuni SQLite și retragerea/confirmarea ofertelor Standard. 93 teste mobile în 11 fișiere și TypeScript mobil: PASS. Testul mobil adăugat verifică păstrarea motivului real pentru lipsa capacității.
+
+Detalii, limite și probe pe țintă: [NITIDO-ALLOCATION-INTEGRITY.md](NITIDO-ALLOCATION-INTEGRITY.md). CI se confirmă pe SHA publicat în PR #49. Nu sunt probe Stripe reale, QA autentificat sau deployment. Aprobarea de producție este primită; pregătirea configurației MFA și backupului rămâne neconfirmată. E2 este activă.
+
+---
+
 # NITIDO v3 — verificare integrată și corecții
 
 ## Continuare actuală — MFA admin

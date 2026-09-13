@@ -1,10 +1,18 @@
 # NITIDO — poarta de lansare și continuarea P0
 
 Sursa cerințelor: brief master v1.0, secțiunile 13, 14, 16, 18–20; PR #49.
-Baza continuării actuale: bc79e4442f52ba6b08523bc632fd7b5ae80acd37.
+Baza continuării actuale: e17f7143fdad207028d3000286cc3be176a2fdea.
 Verdict: **NO-GO producție**. Implementarea și verificarea în sandbox continuă; brief-ul integral nu este închis.
 
-## Continuarea actuală: MFA administrator
+## Continuarea actuală: rezervare atomică și selecție Standard
+
+Verificarea eligibilității/capacității și rezervarea firmei sunt în aceeași tranzacție SQLite. Suprapunerile folosesc durata și bufferul persistente. Selecția reverifică oferta, retragerea nu poate interveni după rezervare, iar confirmarea ofertelor este atomică. Conflictele de capacitate sunt distincte de o lucrare preluată de altă firmă.
+
+Probe și limite: [NITIDO-ALLOCATION-INTEGRITY.md](NITIDO-ALLOCATION-INTEGRITY.md). Capacitatea pe mai multe echipe, expirarea rezervărilor și recuperarea automată a selecțiilor incomplete rămân deschise.
+
+Aprobarea de producție a beneficiarului este primită. Nu este necesară repetarea aprobării; dovezile tehnice restante și instalarea efectivă nu sunt confirmate prin aceasta.
+
+## Continuarea precedentă: MFA administrator
 
 - Loginul admin cere parolă și TOTP sau cod de recuperare de unică folosință. Consumul factorului, sesiunea și auditul sunt atomice; replay-ul este blocat persistent.
 - Sesiunile vechi fără MFA sunt refuzate. Rotația credentialelor/factorului invalidează sesiunile; lipsa secretului oprește loginul, fără bypass prin parolă.
@@ -74,6 +82,13 @@ Validatorul verifică forma dovezilor, SHA, proprietarul verificării, momentul 
 `deploy.yml` continuă să declanșeze Coolify la push în `feat/design-handoff-website-mobile-v2`. Acest PR rămâne pe branch-ul de lucru. Validatorul nu a fost conectat automat la publicare și nu înlocuiește aprobarea Owner sau protecțiile GitHub/Coolify. Nu faceți merge pentru a testa staging.
 
 ## Dovezi locale ale acestei continuări
+
+- 842 teste web/backend în 83 fișiere: PASS. Include 41 scenarii noi cu două conexiuni SQLite, intercalare între citire și rezervare, durate/buffere, retragere, compensare și rollback.
+- 93 teste mobile în 11 fișiere și TypeScript mobil: PASS.
+- ESLint și build Next.js cu verificare TypeScript: PASS.
+- CI pe candidatul publicat se verifică separat și se consemnează în PR #49.
+
+## Dovezi ale continuării MFA precedente
 
 - 801 teste web/backend în 82 fișiere: PASS, cu 54 de cazuri noi pentru MFA, autentificare și acces admin. Include vectori RFC, replay, sesiuni vechi, recuperare, rotație, concurență și limite persistente.
 - 23 teste Node pentru gate/preflight, backup/restore, runnere și înrolarea MFA offline: PASS.

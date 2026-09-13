@@ -6,7 +6,7 @@ Sursa numerotării: `NITIDO-MASTER-SOURCE.md`, §18. Documentul urmărește exec
 |---|---|---|
 | E0 — Audit P0 | Audit tehnic și probleme documentate în mai multe continuări | Consolidarea matricei integrale existent/parțial/lipsă/defect și a dependențelor; închiderea formală nu este consemnată |
 | E1 — Design P1 | Redesign web/mobil implementat parțial față de întregul brief | Toate stările și ecranele principale demonstrate și acceptate vizual |
-| **E2 — Nucleu P0/P1** | **Etapa activă: fluxuri, acces, plăți, notificări și admin; recuperare periodică sandbox și MFA admin adăugate** | Fluxuri complete pe staging, provocări Stripe, QA autentificat și probe de integritate/concurență; restul cerințelor nucleului |
+| **E2 — Nucleu P0/P1** | **Etapa activă: fluxuri, acces, plăți, notificări și admin; rezervare atomică a firmei, recuperare periodică sandbox și MFA admin adăugate** | Fluxuri complete pe staging, provocări Stripe, QA autentificat și probe de integritate/concurență; restul cerințelor nucleului |
 | E3 — Recurență P2 | Proprietăți, serii și calendar implementate parțial | Completare și acceptare a politicii financiare pe vizită, anulărilor, preferințelor și capacității |
 | E4 — Business P3 | Locații, aprobări, rapoarte și Host implementate parțial | Funcții organizaționale/integrări rămase și pilot cu izolare și sincronizare validate |
 | E5 — Lansare | Proceduri, gate și instrumente de pregătire existente | Migrare/restaurare pe țintă, verificări operaționale, acceptare finală și aprobare explicită de publicare |
@@ -14,6 +14,14 @@ Sursa numerotării: `NITIDO-MASTER-SOURCE.md`, §18. Documentul urmărește exec
 După E2 urmează 3 etape principale: E3, E4 și E5. Rămân de închis și restanțele E0/E1. Dezvoltarea unor componente din E3/E4 nu echivalează cu acceptarea acelor etape.
 
 ## Livrarea curentă în E2
+
+- Disponibilitatea firmei și rezervarea lucrării sunt verificate în aceeași tranzacție SQLite, inclusiv la selecția Standard.
+- Durata și timpul de deplasare salvate pe lucrare determină suprapunerile; planificările active incomplete nu sunt tratate drept capacitate liberă.
+- Retragerea ofertelor este coordonată cu selecția și autorizarea; actualizările finale ale ofertelor sunt atomice.
+- Mesaj distinct pentru lipsa disponibilității în API și mobil. Limite și probe: [NITIDO-ALLOCATION-INTEGRITY.md](NITIDO-ALLOCATION-INTEGRITY.md).
+- Aprobarea de publicare a fost primită; configurația MFA/backup și execuția deploymentului rămân neconfirmate.
+
+## Livrările precedente păstrate
 
 - MFA obligatoriu pentru contul admin configurat: parolă + TOTP sau cod de recuperare de unică folosință.
 - Sesiuni legate de configurația factorilor, revocare după rotație și refuzul sesiunilor vechi fără MFA.
