@@ -10,9 +10,9 @@ describe('workspace logo destinations',()=>{
     const logo=html.match(/<a\b[^>]*class="design-wordmark"[^>]*>/)?.[0];
     expect(logo).toContain(`href="${href}"`);
   });
-  it('passes ADMIN context when opening the public website',()=>{
+  it('opens the public website independently of ADMIN',()=>{
     const html=renderToStaticMarkup(React.createElement(BoardSidebar,{role:'admin'}));
-    expect(html).toContain('href="/?spatiu=admin"');
+    expect(html).toContain('href="/"');
     expect(html).toContain('target="_blank"');
   });
 });

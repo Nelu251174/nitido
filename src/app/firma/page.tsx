@@ -215,7 +215,7 @@ export default function FirmaPage() {
             <button type="button" onClick={openProfileEditor} className={ACTION_BTN}>
               Editează profilul
             </button>
-            <Link href="/?spatiu=firma" prefetch={false} className={ACTION_BTN}>
+            <Link href="/" prefetch={false} className={ACTION_BTN}>
               Vezi site-ul public →
             </Link>
             <Link href="/incredere" className={ACTION_BTN}>Încredere &amp; Siguranță</Link>
