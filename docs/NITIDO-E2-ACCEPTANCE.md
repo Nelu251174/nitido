@@ -4,7 +4,19 @@ Sursa: `NITIDO-MASTER-SOURCE.md`, §18–19. E2 cuprinde Standard, Express, cont
 
 ## Livrare verificată anterior
 
+Actualizare 13 septembrie 2026: sandboxul rulează `9f37fb6d071a63a41f26824b7a77e8f64f09b5a4`, CI [34764952716](https://github.com/Nelu251174/nitido/actions/runs/34764952716), trei joburi reușite. Instalarea `c6xeup9ywnaovjyxuig7yjyy` este terminată, cu healthcheck `healthy`. Include confirmarea vizibilă a creării contului și rezultatului trimiterii emailului, plus corecțiile navigării și coloanei ADMIN. Producția nu a fost promovată.
+
 Sandbox `12fdd8aa883a80e4f2b4e51e53e73638c090d228`, CI [34762818849](https://github.com/Nelu251174/nitido/actions/runs/34762818849), toate cele trei joburi reușite. Recuperarea notificărilor rulează la fiecare minut; prima execuție automată 2026-09-13 14:35:02 UTC a fost `completed`, cu toate contoarele zero. Container healthy, migrare aditivă prezentă, SQLite integrity OK și zero erori FK. Aceste dovezi nu înseamnă notificări primite pe telefon.
+
+## Blocaje închise în această verificare
+
+- Beneficiarul confirmă primirea emailului pentru noua firmă reală. Citirea read-only, limitată la adresa exactă furnizată de beneficiar și exclusiv la sandbox, confirmă contul de rol `firma`, `firms.verified=1` și confirmarea emailului curent. Adresa, ID-ul utilizatorului și tokenurile nu sunt publicate în raport. Nu s-au modificat date și nu s-a ocolit ANAF.
+- Funcția `inspectStaging` din repository, executată cu mediul containerului curent, a returnat `configurationReady=true`: toate cele 10 verificări locale au trecut. Acestea verifică formatul/prezența configurației; nu confirmă identitatea contului Stripe prin API, livrarea webhookurilor sau ciclul financiar.
+- Scriptul `staging-preflight.mjs` nu este inclus în imaginea finală. Invocarea inițială a fișierului a eșuat cu `MODULE_NOT_FOUND`; rezultatul de mai sus provine din executarea aceleiași surse prin stdin, fără scriere în container. Nu s-a executat cu succes `--verify-stripe` și nu se declară acea probă PASS.
+
+## Următoarea probă E2
+
+O lucrare nouă, cu dată viitoare și localitate deservită de firma verificată: publicare din cont client → afișare în Oportunități → ofertă/acceptare după modul Standard/Express → aceeași lucrare și stare în conturi. Se păstrează ID-urile după execuție, fără a crea înregistrări direct în DB sau a înlocui fluxul de autentificare. Primirea push este o probă separată. Sesiunea browserului de test este încă pe formularul de autentificare; nu există o probă nouă finalizată de publicare/preluare.
 
 ## Defecte mobile corectate în această continuare
 
@@ -35,8 +47,8 @@ T15–T17 aparțin recurenței/integrărilor din E3/E4. Publicarea în magazine 
 
 ## Dependențe externe concrete
 
-1. **Firmă reală verificată ANAF.** Firma fictivă existentă rămâne neverificată. Nu se ocolește verificarea pentru a obține un test verde.
-2. **Canal de notificare configurat și dispozitiv activ.** Ultimul audit sandbox: APNs/FCM/Twilio lipsesc, push și SMS dezactivate, zero dispozitive active. Înrolarea Google Authenticator pentru ADMIN nu înregistrează telefonul pentru push.
+1. **Firmă reală verificată ANAF — rezolvat pentru contul indicat.** Confirmată de beneficiar și verificată read-only pe server. Eligibilitatea pentru localitatea, serviciul și capacitatea unei lucrări concrete rămâne parte din proba de publicare/preluare.
+2. **Canal de notificare configurat și dispozitiv activ.** Reverificarea actuală: push și SMS dezactivate; configurațiile complete APNs/FCM/Twilio nu sunt prezente. Pentru firma indicată sunt zero dispozitive active și zero înregistrări push. Aceste numere sunt limitate la acel cont, nu reprezintă un inventar al tuturor utilizatorilor. Înrolarea Google Authenticator pentru ADMIN nu înregistrează telefonul pentru push.
 3. **Identitatea buildului mobil.** Shell-ul Capacitor din rădăcină indică producția; `mobile/` este Expo și are încă `OWNER_EAS_PROJECT_ID_REQUIRED`. Configurarea și semnarea buildului de test rămân neefectuate. Nu se afirmă că modificările Expo au ajuns în TestFlight.
 4. **Operații Stripe sandbox și sesiuni QA.** Auditul contului sandbox a returnat zero PaymentIntents; suprafața conectorului nu a expus operațiuni de creare aplicabile. Browserul automatizat nu are sesiuni autentificate client/firmă/admin; loginul ADMIN confirmat de beneficiar nu dovedește accesul browserului automatizat.
 
