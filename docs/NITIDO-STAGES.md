@@ -17,6 +17,8 @@ După E2 urmează 3 etape principale: E3, E4 și E5. Rămân de închis și rest
 
 ## Livrarea curentă în E2
 
+- Configurator public `/rezervare` transformat în trei pași funcționali, cu validări, editarea alegerilor și păstrarea programării până la login. Instalat în sandbox; probe și limite: [NITIDO-BOOKING-WIZARD.md](NITIDO-BOOKING-WIZARD.md).
+
 - API-urile private trimit no-store; accesul fără sesiune validă este refuzat. Loginul păstrează rolul și destinația firmei/spațiilor operaționale, inclusiv query și fragment. Probe HTTP și browser executate pe sandbox: [NITIDO-DASHBOARD-ACCESS.md](NITIDO-DASHBOARD-ACCESS.md). Acceptarea după autentificare rămâne deschisă.
 - Healthcheck HTTP + citiri SQLite inclus în imagine și activat în Coolify; container healthy și pagină disponibilă. Restaurare izolată cu păstrarea celor 9 înregistrări de plată din copia producției; fără promovare în producție și fără a declara reconcilierea Stripe închisă.
 - Recuperare financiară periodică instalată în Coolify sandbox la fiecare minut; prima rulare automată și istoricul SQLite confirmate. Lotul era gol: recuperarea unei operațiuni Stripe rămâne de demonstrat. [Dovezi și limite](NITIDO-FINANCIAL-RECOVERY.md).
