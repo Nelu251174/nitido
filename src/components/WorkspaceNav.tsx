@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import {useSyncExternalStore} from 'react';
+import {useEffect,useSyncExternalStore} from 'react';
 const subscribeHash=(notify:()=>void)=>{window.addEventListener('hashchange',notify);window.addEventListener('popstate',notify);return()=>{window.removeEventListener('hashchange',notify);window.removeEventListener('popstate',notify)}};
 const readHash=()=>window.location.hash;
 const serverHash=()=>'';
@@ -8,6 +8,10 @@ import {usePathname} from 'next/navigation';
 import {DesignIcon,type DesignIconName} from './DesignIcon';
 export function WorkspaceNav({role='client',onNavigate}:{role?:'client'|'firma'|'admin';onNavigate?:(href:string)=>void}){
  const path=usePathname();
+ useEffect(()=>{
+  // Keep the return workspace per browser tab, including visits to public help pages.
+  try{sessionStorage.setItem('nitido-public-workspace',role)}catch{}
+ },[role]);
  const hash=useSyncExternalStore(subscribeHash,readHash,serverHash);
  const items: [string,string,DesignIconName][]=role==='client'?[
  ['Acasă','/client','home'],['Rezervări','/client#sec-lucrari','calendar'],['Proprietăți','/client/proprietati','building'],['Mesaje','/client/mesaje','chat'],['Plăți','/client#sec-plata','card'],['Cont','/client#sec-cont','user'],['Evaluări','/client/evaluari','briefcase'],['Business','/client/business','chart'],['Gazde','/client/host','home'],['Aprobări și acces','/colaborari','shield'],['Lucrările echipei','/echipa','users']
