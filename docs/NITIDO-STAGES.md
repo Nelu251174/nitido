@@ -2,6 +2,8 @@
 
 Sursa numerotării: `NITIDO-MASTER-SOURCE.md`, §18. Documentul urmărește execuția și acceptarea separat. Nu reprezintă acceptarea beneficiarului.
 
+Actualizare operațională 13 septembrie 2026: candidatul `22ae94c` este instalat în sandbox, backupurile locale și migrarea sunt verificate, configurația hashului admin din producție este reparată, iar webhookul Stripe al platformei de test este configurat. Producția rulează încă `f3584d3`. Dovezi, limite și restanțe: [NITIDO-STAGING-20260913.md](NITIDO-STAGING-20260913.md).
+
 | Etapă | Starea execuției | Condiție rămasă pentru închidere |
 |---|---|---|
 | E0 — Audit P0 | Audit tehnic și probleme documentate în mai multe continuări | Consolidarea matricei integrale existent/parțial/lipsă/defect și a dependențelor; închiderea formală nu este consemnată |
@@ -26,7 +28,7 @@ După E2 urmează 3 etape principale: E3, E4 și E5. Rămân de închis și rest
 - Durata și timpul de deplasare salvate pe lucrare determină suprapunerile; planificările active incomplete nu sunt tratate drept capacitate liberă.
 - Retragerea ofertelor este coordonată cu selecția și autorizarea; actualizările finale ale ofertelor sunt atomice.
 - Mesaj distinct pentru lipsa disponibilității în API și mobil. Limite și probe: [NITIDO-ALLOCATION-INTEGRITY.md](NITIDO-ALLOCATION-INTEGRITY.md).
-- Aprobarea de publicare a fost primită; configurația MFA/backup și execuția deploymentului rămân neconfirmate.
+- Aprobarea de publicare a fost primită. Backupurile locale și deploymentul sandbox sunt confirmate; înrolarea MFA și promovarea candidatului în producție rămân deschise. Vezi actualizarea operațională de mai sus.
 
 ## Livrările precedente păstrate
 
