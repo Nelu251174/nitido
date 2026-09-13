@@ -79,7 +79,7 @@ describe('push delivery revalidates queued recipients',()=>{
   it('waits for retryable devices before falling back from a permanent failure',async()=>{
     addDevice('d1');addDevice('d2');const ids=queue();
     await processPushOutbox(db,ids,async(_platform,token)=>{
-      throw new PushProviderError(token.startsWith('d1')?'PUSH_TOKEN_INVALID':'APNS_TIMEOUT',token.startsWith('d1'));
+      throw new PushProviderError(token.startsWith('d1')?'PUSH_TOKEN_INVALID':'FCM_TEMPORARY_FAILURE',token.startsWith('d1'));
     });
     expect(sendSmsViaTwilio).not.toHaveBeenCalled();
     await processPushOutbox(db,ids,async()=>({providerMessageId:'retry-success'}));
@@ -95,6 +95,6 @@ describe('push delivery revalidates queued recipients',()=>{
   it('does not persist arbitrary provider error text',async()=>{
     addDevice('d1');const ids=queue();
     await processPushOutbox(db,ids,async()=>{throw new Error('private-token-value');});
-    expect(db.prepare('SELECT last_error FROM push_notification_outbox').get()).toEqual({last_error:'PUSH_PROVIDER_ERROR'});
+    expect(db.prepare('SELECT last_error FROM push_notification_outbox').get()).toEqual({last_error:'DELIVERY_UNKNOWN'});
   });
 });

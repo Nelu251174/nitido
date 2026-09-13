@@ -1,3 +1,4 @@
+import {claimNotification,startNotificationDispatch,finishNotification,recoverNotificationClaims,retryableNotificationSql} from "./notificationClaims";
 import type {Database} from "better-sqlite3";
 import {newId} from "@/lib/db";
 import {firmCoversCity} from "@/lib/text";
@@ -12,7 +13,7 @@ export const smsFallbackEnabled=()=>process.env.SMS_FALLBACK_ENABLED!=="false";
 
 const preferenceColumn:Record<PushEventType,string>={JOB_CREATED_FIRM_PUSH:"new_job_alerts",JOB_ACCEPTED_CLIENT_PUSH:"job_status_notifications",JOB_ARRIVED_CLIENT_PUSH:"arrival_notifications",JOB_COMPLETED_CLIENT_PUSH:"completion_notifications"};
 // Suppression is terminal, but retains the existing schema and an explicit audit reason.
-export const PUSH_RETRYABLE_SQL="status IN ('pending','failed') AND attempt_count<3 AND (last_error IS NULL OR last_error NOT LIKE 'SUPPRESSED_%')";
+export const PUSH_RETRYABLE_SQL=retryableNotificationSql(3);
 type DeliveryRecipient={event_type:PushEventType;job_id:string;recipient_user_id:string};
 function deliveryBlock(db:Database,row:DeliveryRecipient):string|null{
   const preference=db.prepare(`SELECT ${preferenceColumn[row.event_type]} enabled FROM notification_preferences WHERE user_id=?`).get(row.recipient_user_id) as {enabled:number}|undefined;
@@ -55,33 +56,36 @@ async function fallbackSms(db:Database,row:{event_type:PushEventType;job_id:stri
 
 export async function processPushOutbox(db:Database,ids?:string[],sender:PushSender=sendPush):Promise<void>{
   if(ids&&ids.length===0)return;
+  recoverNotificationClaims(db);
   const rows=(ids?db.prepare(`SELECT * FROM push_notification_outbox WHERE ${PUSH_RETRYABLE_SQL} AND id IN (${ids.map(()=>"?").join(",")}) ORDER BY created_at,rowid`).all(...ids):db.prepare(`SELECT * FROM push_notification_outbox WHERE ${PUSH_RETRYABLE_SQL} ORDER BY created_at,rowid LIMIT 100`).all()) as (DeliveryRecipient&{id:string;device_token_id:string|null;title:string;message_body:string;data_json:string})[];
   const groups=new Map<string,typeof rows>();
   for(const row of rows){const key=`${row.event_type}:${row.job_id}:${row.recipient_user_id}`;groups.set(key,[...(groups.get(key)??[]),row]);}
   for(const group of groups.values()){
     for(const row of group){
       // Claim every branch, including missing tokens, to preserve retry limits under concurrency.
-      const claimed=db.prepare(`UPDATE push_notification_outbox SET status='sending',attempt_count=attempt_count+1,last_error=NULL WHERE id=? AND ${PUSH_RETRYABLE_SQL}`).run(row.id);
-      if(!claimed.changes)continue;
+      const claim=claimNotification(db,"push",row.id);
+      if(!claim)continue;
       const block=deliveryBlock(db,row);
-      if(block){db.prepare("UPDATE push_notification_outbox SET status='failed',last_error=? WHERE id=?").run(block,row.id);continue;}
+      if(block){finishNotification(db,"push",row.id,claim,{error:block});continue;}
       // Resolve immediately before dispatch: a previous provider call may have yielded to logout/revocation.
       const device=row.device_token_id?db.prepare("SELECT platform,device_token FROM push_devices WHERE id=? AND user_id=? AND push_enabled=1 AND revoked_at IS NULL").get(row.device_token_id,row.recipient_user_id) as {platform:PushPlatform;device_token:string}|undefined:undefined;
       if(!device||!pushEnabled()){
-        db.prepare("UPDATE push_notification_outbox SET status='failed',last_error=? WHERE id=?").run(!device?"NO_ACTIVE_DEVICE":"PUSH_DISABLED",row.id);continue;
+        finishNotification(db,"push",row.id,claim,{error:!device?"NO_ACTIVE_DEVICE":"PUSH_DISABLED"});continue;
       }
+      if(!startNotificationDispatch(db,"push",row.id,claim))continue;
       try{
         const result=await sender(device.platform,device.device_token,{title:row.title,body:row.message_body,data:JSON.parse(row.data_json)});
-        db.prepare("UPDATE push_notification_outbox SET status='sent',provider_message_id=?,sent_at=datetime('now') WHERE id=?").run(result.providerMessageId,row.id);
+        finishNotification(db,"push",row.id,claim,result);
       }catch(error){
         const permanent=error instanceof PushProviderError&&error.permanent;
         const allowedErrors=new Set(["PUSH_TOKEN_INVALID","FCM_NOT_CONFIGURED","FCM_AUTH_FAILED","FCM_TEMPORARY_FAILURE","APNS_NOT_CONFIGURED","APNS_TIMEOUT","APNS_TEMPORARY_FAILURE"]);
-        const code=permanent?"PUSH_TOKEN_INVALID":error instanceof PushProviderError&&allowedErrors.has(error.message)?error.message:"PUSH_PROVIDER_ERROR";
-        db.prepare("UPDATE push_notification_outbox SET status='failed',last_error=? WHERE id=?").run(code,row.id);
+        const uncertain=!(error instanceof PushProviderError)||["APNS_TIMEOUT","APNS_TEMPORARY_FAILURE"].includes(error.message);
+        const code=permanent?"PUSH_TOKEN_INVALID":uncertain?"DELIVERY_UNKNOWN":allowedErrors.has(error.message)?error.message:"DELIVERY_UNKNOWN";
+        finishNotification(db,"push",row.id,claim,{error:code});
         if(permanent)db.prepare("UPDATE push_devices SET push_enabled=0,revoked_at=datetime('now'),updated_at=datetime('now') WHERE id=? AND user_id=? AND device_token=?").run(row.device_token_id,row.recipient_user_id,device.device_token);
       }
     }
-    const state=db.prepare(`SELECT SUM(status='sent') sent,SUM(CASE WHEN status IN ('pending','sending') OR (status='failed' AND attempt_count<3 AND (last_error IS NULL OR (last_error NOT LIKE 'SUPPRESSED_%' AND last_error NOT IN ('NO_ACTIVE_DEVICE','PUSH_DISABLED','PUSH_TOKEN_INVALID')))) THEN 1 ELSE 0 END) retryable FROM push_notification_outbox WHERE event_type=? AND job_id=? AND recipient_user_id=?`).get(group[0].event_type,group[0].job_id,group[0].recipient_user_id) as {sent:number;retryable:number};
+    const state=db.prepare(`SELECT SUM(status='sent') sent,SUM(CASE WHEN status IN ('pending','sending') OR (status='failed' AND last_error='DELIVERY_UNKNOWN') OR (status='failed' AND attempt_count<3 AND (last_error IS NULL OR (last_error NOT LIKE 'SUPPRESSED_%' AND last_error NOT IN ('NO_ACTIVE_DEVICE','PUSH_DISABLED','PUSH_TOKEN_INVALID')))) THEN 1 ELSE 0 END) retryable FROM push_notification_outbox WHERE event_type=? AND job_id=? AND recipient_user_id=?`).get(group[0].event_type,group[0].job_id,group[0].recipient_user_id) as {sent:number;retryable:number};
     // Another worker's sending row is not a permanent failure; never fall back while it is in flight.
     if(!state.sent&&state.retryable===0)await fallbackSms(db,group[0]);
   }

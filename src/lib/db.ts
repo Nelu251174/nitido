@@ -1,3 +1,4 @@
+import {NOTIFICATION_CLAIM_SCHEMA,initializeNotificationClaims} from "./notificationClaims";
 import {SELECTION_RECOVERY_SCHEMA} from "./selectionRecovery";
 import {ADMIN_MFA_SCHEMA} from "./adminMfa";
 import {FINANCIAL_RECOVERY_SCHEMA} from "./financialRecoverySchema";
@@ -34,6 +35,7 @@ db.pragma("foreign_keys = ON");
 // Exportată separat ca teste (vitest) să poată crea o bază de date in-memory
 // cu aceeași schemă, izolată de fișierul de date reale.
 export const SCHEMA_SQL = `
+${NOTIFICATION_CLAIM_SCHEMA}
 ${SELECTION_RECOVERY_SCHEMA}
 ${ADMIN_MFA_SCHEMA}
 ${FINANCIAL_RECOVERY_SCHEMA}
@@ -280,6 +282,7 @@ CREATE TABLE IF NOT EXISTS notification_outbox (
   event_type TEXT NOT NULL CHECK (event_type IN ('JOB_CREATED_FIRM_ALERT','JOB_ACCEPTED_CLIENT_CONFIRMATION','JOB_ARRIVED_CLIENT_NOTIFICATION')),
   job_id TEXT NOT NULL REFERENCES jobs(id),
   recipient TEXT NOT NULL,
+  recipient_user_id TEXT,
   channel TEXT NOT NULL DEFAULT 'sms' CHECK (channel = 'sms'),
   message_body TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','sending','sent','failed')),
@@ -426,6 +429,7 @@ CREATE TABLE IF NOT EXISTS estimator_options (
 `;
 
 db.exec(SCHEMA_SQL);
+initializeNotificationClaims(db);
 db.exec(WORKSPACE_SCHEMA);
 initializeCatalog(db);
 db.exec(CATALOG_CAPACITY_SCHEMA);
