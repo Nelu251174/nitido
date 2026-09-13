@@ -115,3 +115,5 @@
  .board-firm .board-sidebar,.role-firma .operations-sidebar{overflow-y:auto;overscroll-behavior:contain}
  .role-firma .operations-sidebar .sidebar-user{padding-top:24px}
 }
+
+.board-firm #lucrari-active,.board-firm #castiguri,.board-firm #profil{scroll-margin-top:110px}

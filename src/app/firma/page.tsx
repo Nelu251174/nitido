@@ -43,6 +43,14 @@ export default function FirmaPage() {
     if (!user || user.role !== "firma") router.replace(authSwitchHref("login", window.location.pathname + window.location.search + window.location.hash, "firma"));
   }, [loading, user, router]);
 
+  useEffect(()=>{
+    if(loading||user?.role!=="firma")return;
+    const id=window.location.hash.slice(1);
+    if(!["lucrari-active","castiguri","profil"].includes(id))return;
+    const frame=requestAnimationFrame(()=>document.getElementById(id)?.scrollIntoView({block:"start"}));
+    return()=>cancelAnimationFrame(frame);
+  },[loading,user?.id,user?.role]);
+
   async function openProfileEditor(){
     setMessage(null);
     try{
@@ -281,8 +289,9 @@ export default function FirmaPage() {
           {waitingJobs.length === 0 && (
             <Card>
               <p className="text-sm text-muted">
-                Nicio alertă activă. Când un client postează o lucrare în{" "}
-                {firm?.coverage_city ?? "zona ta"}, apare aici instant.
+                {firm?.verified
+                  ? `Nu există lucrări disponibile pentru firma ta în ${firm.coverage_city ?? "zona ta"}. Lista se actualizează automat.`
+                  : "Firma este în curs de verificare. Lucrările disponibile vor fi afișate aici după validarea firmei și potrivirea zonei deservite."}
               </p>
             </Card>
           )}
@@ -388,7 +397,7 @@ export default function FirmaPage() {
         <FirmSummary jobs={myJobs}/></div><section id="lucrari-active">
           <h2 className="font-display font-bold text-ink mb-3">Lucrări active</h2><Link href="/firma/executie" className="v2-btn v2-btn-primary mb-4">Fotografii la sosire / final și încasare</Link>
           {activeJobs.length === 0 && (
-            <p className="text-sm text-muted">Nicio lucrare activă momentan.</p>
+            <p className="text-sm text-muted">Nu ai lucrări alocate. Lucrările publicate de clienți apar mai întâi în Oportunități, pentru firmele verificate din zonă.</p>
           )}
           <div className="space-y-3">
             {activeJobs.map((job) => (
