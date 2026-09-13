@@ -236,7 +236,7 @@ export default function AdminPage() {
     return (
       <div className="min-h-screen mesh-light flex items-center justify-center p-6">
         <Card className="w-full max-w-md p-8">
-          <Logo />
+          <Logo href="/admin" />
           <h1 className="font-display text-2xl font-bold mt-6">Administrare</h1>
           <form onSubmit={adminLogin} className="mt-6 space-y-4">
             <input className="w-full rounded-xl border border-line p-3" type="email" autoComplete="username" required value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} aria-label="Email admin" placeholder="Email admin" />
@@ -257,7 +257,7 @@ export default function AdminPage() {
     <div className="board-page board-admin"><BoardSidebar role="admin"/>
       <header className="glass sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Logo />
+          <Logo href="/admin" />
           <div className="flex items-center gap-4 text-sm font-display font-bold text-muted">
             <Link href="/admin" className="hover:text-ink">Operațiuni</Link>
             <a href="/admin#firme" className="hover:text-ink">Administrare firme</a>
