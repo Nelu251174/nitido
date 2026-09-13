@@ -2,7 +2,7 @@
 
 Sursa numerotării: `NITIDO-MASTER-SOURCE.md`, §18. Documentul urmărește execuția și acceptarea separat. Nu reprezintă acceptarea beneficiarului.
 
-Actualizare operațională 13 septembrie 2026: candidatul `c211ba8` este instalat în sandbox, backupurile locale și migrarea sunt verificate, configurația hashului admin din producție este reparată, iar webhookurile Stripe ale platformei și Connect sunt configurate separat în contul de test. Producția rulează încă `f3584d3`. Dovezi, limite și restanțe: [NITIDO-STAGING-20260913.md](NITIDO-STAGING-20260913.md).
+Actualizare operațională 13 septembrie 2026: candidatul `c04d0d4` este instalat în sandbox și healthy. Restaurarea izolată a copiei producției și păstrarea datelor SQLite sunt verificate pe acest candidat; schedulerul financiar continuă după redeploy. Webhookurile Stripe ale platformei și Connect sunt configurate separat în contul de test. Producția rulează încă `f3584d3`. Dovezi, limite și restanțe: [NITIDO-STAGING-20260913.md](NITIDO-STAGING-20260913.md).
 
 | Etapă | Starea execuției | Condiție rămasă pentru închidere |
 |---|---|---|
@@ -11,12 +11,13 @@ Actualizare operațională 13 septembrie 2026: candidatul `c211ba8` este instala
 | **E2 — Nucleu P0/P1** | **Etapa activă: fluxuri, acces, plăți, notificări și admin; rezervare atomică a firmei, recuperare periodică sandbox și MFA admin adăugate** | Fluxuri complete pe staging, provocări Stripe, QA autentificat și probe de integritate/concurență; restul cerințelor nucleului |
 | E3 — Recurență P2 | Proprietăți, serii și calendar implementate parțial | Completare și acceptare a politicii financiare pe vizită, anulărilor, preferințelor și capacității |
 | E4 — Business P3 | Locații, aprobări, rapoarte și Host implementate parțial | Funcții organizaționale/integrări rămase și pilot cu izolare și sincronizare validate |
-| E5 — Lansare | Proceduri, gate și instrumente de pregătire existente | Migrare/restaurare pe țintă, verificări operaționale, acceptare finală și aprobare explicită de publicare |
+| E5 — Lansare | Proceduri, gate și instrumente de pregătire existente; aprobarea de publicare este primită | Dovezile tehnice restante, backup off-site și probe foto, acceptare finală și promovarea candidatului în producție |
 
 După E2 urmează 3 etape principale: E3, E4 și E5. Rămân de închis și restanțele E0/E1. Dezvoltarea unor componente din E3/E4 nu echivalează cu acceptarea acelor etape.
 
 ## Livrarea curentă în E2
 
+- Healthcheck HTTP + citiri SQLite inclus în imagine și activat în Coolify; container healthy și pagină disponibilă. Restaurare izolată cu păstrarea celor 9 înregistrări de plată din copia producției; fără promovare în producție și fără a declara reconcilierea Stripe închisă.
 - Recuperare financiară periodică instalată în Coolify sandbox la fiecare minut; prima rulare automată și istoricul SQLite confirmate. Lotul era gol: recuperarea unei operațiuni Stripe rămâne de demonstrat. [Dovezi și limite](NITIDO-FINANCIAL-RECOVERY.md).
 - Webhook Connect separat, cu secret propriu, verificarea modului test/live și a contului firmei, instalat și verificat în sandbox. CI verde; livrarea reală Stripe și reconcilierea financiară rămân deschise. [Contract și acceptare](NITIDO-STRIPE-CONNECT-WEBHOOK.md).
 

@@ -2,7 +2,7 @@
 
 ## Versiuni efectiv instalate
 
-- Sandbox: `c211ba84af5f6c279131b6b0b350c4cbf3ab3fe4`, PR #49, imagine Docker verificată pe server după instalarea webhookului Connect (candidatul anterior: `22ae94c`).
+- Sandbox: `c04d0d49c5a77e8217443ed0c2730bbdd515531c`, PR #49, imagine Docker verificată pe server cu healthcheck activ. Istoricul candidaților anteriori este păstrat mai jos.
 - Producție: `f3584d3dfc8a859f6780e2dff21e440d106a0456`. PR #49 nu este instalat în producție.
 - Accesul administrativ Coolify și terminalul serverului au fost verificate prin `https://coolify.nitido.ro` în sesiunea de operare. Aceasta nu garantează persistența autentificării în sesiuni viitoare.
 
@@ -15,7 +15,7 @@ Aplicațiile au fost oprite individual pentru copiere coerentă, apoi repornite.
 | Producție | `/root/nitido-release-backups/20260913T094016Z` | SQLite backup, copie director uploads, checksumuri SHA-256, integritate și foreign keys pe copia bazei și copia separată de verificare |
 | Sandbox | `/root/nitido-sandbox-release-backups/20260913T094655Z` | Aceleași verificări |
 
-Fiecare manifest conține două fișiere: baza și metadatele versiunii; directoarele uploads copiate nu conțineau fotografii. Copiile sunt pe același server, nu reprezintă backup off-site sau o probă completă de disaster recovery cu repornirea aplicației restaurate.
+Fiecare manifest conține două fișiere: baza și metadatele versiunii; directoarele uploads copiate nu conțineau fotografii. Copiile sunt pe același server și nu reprezintă backup off-site. Probele ulterioare de pornire a aplicației restaurate sunt consemnate mai jos.
 
 După instalarea candidatului în sandbox: HTTP 200 pentru homepage și login client; integritate SQLite și foreign keys fără erori; tabelele `selection_confirmations`, `admin_session_mfa`, `admin_totp_state`, `admin_used_recovery_codes`, `admin_login_limit` prezente.
 
@@ -78,12 +78,31 @@ La 10:38 UTC a fost restaurat backupul sandbox `/root/nitido-sandbox-release-bac
 
 Backupul conținea 2 utilizatori, 1 firmă, 0 lucrări, 0 plăți și 0 fotografii. Pornirea aplicației restaurate este demonstrată; recuperarea fotografiilor, a unui istoric financiar populat și restaurarea dintr-o copie off-site rămân deschise. Gate-ul `infrastructure_restore` nu este declarat integral PASS.
 
-### Restanțe păstrate
+### Copia producției restaurată pe candidatul cu healthcheck
+
+Sursa `/root/nitido-release-backups/20260913T094016Z` a fost verificată inițial cu `c211ba8` (raport `/root/nitido-restore-drills/20260913T104423Z/report.json`), apoi pe exact noul candidat `c04d0d49c5a77e8217443ed0c2730bbdd515531c`, la 10:47:49 UTC. Raport: `/root/nitido-restore-drills/20260913T104749Z/report.json`.
+
+Pe noul candidat: checksumuri valide, container izolat fără rețea/porturi/credențiale runtime, homepage și login 200, SQLite integru, foreign keys valide, toate coloanele existente comparate prin amprente fără diferențe. Au fost păstrate 9 utilizatori, 5 firme, 9 lucrări și 9 înregistrări de plată; tabelele noi ale candidatului au fost create. Proba a durat 1,67 secunde, cu aceeași limită de interpretare privind dimensiunea mică și imaginea locală. Containerul temporar a fost eliminat, copia și raportul păstrate.
+
+Aceasta demonstrează păstrarea evidențelor locale la restaurare și migrare; nu validează corespondența lor cu Stripe și nu reprezintă instalare în producție. Fotografii în backup: zero. Proba foto și recuperarea din backup extern rămân deschise.
+
+### Healthcheck și continuitate după redeploy
+
+- Candidat `c04d0d49c5a77e8217443ed0c2730bbdd515531c`, CI `34752613695` complet verde, inclusiv noul test al healthcheck-ului.
+- Deployment `konvvezszdq8dsfbhp2hdca4`, container `civaeb8joydtchvzlen6pivq-104637258315`. Coolify a confirmat `healthy` la prima verificare și a încheiat rolling update la 10:47:42 UTC.
+- Comandă salvată: `node /app/scripts/healthcheck.mjs`, interval 30 secunde, timeout 5 secunde, start period 20 secunde, 3 retry-uri. Verificarea folosește endpointul local `/api/stats/public`, care citește SQLite; detalii în [NITIDO-HEALTHCHECK.md](NITIDO-HEALTHCHECK.md).
+- Docker inspect: `healthy`, failing streak 0, două verificări recente cu exit 0. Configurația persistă în containerul nou.
+- Recuperarea financiară și secretul Connect sunt prezente după redeploy. SQLite păstrează istoricul anterior și confirmă o nouă rulare `completed` la 10:48:02 UTC.
+- Homepage sandbox, endpointul public cu citiri SQLite și homepage producție: HTTP 200. Integritate și foreign keys fără erori.
+
+Continuitatea programării și a istoricului după înlocuirea containerului este demonstrată. Recuperarea unei restanțe financiare întrerupte rămâne o probă distinctă, încă deschisă. Nu s-a configurat un canal extern de alerte prin activarea healthcheck-ului.
+
+### Restanțe actuale
 
 - Admin/MFA în sandbox neconfigurat; autentificare client/firmă/admin și recuperare nedemonstrate.
 - Livrare webhook reală, challenge 3DS, ciclu financiar integral și reconciliere payout nedemonstrate.
 - Dispozitive fizice și acceptare vizuală integrală restante.
-- Backup off-site și restaurare operațională integrală restante.
+- Backup off-site și restaurarea fotografiilor restante; pornirea izolată și păstrarea datelor SQLite sunt demonstrate mai sus.
 - Aprobarea beneficiarului pentru instalare/publicare este primită; nu se solicită repetarea ei. Dovezile tehnice lipsă nu sunt marcate PASS prin această aprobare.
 
 E2 rămâne activă. E3–E5 și acceptările restante E0/E1 nu sunt închise. Instalarea în sandbox și repararea configurației producției sunt executate; promovarea PR #49 în producție rămâne neexecutată.
