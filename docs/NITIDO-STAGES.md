@@ -17,6 +17,7 @@ După E2 urmează 3 etape principale: E3, E4 și E5. Rămân de închis și rest
 
 ## Livrarea curentă în E2
 
+- Recuperare financiară periodică instalată în Coolify sandbox la fiecare minut; prima rulare automată și istoricul SQLite confirmate. Lotul era gol: recuperarea unei operațiuni Stripe rămâne de demonstrat. [Dovezi și limite](NITIDO-FINANCIAL-RECOVERY.md).
 - Webhook Connect separat, cu secret propriu, verificarea modului test/live și a contului firmei, instalat și verificat în sandbox. CI verde; livrarea reală Stripe și reconcilierea financiară rămân deschise. [Contract și acceptare](NITIDO-STRIPE-CONNECT-WEBHOOK.md).
 
 ## Livrarea precedentă: recuperarea selecției
@@ -40,7 +41,7 @@ După E2 urmează 3 etape principale: E3, E4 și E5. Rămân de închis și rest
 - Sesiuni legate de configurația factorilor, revocare după rotație și refuzul sesiunilor vechi fără MFA.
 - Limită de login persistentă, audit fără credențiale și utilitar offline de înrolare în fișier privat.
 - Înrolarea reală și verificările MFA în staging nu sunt efectuate; trebuie pregătite înainte de instalarea versiunii pe țintă.
-- Livrarea precedentă a adăugat recuperarea periodică sandbox, cu restart, retry și istoric în admin; activarea schedulerului pe țintă rămâne deschisă.
+- Livrarea precedentă a adăugat recuperarea periodică sandbox, cu restart, retry și istoric în admin. Schedulerul este acum activ pe țintă; probele cu restanțe financiare și verificarea autentificată a istoricului în admin rămân deschise.
 
 MFA, înrolare, migrare și recuperare: [NITIDO-ADMIN-MFA.md](NITIDO-ADMIN-MFA.md).
 Operare și limite: [NITIDO-FINANCIAL-RECOVERY.md](NITIDO-FINANCIAL-RECOVERY.md).

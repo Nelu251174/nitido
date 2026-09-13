@@ -50,6 +50,19 @@ Aceste probe nu demonstrează încă livrarea unui eveniment semnat de Stripe. C
 
 Configurația și protecția HTTP sunt demonstrate. Livrarea reală Stripe, asocierea cu o firmă locală de test, retry-ul și reconcilierea payout rămân nedemonstrate. Căutarea conectorului pentru listare/retrimitere de evenimente nu a expus operația necesară. Nu au fost fabricate evenimente financiare pentru a declara acest gate închis. Contractul și criteriile de acceptare sunt în [NITIDO-STRIPE-CONNECT-WEBHOOK.md](NITIDO-STRIPE-CONNECT-WEBHOOK.md).
 
+## Continuare E2: recuperare periodică instalată
+
+- Cod instalat neschimbat: `c211ba84af5f6c279131b6b0b350c4cbf3ab3fe4`. Au fost adăugate în Coolify, doar la runtime, activarea explicită și secretul dedicat recuperării; nu au fost schimbate cheile Stripe.
+- Deployment de configurație `htg4m6ipmjehyhtbxi9brzhk`, rolling update încheiat la 10:29:59 UTC, container `civaeb8joydtchvzlen6pivq-102951345818`.
+- Verificate înainte de prima rulare: imaginea exactă, cheia Stripe de test, originea sandbox, contul așteptat, transferurile dezactivate, secret de minimum 32 caractere și distinct de secretele webhookurilor/cronului.
+- Prima rulare în container: exit 0, `completed`, `attempted=processed=deferred=failed=0`; inboxul și anulările eligibile erau goale.
+- Sarcină Coolify: `NITIDO sandbox financial recovery`, ID `vw69vmqmqqebr7z2fnnyquin`, activă, program `* * * * *`, comandă `node /app/scripts/financial-recovery-runner.mjs`, timeout 70 secunde, serviciu sandbox cu un singur container.
+- Prima execuție automată: 10:32:02 UTC, Success, lot gol. SQLite confirmă rulările `completed` la 10:30:32 și 10:32:02 UTC.
+- Protecția endpointului verificată: POST fără secret și POST cu secret greșit produc HTTP 401. Homepage sandbox HTTP 200; integritatea SQLite și foreign keys fără erori.
+- Producția: imagine `f3584d3dfc8a859f6780e2dff21e440d106a0456`, recuperare periodică dezactivată.
+
+Instalarea și declanșarea periodică sunt demonstrate. Nu există încă dovadă pe țintă pentru recuperarea unei restanțe Stripe, retry după întrerupere, concurență sub sarcină sau reluarea unei restanțe după restart. Acestea rămân probe financiare deschise, fără a redeschide instalarea schedulerului.
+
 ## Restanțe E2 și decizia de lansare
 
 - Admin/MFA în sandbox neconfigurat; autentificare client/firmă/admin și recuperare nedemonstrate.

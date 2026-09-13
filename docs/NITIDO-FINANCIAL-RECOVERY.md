@@ -37,7 +37,11 @@ node /app/scripts/financial-recovery-runner.mjs
 
 După o primă rulare demonstrată, programați aceeași comandă o dată pe minut în schedulerul serviciului de staging. Containerul standalone include runnerul prin Dockerfile. Dacă programarea este făcută pe host, executați comanda în containerul de staging identificat explicit, pentru a folosi mediul acelui container. Nu presupuneți că un cron de host moștenește variabilele aplicației.
 
-Nu s-a instalat și nu s-a activat un scheduler extern în această sesiune: accesul/configurația mediului țintă nu sunt disponibile. Testarea runnerului în Node și buildul Next.js nu reprezintă verificarea unei imagini Docker pornite pe infrastructura țintă.
+Actualizare 13 septembrie 2026: schedulerul este instalat și activ în serviciul Coolify de sandbox, pe candidatul `c211ba84af5f6c279131b6b0b350c4cbf3ab3fe4`. Sarcina `NITIDO sandbox financial recovery`, ID `vw69vmqmqqebr7z2fnnyquin`, execută runnerul la fiecare minut (`* * * * *`), cu timeout exterior de 70 secunde. Containerul este rezolvat de Coolify în serviciul sandbox, fără fixarea numelui unei instanțe temporare.
+
+Prima rulare manuală pe container, la 10:30:32 UTC, și prima rulare automată, la 10:32:02 UTC, sunt `completed`, cu toate cele patru contoare zero. Nu existau restanțe eligibile. Identitatea contului Stripe este verificată de worker înainte de selectarea lotului. Configurația test-only, originea și secretul separat au fost verificate pe container; endpointul fără secret și cu secret invalid a răspuns 401. Istoricul ambelor rulări este persistent în SQLite. Producția păstrează flagul dezactivat. Dovezi de instalare: [NITIDO-STAGING-20260913.md](NITIDO-STAGING-20260913.md).
+
+Aceasta demonstrează instalarea și o rulare periodică reală cu lot gol. Nu demonstrează recuperarea unei operațiuni financiare, concurența sub sarcină sau reluarea unei restanțe după restart; criteriile de acceptare de mai jos rămân deschise.
 
 ## Operare din admin
 
