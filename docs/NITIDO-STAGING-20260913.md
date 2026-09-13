@@ -65,6 +65,21 @@ Instalarea și declanșarea periodică sunt demonstrate. Nu există încă dovad
 
 ## Restanțe E2 și decizia de lansare
 
+### Probă efectivă de restaurare a aplicației
+
+La 10:38 UTC a fost restaurat backupul sandbox `/root/nitido-sandbox-release-backups/20260913T094655Z` într-un director nou, apoi pornit cu imaginea candidatului `c211ba84af5f6c279131b6b0b350c4cbf3ab3fe4`. Raportul serverului: `/root/nitido-restore-drills/20260913T103800Z/report.json`.
+
+- Checksumurile bazei și metadatelor verificate înainte de copiere; baza copiată verificată înainte de pornire.
+- Container temporar cu `network=none`, fără port public, fără credențiale runtime, seeding și worker financiar dezactivate; limite de memorie/CPU, filesystem de sistem read-only și numai volumele copiei restaurate accesibile pentru scriere.
+- Homepage și login client HTTP 200, `/api/auth/me` HTTP 200 fără autentificare; aceasta este probă de răspuns a endpointului, nu login autentificat.
+- După oprirea containerului: integritate și foreign keys valide; numărul și amprenta conținutului coloanelor existente identice pentru toate tabelele anterioare. Migrarea a adăugat 13 tabele, fără modificarea datelor existente comparate.
+- Durată măsurată pentru copiere, pornire, verificare și curățarea containerului: 1,52 secunde pe această bază mică, cu imaginea deja disponibilă local. Nu este un RTO de disaster recovery complet.
+- Containerul temporar a fost eliminat; copia restaurată și raportul sunt păstrate. Nu au fost modificate volumele active.
+
+Backupul conținea 2 utilizatori, 1 firmă, 0 lucrări, 0 plăți și 0 fotografii. Pornirea aplicației restaurate este demonstrată; recuperarea fotografiilor, a unui istoric financiar populat și restaurarea dintr-o copie off-site rămân deschise. Gate-ul `infrastructure_restore` nu este declarat integral PASS.
+
+### Restanțe păstrate
+
 - Admin/MFA în sandbox neconfigurat; autentificare client/firmă/admin și recuperare nedemonstrate.
 - Livrare webhook reală, challenge 3DS, ciclu financiar integral și reconciliere payout nedemonstrate.
 - Dispozitive fizice și acceptare vizuală integrală restante.

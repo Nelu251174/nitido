@@ -36,6 +36,8 @@ jobs:
         run: node --test scripts/release-gate.test.mjs
       - name: Verifică executabilul recuperării financiare
         run: node --test scripts/financial-recovery-runner.test.mjs
+      - name: Verifică healthcheck HTTP și SQLite
+        run: node --test scripts/healthcheck.test.mjs
       - name: Verifică înrolarea MFA offline
         run: node --test scripts/admin-mfa-provision.test.mjs
       - name: Build
