@@ -1,10 +1,18 @@
 # NITIDO — poarta de lansare și continuarea P0
 
 Sursa cerințelor: brief master v1.0, secțiunile 13, 14, 16, 18–20; PR #49.
-Baza acestei continuări: f18d0b3e9f346f4fd3d2011dc2b35a25c9daf521.
+Baza continuării actuale: f1b4d93e4ff5e6568c9519eead66a98304eff107.
 Verdict: **NO-GO producție**. Implementarea și verificarea în sandbox continuă; brief-ul integral nu este închis.
 
-## Ce adaugă această continuare
+## Continuarea actuală: autorizări întârziate și notificări concurente
+
+- Cerere persistentă de anulare înainte de Stripe, inclusiv când autorizarea este încă în curs și nu există plată locală. Rescue și no-show salvează tranziția, repostarea/consecința și cererea în aceeași tranzacție. Un timeout Stripe nu pierde aceste efecte și nu declară rezervarea eliberată.
+- O autorizare revenită după anulare/no-show sau după o cerere de anulare nu este inserată/reutilizată drept `authorized`. Recuperarea citește PaymentIntent-ul cunoscut, verifică ID, sumă, RON și metadate, anulează doar stări compatibile și cere `canceled`. Dacă Stripe confirmase deja anularea după timeout, reluarea recuperează starea fără un nou apel de anulare. Nu creează un PaymentIntent pentru a-l anula.
+- Cererile cu identitate necunoscută rămân `pending`; răspunsurile neconfirmate rămân `needs_review`, cu diagnostic fix. Audit separat pentru solicitare și confirmare, o singură dată. Admin afișează restanțele; reluarea din UI/API cere sesiune admin, origine validă, limitare de frecvență, cheie de test, resursă `livemode=false`, cerere existentă și lucrare `cancelled`/`no_show`.
+- Acceptarea folosește un token persistent al încercării locale. Un răspuns vechi nu poate reseta acceptarea ulterioară a aceleiași firme și nu returnează succes după schimbarea stării. Confirmarea 3DS refuză și cererile cu anulare persistentă. Tokenul nu implementează generații noi de PaymentIntent.
+- Notificările urmăresc versiunea resursei înainte de citirea Stripe. Tranzacția finală verifică și incrementează versiunea împreună cu efectele și receiptul. Dacă altă notificare a salvat între timp, răspunsul vechi produce HTTP 500, fără a suprascrie starea nouă; retrimiterea recitește providerul. Cheile sunt separate pe PaymentIntent, cont conectat și pereche cont+payout; resursele independente nu se blochează reciproc.
+
+## Funcționalitatea precedentă păstrată
 
 - Reconciliere sandbox, exclusiv prin citiri Stripe: payout automat → balance transaction → destination payment → transfer de platformă → plată locală → lucrare. Asocierea folosește referințele providerului, nu sume, date sau metadate declarate. Validează contul beneficiar, moneda RON, suma și sursa transferului.
 - Totalul folosește netul tranzacțiilor, inclusiv comisioanele, în unități minime. Viramentele manuale, monedele nesuportate, tranzacțiile neasociate, reversările și totalurile diferite rămân `needs_review`. `matched` cere total exact, toate liniile asociate și payout confirmat `paid` în sandbox.
@@ -53,7 +61,7 @@ Validatorul verifică forma dovezilor, SHA, proprietarul verificării, momentul 
 
 ## Dovezi locale ale acestei continuări
 
-- 658 teste web/backend în 76 fișiere: PASS, inclusiv 38 de cazuri noi pentru reconciliere, API și inbox.
+- 706 teste web/backend în 78 fișiere: PASS, cu 48 de cazuri noi față de baza acestei continuări. Acoperă compensare, identitate, audit, recuperare admin, acceptare, 3DS și notificări concurente.
 - 14 teste Node pentru gate/preflight, backup/restore și runner recurență: PASS.
 - TypeScript web, ESLint și build Next.js: PASS.
 - Preflight în mediul de dezvoltare: blocat corect; cheile Stripe, identitatea contului și configurația staging nu sunt injectate aici. Acest rezultat nu descrie configurația containerului de la sandbox.nitido.ro.
@@ -62,15 +70,30 @@ Validatorul verifică forma dovezilor, SHA, proprietarul verificării, momentul 
 
 ## Migrare și rollback
 
+Această continuare adaugă `job_acceptance_claims`, `payment_cancellation_requests` și `stripe_resource_versions`, fără backfill financiar. Nu ștergeți cererile, auditul sau versiunile. Nu rulați simultan handlerul vechi și cel nou: versiunea veche nu respectă protecțiile. Înainte de rollback, opriți preluarea de lucrări și consumarea notificărilor, inventariați cererile neconfirmate și păstrați mecanismul de reconciliere disponibil; reluarea pe codul vechi necesită evaluarea explicită a acestor restanțe. Aditivitatea schemei nu garantează singură siguranța financiară a rollbackului.
+
 Tabelele `payout_reconciliation_runs` și `stripe_webhook_inbox` sunt aditive. Pornirea pe schema existentă le creează fără backfill sau schimbarea sumelor/statusurilor istorice. Codul anterior poate ignora aceste tabele la rollback; nu le ștergeți. `stripe_events` păstrează dovezile anterioare de procesare. Evenimentele deja înregistrate înainte de această versiune nu sunt replayate financiar automat.
 
 ## Limite păstrate explicit
 
 - Nu este un registru financiar complet, un inbox de payloaduri brute sau un worker de replay automat. Retrimiterea cere Stripe și, după intervalul disponibil pentru retrimitere, reconciliere operațională separată.
-- Ordonarea strictă între evenimente diferite, compensarea autorizării sosite după anularea lucrării, generațiile de reautorizare, reconcilierea tuturor resurselor istorice și viramentele manuale rămân deschise.
+- Compensarea autorizării întârziate cu identitate cunoscută și protecția între notificările concurente sunt implementate și testabile în repository. Confirmarea lor în Stripe sandbox rămâne deschisă. Rezultatele necunoscute după oprirea procesului, fără ID de provider, cer reconciliere separată; nu există worker automat de recuperare.
+- Versiunile protejează scrierile efectuate de acest handler webhook pe aceeași bază SQLite. Nu asigură ordonarea globală după timpul Stripe, consistența între baze independente sau coordonarea tuturor scrierilor API/worker. Generațiile de reautorizare, reconcilierea tuturor resurselor istorice și viramentele manuale rămân deschise.
 - Nu au fost făcute tranzacții Stripe reale, capturări, rambursări sau transferuri în contul utilizatorului pentru aceste teste. Reconcilierea nouă blochează cheile live.
 - Loginul admin de la `https://sandbox.nitido.ro/admin` este accesibil, dar browserul acestei sesiuni nu este autentificat. Nu se declară QA vizual autentificat pe baza testelor handlerelor.
 - Brief-ul integral E0–E5, verificarea tuturor celor 41 de ecrane, integrările dependente de furnizori și publicarea în magazine rămân un program mai larg decât această continuare P0. Se păstrează cerințele din `NITIDO-MASTER-SOURCE.md` și limitele din documentele de implementare; nu se elimină prin acest gate.
+
+## Probe de staging încă necesare pentru aceste corecții
+
+| Scenariu | Execuție controlată în sandbox | PASS |
+|---|---|---|
+| Autorizare întârziată | Întârziați răspunsul de autorizare printr-un proxy de test; anulați lucrarea/no-show; permiteți răspunsul | Același PI este `canceled`; fără plată locală autorizată și fără notificare de acceptare reușită; cerere procesată și audit |
+| Timeout la anulare | Întrerupeți răspunsul după acceptarea anulării de Stripe; reluați cererea din admin | Același PI, citire a stării `canceled`, fără o autorizare nouă și fără repostare/strike duplicat |
+| Identitate necunoscută | Întrerupeți răspunsul autorizării înainte ca ID-ul să fie salvat; opriți procesul | Restanța rămâne vizibilă; operatorul identifică și verifică exact PI-ul înainte de închidere; simplul retry nu produce PASS |
+| Două notificări, aceeași resursă | Întârziați citirea pentru prima livrare; procesați a doua; eliberați prima și retrimiteți-o | Starea mai nouă nu este suprascrisă; prima primește 500, apoi se recuperează pe starea curentă |
+| Acces admin | Încercați recuperarea fără sesiune, cu origine străină, cheie live și lucrare activă | Cererile sunt respinse fără apel de anulare |
+
+Păstrați ID lucrare/PI/evenimente, candidate SHA, timpi, rezultat DB și dovezi Stripe redactate. Dacă proxy-ul nu poate controla reproducibil ordinea, proba rămâne pending; testul automat local nu se etichetează drept test de staging.
 
 ## Referințe Stripe consultate
 
@@ -78,3 +101,5 @@ Tabelele `payout_reconciliation_runs` și `stripe_webhook_inbox` sunt aditive. P
 - [Identitatea transferului și destination payment](https://docs.stripe.com/api/transfers/object)
 - [Charge și source_transfer](https://docs.stripe.com/api/charges/object)
 - [Primirea și retrimiterea notificărilor](https://docs.stripe.com/webhooks)
+
+- [Anularea PaymentIntent și stările permise](https://docs.stripe.com/api/payment_intents/cancel)

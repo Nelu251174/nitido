@@ -1,5 +1,15 @@
 # NITIDO v3 — verificare integrată și corecții
 
+## Continuare actuală — recuperarea anulărilor și concurență Stripe
+
+Cererile de anulare sunt persistente și auditate; autorizările întârziate cu ID cunoscut sunt compensate înainte de a deveni plăți autorizate local. Rescue/no-show păstrează atomic efectele locale, chiar când Stripe nu răspunde. Admin are reluare strict în sandbox pentru cereri restante pe lucrări închise. Acceptarea verifică tokenul încercării și starea finală; confirmarea 3DS refuză anulările persistente.
+
+Webhookurile verifică versiunea resursei înainte de salvare. Testele includ payout și dispută cu răspunsuri inverse, resurse independente, două conexiuni SQLite și rollback. Aceasta nu reprezintă ordonare globală a tuturor operațiunilor Stripe. Rezultatele necunoscute după oprirea procesului, generațiile noi de reautorizare și workerul de recuperare rămân deschise.
+
+Validare locală: 706 teste web/backend în 78 fișiere, 14 teste operaționale, TypeScript, lint și build Next.js. CI se confirmă separat pe commitul publicat. Testele Stripe folosesc răspunsuri simulate; nu s-au executat operațiuni financiare în contul utilizatorului.
+
+Gate-ul, probele exacte de staging, migrarea și limitele actualizate sunt în [NITIDO-RELEASE-GATE.md](NITIDO-RELEASE-GATE.md). Secțiunile de mai jos sunt istorice; afirmațiile vechi despre lipsa completă a compensării/concurenței sunt înlocuite de implementarea delimitată de mai sus. Verdictul rămâne **NO-GO producție**, până la dovezile externe și aprobarea finală.
+
 ## Continuare P0 — reconciliere sandbox și poartă de lansare
 
 Implementarea actuală adaugă reconcilierea payout–transfer–lucrare în sandbox, rapoarte persistente cu audit, inbox durabil cu referințele financiare minime și vizibilitatea notificărilor nereconciliate în admin. Retrimiterea poate recupera un refund al cărui ID a fost salvat după prima notificare. Nu se schimbă stările financiare ale lucrărilor prin raportul de payout.

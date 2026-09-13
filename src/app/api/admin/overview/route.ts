@@ -4,9 +4,7 @@ import { JobRow } from "@/lib/types";
 import { isAdmin } from "@/lib/adminAuth";
 import { maskSmsRecipient } from "@/lib/notifications";
 
-// Panou minimal de administrare — spec secțiunea 3.3 / 8 (aprobare firme, rapoarte,
-// monitorizare no-show). Nu e un admin complet (fără autentificare), doar o fereastră
-// de verificare pentru acest MVP.
+// Panou protejat prin sesiune admin, inclusiv excepțiile financiare restante.
 export async function GET(_req: NextRequest) {
   void _req;
   if (!(await isAdmin())) return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
@@ -21,6 +19,7 @@ export async function GET(_req: NextRequest) {
   const payments = db.prepare("SELECT id,job_id,amount_gross,commission_amount,amount_net,status,stripe_fee_amount,transfer_status,payout_status,refund_status,dispute_status,created_at FROM payments ORDER BY created_at DESC").all();
   const webhookIssues=db.prepare("SELECT event_id,event_type,resource_id,status,attempts,last_error,received_at FROM stripe_webhook_inbox WHERE status IN ('received','failed','needs_review') ORDER BY received_at LIMIT 100").all();
   const authorizationIssues=db.prepare("SELECT job_id,status,created_ms,stripe_payment_intent_id FROM payment_authorization_attempts WHERE status NOT IN ('requires_capture','succeeded') ORDER BY created_ms DESC LIMIT 100").all();
+  const cancellationIssues=db.prepare("SELECT job_id,status,last_error,created_at FROM payment_cancellation_requests WHERE status!='processed' ORDER BY created_at LIMIT 100").all();
   const bankPayouts=db.prepare(`SELECT b.*, (SELECT u.name FROM firms f JOIN users u ON u.id=f.user_id WHERE f.stripe_account_id=b.account_id LIMIT 1) AS firm_name FROM stripe_bank_payouts b ORDER BY b.updated_at DESC LIMIT 100`).all();
   const notifications = (db.prepare(`SELECT id,event_type,channel,recipient,status,attempt_count,last_error,created_at,sent_at
     FROM notification_outbox ORDER BY created_at DESC LIMIT 100`).all() as {recipient:string;[key:string]:unknown}[])
@@ -83,5 +82,5 @@ export async function GET(_req: NextRequest) {
     topFirms,
   };
 
-  return NextResponse.json({ jobs, firms, payments, bankPayouts, authorizationIssues, webhookIssues, notifications:[...pushNotifications,...notifications].sort((a,b)=>String((b as Record<string,unknown>).created_at).localeCompare(String((a as Record<string,unknown>).created_at))).slice(0,100), proofs, reviews, stats });
+  return NextResponse.json({ jobs, firms, payments, bankPayouts, authorizationIssues, webhookIssues, cancellationIssues, notifications:[...pushNotifications,...notifications].sort((a,b)=>String((b as Record<string,unknown>).created_at).localeCompare(String((a as Record<string,unknown>).created_at))).slice(0,100), proofs, reviews, stats });
 }

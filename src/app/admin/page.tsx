@@ -5,6 +5,7 @@ import Link from "next/link";
 import {AdminServiceCatalog} from "@/components/AdminServiceCatalog";
 import {AdminAssessments} from "@/components/AdminAssessments";
 import {AdminOperations} from "@/components/AdminOperations";
+import {CancellationRecovery} from "@/components/CancellationRecovery";
 import {PayoutReconciliation} from "@/components/PayoutReconciliation";
 import {BoardSidebar} from "@/components/BoardSidebar";
 import { Logo, Card, Button, inputClass } from "@/components/ui";
@@ -37,6 +38,7 @@ interface PaymentRow {
   dispute_status: string;
 }
 
+interface CancellationIssue {job_id:string;status:string;created_at:string}
 interface WebhookIssue {event_id:string;event_type:string;resource_id:string|null;status:string;attempts:number;received_at:string}
 interface AuthorizationIssue {job_id:string;status:string;created_ms:number;stripe_payment_intent_id:string|null}
 const authorizationLabels:Record<string,string>={reconciliation_required:"Reconciliere obligatorie",pending:"Verificare în curs",unknown:"Rezultat neconfirmat",requires_action:"Confirmare necesară de la client",requires_payment_method:"Card necesar",canceled:"Autorizare anulată sau expirată",processing:"Procesare Stripe"};
@@ -76,6 +78,7 @@ export default function AdminPage() {
   const [firms, setFirms] = useState<FirmRow[]>([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [authorizationIssues,setAuthorizationIssues]=useState<AuthorizationIssue[]>([]);
+  const [cancellationIssues,setCancellationIssues]=useState<CancellationIssue[]>([]);
   const [webhookIssues,setWebhookIssues]=useState<WebhookIssue[]>([]);
   const [bankPayouts,setBankPayouts]=useState<BankPayoutRow[]>([]);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
@@ -101,6 +104,7 @@ export default function AdminPage() {
     setFirms(data.firms);
     setPayments(data.payments);
     setBankPayouts(data.bankPayouts??[]);
+    setCancellationIssues(data.cancellationIssues??[]);
     setWebhookIssues(data.webhookIssues??[]);
     setAuthorizationIssues(data.authorizationIssues??[]);
     setNotifications(data.notifications ?? []);
@@ -432,6 +436,12 @@ export default function AdminPage() {
             </table>
           </div>
         </section>
+        <section aria-label="Anulări de plată neconfirmate">
+          <h2 className="font-semibold mb-2">Anulări de plată neconfirmate</h2>
+          <p className="text-sm text-muted mb-3">Rezervările de mai jos trebuie verificate înainte de închiderea financiară. Anularea lucrării nu confirmă singură eliberarea banilor.</p>
+          {!cancellationIssues.length?<p className="text-sm text-muted">Nu sunt cereri restante înregistrate.</p>:<div className="overflow-x-auto"><table className="workspace-table"><thead><tr><th>Lucrare</th><th>Stare</th><th>Solicitată la</th><th>Recuperare</th></tr></thead><tbody>{cancellationIssues.map(c=><tr key={c.job_id}><td>{c.job_id}</td><td>{c.status==='pending'?'Autorizare încă neidentificată':'Necesită reconciliere'}</td><td>{c.created_at}</td><td><CancellationRecovery jobId={c.job_id} onRecovered={refresh}/></td></tr>)}</tbody></table></div>}
+        </section>
+
         <section aria-label="Notificări Stripe de verificat">
           <h2 className="font-display font-bold text-ink mb-3">Notificări Stripe de verificat</h2>
           <p className="text-sm text-muted mb-3">Erorile pot fi retrimise din Stripe. Resursele neasociate necesită verificarea referinței înainte de retrimitere.</p>

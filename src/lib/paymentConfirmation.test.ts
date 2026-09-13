@@ -5,6 +5,10 @@ import {SCHEMA_SQL} from "./db";
 const api=vi.hoisted(()=>({refunds:{create:vi.fn(),retrieve:vi.fn()},transfers:{createReversal:vi.fn()},paymentIntents:{create:vi.fn(),retrieve:vi.fn(),capture:vi.fn(),cancel:vi.fn()}}));
 vi.mock('stripe',()=>({default:class {paymentIntents=api.paymentIntents;refunds=api.refunds;transfers=api.transfers}}));
 import {authorizePayment,capturePayment,cancelPayment,refundCapturedPayment,applyStripeRefund,initiateFirmTransfer} from './payments';
+import {rescueAcceptedJob} from './jobRescue';
+import {markNoShow} from './noShow';
+import {reconcilePaymentCancellation} from './paymentCancellation';
+import {getStripeClient} from './payments';
 function setup(){
   const db=new DatabaseCtor(":memory:");db.exec(SCHEMA_SQL);db.exec("ALTER TABLE users ADD COLUMN stripe_customer_id TEXT;ALTER TABLE users ADD COLUMN stripe_payment_method_id TEXT");
   db.exec(`INSERT INTO users(id,role,name) VALUES('client','client','Client'),('firm_user','firma','Firmă'),('other_user','firma','Altă firmă');
@@ -58,4 +62,121 @@ describe('durable authorization attempts',()=>{
  it('rechecks a valid existing authorization',async()=>{const db=prepare();api.paymentIntents.retrieve.mockResolvedValue(intent());expect(await authorizePayment(db,'job',500)).toBe('pay');expect(api.paymentIntents.retrieve).toHaveBeenCalledWith('pi_test');});
  it('does not create duplicate payment rows under concurrent authorization',async()=>{const db=prepare();db.exec('DELETE FROM payments');api.paymentIntents.create.mockResolvedValue(createdIntent());const ids=await Promise.all([authorizePayment(db,'job',500),authorizePayment(db,'job',500)]);expect(ids[0]).toBe(ids[1]);expect(db.prepare('SELECT * FROM payments').all()).toHaveLength(1);expect(api.paymentIntents.create.mock.calls[0]).toEqual(api.paymentIntents.create.mock.calls[1]);});
  it('records cancellation when capture discovers an expired authorization',async()=>{const db=prepare();api.paymentIntents.retrieve.mockResolvedValue(intent({status:'canceled'}));await expect(capturePayment(db,'job')).rejects.toThrow('PAYMENT_AUTHORIZATION_EXPIRED_OR_CANCELLED');expect(api.paymentIntents.capture).not.toHaveBeenCalled();expect(db.prepare('SELECT status FROM payments').get()).toEqual({status:'cancelled'});});
+});
+
+describe('durable cancellation and late authorization',()=>{
+ const cancellation=(db:DatabaseCtor.Database)=>db.prepare('SELECT status,last_error FROM payment_cancellation_requests').get();
+ it.each(['cancelled','no_show'])('compensates authorization returned after %s without inserting an authorized payment',async status=>{
+   const db=prepare();db.exec("DELETE FROM payments;UPDATE jobs SET status='accepted'");
+   let resolve!:(value:unknown)=>void;
+   api.paymentIntents.create.mockImplementation(()=>new Promise(done=>{resolve=done}));
+   const authorization=authorizePayment(db,'job',500);
+   db.prepare('UPDATE jobs SET status=?').run(status);
+   await cancelPayment(db,'job');
+   expect(cancellation(db)).toEqual({status:'pending',last_error:null});
+   expect(api.paymentIntents.cancel).not.toHaveBeenCalled();
+   api.paymentIntents.retrieve.mockResolvedValue(createdIntent());
+   api.paymentIntents.cancel.mockResolvedValue(createdIntent({status:'canceled'}));
+   resolve(createdIntent());
+   await expect(authorization).rejects.toThrow('PAYMENT_AUTHORIZATION_CANCELLED');
+   expect(db.prepare('SELECT * FROM payments').all()).toHaveLength(0);
+   expect(cancellation(db)).toEqual({status:'processed',last_error:null});
+   expect(api.paymentIntents.cancel).toHaveBeenCalledWith('pi_test',{}, {idempotencyKey:'nitido-cancel-job'});
+ });
+ it('retains failed compensation and recovers an already canceled provider intent after timeout',async()=>{
+   const db=prepare();api.paymentIntents.retrieve.mockResolvedValueOnce(intent()).mockResolvedValueOnce(intent({status:'canceled'}));
+   api.paymentIntents.cancel.mockRejectedValue(Error('private timeout'));
+   await expect(cancelPayment(db,'job')).rejects.toThrow('private timeout');
+   expect(cancellation(db)).toEqual({status:'needs_review',last_error:'CANCELLATION_NOT_CONFIRMED'});
+   expect(db.prepare('SELECT status FROM payments').get()).toEqual({status:'authorized'});
+   await cancelPayment(db,'job');
+   expect(api.paymentIntents.cancel).toHaveBeenCalledTimes(1);
+   expect(cancellation(db)).toEqual({status:'processed',last_error:null});
+   expect(db.prepare('SELECT status FROM payments').get()).toEqual({status:'cancelled'});
+ });
+ it.each([{id:'pi_other'},{currency:'eur'},{amount:100},{metadata:{jobId:'other',paymentId:'pay'}}])('rejects cancellation of mismatched provider resource %j',async mismatch=>{
+   const db=prepare();api.paymentIntents.retrieve.mockResolvedValue(intent(mismatch));
+   await expect(cancelPayment(db,'job')).rejects.toThrow('PAYMENT_DETAILS_MISMATCH');
+   expect(api.paymentIntents.cancel).not.toHaveBeenCalled();
+   expect(cancellation(db)).toMatchObject({status:'needs_review'});
+ });
+ it('does not mark an invalid cancellation response processed',async()=>{
+   const db=prepare();api.paymentIntents.retrieve.mockResolvedValue(intent());api.paymentIntents.cancel.mockResolvedValue(intent({id:'pi_other',status:'canceled'}));
+   await expect(cancelPayment(db,'job')).rejects.toThrow('PAYMENT_CANCELLATION_NOT_CONFIRMED');
+   expect(db.prepare('SELECT status FROM payments').get()).toEqual({status:'authorized'});
+ });
+ it('blocks new provider creation after a cancellation request with unknown outcome',async()=>{
+   const db=prepare();db.exec('DELETE FROM payments');await cancelPayment(db,'job');
+   await expect(authorizePayment(db,'job',500)).rejects.toThrow('PAYMENT_AUTHORIZATION_CANCELLED');
+   expect(api.paymentIntents.create).not.toHaveBeenCalled();expect(cancellation(db)).toMatchObject({status:'pending'});
+ });
+ it('rechecks a reused authorization after cancellation while retrieval is in flight',async()=>{
+   const db=prepare();let resolve!:(value:unknown)=>void;
+   api.paymentIntents.retrieve.mockImplementationOnce(()=>new Promise(done=>{resolve=done})).mockResolvedValueOnce(intent()).mockResolvedValueOnce(intent({status:'canceled'}));
+   const authorization=authorizePayment(db,'job',500);
+   api.paymentIntents.cancel.mockResolvedValue(intent({status:'canceled'}));await cancelPayment(db,'job');
+   resolve(intent());await expect(authorization).rejects.toThrow('PAYMENT_AUTHORIZATION_CANCELLED');
+   expect(db.prepare('SELECT status FROM payments').get()).toEqual({status:'cancelled'});
+ });
+ it('retains unknown outcomes without creating an intent to cancel',async()=>{
+   const db=prepare();db.exec('DELETE FROM payments');api.paymentIntents.create.mockRejectedValue(Error('timeout'));
+   await expect(authorizePayment(db,'job',500)).rejects.toThrow('timeout');await cancelPayment(db,'job');
+   expect(api.paymentIntents.create).toHaveBeenCalledTimes(1);expect(api.paymentIntents.cancel).not.toHaveBeenCalled();expect(cancellation(db)).toMatchObject({status:'pending'});
+ });
+ it('never cancels a captured payment',async()=>{
+   const db=prepare();db.exec("UPDATE payments SET status='captured'");
+   await expect(cancelPayment(db,'job')).rejects.toThrow('PAYMENT_CANCELLATION_RECONCILIATION_REQUIRED');
+   expect(api.paymentIntents.retrieve).not.toHaveBeenCalled();expect(api.paymentIntents.cancel).not.toHaveBeenCalled();
+ });
+ it('commits rescue and a durable cancellation before Stripe responds, without duplicate reposts',async()=>{
+   const db=prepare();db.exec("UPDATE jobs SET status='accepted'");let fail!:(e:Error)=>void;
+   api.paymentIntents.retrieve.mockImplementation(()=>new Promise((_,reject)=>{fail=reject}));
+   const rescue=rescueAcceptedJob(db,'job','firm');
+   expect(db.prepare("SELECT status FROM jobs WHERE id='job'").get()).toEqual({status:'cancelled'});
+   expect(cancellation(db)).toMatchObject({status:'pending'});
+   expect(await rescueAcceptedJob(db,'job','firm')).toMatchObject({ok:false,status:409});
+   fail(Error('timeout'));expect(await rescue).toMatchObject({ok:true});
+   expect(db.prepare('SELECT * FROM jobs').all()).toHaveLength(2);expect(cancellation(db)).toMatchObject({status:'needs_review'});
+ });
+ it('rolls back rescue and cancellation request when repost persistence fails',async()=>{
+   const db=prepare();db.exec("UPDATE jobs SET status='accepted';CREATE TRIGGER reject_repost BEFORE INSERT ON jobs BEGIN SELECT RAISE(ABORT,'fixture'); END");
+   await expect(rescueAcceptedJob(db,'job','firm')).rejects.toThrow('fixture');
+   expect(db.prepare('SELECT status FROM jobs').get()).toEqual({status:'accepted'});expect(cancellation(db)).toBeUndefined();expect(api.paymentIntents.retrieve).not.toHaveBeenCalled();
+ });
+ it('preserves no-show strike and repost despite provider failure',async()=>{
+   const db=prepare();db.exec("UPDATE jobs SET status='accepted'");api.paymentIntents.retrieve.mockRejectedValue(Error('timeout'));
+   expect(await markNoShow(db,'job',true)).toMatchObject({ok:true,consequence:'warning'});
+   expect(db.prepare('SELECT * FROM strikes').all()).toHaveLength(1);expect(db.prepare('SELECT * FROM jobs').all()).toHaveLength(2);
+   expect(await markNoShow(db,'job',true)).toMatchObject({ok:false,status:409});expect(db.prepare('SELECT * FROM strikes').all()).toHaveLength(1);
+   expect(cancellation(db)).toMatchObject({status:'needs_review'});
+ });
+ it.each([true,undefined])('refuses a live or unclassified intent in sandbox recovery: %s',async livemode=>{
+   const db=prepare();api.paymentIntents.retrieve.mockResolvedValue(intent({livemode}));
+   await expect(reconcilePaymentCancellation(db,'job',getStripeClient(),{sandboxOnly:true})).rejects.toThrow('PAYMENT_DETAILS_MISMATCH');
+   expect(api.paymentIntents.cancel).not.toHaveBeenCalled();
+ });
+ it('records request and confirmed cancellation audit once across repeated recovery',async()=>{
+   const db=prepare();api.paymentIntents.retrieve.mockResolvedValue(intent({status:'canceled',livemode:false}));
+   await reconcilePaymentCancellation(db,'job',getStripeClient(),{sandboxOnly:true});await cancelPayment(db,'job');
+   expect(db.prepare("SELECT event_type FROM workflow_audit_log ORDER BY rowid").all()).toEqual([{event_type:'PAYMENT_CANCELLATION_REQUESTED'},{event_type:'PAYMENT_CANCELLATION_CONFIRMED'}]);
+ });
+ it('does not downgrade confirmed cancellation after a concurrent provider failure',async()=>{
+   const db=prepare();let fail!:(e:Error)=>void;api.paymentIntents.retrieve.mockImplementationOnce(()=>new Promise((_,reject)=>{fail=reject})).mockResolvedValueOnce(intent({status:'canceled'}));
+   const first=cancelPayment(db,'job');await cancelPayment(db,'job');fail(Error('timeout'));
+   await expect(first).rejects.toThrow('timeout');expect(cancellation(db)).toEqual({status:'processed',last_error:null});
+ });
+ it('rolls back no-show, strike and cancellation request together if repost cannot be saved',async()=>{
+   const db=prepare();db.exec("UPDATE jobs SET status='accepted';CREATE TRIGGER reject_repost BEFORE INSERT ON jobs BEGIN SELECT RAISE(ABORT,'fixture'); END");
+   await expect(markNoShow(db,'job',true)).rejects.toThrow('fixture');
+   expect(db.prepare('SELECT status FROM jobs').get()).toEqual({status:'accepted'});expect(cancellation(db)).toBeUndefined();expect(db.prepare('SELECT * FROM strikes').all()).toHaveLength(0);expect(api.paymentIntents.retrieve).not.toHaveBeenCalled();
+ });
+ it('does not apply cancellation to a local payment rebound while Stripe retrieval was pending',async()=>{
+   const db=prepare();api.paymentIntents.retrieve.mockImplementation(async()=>{db.exec("UPDATE payments SET stripe_payment_intent_id='pi_other'");return intent({status:'canceled'});});
+   await expect(cancelPayment(db,'job')).rejects.toThrow('PAYMENT_DETAILS_MISMATCH');expect(db.prepare('SELECT status,stripe_payment_intent_id FROM payments').get()).toEqual({status:'authorized',stripe_payment_intent_id:'pi_other'});
+   expect(cancellation(db)).toMatchObject({status:'needs_review'});
+ });
+ it('rejects reuse if a webhook canceled the local payment during provider retrieval',async()=>{
+   const db=prepare();api.paymentIntents.retrieve.mockImplementation(async()=>{db.exec("UPDATE payments SET status='cancelled'");return intent();});
+   await expect(authorizePayment(db,'job',500)).rejects.toThrow('PAYMENT_AUTHORIZATION_RECONCILIATION_REQUIRED');
+ });
 });

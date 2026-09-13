@@ -2,6 +2,7 @@ import type {Database} from 'better-sqlite3';
 import type Stripe from 'stripe';
 import {createHash} from 'node:crypto';
 import {calculatePaymentSplit} from './payments';
+import {authorizationMustStop} from './paymentCancellation';
 export class CardConfirmationError extends Error {constructor(message:string,public status=409){super(message)}}
 const idOf=(value:string|{id:string}|null)=>typeof value==='string'?value:value?.id;
 
@@ -9,7 +10,7 @@ const idOf=(value:string|{id:string}|null)=>typeof value==='string'?value:value?
 export async function cardConfirmation(db:Database,stripe:Stripe,userId:string,jobId:string,action:'start'|'verify'){
  const job=db.prepare('SELECT j.*,u.stripe_customer_id FROM jobs j JOIN users u ON u.id=j.client_id WHERE j.id=? AND j.client_id=?').get(jobId,userId) as {status:string;price_gross:number;credit_applied:number;stripe_customer_id:string|null}|undefined;
  if(!job)throw new CardConfirmationError('Lucrarea nu a fost găsită.',404);
- if(job.status!=='waiting')throw new CardConfirmationError('Starea lucrării s-a schimbat. Revino la lucrare.');
+ if(job.status!=='waiting'||authorizationMustStop(db,jobId))throw new CardConfirmationError('Starea lucrării s-a schimbat. Revino la lucrare.');
  const attempt=db.prepare('SELECT * FROM payment_authorization_attempts WHERE job_id=?').get(jobId) as {request_json:string;provider_key_hash:string;stripe_payment_intent_id:string|null}|undefined;
  if(!attempt?.stripe_payment_intent_id)throw new CardConfirmationError('Plata necesită verificare înainte de confirmarea cardului.');
  if(attempt.provider_key_hash!==createHash('sha256').update(process.env.STRIPE_SECRET_KEY??'').digest('hex'))throw new CardConfirmationError('Plata necesită reconciliere.');
@@ -19,12 +20,12 @@ export async function cardConfirmation(db:Database,stripe:Stripe,userId:string,j
  const intent=await stripe.paymentIntents.retrieve(attempt.stripe_payment_intent_id);
  if(intent.id!==attempt.stripe_payment_intent_id||intent.amount!==params.amount||intent.currency!=='ron'||intent.capture_method!=='manual'||idOf(intent.customer)!==job.stripe_customer_id||intent.metadata.jobId!==jobId||intent.metadata.paymentId!==params.metadata.paymentId)throw new CardConfirmationError('Datele plății nu corespund rezervării.');
  const currentJob=db.prepare('SELECT j.status,j.price_gross,j.credit_applied,u.stripe_customer_id FROM jobs j JOIN users u ON u.id=j.client_id WHERE j.id=? AND j.client_id=?').get(jobId,userId) as typeof job|undefined;
- if(!currentJob||currentJob.status!=='waiting'||currentJob.price_gross!==job.price_gross||currentJob.credit_applied!==job.credit_applied||currentJob.stripe_customer_id!==job.stripe_customer_id)throw new CardConfirmationError('Rezervarea s-a schimbat în timpul verificării.');
+ if(!currentJob||currentJob.status!=='waiting'||authorizationMustStop(db,jobId)||currentJob.price_gross!==job.price_gross||currentJob.credit_applied!==job.credit_applied||currentJob.stripe_customer_id!==job.stripe_customer_id)throw new CardConfirmationError('Rezervarea s-a schimbat în timpul verificării.');
  if(intent.payment_method&&idOf(intent.payment_method)!==params.payment_method)throw new CardConfirmationError('Cardul plății necesită verificare.');
  if(intent.status==='requires_capture'&&intent.amount_capturable===params.amount){
    db.transaction(()=>{
      const current=db.prepare('SELECT status,price_gross,credit_applied FROM jobs WHERE id=? AND client_id=?').get(jobId,userId) as typeof job|undefined;
-     if(!current||current.status!=='waiting'||current.price_gross!==job.price_gross||current.credit_applied!==job.credit_applied)throw new CardConfirmationError('Rezervarea s-a schimbat în timpul confirmării.');
+     if(!current||current.status!=='waiting'||authorizationMustStop(db,jobId)||current.price_gross!==job.price_gross||current.credit_applied!==job.credit_applied)throw new CardConfirmationError('Rezervarea s-a schimbat în timpul confirmării.');
      db.prepare("INSERT INTO payments(id,job_id,amount_gross,commission_amount,amount_net,status,stripe_payment_intent_id) VALUES(?,?,?,?,?,'authorized',?) ON CONFLICT(id) DO NOTHING").run(params.metadata!.paymentId,jobId,split.clientAmount,split.platformAmount,split.firmAmount,intent.id);
      const rows=db.prepare('SELECT id,status,stripe_payment_intent_id FROM payments WHERE job_id=?').all(jobId) as {id:string;status:string;stripe_payment_intent_id:string}[];
      if(rows.length!==1||rows[0].id!==params.metadata!.paymentId||rows[0].status!=='authorized'||rows[0].stripe_payment_intent_id!==intent.id)throw new CardConfirmationError('Plata necesită reconciliere.');

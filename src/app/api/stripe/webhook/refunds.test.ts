@@ -58,6 +58,39 @@ describe('refund webhook reconciliation',()=>{
 function event(type:string,object:Record<string,unknown>,account?:string){state.constructEvent.mockReturnValue({id:'evt_test',type,data:{object},...(account?{account}:{})});}
 function firm(){db.exec("INSERT INTO users(id,role,name) VALUES('fu','firma','Firma');INSERT INTO firms(id,user_id,coverage_city,stripe_account_id) VALUES('f','fu','București','acct_f');UPDATE jobs SET accepted_firm_id='f';UPDATE payments SET stripe_transfer_id='tr_test',transfer_status='processed'");}
 describe('atomic webhook delivery and bank payout isolation',()=>{
+ it('rejects an older payout snapshot that finishes after a newer event and recovers on redelivery',async()=>{
+   firm();let resolve!:(value:unknown)=>void;
+   event('payout.failed',{id:'po_test'},'acct_f');
+   state.payout.mockImplementationOnce(()=>new Promise(done=>{resolve=done}));
+   const old=POST(request());await vi.waitFor(()=>expect(state.payout).toHaveBeenCalledTimes(1));
+   state.constructEvent.mockReturnValue({id:'evt_new',type:'payout.paid',account:'acct_f',data:{object:{id:'po_test'}}});
+   const paid={id:'po_test',amount:41000,currency:'ron',status:'paid',arrival_date:1800000000};
+   state.payout.mockResolvedValue(paid);expect((await POST(request())).status).toBe(200);
+   resolve({...paid,status:'failed'});expect((await old).status).toBe(500);
+   expect(db.prepare('SELECT status FROM stripe_bank_payouts').get()).toEqual({status:'paid'});
+   expect(db.prepare("SELECT status FROM stripe_webhook_inbox WHERE event_id='evt_test'").get()).toEqual({status:'failed'});
+   expect(db.prepare("SELECT 1 FROM stripe_events WHERE event_id='evt_test'").get()).toBeUndefined();
+   event('payout.failed',{id:'po_test'},'acct_f');expect((await POST(request())).status).toBe(200);
+   expect(db.prepare('SELECT status FROM stripe_bank_payouts').get()).toEqual({status:'paid'});
+ });
+ it('does not serialize unrelated payouts behind an in-flight resource',async()=>{
+   firm();let resolve!:(value:unknown)=>void;event('payout.paid',{id:'po_first'},'acct_f');
+   state.payout.mockImplementationOnce(()=>new Promise(done=>{resolve=done}));
+   const first=POST(request());await vi.waitFor(()=>expect(state.payout).toHaveBeenCalledTimes(1));
+   state.constructEvent.mockReturnValue({id:'evt_second',type:'payout.paid',account:'acct_f',data:{object:{id:'po_second'}}});
+   const paid={amount:41000,currency:'ron',status:'paid',arrival_date:1800000000};state.payout.mockResolvedValue({id:'po_second',...paid});
+   expect((await POST(request())).status).toBe(200);resolve({id:'po_first',...paid});expect((await first).status).toBe(200);
+   expect(db.prepare('SELECT * FROM stripe_bank_payouts').all()).toHaveLength(2);
+ });
+ it('prevents a concurrent old dispute snapshot overwriting the resolved dispute',async()=>{
+   db.exec("UPDATE payments SET stripe_charge_id='ch_test'");let resolve!:(value:unknown)=>void;
+   event('charge.dispute.created',{id:'dp_test',charge:'ch_test'});state.dispute.mockImplementationOnce(()=>new Promise(done=>{resolve=done}));
+   const old=POST(request());await vi.waitFor(()=>expect(state.dispute).toHaveBeenCalledTimes(1));
+   state.constructEvent.mockReturnValue({id:'evt_closed',type:'charge.dispute.closed',data:{object:{id:'dp_test',charge:'ch_test'}}});
+   state.dispute.mockResolvedValue({id:'dp_test',charge:'ch_test',status:'won'});expect((await POST(request())).status).toBe(200);
+   resolve({id:'dp_test',charge:'ch_test',status:'needs_response'});expect((await old).status).toBe(500);
+   expect(db.prepare('SELECT dispute_status FROM payments').get()).toEqual({dispute_status:'won'});
+ });
  it('synchronizes cancellation only to the matching authorized payment',async()=>{db.exec("UPDATE payments SET status='authorized';INSERT INTO payment_authorization_attempts(job_id,request_json,provider_key_hash,created_ms,stripe_payment_intent_id,status) VALUES('j','{}','fixture',1,'pi_test','requires_capture')");event('payment_intent.canceled',{id:'pi_test'});expect((await POST(request())).status).toBe(200);expect(db.prepare('SELECT status FROM payments').get()).toEqual({status:'cancelled'});expect(db.prepare('SELECT status FROM payment_authorization_attempts').get()).toEqual({status:'canceled'});});
 
  it('retries fee synchronization after network failure instead of losing the event',async()=>{event('charge.succeeded',{id:'ch_test',payment_intent:'pi_test',balance_transaction:'txn_test'});state.balance.mockRejectedValueOnce(Error('timeout')).mockResolvedValueOnce({fee:123,currency:'ron',source:'ch_test'});expect((await POST(request())).status).toBe(500);expect(db.prepare('SELECT * FROM stripe_events').all()).toHaveLength(0);expect((await POST(request())).status).toBe(200);expect(db.prepare('SELECT stripe_fee_amount FROM payments').get()).toEqual({stripe_fee_amount:123});});

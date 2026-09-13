@@ -14,4 +14,17 @@ describe('payment authorization rollback preserves concurrent workflow changes',
  it.each(['cancelled','no_show','arrived','completed'])('preserves a concurrent %s transition',async status=>{const fail=failingAuthorization();const result=acceptJobAtomic(db,'j','f');db.prepare('UPDATE jobs SET status=? WHERE id=?').run(status,'j');fail();await result;expect(state()).toEqual({status,accepted_firm_id:'f'});});
  it('does not release another firm after reassignment',async()=>{const fail=failingAuthorization();const result=acceptJobAtomic(db,'j','f');db.exec("UPDATE jobs SET accepted_firm_id='g'");fail();await result;expect(state()).toEqual({status:'accepted',accepted_firm_id:'g'});});
  it('keeps a competing accept from starting another authorization while the first is pending',async()=>{const fail=failingAuthorization();const first=acceptJobAtomic(db,'j','f');expect(await acceptJobAtomic(db,'j','g')).toMatchObject({ok:false,status:409});expect(provider.authorize).toHaveBeenCalledTimes(1);fail();await first;});
+ it.each(['cancelled','no_show','arrived','completed'])('does not return a stale success after %s',async status=>{
+   let resolve!:()=>void;provider.authorize.mockImplementation(()=>new Promise<void>(done=>{resolve=done}));
+   const accepted=acceptJobAtomic(db,'j','f');db.prepare('UPDATE jobs SET status=?').run(status);resolve();
+   expect(await accepted).toMatchObject({ok:false,status:409});expect(state()).toEqual({status,accepted_firm_id:'f'});
+ });
+ it.each(['success','failure'])('does not affect a newer acceptance by the same firm after delayed %s',async outcome=>{
+   let resolve!:()=>void,fail!:(e:Error)=>void;
+   provider.authorize.mockImplementationOnce(()=>new Promise<void>((done,reject)=>{resolve=done;fail=reject})).mockResolvedValueOnce('p');
+   const old=acceptJobAtomic(db,'j','f');db.exec("UPDATE jobs SET status='waiting',accepted_firm_id=NULL");
+   expect(await acceptJobAtomic(db,'j','f')).toEqual({ok:true});
+   if(outcome==='success')resolve();else fail(Error('timeout'));
+   expect(await old).toMatchObject({ok:false});expect(state()).toEqual({status:'accepted',accepted_firm_id:'f'});
+ });
 });

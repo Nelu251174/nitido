@@ -15,7 +15,29 @@ CREATE TABLE IF NOT EXISTS stripe_webhook_inbox (
  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_stripe_inbox_status ON stripe_webhook_inbox(status,received_at);
+CREATE TABLE IF NOT EXISTS stripe_resource_versions (
+ resource_key TEXT PRIMARY KEY, version INTEGER NOT NULL DEFAULT 0
+);
 `;
+
+/** Capture before the first external read; commit all fences and effects in one transaction. */
+export function stripeResourceFence(db:Database){
+ const versions=new Map<string,number>();
+ return {
+   watch(key:string){
+     if(versions.has(key))return;
+     db.prepare('INSERT OR IGNORE INTO stripe_resource_versions(resource_key) VALUES(?)').run(key);
+     const row=db.prepare('SELECT version FROM stripe_resource_versions WHERE resource_key=?').get(key) as {version:number};
+     versions.set(key,row.version);
+   },
+   commit(){
+     if(!db.inTransaction)throw Error('STRIPE_RESOURCE_TRANSACTION_REQUIRED');
+     for(const [key,version] of versions){
+       if(db.prepare('UPDATE stripe_resource_versions SET version=version+1 WHERE resource_key=? AND version=?').run(key,version).changes!==1)throw Error('STRIPE_RESOURCE_CHANGED');
+     }
+   },
+ };
+}
 /** Store only fields needed for reconciliation; never card/customer details or client_secret. */
 export function receiveStripeEvent(db:Database,event:Stripe.Event){
  const object=event.data.object as unknown as Record<string,unknown>;

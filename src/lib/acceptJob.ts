@@ -1,4 +1,6 @@
 import type { Database } from "better-sqlite3";
+import {randomUUID} from 'node:crypto';
+import {authorizationMustStop} from '@/lib/paymentCancellation';
 import { calcBlockedMinutes, overlapsExisting } from "@/lib/pricing";
 import { authorizePayment, connectTransfersEnabled } from "@/lib/payments";
 import { firmCoversCity } from "@/lib/text";
@@ -66,14 +68,21 @@ export async function acceptJobAtomic(
 
   // Actualizare atomică, condiționată — inima mecanismului. Sincronă, fără niciun
   // `await` înainte — asta garantează excluderea mutuală sub concurență reală.
-  const result = db
+  const claim=randomUUID();
+  const claimed=db.transaction(()=>{
+    if(authorizationMustStop(db,jobId))return false;
+    const result = db
     .prepare(
       `UPDATE jobs SET status = 'accepted', accepted_firm_id = ?, accepted_at = datetime('now')
        WHERE id = ? AND status = 'waiting'`
     )
     .run(firmId, jobId);
+    if(result.changes===0)return false;
+    db.prepare('INSERT INTO job_acceptance_claims(job_id,token) VALUES(?,?) ON CONFLICT(job_id) DO UPDATE SET token=excluded.token').run(jobId,claim);
+    return true;
+  })();
 
-  if (result.changes === 0) {
+  if (!claimed) {
     return { ok: false, error: "Lucrare preluată de altcineva", status: 409 };
   }
 
@@ -88,8 +97,9 @@ export async function acceptJobAtomic(
   } catch {
     db.prepare(
       `UPDATE jobs SET status = 'waiting', accepted_firm_id = NULL, accepted_at = NULL
-       WHERE id = ? AND status = 'accepted' AND accepted_firm_id = ?`
-    ).run(jobId,firmId);
+       WHERE id = ? AND status = 'accepted' AND accepted_firm_id = ?
+       AND EXISTS(SELECT 1 FROM job_acceptance_claims WHERE job_id=? AND token=?)`
+    ).run(jobId,firmId,jobId,claim);
     return {
       ok: false,
       error: "Autorizarea plății nu a putut fi confirmată. Reîncarcă starea lucrării.",
@@ -97,5 +107,8 @@ export async function acceptJobAtomic(
     };
   }
 
+  const current=db.prepare(`SELECT 1 FROM jobs j JOIN job_acceptance_claims c ON c.job_id=j.id
+    WHERE j.id=? AND j.status='accepted' AND j.accepted_firm_id=? AND c.token=?`).get(jobId,firmId,claim);
+  if(!current||authorizationMustStop(db,jobId))return {ok:false,status:409,error:'Starea lucrării s-a schimbat în timpul autorizării. Reîncarcă lucrarea.'};
   return { ok: true };
 }
