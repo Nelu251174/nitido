@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import {AdminServiceCatalog} from "@/components/AdminServiceCatalog";
 import {AdminAssessments} from "@/components/AdminAssessments";
@@ -93,6 +93,10 @@ export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
+  const [adminCode,setAdminCode]=useState('');
+  const [adminFactor,setAdminFactor]=useState<'totp'|'recovery'>('totp');
+  const [adminLoginBusy,setAdminLoginBusy]=useState(false);
+  const adminLoginRunning=useRef(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -198,16 +202,15 @@ export default function AdminPage() {
 
   async function adminLogin(event: React.FormEvent) {
     event.preventDefault();
-    setAuthError(null);
-    const res = await fetch("/api/admin/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: adminEmail, password: adminPassword }),
-    });
-    const data = await res.json();
-    if (!res.ok) return setAuthError(data.error ?? "Autentificare eșuată");
-    setAdminPassword("");
-    await refresh();
+    if(adminLoginRunning.current)return;
+    adminLoginRunning.current=true;setAdminLoginBusy(true);setAuthError(null);
+    try{
+      const res=await fetch('/api/admin/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:adminEmail,password:adminPassword,code:adminCode.trim(),method:adminFactor})});
+      const data=await res.json();
+      if(!res.ok){setAuthError(data.error??'Autentificare eșuată');return;}
+      setAdminPassword('');await refresh();
+    }catch{setAuthError('Răspuns neconfirmat. Reîncarcă pagina; dacă autentificarea este cerută din nou, folosește un cod nou.');}
+    finally{setAdminCode('');adminLoginRunning.current=false;setAdminLoginBusy(false);}
   }
 
   if (authenticated !== true) {
@@ -217,10 +220,14 @@ export default function AdminPage() {
           <Logo />
           <h1 className="font-display text-2xl font-bold mt-6">Administrare</h1>
           <form onSubmit={adminLogin} className="mt-6 space-y-4">
-            <input className="w-full rounded-xl border border-line p-3" type="email" autoComplete="username" required value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="Email admin" />
-            <input className="w-full rounded-xl border border-line p-3" type="password" autoComplete="current-password" required value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="Parolă" />
-            {authError && <p className="text-coral text-sm">{authError}</p>}
-            <Button type="submit" className="w-full">Autentificare</Button>
+            <input className="w-full rounded-xl border border-line p-3" type="email" autoComplete="username" required value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} aria-label="Email admin" placeholder="Email admin" />
+            <input className="w-full rounded-xl border border-line p-3" type="password" autoComplete="current-password" required value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} aria-label="Parolă admin" placeholder="Parolă" />
+            <label className="block text-sm font-medium" htmlFor="admin-mfa-code">{adminFactor==='totp'?'Cod din aplicația de autentificare':'Cod de recuperare'}</label>
+            <input id="admin-mfa-code" className="w-full rounded-xl border border-line p-3" type={adminFactor==='recovery'?'password':'text'} inputMode={adminFactor==='totp'?'numeric':'text'} autoComplete={adminFactor==='totp'?'one-time-code':'off'} required maxLength={adminFactor==='totp'?6:32} pattern={adminFactor==='totp'?'[0-9]{6}':'[a-fA-F0-9]{32}'} value={adminCode} onChange={e=>setAdminCode(e.target.value)} />
+            <button type="button" className="text-sm underline" disabled={adminLoginBusy} onClick={()=>{setAdminFactor(adminFactor==='totp'?'recovery':'totp');setAdminCode('');setAuthError(null);}}>{adminFactor==='totp'?'Folosesc un cod de recuperare':'Revin la aplicația de autentificare'}</button>
+            <p className="text-xs text-muted">Fiecare cod poate fi folosit o singură dată. Codurile de recuperare se păstrează separat de parolă.</p>
+            {authError && <p role="alert" className="text-coral text-sm">{authError}</p>}
+            <Button type="submit" disabled={adminLoginBusy} className="w-full">{adminLoginBusy?'Se verifică…':'Autentificare'}</Button>
           </form>
         </Card>
       </div>

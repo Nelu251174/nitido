@@ -1,10 +1,17 @@
 # NITIDO — poarta de lansare și continuarea P0
 
 Sursa cerințelor: brief master v1.0, secțiunile 13, 14, 16, 18–20; PR #49.
-Baza continuării actuale: c8ba38baee8d7e2c12b265130c56d0c8fc14b493.
+Baza continuării actuale: bc79e4442f52ba6b08523bc632fd7b5ae80acd37.
 Verdict: **NO-GO producție**. Implementarea și verificarea în sandbox continuă; brief-ul integral nu este închis.
 
-## Continuarea actuală: recuperare periodică sandbox
+## Continuarea actuală: MFA administrator
+
+- Loginul admin cere parolă și TOTP sau cod de recuperare de unică folosință. Consumul factorului, sesiunea și auditul sunt atomice; replay-ul este blocat persistent.
+- Sesiunile vechi fără MFA sunt refuzate. Rotația credentialelor/factorului invalidează sesiunile; lipsa secretului oprește loginul, fără bypass prin parolă.
+- Preflight-ul verifică prezența configurației MFA; înrolarea pe dispozitiv și recuperarea reală rămân probe deschise. Nu instalați versiunea pe țintă înainte de pregătirea factorului.
+- Domeniu: administratorul unic existent. MFA/reautentificarea modificărilor financiare sensibile ale firmei și rolurile administrative nominale rămân deschise. Operare: [NITIDO-ADMIN-MFA.md](NITIDO-ADMIN-MFA.md).
+
+## Funcționalitatea precedentă: recuperare periodică sandbox
 
 - Worker pentru notificările restante și anulările deja solicitate; verifică mediul sandbox și contul Stripe înainte de procesare. Recuperează evenimentul exact prin API autentificat, apoi folosește procesorul comun cu webhookul public.
 - Rezervare de execuție în SQLite, protecție după expirare/restart, maximum 10 elemente pe lot, buget de pornire de 40 secunde și retry cu pauze. După 8 încercări automate, restanța cere intervenție.
@@ -35,10 +42,10 @@ Nu s-au schimbat procente, prețuri, politica de recepție, condițiile de anula
 
 | ID | Responsabil propus | Criteriu PASS | Dovadă necesară |
 |---|---|---|---|
-| staging_configuration | Infrastructură + plăți | Cheile sunt din sandbox-ul corect; URL HTTPS de staging; semnătura webhook funcționează; test/live separate | Rezultat preflight, identitate cont, livrare semnată și verificarea perechii publishable/server, fără valori secrete |
+| staging_configuration | Infrastructură + plăți | Cheile sunt din sandbox-ul corect; URL HTTPS de staging; semnătura webhook funcționează; test/live separate; configurație MFA admin pregătită | Rezultat preflight, identitate cont, livrare semnată și verificarea perechii publishable/server, fără valori secrete |
 | stripe_sandbox_lifecycle | Plăți + QA | 3DS reușit/refuzat/abandonat, pierdere conexiune și retry; aceeași intenție; rezervare → alocare → dovezi → capturare; refund pending/failed/succeeded corect | ID lucrare/PaymentIntent/eveniment, capturi și comparație cu baza locală |
 | physical_devices | QA mobil | iOS/Android fizic: Expo → browser HTTPS → login separat → 3DS → revenire și stare reîncărcată; 360/390/430 px, tastatură/safe areas | Model, OS, build, înregistrări și rezultate pentru succes și eroare |
-| authenticated_dashboards | QA | Client, firmă, angajat și admin: fluxurile complete; recuperare capturare, refund, excepții și payout; izolare între conturi/revocare | Capturi reale și probe API pe candidate SHA |
+| authenticated_dashboards | QA | Client, firmă, angajat și admin: fluxurile complete; login MFA, recuperare și revocare demonstrate; recuperare capturare, refund, excepții și payout; izolare între conturi/revocare | Capturi reale și probe API pe candidate SHA |
 | financial_reconciliation | Plăți + financiar | Payout-lucrări verificat în contul sandbox, diferență neexplicată zero; resurse necunoscute, autorizare întârziată și evenimente concurente rezolvate sau controlate prin procedură demonstrată | Rapoarte salvate și probe de recuperare; un mock nu închide gate-ul |
 | infrastructure_restore | Infrastructură | Backup coerent SQLite + fotografii, restaurat izolat pe infrastructura țintă, integritate, totaluri și acces foto demonstrate | Log, hashuri, verificări și timp măsurat; nu numai proba sintetică CI |
 | production_approval | Owner | Toate gate-urile trecute pe candidatul final, CI exact și rollback pregătit, aprobare explicită | Aprobarea beneficiarului legată de SHA și rezultatele de mai sus |
@@ -68,14 +75,16 @@ Validatorul verifică forma dovezilor, SHA, proprietarul verificării, momentul 
 
 ## Dovezi locale ale acestei continuări
 
-- 747 teste web/backend în 80 fișiere: PASS, cu 41 de cazuri noi pentru recuperare și accesul schedulerului. Include restart pe SQLite persistent, două conexiuni, expirarea rezervării, concurență cu webhookul, cont/mod greșit, pauze și limite.
-- 19 teste Node pentru gate/preflight, backup/restore, runner recurență și runner recuperare: PASS.
+- 801 teste web/backend în 82 fișiere: PASS, cu 54 de cazuri noi pentru MFA, autentificare și acces admin. Include vectori RFC, replay, sesiuni vechi, recuperare, rotație, concurență și limite persistente.
+- 23 teste Node pentru gate/preflight, backup/restore, runnere și înrolarea MFA offline: PASS.
 - TypeScript web, ESLint și build Next.js: PASS.
 - Preflight în mediul de dezvoltare: blocat corect; cheile Stripe, identitatea contului și configurația staging nu sunt injectate aici. Acest rezultat nu descrie configurația containerului de la sandbox.nitido.ro.
 - Browser: pagina de login admin din sandbox este accesibilă; lipsa unei sesiuni autentificate împiedică verificarea dashboardului. Nu sunt declarate capturi sau verificări autentificate efectuate.
 - CI trebuie verificat separat pe SHA publicat; rulările anterioare nu sunt atribuite noului commit. Nu s-a modificat codul mobil în această continuare.
 
 ## Migrare și rollback
+
+MFA adaugă patru tabele de stare fără backfill al sesiunilor existente. Aceste sesiuni nu primesc automat drepturi MFA. Pregătiți configurația înainte de instalare. Nu rulați în paralel versiunea veche și cea nouă; rollbackul la login numai cu parolă reduce protecția și nu este echivalent. După restaurarea bazei, rotiți factorul și codurile pentru a evita reutilizarea marcajelor revenite la o stare veche.
 
 Recuperarea periodică adaugă `financial_recovery_lock`, `financial_recovery_runs` și `financial_recovery_items`. Opriți programarea și dezactivați flagul înainte de rollback, apoi verificați încheierea lotului deja pornit. Păstrați istoricul și restanțele. Procesorul comun înlocuiește implementarea din ruta webhook fără eliminarea verificării semnăturii.
 

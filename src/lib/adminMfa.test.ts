@@ -1,0 +1,26 @@
+import {beforeEach,afterEach,describe,it,expect} from 'vitest';
+import Sqlite from 'better-sqlite3';
+import {createHash} from 'node:crypto';
+import {mkdtempSync,rmSync} from 'node:fs';
+import {join} from 'node:path';
+import {tmpdir} from 'node:os';
+import {ADMIN_MFA_SCHEMA,decodeTotpSecret,totpAt,getAdminSecurityConfig,consumeAdminFactor,consumeAdminLoginAttempt} from './adminMfa';
+const secret='GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ';
+const recovery='1234567890abcdef1234567890abcdef';
+const env={NITIDO_ADMIN_EMAIL:'admin@example.com',NITIDO_ADMIN_PASSWORD:'fixture-only',NITIDO_ADMIN_TOTP_SECRET:secret,NITIDO_ADMIN_RECOVERY_HASHES:createHash('sha256').update(recovery).digest('hex')};
+const config=getAdminSecurityConfig(env)!;
+let db:Sqlite.Database;
+beforeEach(()=>{db=new Sqlite(':memory:');db.exec(ADMIN_MFA_SCHEMA);});
+afterEach(()=>db.close());
+describe('TOTP and durable one-use factors',()=>{
+ it.each([[59,'287082'],[1111111109,'081804'],[1111111111,'050471'],[1234567890,'005924'],[2000000000,'279037'],[20000000000,'353130']])('matches the RFC SHA1 vector at %i seconds (six-digit truncation)',(seconds,code)=>{expect(totpAt(decodeTotpSecret(secret)!,Math.floor(Number(seconds)/30))).toBe(code);});
+ it.each(['','SHORT','A'.repeat(31),'1'.repeat(32),'A'.repeat(33),'A'.repeat(104),'A'.repeat(32)+'B'])('rejects malformed, weak or noncanonical secret',value=>{expect(decodeTotpSecret(value)).toBeNull();});
+ it('normalizes formatting without changing the factor',()=>{expect(decodeTotpSecret(secret.toLowerCase().replace(/(.{4})/g,'$1 '))).toEqual(decodeTotpSecret(secret));});
+ it.each([-1,0,1])('accepts a fresh code in the allowed clock window %i',delta=>{const now=1800000000000;const code=totpAt(config.secret,now/30000+delta);expect(db.transaction(()=>consumeAdminFactor(db,config,code,'totp',now))()).toBe(true);});
+ it.each([-2,2])('rejects a code outside the clock window %i',delta=>{const now=1800000000000;const code=totpAt(config.secret,now/30000+delta);expect(db.transaction(()=>consumeAdminFactor(db,config,code,'totp',now))()).toBe(false);});
+ it('rejects replay and earlier steps after a future-window code is used',()=>{const now=1800000000000,code=totpAt(config.secret,now/30000+1);const accept=(value:string)=>db.transaction(()=>consumeAdminFactor(db,config,value,'totp',now))();expect(accept(code)).toBe(true);expect(accept(code)).toBe(false);expect(accept(totpAt(config.secret,now/30000))).toBe(false);});
+ it('requires an enclosing transaction and rolls back factor consumption with session failure',()=>{const now=1800000000000,code=totpAt(config.secret,now/30000);expect(()=>consumeAdminFactor(db,config,code,'totp',now)).toThrow('TRANSACTION');expect(()=>db.transaction(()=>{consumeAdminFactor(db,config,code,'totp',now);throw Error('session failed');})()).toThrow();expect(db.transaction(()=>consumeAdminFactor(db,config,code,'totp',now))()).toBe(true);});
+ it('consumes recovery codes once and does not reset them on credential rotation',()=>{const accept=(binding=config)=>db.transaction(()=>consumeAdminFactor(db,binding,recovery,'recovery',1))();expect(accept()).toBe(true);expect(accept()).toBe(false);expect(accept(getAdminSecurityConfig({...env,NITIDO_ADMIN_PASSWORD:'rotated'})!)).toBe(false);expect(db.prepare('SELECT code_hash FROM admin_used_recovery_codes').get()).toEqual({code_hash:env.NITIDO_ADMIN_RECOVERY_HASHES});});
+ it('blocks malformed configuration and permits TOTP with no recovery pack',()=>{for(const patch of [{NITIDO_ADMIN_TOTP_SECRET:''},{NITIDO_ADMIN_RECOVERY_HASHES:recovery},{NITIDO_ADMIN_RECOVERY_HASHES:[env.NITIDO_ADMIN_RECOVERY_HASHES,env.NITIDO_ADMIN_RECOVERY_HASHES].join(',')}])expect(getAdminSecurityConfig({...env,...patch})).toBeNull();expect(getAdminSecurityConfig({...env,NITIDO_ADMIN_RECOVERY_HASHES:''})).not.toBeNull();});
+ it('retains replay protection and throttling across separate connections and restart',()=>{const dir=mkdtempSync(join(tmpdir(),'nitido-mfa-'));let first:Sqlite.Database|undefined,second:Sqlite.Database|undefined;try{const path=join(dir,'db.sqlite');first=new Sqlite(path);first.exec(ADMIN_MFA_SCHEMA);second=new Sqlite(path);const now=1800000000000,code=totpAt(config.secret,now/30000);expect(first.transaction(()=>consumeAdminFactor(first!,config,code,'totp',now))()).toBe(true);expect(second.transaction(()=>consumeAdminFactor(second!,config,code,'totp',now))()).toBe(false);for(let i=0;i<20;i++)expect(consumeAdminLoginAttempt(first,now)).toBe(true);first.close();first=undefined;expect(consumeAdminLoginAttempt(second,now)).toBe(false);second.close();second=new Sqlite(path);expect(consumeAdminLoginAttempt(second,now)).toBe(false);expect(consumeAdminLoginAttempt(second,now+15*60000)).toBe(true);}finally{first?.close();second?.close();rmSync(dir,{recursive:true,force:true});}});
+});

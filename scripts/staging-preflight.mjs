@@ -14,7 +14,10 @@ export function inspectStaging(env){
  add('transfers_explicitly_disabled',env.NITIDO_STRIPE_CONNECT_TRANSFERS_ENABLED==='false');
  add('demo_seeding_disabled',env.NITIDO_SEED_DEMO==='false');
  add('expected_stripe_account',/^acct_[a-zA-Z0-9]+$/.test(env.NITIDO_STRIPE_PLATFORM_ACCOUNT_ID??''));
- return {configurationReady:checks.every(c=>c.status==='pass'),checks,unverified:['publishable_key_same_account','signed_webhook_delivery','sandbox_payment_lifecycle','authenticated_dashboards','physical_devices','infrastructure_restore']};
+ add('admin_credentials_present',Boolean(env.NITIDO_ADMIN_EMAIL&&(env.NITIDO_ADMIN_PASSWORD_HASH||env.NITIDO_ADMIN_PASSWORD)));
+ add('admin_mfa_secret_format',/^[A-Z2-7]{32,103}$/.test((env.NITIDO_ADMIN_TOTP_SECRET??'').toUpperCase().replace(/\s/g,'')));
+
+ return {configurationReady:checks.every(c=>c.status==='pass'),checks,unverified:['publishable_key_same_account','signed_webhook_delivery','sandbox_payment_lifecycle','authenticated_dashboards','admin_mfa_login_and_recovery','physical_devices','infrastructure_restore']};
 }
 
 export async function verifyStripeAccount(env,Stripe){

@@ -1,3 +1,4 @@
+import {ADMIN_MFA_SCHEMA} from "./adminMfa";
 import {FINANCIAL_RECOVERY_SCHEMA} from "./financialRecoverySchema";
 import {PAYMENT_RECOVERY_SCHEMA} from "./paymentCancellation";
 import {PAYOUT_RECONCILIATION_SCHEMA} from "./payoutReconciliation";
@@ -32,6 +33,7 @@ db.pragma("foreign_keys = ON");
 // Exportată separat ca teste (vitest) să poată crea o bază de date in-memory
 // cu aceeași schemă, izolată de fișierul de date reale.
 export const SCHEMA_SQL = `
+${ADMIN_MFA_SCHEMA}
 ${FINANCIAL_RECOVERY_SCHEMA}
 ${PAYMENT_RECOVERY_SCHEMA}
 ${PAYOUT_RECONCILIATION_SCHEMA}

@@ -1,6 +1,14 @@
 # NITIDO v3 — verificare integrată și corecții
 
-## Continuare actuală — worker de recuperare sandbox
+## Continuare actuală — MFA admin
+
+Administratorul configurat folosește parolă + TOTP sau un cod de recuperare de unică folosință. Codul, sesiunea și auditul se salvează atomic; sesiunile fără MFA și cele legate de configurații vechi sunt refuzate. Login/logout verifică originea, iar limita globală de login este persistentă.
+
+Validare locală: 801 teste web/backend în 82 fișiere, 23 teste operaționale, TypeScript, lint și build. CI se confirmă separat pe commitul publicat. Testele folosesc factori de test; nu s-au înrolat factorii reali și nu s-a efectuat QA autentificat pe staging. Înrolarea este obligatorie înainte de instalarea acestei versiuni pe țintă.
+
+Procedură, limite și migrare: [NITIDO-ADMIN-MFA.md](NITIDO-ADMIN-MFA.md). Această livrare acoperă contul admin existent; nu închide conturile nominale suport/finanțe sau reautentificarea financiară a firmei. Etapa activă rămâne E2.
+
+## Continuare precedentă — worker de recuperare sandbox
 
 Procesarea periodică folosește inboxul verificat și anulările deja solicitate. Sunt implementate rezervarea persistentă a execuției, protecția după restart, pauzele între încercări, oprirea la limita automată și vizibilitatea în admin. Webhookul și workerul folosesc același procesor cu protecțiile financiare existente.
 
