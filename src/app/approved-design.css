@@ -101,19 +101,21 @@
 .screen-calendar .operations-sidebar .sidebar-user span{color:#a9bbce}
 .screen-calendar .operations-sidebar .text-aqua{color:var(--nitido-brand-on-dark)}
 
-/* The firm navigation uses the same dark rail on every firm screen. */
-.board-firm .board-sidebar,.role-firma .operations-sidebar{background:#121e2e;color:#dce6f4;border-color:#26364c}
-.board-firm .board-sidebar .design-wordmark,.role-firma .operations-sidebar>a:first-child{color:#dce6f4}
-.board-firm .board-sidebar .board-role,.board-firm .board-sidebar .board-help,.board-firm .board-sidebar-note p,.role-firma .operations-sidebar .text-muted,.role-firma .operations-sidebar .sidebar-user span{color:#a9bbce}
-.board-firm .board-sidebar .workspace-nav a,.role-firma .operations-sidebar .workspace-nav a,.role-firma .operations-sidebar .sidebar-user a{color:#dce6f4}
-.board-firm .board-sidebar .workspace-nav a[aria-current=page],.board-firm .board-sidebar .workspace-nav a:hover,.role-firma .operations-sidebar .workspace-nav a[aria-current=page],.role-firma .operations-sidebar .workspace-nav a:hover{background:var(--nitido-brand-dark);color:#fff;border-left-color:var(--nitido-brand-on-dark)}
-.board-firm .board-sidebar .design-wordmark span span,.role-firma .operations-sidebar .text-aqua{color:var(--nitido-brand-on-dark)}
-.board-firm .board-sidebar-note{background:transparent;color:#dce6f4;border:1px solid #334662}
-.board-firm .board-sidebar a:focus-visible,.role-firma .operations-sidebar a:focus-visible{outline:2px solid var(--nitido-brand-on-dark);outline-offset:2px}
+/* Admin and partner navigation share the same full-height dark rail. */
+:is(.board-firm,.board-admin) .board-sidebar,.role-firma .operations-sidebar{background:#121e2e;color:#dce6f4;border-color:#26364c}
+:is(.board-firm,.board-admin) .board-sidebar .design-wordmark,.role-firma .operations-sidebar>a:first-child{color:#dce6f4}
+:is(.board-firm,.board-admin) .board-sidebar .board-role,:is(.board-firm,.board-admin) .board-sidebar .board-help,:is(.board-firm,.board-admin) .board-sidebar-note p,.role-firma .operations-sidebar .text-muted,.role-firma .operations-sidebar .sidebar-user span{color:#a9bbce}
+:is(.board-firm,.board-admin) .board-sidebar .workspace-nav a,.role-firma .operations-sidebar .workspace-nav a,.role-firma .operations-sidebar .sidebar-user a{color:#dce6f4}
+:is(.board-firm,.board-admin) .board-sidebar .workspace-nav a[aria-current=page],:is(.board-firm,.board-admin) .board-sidebar .workspace-nav a:hover,.role-firma .operations-sidebar .workspace-nav a[aria-current=page],.role-firma .operations-sidebar .workspace-nav a:hover{background:var(--nitido-brand-dark);color:#fff;border-left-color:var(--nitido-brand-on-dark)}
+:is(.board-firm,.board-admin) .board-sidebar .design-wordmark span span,.role-firma .operations-sidebar .text-aqua{color:var(--nitido-brand-on-dark)}
+:is(.board-firm,.board-admin) .board-sidebar-note{background:transparent;color:#dce6f4;border:1px solid #334662}
+:is(.board-firm,.board-admin) .board-sidebar a:focus-visible,.role-firma .operations-sidebar a:focus-visible{outline:2px solid var(--nitido-brand-on-dark);outline-offset:2px}
 @media(min-width:761px){
- .board-page.board-firm,.operations-layout.role-firma{background:linear-gradient(to right,#121e2e 225px,var(--mist) 225px)}
- .board-firm .board-sidebar,.role-firma .operations-sidebar{overflow-y:auto;overscroll-behavior:contain}
+ .board-page:is(.board-firm,.board-admin),.operations-layout.role-firma{background:linear-gradient(to right,#121e2e 225px,var(--mist) 225px)}
+ :is(.board-firm,.board-admin) .board-sidebar,.role-firma .operations-sidebar{overflow-y:auto;overscroll-behavior:contain}
  .role-firma .operations-sidebar .sidebar-user{padding-top:24px}
 }
 
 .board-firm #lucrari-active,.board-firm #castiguri,.board-firm #profil{scroll-margin-top:110px}
+
+.board-admin main>section[id]{scroll-margin-top:24px}

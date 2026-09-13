@@ -144,6 +144,25 @@ export default function AdminPage() {
     return () => clearInterval(t);
   }, [refresh]);
 
+  useEffect(() => {
+    if (authenticated !== true) return;
+    let frame = 0;
+    const scrollToSection = () => {
+      cancelAnimationFrame(frame);
+      const id = window.location.hash.slice(1);
+      if (!["firme", "lucrari", "calitate", "plati", "catalog", "evaluari"].includes(id)) return;
+      frame = requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: "start" }));
+    };
+    scrollToSection();
+    window.addEventListener("hashchange", scrollToSection);
+    window.addEventListener("popstate", scrollToSection);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("hashchange", scrollToSection);
+      window.removeEventListener("popstate", scrollToSection);
+    };
+  }, [authenticated]);
+
   async function triggerNoShow(jobId: string) {
     await fetch(`/api/jobs/${jobId}/no-show`, {
       method: "POST",
@@ -240,9 +259,9 @@ export default function AdminPage() {
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <Logo />
           <div className="flex items-center gap-4 text-sm font-display font-bold text-muted">
-            <Link href="/client" className="hover:text-ink">Client</Link>
-            <Link href="/firma" className="hover:text-ink">Firmă</Link>
-            <Link href="/incredere" className="hover:text-ink">Încredere &amp; Siguranță</Link>
+            <Link href="/admin" className="hover:text-ink">Operațiuni</Link>
+            <a href="/admin#firme" className="hover:text-ink">Administrare firme</a>
+            <a href="/admin#calitate" className="hover:text-ink">Calitate și recenzii</a>
             <button
               onClick={resetHistory}
               disabled={resetting}
@@ -305,7 +324,7 @@ export default function AdminPage() {
           </section>
         )}
 
-        <AdminAssessments/>
+        <section id="evaluari"><AdminAssessments/></section>
         <section id="catalog">
           <AdminServiceCatalog/>
           <h2 className="font-display font-bold text-ink mb-3">ESTIMATOR LIVE — tipuri afișate clientului</h2>
