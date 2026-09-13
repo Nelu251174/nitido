@@ -5,21 +5,28 @@ import {firmCoversCity} from "@/lib/text";
 import {processSmsOutbox,queueJobAcceptedClientSms,queueJobArrivedClientSms,queueJobCreatedFirmAlerts} from "@/lib/notifications";
 import {PushProviderError,sendPush,type PushPayload,type PushPlatform} from "@/lib/pushProviders";
 
-export type PushEventType="JOB_CREATED_FIRM_PUSH"|"JOB_ACCEPTED_CLIENT_PUSH"|"JOB_ARRIVED_CLIENT_PUSH"|"JOB_COMPLETED_CLIENT_PUSH";
+export type PushEventType="JOB_CREATED_FIRM_PUSH"|"JOB_ACCEPTED_CLIENT_PUSH"|"JOB_ARRIVED_CLIENT_PUSH"|"JOB_COMPLETED_CLIENT_PUSH"|"MESSAGE_RECEIVED_PUSH";
 type PushSender=(platform:PushPlatform,token:string,payload:PushPayload)=>Promise<{providerMessageId:string}>;
 const labels:Record<string,string>={apartament:"apartament",casa:"casă",birou:"birou",altul:"alt tip de spațiu"};
 export const pushEnabled=()=>process.env.PUSH_ENABLED==="true";
 export const smsFallbackEnabled=()=>process.env.SMS_FALLBACK_ENABLED!=="false";
 
-const preferenceColumn:Record<PushEventType,string>={JOB_CREATED_FIRM_PUSH:"new_job_alerts",JOB_ACCEPTED_CLIENT_PUSH:"job_status_notifications",JOB_ARRIVED_CLIENT_PUSH:"arrival_notifications",JOB_COMPLETED_CLIENT_PUSH:"completion_notifications"};
+const preferenceColumn:Record<PushEventType,string>={JOB_CREATED_FIRM_PUSH:"new_job_alerts",JOB_ACCEPTED_CLIENT_PUSH:"job_status_notifications",JOB_ARRIVED_CLIENT_PUSH:"arrival_notifications",JOB_COMPLETED_CLIENT_PUSH:"completion_notifications",MESSAGE_RECEIVED_PUSH:"job_status_notifications"};
 // Suppression is terminal, but retains the existing schema and an explicit audit reason.
 export const PUSH_RETRYABLE_SQL=retryableNotificationSql(3);
-type DeliveryRecipient={event_type:PushEventType;job_id:string;recipient_user_id:string};
+type DeliveryRecipient={event_type:PushEventType;job_id:string;recipient_user_id:string;data_json?:string};
 function deliveryBlock(db:Database,row:DeliveryRecipient):string|null{
   const preference=db.prepare(`SELECT ${preferenceColumn[row.event_type]} enabled FROM notification_preferences WHERE user_id=?`).get(row.recipient_user_id) as {enabled:number}|undefined;
   if(preference?.enabled===0)return "SUPPRESSED_PREFERENCE";
   const job=db.prepare("SELECT client_id,city,status,accepted_firm_id FROM jobs WHERE id=?").get(row.job_id) as {client_id:string;city:string;status:string;accepted_firm_id:string|null}|undefined;
   if(!job)return "SUPPRESSED_JOB_UNAVAILABLE";
+  if(row.event_type==="MESSAGE_RECEIVED_PUSH"){
+    const data=JSON.parse(row.data_json??"{}");
+    const message=db.prepare(`SELECT m.id FROM workspace_messages m JOIN jobs j ON j.id=m.job_id JOIN firms f ON f.id=j.accepted_firm_id
+     WHERE m.id=? AND m.job_id=? AND ((m.sender_id=j.client_id AND f.user_id=?) OR (m.sender_id=f.user_id AND j.client_id=?))
+     AND NOT EXISTS(SELECT 1 FROM workspace_message_reads r WHERE r.message_id=m.id AND r.user_id=?)`).get(data.message_id,row.job_id,row.recipient_user_id,row.recipient_user_id,row.recipient_user_id);
+    return message?null:"SUPPRESSED_RECIPIENT_OR_READ";
+  }
   if(row.event_type!=="JOB_CREATED_FIRM_PUSH")return job.client_id===row.recipient_user_id?null:"SUPPRESSED_RECIPIENT";
   if(job.status!=="waiting"||job.accepted_firm_id)return "SUPPRESSED_JOB_UNAVAILABLE";
   const firm=db.prepare("SELECT verified,coverage_city,coverage_cities_extra,suspended_until FROM firms WHERE user_id=?").get(row.recipient_user_id) as {verified:number;coverage_city:string;coverage_cities_extra:string|null;suspended_until:string|null}|undefined;
@@ -28,12 +35,19 @@ function deliveryBlock(db:Database,row:DeliveryRecipient):string|null{
   return null;
 }
 
-function enqueueUser(db:Database,eventType:PushEventType,jobId:string,userId:string,title:string,body:string,path:string):string[]{
+function enqueueUser(db:Database,eventType:PushEventType,jobId:string,userId:string,title:string,body:string,path:string,messageId?:string):string[]{
   const preference=db.prepare(`SELECT ${preferenceColumn[eventType]} enabled FROM notification_preferences WHERE user_id=?`).get(userId) as {enabled:number}|undefined;if(preference?.enabled===0)return [];
   const devices=db.prepare("SELECT id FROM push_devices WHERE user_id=? AND push_enabled=1 AND revoked_at IS NULL").all(userId) as {id:string}[];
   const targets=devices.length?devices:[{id:"none"}];const ids:string[]=[];
-  for(const target of targets){const id=newId("push"),tokenId=target.id==="none"?null:target.id,key=`${eventType}:${jobId}:${userId}:${target.id}`;db.prepare(`INSERT OR IGNORE INTO push_notification_outbox(id,idempotency_key,event_type,job_id,recipient_user_id,device_token_id,title,message_body,data_json) VALUES(?,?,?,?,?,?,?,?,?)`).run(id,key,eventType,jobId,userId,tokenId,title,body,JSON.stringify({job_id:jobId,event_type:eventType.replace(/_(FIRM|CLIENT)_PUSH$/,"").replace("JOB_CREATED","JOB_CREATED"),path}));const row=db.prepare("SELECT id FROM push_notification_outbox WHERE idempotency_key=?").get(key) as {id:string};ids.push(row.id);}
+  for(const target of targets){const id=newId("push"),tokenId=target.id==="none"?null:target.id,key=`${eventType}:${messageId??jobId}:${userId}:${target.id}`;db.prepare(`INSERT OR IGNORE INTO push_notification_outbox(id,idempotency_key,event_type,job_id,recipient_user_id,device_token_id,title,message_body,data_json) VALUES(?,?,?,?,?,?,?,?,?)`).run(id,key,eventType,jobId,userId,tokenId,title,body,JSON.stringify({...messageId?{message_id:messageId}:{},job_id:jobId,event_type:eventType.replace(/_(FIRM|CLIENT)_PUSH$/,"").replace(/_PUSH$/,""),path}));const row=db.prepare("SELECT id FROM push_notification_outbox WHERE idempotency_key=?").get(key) as {id:string};ids.push(row.id);}
   return ids;
+}
+
+export function queueMessagePush(db:Database,messageId:string){
+ const m=db.prepare(`SELECT m.job_id,m.sender_id,j.client_id,f.user_id firm_user_id FROM workspace_messages m JOIN jobs j ON j.id=m.job_id JOIN firms f ON f.id=j.accepted_firm_id WHERE m.id=?`).get(messageId) as {job_id:string;sender_id:string;client_id:string;firm_user_id:string}|undefined;
+ if(!m||![m.client_id,m.firm_user_id].includes(m.sender_id))return [];
+ const recipient=m.sender_id===m.client_id?m.firm_user_id:m.client_id;
+ return enqueueUser(db,"MESSAGE_RECEIVED_PUSH",m.job_id,recipient,"Mesaj nou NITIDO","Ai primit un mesaj nou. Deschide conversația pentru a-l citi.",m.sender_id===m.client_id?"/firma/mesaje":"/client/mesaje",messageId);
 }
 
 export function queueNewJobFirmPushes(db:Database,job:{id:string;city:string;spaceType:string;sqm:number}):string[]{
@@ -47,6 +61,7 @@ export function queueArrivedClientPush(db:Database,jobId:string){const row=clien
 export function queueCompletedClientPush(db:Database,jobId:string){const row=clientAndFirm(db,jobId,"completed","EXISTS(SELECT 1 FROM job_photos p WHERE p.job_id=j.id AND p.uploaded_by_firm_id=j.accepted_firm_id AND p.proof_type='COMPLETION' AND p.status='VALID' AND p.validated_at IS NOT NULL) AND EXISTS(SELECT 1 FROM payments pay WHERE pay.job_id=j.id AND pay.status='captured')");return row?enqueueUser(db,"JOB_COMPLETED_CLIENT_PUSH",jobId,row.client_id,"Lucrare finalizată","Lucrarea a fost finalizată. Verifică detaliile și continuă fluxul de confirmare/evaluare.",`/client?job=${encodeURIComponent(jobId)}`):[];}
 
 async function fallbackSms(db:Database,row:{event_type:PushEventType;job_id:string;recipient_user_id:string}){
+  if(row.event_type==="MESSAGE_RECEIVED_PUSH")return;
   if(!smsFallbackEnabled()||deliveryBlock(db,row))return;let ids:string[]=[];
   if(row.event_type==="JOB_CREATED_FIRM_PUSH"){const phone=(db.prepare("SELECT phone FROM users WHERE id=?").get(row.recipient_user_id) as {phone:string|null}|undefined)?.phone;const job=db.prepare("SELECT id,city,space_type,sqm,scheduled_at FROM jobs WHERE id=?").get(row.job_id) as {id:string;city:string;space_type:string;sqm:number;scheduled_at:string|null}|undefined;if(job)ids=queueJobCreatedFirmAlerts(db,{id:job.id,city:job.city,spaceType:job.space_type,sqm:job.sqm,scheduledAt:job.scheduled_at},[phone??null]);}
   if(row.event_type==="JOB_ACCEPTED_CLIENT_PUSH")ids=queueJobAcceptedClientSms(db,row.job_id);

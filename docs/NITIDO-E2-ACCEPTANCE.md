@@ -57,3 +57,11 @@ T15–T17 aparțin recurenței/integrărilor din E3/E4. Publicarea în magazine 
 E2 se închide numai cu rezultate păstrate pentru traseele de mai sus, identificatori de lucrare/plată/eveniment, model și versiune de telefon, SHA, mediu și dovezi autentificate. Nu se marchează primirea push din răspunsul furnizorului și nu se marchează payout din simpla captură a plății.
 
 Referințe tehnice: [API notificări Expo](https://docs.expo.dev/versions/latest/sdk/notifications/), [tratarea notificărilor primite](https://docs.expo.dev/push-notifications/receiving-notifications/). Contractul recuperării de server: [NITIDO-NOTIFICATION-RECOVERY.md](NITIDO-NOTIFICATION-RECOVERY.md).
+
+## Actualizare: sunet pentru mesajele mobile (13 septembrie 2026)
+
+Beneficiarul confirmă funcționarea mesageriei interne. Noua implementare adaugă evenimentul `MESSAGE_RECEIVED_PUSH`, salvat atomic cu mesajul și deduplicat per mesaj, destinatar și dispozitiv. Workerul reverifică participantul curent, dispozitivul, preferința existentă `job_status_notifications` și citirea mesajului înainte de dispatch. Nu există fallback SMS pentru mesaje. Textul privat al mesajului nu apare pe ecranul blocat.
+
+Expo cere sunetul implicit iOS și un canal Android `messages-v1` cu sunet/vibrație. În prim-plan, aceeași notificare este ignorată la redelivery și sunetele pentru rafale sunt limitate la unul la trei secunde; bannerele mesajelor distincte rămân vizibile. Apăsarea deschide conversația lucrării pentru rolul autentificat. În fundal sunetul este gestionat de sistemul telefonului și respectă setările utilizatorului.
+
+Verificări locale: 110 teste mobile, 41 teste workspace/push/claims, TypeScript și lint. Migrarea păstrează rândurile existente, idempotency keys și stările de livrare. Aceste teste nu probează livrarea pe telefon. Distribuirea buildului mobil, configurarea APNs/FCM și proba auditivă pe dispozitiv rămân deschise. SMS rămâne amânat.

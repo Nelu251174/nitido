@@ -2,7 +2,7 @@ import {PropertyEditor} from "./PropertyEditor";
 import type {EditableProperty} from "./propertyForm";
 import {useCallback,useEffect,useRef,useState} from "react";
 import {Pressable,StyleSheet,Switch,Text,TextInput,View} from "react-native";
-import {router} from "expo-router";
+import {router,useLocalSearchParams} from "expo-router";
 import {api} from "./api";
 import {useJobs} from "./useJobs";
 import {AppScreen,EmptyState,InlineState,PremiumCard,PrimaryButton,SectionTitle,SettingRow} from "./mobileUi";
@@ -30,7 +30,10 @@ export function NativeWorkspace({mode}:{mode:"properties"|"business"|"host"|"tea
  </AppScreen>
 }
 export function NativeJobMessages(){
- const {jobs}=useJobs();const [jobId,setJobId]=useState(""),[messages,setMessages]=useState<{id:string;sender_name:string;body:string;created_at:string}[]>([]),[body,setBody]=useState(""),[error,setError]=useState<string|null>(null),[busy,setBusy]=useState(false);const request=useRef<{body:string;jobId:string;id:string}|null>(null);
+ const params=useLocalSearchParams<{jobId?:string}>();
+ const {jobs}=useJobs();const [jobId,setJobId]=useState(params.jobId??""),[messages,setMessages]=useState<{id:string;sender_name:string;body:string;created_at:string}[]>([]),[body,setBody]=useState(""),[error,setError]=useState<string|null>(null),[busy,setBusy]=useState(false);const request=useRef<{body:string;jobId:string;id:string}|null>(null);
+ // eslint-disable-next-line react-hooks/set-state-in-effect -- a tapped notification selects its conversation
+ useEffect(()=>{if(params.jobId)setJobId(params.jobId)},[params.jobId]);
  const refresh=useCallback(async()=>{if(!jobId)return;try{const d=await api<{messages:typeof messages}>(`/api/workspace/messages?jobId=${encodeURIComponent(jobId)}`);setMessages(d.messages);setError(null)}catch(e){setError(e instanceof Error?e.message:"Mesaje indisponibile")}},[jobId]);
  // eslint-disable-next-line react-hooks/set-state-in-effect -- initial authenticated remote fetch
  useEffect(()=>{void refresh();const timer=setInterval(()=>void refresh(),10000);return()=>clearInterval(timer)},[refresh]);

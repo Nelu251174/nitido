@@ -14,6 +14,11 @@ export type NotificationChannel='push'|'sms';
 export const NOTIFICATION_LEASE_MS=120_000;
 export function initializeNotificationClaims(db:Database){
  db.exec(NOTIFICATION_CLAIM_SCHEMA);
+ const pushSchema=db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='push_notification_outbox'").get() as {sql:string}|undefined;
+ if(pushSchema&&!pushSchema.sql.includes("MESSAGE_RECEIVED_PUSH"))db.transaction(()=>{
+  db.exec(pushSchema.sql.replace('push_notification_outbox','push_notification_outbox_next').replace("'JOB_COMPLETED_CLIENT_PUSH'","'JOB_COMPLETED_CLIENT_PUSH','MESSAGE_RECEIVED_PUSH'"));
+  db.exec("INSERT INTO push_notification_outbox_next SELECT * FROM push_notification_outbox; DROP TABLE push_notification_outbox; ALTER TABLE push_notification_outbox_next RENAME TO push_notification_outbox; CREATE INDEX idx_push_outbox_status ON push_notification_outbox(status,created_at)");
+ })();
  const columns=db.prepare('PRAGMA table_info(notification_outbox)').all() as {name:string}[];
  if(!columns.some(column=>column.name==='recipient_user_id'))db.exec('ALTER TABLE notification_outbox ADD COLUMN recipient_user_id TEXT');
 }

@@ -1,8 +1,9 @@
+import {sendNotifiedJobMessage as sendJobMessage} from "@/lib/messageNotifications";
 import { hasTrustedMutationOrigin } from "@/lib/security";
 import {NextRequest,NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {getCurrentUser} from "@/lib/auth";
-import {authorizedJob,sendJobMessage,messageInbox,readJobMessages,WorkspaceError} from "@/lib/workspace";
+import {authorizedJob,messageInbox,readJobMessages,WorkspaceError} from "@/lib/workspace";
 import {consumeRateLimit} from "@/lib/security";
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:{"Cache-Control":"private, no-store"}});
 export async function GET(req:NextRequest){const user=await getCurrentUser(req);if(!user)return reply({error:"Autentificare necesară"},401);try{const id=req.nextUrl.searchParams.get("jobId")??"";if(!id)return reply({inbox:messageInbox(db,user.id)});authorizedJob(db,user.id,id);return reply({messages:db.prepare("SELECT m.id,m.body,m.created_at,m.sender_id,u.name AS sender_name FROM workspace_messages m JOIN users u ON u.id=m.sender_id WHERE m.job_id=? ORDER BY m.created_at DESC,m.id DESC LIMIT 200").all(id).reverse(),userId:user.id})}catch(e){return reply({error:e instanceof WorkspaceError?e.message:"Mesajele nu sunt disponibile"},e instanceof WorkspaceError?e.status:500)}}
