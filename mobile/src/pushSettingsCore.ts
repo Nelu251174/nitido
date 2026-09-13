@@ -13,3 +13,9 @@ export async function revokePushRegistration(token:string|null,request:(path:str
  if(!result||typeof result!=='object'||(result as {ok?:unknown}).ok!==true)throw new Error('Serverul nu a confirmat dezactivarea. Reîncearcă.');
  await forget();
 }
+export async function logoutAfterDeviceRevocation(revoke:()=>Promise<void>,request:(path:string,init:RequestInit)=>Promise<unknown>,clear:()=>Promise<void>){
+ await revoke();
+ const result=await request('/api/auth/logout',{method:'POST'});
+ if(!result||typeof result!=='object'||(result as {ok?:unknown}).ok!==true)throw new Error('Serverul nu a confirmat deconectarea. Reîncearcă.');
+ await clear();
+}

@@ -84,3 +84,9 @@ jobs:
         run: npm test
       - name: Verificare TypeScript mobil
         run: npm run typecheck
+      - name: Exportă pachetele mobile iOS și Android
+        env:
+          EXPO_OFFLINE: "1"
+          EXPO_NO_TELEMETRY: "1"
+          EXPO_PUBLIC_NITIDO_API_BASE_URL: https://sandbox.nitido.ro
+        run: npx expo export --platform ios --platform android --output-dir /tmp/nitido-mobile-export --max-workers 2

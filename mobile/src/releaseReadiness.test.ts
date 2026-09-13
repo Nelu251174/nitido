@@ -74,7 +74,7 @@ describe("mobile release readiness",()=>{
 
   it("keeps sensitive provider credentials out of mobile application source",()=>{
     const sources=[
-      "src/api.ts","src/auth.tsx","src/push.ts","src/sessionStore.ts",
+      "src/api.ts","src/auth.tsx","src/push.ts","src/push.native.ts","src/pushClient.ts","src/sessionStore.ts",
       "src/tracking.ts","src/firmOperations.ts","app/_layout.tsx",
     ].map(read).join("\n");
     for(const secret of ["sk_live_","STRIPE_SECRET_KEY","OPENAI_API_KEY","FIREBASE_PRIVATE_KEY","APNS_PRIVATE_KEY","TWILIO_AUTH_TOKEN"])
