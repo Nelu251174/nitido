@@ -14,3 +14,10 @@ Datele din configurator și din restaurarea după adăugarea cardului rămân ci
 - ESLint și build Next.js/TypeScript: trecute.
 - Proba vizuală autentificată și QA pe dispozitive fizice rămân deschise. Testele nu reprezintă închiderea E2 sau a gate-urilor Stripe.
 - Nu se schimbă tarifele, contractul serverului sau aplicația mobilă prin această livrare.
+
+## Instalare — 13 septembrie 2026
+
+- Sandbox: `356fadeaa8eecf0797f73ba8c9b494a5dac69269`.
+- CI complet verde: https://github.com/Nelu251174/nitido/actions/runs/34755113480.
+- Deployment `pqp55b1q0urhcujzeqe8iezj`, finalizat 11:45:15 UTC; healthcheck trecut la prima încercare. Configuratorul public este vizibil după reload.
+- Nu s-a executat QA autentificat al calendarului. Nu s-a promovat candidatul în producție.

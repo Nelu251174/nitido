@@ -2,7 +2,7 @@
 
 Sursa numerotării: `NITIDO-MASTER-SOURCE.md`, §18. Documentul urmărește execuția și acceptarea separat. Nu reprezintă acceptarea beneficiarului.
 
-Actualizare operațională 13 septembrie 2026: candidatul `457ff90` este instalat în sandbox și healthy, inclusiv configuratorul public în trei pași și păstrarea formularului la adăugarea cardului. Restaurarea izolată a copiei producției a fost verificată pe candidatul anterior `c04d0d4`; dovezile nu sunt atribuite automat candidatului nou. Webhookurile Stripe și schedulerul financiar sunt configurate în sandbox. Producția rulează încă `f3584d3`. Dovezi, limite și restanțe: [NITIDO-STAGING-20260913.md](NITIDO-STAGING-20260913.md).
+Actualizare operațională 13 septembrie 2026: candidatul `356fade` este instalat în sandbox și healthy, inclusiv configuratorul public în trei pași și păstrarea formularului la adăugarea cardului. Restaurarea izolată a copiei producției a fost verificată pe candidatul anterior `c04d0d4`; dovezile nu sunt atribuite automat candidatului nou. Webhookurile Stripe și schedulerul financiar sunt configurate în sandbox. Producția rulează încă `f3584d3`. Dovezi, limite și restanțe: [NITIDO-STAGING-20260913.md](NITIDO-STAGING-20260913.md).
 
 | Etapă | Starea execuției | Condiție rămasă pentru închidere |
 |---|---|---|
@@ -16,6 +16,8 @@ Actualizare operațională 13 septembrie 2026: candidatul `457ff90` este instala
 După E2 urmează 3 etape principale: E3, E4 și E5. Rămân de închis și restanțele E0/E1. Dezvoltarea unor componente din E3/E4 nu echivalează cu acceptarea acelor etape.
 
 ## Livrarea curentă în E2
+
+- Calendarul clientului folosește ora României și reverifică intervalele expirate înainte de publicare. Instalat în sandbox; 62 teste de regresie trecute. [Dovezi și limite](NITIDO-CLIENT-CALENDAR.md).
 
 - Continuitatea formularului la adăugarea cardului implementată, testată și instalată în sandbox; proba autentificată completă rămâne deschisă. [NITIDO-CARD-BOOKING-CONTINUITY.md](NITIDO-CARD-BOOKING-CONTINUITY.md).
 
