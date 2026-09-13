@@ -4,7 +4,7 @@ Candidat evaluat: `356fadeaa8eecf0797f73ba8c9b494a5dac69269`. Aprobarea benefici
 
 ## Verificare directă pe server
 
-Producția rulează `f3584d3dfc8a859f6780e2dff21e440d106a0456`, cu cheie Stripe live. Secretul TOTP admin și secretul webhookului platformei sunt prezente. Lipsesc `NITIDO_ADMIN_RECOVERY_HASHES`, `STRIPE_CONNECT_WEBHOOK_SECRET` și `NITIDO_STRIPE_PLATFORM_ACCOUNT_ID`. Nu au fost afișate valorile cheilor. Prezența TOTP nu dovedește înrolarea și posesia factorului.
+Producția rulează `f3584d3dfc8a859f6780e2dff21e440d106a0456`, cu cheie Stripe live. Secretul TOTP admin și secretul webhookului platformei sunt prezente. Lipsesc `NITIDO_ADMIN_RECOVERY_HASHES` și `STRIPE_CONNECT_WEBHOOK_SECRET`. Lipsește și `NITIDO_STRIPE_PLATFORM_ACCOUNT_ID`, dar citirea codului confirmă că acesta este cerut de workerul financiar sandbox și nu constituie singur un blocaj de producție. Nu au fost afișate valorile cheilor. Prezența TOTP nu dovedește înrolarea și posesia factorului.
 
 Sandboxul rulează candidatul actual și este healthy, cu cheie Stripe test și cele două secrete webhook configurate. TOTP admin și codurile de recuperare lipsesc. Nu au fost executate probele autentificate, challenge/device Stripe și reconcilierea completă.
 
