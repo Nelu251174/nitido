@@ -1,4 +1,5 @@
 "use client";
+import {bookingCalendarDays,bookingDateKey,bucharestDateKey,isBookableRomanianSlot,nextBucharestSlot} from "@/lib/scheduling";
 import {saveBookingDraft,takeBookingDraft,clearBookingDraft} from "@/lib/bookingDraft";
 import {EmailVerificationNotice} from "@/components/EmailVerificationNotice";
 
@@ -16,8 +17,6 @@ import {
   AUTOMATIC_MAX_SQM,
   calcGrossPrice,
   SLOT_HOURS,
-  isSlotValid,
-  nextValidAsapSlot,
   formatInterval,
   calcBlockedMinutes,
   SpaceType,
@@ -108,7 +107,8 @@ export default function ClientPage() {
   const [whenType, setWhenType] = useState<"asap" | "scheduled">("asap");
   const [mode, setMode] = useState<"express" | "standard">("standard");
   const [express60, setExpress60] = useState(false);
-  const [scheduledDate, setScheduledDate] = useState<Date>(new Date());
+  const [scheduledDate, setScheduledDate] = useState(()=>bucharestDateKey(new Date()));
+  const [calendarNow,setCalendarNow]=useState(()=>new Date());
   const [scheduledHour, setScheduledHour] = useState<number | null>(null);
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -145,7 +145,7 @@ export default function ClientPage() {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- restore external tab storage only after the authenticated account is known
         setStreet(draft.street);setPostalCode(draft.postalCode);setCity(draft.city);setFloor(draft.floor);setDetails(draft.details);
         setSqm(draft.sqm);setSpaceType(draft.spaceType);setWhenType(draft.whenType);setMode(draft.mode);setExpress60(draft.express60);
-        setScheduledDate(new Date(`${draft.scheduledDate}T12:00:00`));setScheduledHour(draft.scheduledHour);
+        setScheduledDate(draft.scheduledDate);setScheduledHour(draft.scheduledHour);
         setPropertyId(draft.propertyId);setApprovalId(draft.approvalId);setPhotos(draft.photos);setShowBooking(true);
         setDraftNotice(params.get('card')==='cancelled'?'Adăugarea cardului a fost anulată. Rezervarea ta este păstrată.':'Rezervarea ta a fost restaurată. Verifică detaliile înainte de publicare.');
       }
@@ -156,8 +156,8 @@ export default function ClientPage() {
     if(params.get("mode")==="express")setMode("express");
     const requestedCity=params.get("city");if(requestedCity)setCity(requestedCity.slice(0,100));
     const requestedDate=params.get("date"),requestedHour=Number(params.get("hour"));
-    if(requestedDate&&/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)&&!Number.isNaN(new Date(`${requestedDate}T12:00:00`).getTime())){setWhenType("scheduled");setScheduledDate(new Date(`${requestedDate}T12:00:00`));if(params.has("hour")&&(SLOT_HOURS as readonly number[]).includes(requestedHour))setScheduledHour(requestedHour)}
-    const approval=params.get("approvalId");if(approval){void fetch("/api/collaboration").then(r=>r.json()).then(d=>{const a=d.approvals?.find((a:{id:string;status:string})=>a.id===approval&&a.status==='approved');if(!a){setError("Aprobarea nu este disponibilă.");return}setApprovalId(a.id);setWhenType("scheduled");setScheduledDate(new Date(`${a.date}T12:00:00`));setScheduledHour(null)}).catch(()=>setError("Aprobarea nu a putut fi încărcată."))}
+    if(requestedDate&&bookingDateKey(requestedDate)===requestedDate){setWhenType("scheduled");setScheduledDate(requestedDate);if(params.has("hour")&&(SLOT_HOURS as readonly number[]).includes(requestedHour))setScheduledHour(requestedHour)}
+    const approval=params.get("approvalId");if(approval){void fetch("/api/collaboration").then(r=>r.json()).then(d=>{const a=d.approvals?.find((a:{id:string;status:string})=>a.id===approval&&a.status==='approved');if(!a||!bookingDateKey(a.date)){setError("Aprobarea nu este disponibilă sau data ei este invalidă.");return}setApprovalId(a.id);setWhenType("scheduled");setScheduledDate(bookingDateKey(a.date)!);setScheduledHour(null)}).catch(()=>setError("Aprobarea nu a putut fi încărcată."))}
     const id=params.get("propertyId");if(id){void fetch("/api/workspace").then(r=>{if(!r.ok)throw new Error();return r.json()}).then(d=>{const p=d.properties.find((p:{id:string})=>p.id===id);if(!p){setError("Proprietatea nu este disponibilă.");return}setPropertyId(p.id);setStreet(p.street);setCity(p.city);setSqm(p.sqm);setSpaceType(p.space_type)}).catch(()=>setError("Proprietatea nu a putut fi încărcată."))}
   },[user?.id,user?.role]);
 
@@ -218,9 +218,8 @@ export default function ClientPage() {
         return;
       }
       if(showBooking){
-        const dateKey=`${scheduledDate.getFullYear()}-${String(scheduledDate.getMonth()+1).padStart(2,'0')}-${String(scheduledDate.getDate()).padStart(2,'0')}`;
         let saved=false;
-        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{street,postalCode,city,floor,details,sqm,spaceType,whenType,mode,express60,scheduledDate:dateKey,scheduledHour,propertyId,approvalId,photos}));}catch{/* Storage can be blocked by the browser. */}
+        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{street,postalCode,city,floor,details,sqm,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,photos}));}catch{/* Storage can be blocked by the browser. */}
         if(!saved){setError('Rezervarea nu poate fi păstrată în această filă. Permite stocarea pentru site și încearcă din nou.');setCardBusy(false);return;}
       }else{try{clearBookingDraft(window.sessionStorage);}catch{/* No draft to preserve. */}}
       window.location.href = d.url; // redirect către pagina de card găzduită de Stripe
@@ -268,15 +267,15 @@ export default function ClientPage() {
   const creditBalance = user?.credit_balance ?? 0;
   const { finalPrice, creditUsed } = applyCredit(price, creditBalance);
 
-  const asapSlot = useMemo(() => nextValidAsapSlot(), []);
-
-  const next14Days = useMemo(() => {
-    return Array.from({ length: 14 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() + i);
-      return d;
-    });
-  }, []);
+  useEffect(()=>{
+    const refresh=()=>setCalendarNow(new Date());
+    const timer=window.setInterval(refresh,30000);
+    window.addEventListener('focus',refresh);
+    return()=>{window.clearInterval(timer);window.removeEventListener('focus',refresh);};
+  },[]);
+  const asapSlot=useMemo(()=>nextBucharestSlot(calendarNow),[calendarNow]);
+  const next14Days=useMemo(()=>bookingCalendarDays(calendarNow),[calendarNow]);
+  const scheduledSlotExpired=whenType==='scheduled'&&scheduledHour!==null&&!isBookableRomanianSlot(scheduledDate,scheduledHour,calendarNow);
 
   async function postJob() {
     setError(null);
@@ -303,7 +302,12 @@ export default function ClientPage() {
           setSubmitting(false);
           return;
         }
-        body.scheduledDate = `${scheduledDate.getFullYear()}-${String(scheduledDate.getMonth()+1).padStart(2,"0")}-${String(scheduledDate.getDate()).padStart(2,"0")}`;
+        if(!isBookableRomanianSlot(scheduledDate,scheduledHour,new Date())){
+          setError("Intervalul ales nu mai poate fi rezervat. Alege o oră cu minimum o oră înainte de începere, după ora României.");
+          setCalendarNow(new Date());
+          return;
+        }
+        body.scheduledDate = scheduledDate;
         body.scheduledHour = scheduledHour;
       }
       const payload=JSON.stringify(body);
@@ -665,10 +669,9 @@ export default function ClientPage() {
 
             {whenType === "asap" && asapSlot && (
               <div className="text-xs text-muted bg-mist rounded-lg px-3 py-2.5 mb-3">
-                Cel mai apropiat slot disponibil:{" "}
+                Primul interval estimat, după ora României:{" "}
                 <b className="text-ink">
-                  {asapSlot.date.toDateString() === new Date().toDateString() ? "azi" : "mâine"},{" "}
-                  {String(asapSlot.hour).padStart(2, "0")}:00
+                  {new Intl.DateTimeFormat('ro-RO',{timeZone:'Europe/Bucharest',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}).format(asapSlot)}
                 </b>
               </div>
             )}
@@ -676,28 +679,32 @@ export default function ClientPage() {
             {whenType === "scheduled" && (
               <div className="mb-3">
                 <div className="flex gap-1.5 overflow-x-auto pb-1.5 mb-2">
-                  {next14Days.map((d, i) => (
+                  {next14Days.map((d) => (
                     <button
                       type="button"
-                      key={i}
+                      key={d}
+                      aria-label={new Intl.DateTimeFormat('ro-RO',{timeZone:'UTC',weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date(`${d}T12:00:00Z`))}
+                      aria-pressed={d===scheduledDate}
                       onClick={() => {
                         setScheduledDate(d);
                         setScheduledHour(null);
                       }}
                       className={`flex-shrink-0 w-12 text-center py-2 rounded-lg border text-[11px] ${
-                        d.toDateString() === scheduledDate.toDateString()
+                        d === scheduledDate
                           ? "border-aqua bg-aqua/10"
                           : "border-line"
                       }`}
                     >
-                      {DAY_NAMES[d.getDay()]}
-                      <div className="font-display font-bold text-sm">{d.getDate()}</div>
+                      {DAY_NAMES[new Date(`${d}T12:00:00Z`).getUTCDay()]}
+                      <div className="font-display font-bold text-sm">{Number(d.slice(-2))}</div>
                     </button>
                   ))}
                 </div>
+                <p className="text-sm text-muted mb-2">Orele sunt cele din România. Disponibilitatea firmei se confirmă la alocare.</p>
+                {scheduledSlotExpired&&<p role="status" className="text-sm text-red-700 mb-2">Intervalul selectat a expirat. Alege altă oră înainte de publicare.</p>}
                 <div className="grid grid-cols-3 gap-1.5">
                   {SLOT_HOURS.map((h) => {
-                    const valid = isSlotValid(scheduledDate, h);
+                    const valid = isBookableRomanianSlot(scheduledDate,h,calendarNow);
                     return (
                       <button
                         type="button"

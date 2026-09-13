@@ -38,3 +38,12 @@ export function nextBucharestSlot(now=new Date()):Date|null {
  }
  return null;
 }
+
+/** Date keys are Romanian civil days, never dates interpreted in the device timezone. */
+export function bookingCalendarDays(now=new Date(),count=14):string[]{
+ const first=new Date(`${bucharestDateKey(now)}T12:00:00Z`);
+ return Array.from({length:count},(_,i)=>{const d=new Date(first);d.setUTCDate(d.getUTCDate()+i);return d.toISOString().slice(0,10);});
+}
+export function isBookableRomanianSlot(date:string,hour:number|null,now=new Date()):boolean{
+ return bookingDateKey(date)===date&&hour!==null&&(SLOT_HOURS as readonly number[]).includes(hour)&&hasSchedulingLeadTime(bucharestScheduledAt(date,hour),now);
+}
