@@ -13,13 +13,22 @@ import {db} from '@/lib/db';
 import {authenticateAdmin,destroyAdminSession} from '@/lib/adminAuth';
 import {getAdminSecurityConfig,totpAt} from '@/lib/adminMfa';
 import {GET} from './route';
+import {GET as accountGET} from '../api/auth/account/route';
 const request=()=>new NextRequest('https://sandbox.nitido.ro/cont');
 const destination=async()=>{
  const res=await GET(request());
  expect(res.status).toBe(307);
  expect(res.headers.get('cache-control')).toBe('private, no-store');
  expect(res.headers.get('vary')).toBe('Cookie');
- return new URL(res.headers.get('location')!).pathname;
+ const path=new URL(res.headers.get('location')!).pathname;
+ const accountResponse=await accountGET();
+ expect(accountResponse.headers.get('cache-control')).toBe('private, no-store');
+ expect(accountResponse.headers.get('vary')).toBe('Cookie');
+ const account=await accountResponse.json();
+ expect(account.destination).toBe(path);
+ expect(account.label).toBe(path==='/admin'?'Panou ADMIN':path==='/login'?null:'Contul meu');
+ expect(account.role).toBe(path==='/admin'?'admin':path==='/firma'?'firma':path==='/client'?'client':null);
+ return path;
 };
 async function loginAdmin(){
  const config=getAdminSecurityConfig()!;
