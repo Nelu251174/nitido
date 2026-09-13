@@ -2,7 +2,7 @@
 
 ## Versiuni efectiv instalate
 
-- Sandbox: `c04d0d49c5a77e8217443ed0c2730bbdd515531c`, PR #49, imagine Docker verificată pe server cu healthcheck activ. Istoricul candidaților anteriori este păstrat mai jos.
+- Sandbox: `2da9532dccf43a6e611b2efd94e8570d68a872d0`, PR #49, imagine Docker verificată pe server cu healthcheck activ și corecțiile de acces instalate. Istoricul candidaților anteriori este păstrat mai jos.
 - Producție: `f3584d3dfc8a859f6780e2dff21e440d106a0456`. PR #49 nu este instalat în producție.
 - Accesul administrativ Coolify și terminalul serverului au fost verificate prin `https://coolify.nitido.ro` în sesiunea de operare. Aceasta nu garantează persistența autentificării în sesiuni viitoare.
 
@@ -98,6 +98,8 @@ Aceasta demonstrează păstrarea evidențelor locale la restaurare și migrare; 
 Continuitatea programării și a istoricului după înlocuirea containerului este demonstrată. Recuperarea unei restanțe financiare întrerupte rămâne o probă distinctă, încă deschisă. Nu s-a configurat un canal extern de alerte prin activarea healthcheck-ului.
 
 ### Restanțe actuale
+
+Actualizare acces: candidatul `2da9532` a trecut CI `34753377686` și deploymentul `0yuka92eharof8drxgzxclv6`, finalizat healthy la 11:05:40 UTC. Au fost verificate pe server antetele no-store pentru 9 API-uri și, în browser, păstrarea rolului/destinației pentru firmă, calendarul firmei și Business client. Detalii: [NITIDO-DASHBOARD-ACCESS.md](NITIDO-DASHBOARD-ACCESS.md). Aceste probe fără autentificare nu închid verificările dashboardurilor autentificate. Probele de restaurare de mai sus rămân atribuite SHA-urilor efectiv testate.
 
 - Admin/MFA în sandbox neconfigurat; autentificare client/firmă/admin și recuperare nedemonstrate.
 - Livrare webhook reală, challenge 3DS, ciclu financiar integral și reconciliere payout nedemonstrate.

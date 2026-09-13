@@ -2,7 +2,7 @@
 
 Sursa numerotării: `NITIDO-MASTER-SOURCE.md`, §18. Documentul urmărește execuția și acceptarea separat. Nu reprezintă acceptarea beneficiarului.
 
-Actualizare operațională 13 septembrie 2026: candidatul `c04d0d4` este instalat în sandbox și healthy. Restaurarea izolată a copiei producției și păstrarea datelor SQLite sunt verificate pe acest candidat; schedulerul financiar continuă după redeploy. Webhookurile Stripe ale platformei și Connect sunt configurate separat în contul de test. Producția rulează încă `f3584d3`. Dovezi, limite și restanțe: [NITIDO-STAGING-20260913.md](NITIDO-STAGING-20260913.md).
+Actualizare operațională 13 septembrie 2026: candidatul `2da9532` este instalat în sandbox și healthy, cu protecția cache-ului API și redirecționările de acces corectate. Restaurarea izolată a copiei producției a fost verificată pe candidatul anterior `c04d0d4`; dovezile nu sunt atribuite automat candidatului nou. Webhookurile Stripe și schedulerul financiar sunt configurate în sandbox. Producția rulează încă `f3584d3`. Dovezi, limite și restanțe: [NITIDO-STAGING-20260913.md](NITIDO-STAGING-20260913.md).
 
 | Etapă | Starea execuției | Condiție rămasă pentru închidere |
 |---|---|---|
@@ -17,6 +17,7 @@ După E2 urmează 3 etape principale: E3, E4 și E5. Rămân de închis și rest
 
 ## Livrarea curentă în E2
 
+- API-urile private trimit no-store; accesul fără sesiune validă este refuzat. Loginul păstrează rolul și destinația firmei/spațiilor operaționale, inclusiv query și fragment. Probe HTTP și browser executate pe sandbox: [NITIDO-DASHBOARD-ACCESS.md](NITIDO-DASHBOARD-ACCESS.md). Acceptarea după autentificare rămâne deschisă.
 - Healthcheck HTTP + citiri SQLite inclus în imagine și activat în Coolify; container healthy și pagină disponibilă. Restaurare izolată cu păstrarea celor 9 înregistrări de plată din copia producției; fără promovare în producție și fără a declara reconcilierea Stripe închisă.
 - Recuperare financiară periodică instalată în Coolify sandbox la fiecare minut; prima rulare automată și istoricul SQLite confirmate. Lotul era gol: recuperarea unei operațiuni Stripe rămâne de demonstrat. [Dovezi și limite](NITIDO-FINANCIAL-RECOVERY.md).
 - Webhook Connect separat, cu secret propriu, verificarea modului test/live și a contului firmei, instalat și verificat în sandbox. CI verde; livrarea reală Stripe și reconcilierea financiară rămân deschise. [Contract și acceptare](NITIDO-STRIPE-CONNECT-WEBHOOK.md).
