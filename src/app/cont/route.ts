@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBrowserAccount } from "@/lib/browserAccount";
 
-/** Public account entry: validate sessions anew, with ADMIN taking precedence. */
+/** Legacy account entry: validate the selected workspace and keep the public origin. */
 export async function GET(req: NextRequest) {
-  const { destination } = await getBrowserAccount();
-  const response = NextResponse.redirect(new URL(destination, req.url), 307);
-  response.headers.set("Cache-Control", "private, no-store");
-  response.headers.set("Vary", "Cookie");
-  return response;
+  const { destination } = await getBrowserAccount(req.nextUrl.searchParams.get("spatiu"));
+  // Relative Location stays on the public origin behind a reverse proxy.
+  // req.url can contain the container's internal 0.0.0.0:3000 address.
+  return new NextResponse(null, { status: 307, headers: {
+    Location: destination,
+    "Cache-Control": "private, no-store",
+    Vary: "Cookie",
+  } });
 }

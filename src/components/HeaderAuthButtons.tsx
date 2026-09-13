@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
-type Account = { role: string | null; label: string | null };
+type Account = { role: string | null; label: string | null; destination: string };
 
-// Resolve the current session on the server at click time, including ADMIN.
-// A normal anchor avoids a prefetched destination surviving a role change.
+// Label and relative destination come from the same validated workspace.
+// A normal anchor rechecks authorization at the destination without prefetching.
 export function HeaderAuthButtons({onNavigate}:{onNavigate?:()=>void} = {}) {
   const [account, setAccount] = useState<Account | null>(null);
   const pathname = usePathname();
@@ -18,7 +18,17 @@ export function HeaderAuthButtons({onNavigate}:{onNavigate?:()=>void} = {}) {
       const current = new AbortController();
       controller = current;
       try {
-        const response = await fetch("/api/auth/account", { cache: "no-store", signal: current.signal });
+        const requested = new URLSearchParams(window.location.search).get("spatiu");
+        const valid = (value: string | null) => value === "admin" || value === "firma" || value === "client";
+        let workspace = valid(requested) ? requested : null;
+        try {
+          if (workspace) sessionStorage.setItem("nitido-public-workspace", workspace);
+          else {
+            const saved = sessionStorage.getItem("nitido-public-workspace");
+            if (valid(saved)) workspace = saved;
+          }
+        } catch { /* The explicit URL still works when browser storage is unavailable. */ }
+        const response = await fetch(`/api/auth/account${workspace ? `?spatiu=${workspace}` : ""}`, { cache: "no-store", signal: current.signal });
         if (!response.ok) throw new Error("Account lookup failed");
         const next: Account = await response.json();
         if (!current.signal.aborted) setAccount(next);
@@ -44,6 +54,6 @@ export function HeaderAuthButtons({onNavigate}:{onNavigate?:()=>void} = {}) {
     <Link href="/login?role=client" onClick={onNavigate} className="v2-btn v2-btn-secondary">Login client</Link>
     <Link href="/login?role=firma" onClick={onNavigate} className="v2-btn v2-btn-secondary">Login firmă</Link>
     </>}
-    {(!account || account.label) && <a href="/cont" onClick={onNavigate} className="v2-btn v2-btn-primary">{account?.label ?? "Acces cont"}</a>}
+    {(!account || account.label) && <a href={account?.destination ?? "/cont"} onClick={onNavigate} className="v2-btn v2-btn-primary">{account?.label ?? "Acces cont"}</a>}
   </div>;
 }

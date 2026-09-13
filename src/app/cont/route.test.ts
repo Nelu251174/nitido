@@ -20,8 +20,10 @@ const destination=async()=>{
  expect(res.status).toBe(307);
  expect(res.headers.get('cache-control')).toBe('private, no-store');
  expect(res.headers.get('vary')).toBe('Cookie');
- const path=new URL(res.headers.get('location')!).pathname;
- const accountResponse=await accountGET();
+ const path=res.headers.get('location')!;
+ expect(path.startsWith('/')).toBe(true);
+ expect(path.startsWith('//')).toBe(false);
+ const accountResponse=await accountGET(new NextRequest('https://sandbox.nitido.ro/api/auth/account'));
  expect(accountResponse.headers.get('cache-control')).toBe('private, no-store');
  expect(accountResponse.headers.get('vary')).toBe('Cookie');
  const account=await accountResponse.json();
@@ -64,6 +66,31 @@ describe('HOME → Contul meu resolves the authenticated account on every click'
  });
  it('ignores supplied role and next parameters',async()=>{
    const res=await GET(new NextRequest('https://sandbox.nitido.ro/cont?role=admin&next=https://other.example'));
-   expect(res.headers.get('location')).toBe('https://sandbox.nitido.ro/login');
+   expect(res.headers.get('location')).toBe('/login');
+ });
+ it.each(['http://0.0.0.0:3000','https://0.0.0.0:3000','http://localhost:3000'])('never redirects to the internal origin %s',async origin=>{
+   await loginAdmin();
+   const res=await GET(new NextRequest(`${origin}/cont`,{headers:{host:'sandbox.nitido.ro','x-forwarded-host':'sandbox.nitido.ro','x-forwarded-proto':'https'}}));
+   expect(res.headers.get('location')).toBe('/admin');
+   expect(new URL(res.headers.get('location')!,'https://sandbox.nitido.ro/cont').href).toBe('https://sandbox.nitido.ro/admin');
+ });
+ it.each(['admin','firma','client'])('keeps the explicit %s workspace when sessions coexist',async workspace=>{
+   state.user.mockResolvedValue({role:workspace==='client'?'client':'firma'});await loginAdmin();
+   const account=await (await accountGET(new NextRequest(`https://sandbox.nitido.ro/api/auth/account?spatiu=${workspace}`))).json();
+   expect(account.role).toBe(workspace);
+   expect(account.destination).toBe(`/${workspace}`);
+   expect(account.label).toBe(workspace==='admin'?'Panou ADMIN':workspace==='firma'?'Panou PARTENER':'Contul meu');
+   const response=await GET(new NextRequest(`https://0.0.0.0:3000/cont?spatiu=${workspace}`));
+   expect(response.headers.get('location')).toBe(`/${workspace}`);
+ });
+ it('keeps a partner tab out of ADMIN after partner logout',async()=>{
+   await loginAdmin();
+   const account=await (await accountGET(new NextRequest('https://sandbox.nitido.ro/api/auth/account?spatiu=firma'))).json();
+   expect(account).toEqual({role:null,destination:'/login?role=firma',label:'Login firmă'});
+ });
+ it('never grants ADMIN from a workspace hint without an admin session',async()=>{
+   state.user.mockResolvedValue({role:'firma'});
+   const account=await (await accountGET(new NextRequest('https://sandbox.nitido.ro/api/auth/account?spatiu=admin'))).json();
+   expect(account).toEqual({role:null,destination:'/admin',label:'Autentificare ADMIN'});
  });
 });

@@ -203,7 +203,7 @@ export default function FirmaPage() {
     <div className="board-page board-firm"><BoardSidebar role="firma"/>
       <header className="glass sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-3 max-[760px]:px-4">
-          <Logo />
+          <Logo href="/firma" />
           <div className="flex flex-wrap items-center gap-2 max-[760px]:w-full">
             <span className="flex items-center gap-2.5">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-aqua-deep text-sm font-display font-extrabold text-white" aria-hidden="true">{user.name.trim().slice(0,1).toUpperCase()}</span>
@@ -215,7 +215,7 @@ export default function FirmaPage() {
             <button type="button" onClick={openProfileEditor} className={ACTION_BTN}>
               Editează profilul
             </button>
-            <Link href="/" className={ACTION_BTN}>
+            <Link href="/?spatiu=firma" prefetch={false} className={ACTION_BTN}>
               Vezi site-ul public →
             </Link>
             <Link href="/incredere" className={ACTION_BTN}>Încredere &amp; Siguranță</Link>
