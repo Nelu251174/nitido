@@ -2,7 +2,7 @@
 
 Sursa numerotării: `NITIDO-MASTER-SOURCE.md`, §18. Documentul urmărește execuția și acceptarea separat. Nu reprezintă acceptarea beneficiarului.
 
-Actualizare operațională 13 septembrie 2026: candidatul `22ae94c` este instalat în sandbox, backupurile locale și migrarea sunt verificate, configurația hashului admin din producție este reparată, iar webhookul Stripe al platformei de test este configurat. Producția rulează încă `f3584d3`. Dovezi, limite și restanțe: [NITIDO-STAGING-20260913.md](NITIDO-STAGING-20260913.md).
+Actualizare operațională 13 septembrie 2026: candidatul `c211ba8` este instalat în sandbox, backupurile locale și migrarea sunt verificate, configurația hashului admin din producție este reparată, iar webhookurile Stripe ale platformei și Connect sunt configurate separat în contul de test. Producția rulează încă `f3584d3`. Dovezi, limite și restanțe: [NITIDO-STAGING-20260913.md](NITIDO-STAGING-20260913.md).
 
 | Etapă | Starea execuției | Condiție rămasă pentru închidere |
 |---|---|---|
@@ -16,6 +16,10 @@ Actualizare operațională 13 septembrie 2026: candidatul `22ae94c` este instala
 După E2 urmează 3 etape principale: E3, E4 și E5. Rămân de închis și restanțele E0/E1. Dezvoltarea unor componente din E3/E4 nu echivalează cu acceptarea acelor etape.
 
 ## Livrarea curentă în E2
+
+- Webhook Connect separat, cu secret propriu, verificarea modului test/live și a contului firmei, instalat și verificat în sandbox. CI verde; livrarea reală Stripe și reconcilierea financiară rămân deschise. [Contract și acceptare](NITIDO-STRIPE-CONNECT-WEBHOOK.md).
+
+## Livrarea precedentă: recuperarea selecției
 
 - Dovadă durabilă a selecției Standard salvată împreună cu autorizarea locală a plății.
 - Recuperare după restart, fără o nouă autorizare sau încasare; verificări de identitate, sumă, token și stare, cu audit idempotent.

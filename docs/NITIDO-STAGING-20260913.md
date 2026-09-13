@@ -2,7 +2,7 @@
 
 ## Versiuni efectiv instalate
 
-- Sandbox: `22ae94cae204c4e916c3158acd4142dc98a87ee2`, PR #49, imagine Docker verificată pe server.
+- Sandbox: `c211ba84af5f6c279131b6b0b350c4cbf3ab3fe4`, PR #49, imagine Docker verificată pe server după instalarea webhookului Connect (candidatul anterior: `22ae94c`).
 - Producție: `f3584d3dfc8a859f6780e2dff21e440d106a0456`. PR #49 nu este instalat în producție.
 - Accesul administrativ Coolify și terminalul serverului au fost verificate prin `https://coolify.nitido.ro` în sesiunea de operare. Aceasta nu garantează persistența autentificării în sesiuni viitoare.
 
@@ -34,7 +34,21 @@ Cheia de test instalată a fost verificată prin citirea autentificată a identi
 - Redeploy `tvrnwmf1pi2bz2is0shunsm8`, finalizat la 10:00:10 UTC, același candidat `22ae94c`.
 - Verificare runtime: secret prezent, identificator cont corespunzător; POST fără semnătură și POST cu semnătură invalidă respinse cu HTTP 400.
 
-Aceste probe nu demonstrează încă livrarea unui eveniment semnat de Stripe. Contul nu avea PaymentIntent-uri la verificare. Endpointul creat nu primește evenimentele conturilor Connect; configurarea și verificarea acestora, inclusiv payout-urile, rămân deschise. Conectorul disponibil a expus citirea PaymentIntent-urilor, nu operația de creare solicitată prin căutarea API.
+Aceste probe nu demonstrează încă livrarea unui eveniment semnat de Stripe. Contul nu avea PaymentIntent-uri la verificare. Endpointul platformei nu primește evenimentele conturilor Connect; acestea au fost configurate separat în continuarea de mai jos. Conectorul disponibil a expus citirea PaymentIntent-urilor, nu operația de creare solicitată prin căutarea API.
+
+## Continuare E2: Connect instalat în sandbox
+
+- Cod: `c211ba84af5f6c279131b6b0b350c4cbf3ab3fe4`; CI `34751540116` finalizat cu succes pentru web, mobil și securitate.
+- Local: 48 teste webhook, 8 teste release gate/preflight, TypeScript, lint pentru fișierele schimbate și build trecute.
+- Endpoint Connect de test creat cu `connect=true`: `we_1UFAWE8ARvpRkNS97HXaM5Kk`, în `acct_1UE6GE8ARvpRkNS9`, API `2026-07-29.dahlia`.
+- Destinație: `https://sandbox.nitido.ro/api/stripe/connect-webhook`; evenimente: `account.updated`, `payout.paid`, `payout.failed`.
+- `STRIPE_CONNECT_WEBHOOK_SECRET` salvat în Coolify doar la runtime; valoarea nu este inclusă în documente, cod sau rezultate afișate.
+- Deployment `lhxja62h29ypslsram2qeh26`: rolling update încheiat la 10:23:16 UTC. Container `civaeb8joydtchvzlen6pivq-102234385582`, imagine `civaeb8joydtchvzlen6pivq:c211ba84af5f6c279131b6b0b350c4cbf3ab3fe4`, în execuție.
+- Probe pe containerul nou: secret Connect prezent și diferit de secretul platformei; cheie Stripe în mod test; identificatorul platformei corespunde contului sandbox.
+- HTTP: endpointul Connect fără semnătură și cu semnătură invalidă returnează 400; endpointul platformei fără semnătură returnează 400; homepage sandbox, login client și homepage producție returnează 200.
+- SQLite în sandbox: `integrity_check` și `foreign_key_check` fără erori.
+
+Configurația și protecția HTTP sunt demonstrate. Livrarea reală Stripe, asocierea cu o firmă locală de test, retry-ul și reconcilierea payout rămân nedemonstrate. Căutarea conectorului pentru listare/retrimitere de evenimente nu a expus operația necesară. Nu au fost fabricate evenimente financiare pentru a declara acest gate închis. Contractul și criteriile de acceptare sunt în [NITIDO-STRIPE-CONNECT-WEBHOOK.md](NITIDO-STRIPE-CONNECT-WEBHOOK.md).
 
 ## Restanțe E2 și decizia de lansare
 
