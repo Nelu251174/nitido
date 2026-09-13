@@ -1,4 +1,5 @@
 "use client";
+import {saveBookingDraft,takeBookingDraft,clearBookingDraft} from "@/lib/bookingDraft";
 import {EmailVerificationNotice} from "@/components/EmailVerificationNotice";
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
@@ -127,6 +128,7 @@ export default function ClientPage() {
   const [guaranteeEligible, setGuaranteeEligible] = useState(false);
   const [hasCard, setHasCard] = useState<boolean | null>(null); // null = se încarcă
   const [cardBusy, setCardBusy] = useState(false);
+  const [draftNotice,setDraftNotice]=useState<string|null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -136,7 +138,18 @@ export default function ClientPage() {
   useEffect(() => {
     if(user?.role!=="client")return;
     const params=new URLSearchParams(window.location.search);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- initialize form from navigation parameters after authentication
+    if(['added','cancelled'].includes(params.get('card')??'')){
+      let draft=null;
+      try{draft=takeBookingDraft(window.sessionStorage,user.id);}catch{/* Browser storage may be unavailable. */}
+      if(draft){
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- restore external tab storage only after the authenticated account is known
+        setStreet(draft.street);setPostalCode(draft.postalCode);setCity(draft.city);setFloor(draft.floor);setDetails(draft.details);
+        setSqm(draft.sqm);setSpaceType(draft.spaceType);setWhenType(draft.whenType);setMode(draft.mode);setExpress60(draft.express60);
+        setScheduledDate(new Date(`${draft.scheduledDate}T12:00:00`));setScheduledHour(draft.scheduledHour);
+        setPropertyId(draft.propertyId);setApprovalId(draft.approvalId);setPhotos(draft.photos);setShowBooking(true);
+        setDraftNotice(params.get('card')==='cancelled'?'Adăugarea cardului a fost anulată. Rezervarea ta este păstrată.':'Rezervarea ta a fost restaurată. Verifică detaliile înainte de publicare.');
+      }
+    }
     if(window.location.hash==="#sec-form"||params.has("propertyId")||params.has("spaceType")||params.has("mode"))setShowBooking(true);
     const type=params.get("spaceType");if(type&&["apartament","casa","birou","altul"].includes(type))setSpaceType(type as SpaceType);
     const area=Number(params.get("sqm"));if(Number.isInteger(area)&&area>0&&area<=1000)setSqm(area);
@@ -204,6 +217,12 @@ export default function ClientPage() {
         setCardBusy(false);
         return;
       }
+      if(showBooking){
+        const dateKey=`${scheduledDate.getFullYear()}-${String(scheduledDate.getMonth()+1).padStart(2,'0')}-${String(scheduledDate.getDate()).padStart(2,'0')}`;
+        let saved=false;
+        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{street,postalCode,city,floor,details,sqm,spaceType,whenType,mode,express60,scheduledDate:dateKey,scheduledHour,propertyId,approvalId,photos}));}catch{/* Storage can be blocked by the browser. */}
+        if(!saved){setError('Rezervarea nu poate fi păstrată în această filă. Permite stocarea pentru site și încearcă din nou.');setCardBusy(false);return;}
+      }else{try{clearBookingDraft(window.sessionStorage);}catch{/* No draft to preserve. */}}
       window.location.href = d.url; // redirect către pagina de card găzduită de Stripe
     } catch {
       setError("Nu s-a putut porni adăugarea cardului.");
@@ -299,6 +318,8 @@ export default function ClientPage() {
       if (res.status === 402) setHasCard(false); // lipsă card — arată butonul de adăugare
       if (!res.ok) throw new Error(data.error ?? "Eroare la postare");
       setJob(data.job);
+      setDraftNotice(null);
+      try{clearBookingDraft(window.sessionStorage);}catch{/* Storage can be unavailable. */}
       requestRef.current=null;
       setShowBooking(false);
       refreshMyJobs();
@@ -388,6 +409,7 @@ export default function ClientPage() {
     setRatingDone(false);
     setPhotos([]);
     setDetails("");
+    setDraftNotice(null);
   }
 
   // „Postează o lucrare" — resetează la formular ȘI derulează direct la el, ca
@@ -512,6 +534,7 @@ export default function ClientPage() {
         <div id="sec-form" />
         {!job && showBooking && (
           <Card>
+            {draftNotice&&<p role="status" className="mb-4 rounded-xl border border-aqua bg-mist p-4 text-sm">{draftNotice}</p>}
             <h1 className="font-display font-extrabold text-xl text-ink mb-1">
               Postează o lucrare
             </h1>
@@ -783,7 +806,7 @@ export default function ClientPage() {
                   Banii se rezervă abia când o firmă acceptă lucrarea și se încasează doar
                   după finalizarea confirmată. Cardul e procesat securizat de Stripe.
                 </p>
-                <Button className="w-full mt-3" onClick={addCard} disabled={cardBusy}>
+                <Button className="w-full mt-3" onClick={addCard} disabled={cardBusy || uploading}>
                   {cardBusy ? "Se deschide..." : "Adaugă card"}
                 </Button>
               </div>
