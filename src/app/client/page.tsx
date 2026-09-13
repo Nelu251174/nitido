@@ -861,14 +861,14 @@ export default function ClientPage() {
                               {o.ratingAvg != null ? `★ ${o.ratingAvg.toFixed(1)} (${o.ratingCount})` : "firmă nouă"} · {o.completedJobs} lucrări finalizate
                             </div>
                           </div>
-                          <Button onClick={() => chooseOffer(o.offerId)} disabled={choosing !== null}>
-                            {choosing === o.offerId ? "Se alege…" : "Alege această firmă"}
-                          </Button>
                         </div>
                         <div className="offer-price"><b>{job.price_gross} lei</b><span>Preț fix pentru această solicitare</span></div>
                         {o.message && (
                           <p className="text-sm text-muted mt-2 border-t border-line pt-2">{o.message}</p>
                         )}
+                        <Button className="offer-select-button" onClick={() => chooseOffer(o.offerId)} disabled={choosing !== null}>
+                          {choosing === o.offerId ? "Se alege…" : "Alege această firmă"}
+                        </Button>
                       </div>
                     ))}
                   </div>
