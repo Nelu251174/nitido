@@ -1,3 +1,4 @@
+import { colors } from "./theme";
 import {existsSync,readFileSync} from "node:fs";
 import {join} from "node:path";
 import {describe,expect,it} from "vitest";
@@ -35,7 +36,7 @@ describe("mobile release readiness",()=>{
     const config=JSON.parse(read("app.json")).expo;
     const notifications=config.plugins.find((entry:unknown)=>Array.isArray(entry)&&entry[0]==="expo-notifications");
     expect(config.scheme).toBe("nitido");
-    expect(notifications?.[1]).toMatchObject({icon:"./assets/notification-icon.png",color:"#1B8A4C"});
+    expect(notifications?.[1]).toMatchObject({icon:"./assets/notification-icon.png",color:colors.green});
     expect(existsSync(join(root,notifications[1].icon))).toBe(true);
   });
 

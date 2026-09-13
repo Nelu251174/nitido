@@ -32,5 +32,5 @@ export function HomeLogoLink({onNavigate}:{onNavigate?:()=>void}){
     router.push("/",{scroll:true});
   }
 
-  return <Link href="/" onClick={activate} scroll aria-label="NITIDO.RO – Pagina principală" className="design-wordmark focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-4"><span aria-hidden="true">NITIDO<span>.RO</span></span></Link>;
+  return <Link href="/" onClick={activate} scroll aria-label="NITIDO.RO – Pagina principală" className="design-wordmark focus-visible:ring-2 focus-visible:ring-[var(--nitido-brand)] focus-visible:ring-offset-4"><span aria-hidden="true">NITIDO<span>.RO</span></span></Link>;
 }
