@@ -3,6 +3,7 @@ import {NextRequest,NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {applyStripeRefund,getStripeClient,recordStripeEvent} from "@/lib/payments";
 import {readRecipientCapability} from "@/lib/stripeConnect";
+import {receiveStripeEvent,markStripeInbox} from "@/lib/stripeInbox";
 
 export const runtime="nodejs";
 const objectId=(value:unknown):string|undefined=>typeof value==="string"?value:value&&typeof value==="object"&&"id" in value&&typeof value.id==="string"?value.id:undefined;
@@ -15,14 +16,19 @@ export async function POST(req:NextRequest){
   const signature=req.headers.get("stripe-signature");if(!signature)return NextResponse.json({error:"Semnătură lipsă"},{status:400});
   let event:Stripe.Event;
   try{event=stripe.webhooks.constructEvent(await req.text(),signature,secret);}catch{return NextResponse.json({error:"Semnătură invalidă"},{status:400});}
-  if(db.prepare("SELECT 1 FROM stripe_events WHERE event_id=?").get(event.id))return NextResponse.json({received:true,duplicate:true});
+  const previous=db.prepare('SELECT status FROM stripe_webhook_inbox WHERE event_id=?').get(event.id) as {status:string}|undefined;
+  try{receiveStripeEvent(db,event);}catch{return NextResponse.json({error:"Notificarea nu a putut fi înregistrată."},{status:500});}
+  if(db.prepare("SELECT 1 FROM stripe_events WHERE event_id=?").get(event.id)&&(!previous||['processed','ignored'].includes(previous.status))){
+    markStripeInbox(db,event.id,'processed');return NextResponse.json({received:true,duplicate:true});
+  }
+  db.prepare('UPDATE stripe_webhook_inbox SET attempts=attempts+1 WHERE event_id=?').run(event.id);
   const object=event.data.object as unknown as Record<string,unknown>;
   // External reads finish before the synchronous transaction. A failed read is never acknowledged as processed.
   const updates:(()=>void)[]=[];
   try{
     // Platform charges/refunds/transfers must not be mutated by a connected-account event.
     if(!event.account){
-      if(event.type==="payment_intent.canceled"&&typeof object.id==="string"){
+      if(event.type==="payment_intent.canceled"&&typeof object.id==="string"&&(db.prepare('SELECT 1 FROM payments WHERE stripe_payment_intent_id=?').get(object.id)||db.prepare('SELECT 1 FROM payment_authorization_attempts WHERE stripe_payment_intent_id=?').get(object.id))){
         const intentId=object.id;
         updates.push(()=>{
           db.prepare("UPDATE payments SET status='cancelled' WHERE stripe_payment_intent_id=? AND status='authorized'").run(intentId);
@@ -56,7 +62,7 @@ export async function POST(req:NextRequest){
           updates.push(()=>{db.prepare("UPDATE payments SET dispute_status=? WHERE id=? AND stripe_charge_id=?").run(dispute.status,payment.id,chargeId);});
         }
       }
-      if((event.type==="transfer.updated"||event.type==="transfer.reversed")&&object.reversed===true){
+      if((event.type==="transfer.updated"||event.type==="transfer.reversed")&&object.reversed===true&&db.prepare('SELECT 1 FROM payments WHERE stripe_transfer_id=?').get(objectId(object.id)??'')){
         updates.push(()=>{db.prepare("UPDATE payments SET transfer_status='reversed' WHERE stripe_transfer_id=?").run(objectId(object.id)??"");});
       }
       // A failed authorization is not a failed firm transfer. Its event remains available for reconciliation.
@@ -76,12 +82,17 @@ export async function POST(req:NextRequest){
       updates.push(()=>{db.prepare("UPDATE firms SET stripe_account_status=?,stripe_transfers_capability=? WHERE stripe_account_id=?").run(status,capability,accountId);});
     }
     const applied=db.transaction(()=>{
-      if(!recordStripeEvent(db,event.id,event.type))return false;
+      const recorded=recordStripeEvent(db,event.id,event.type);
+      const needsReview=db.prepare("SELECT 1 FROM stripe_webhook_inbox WHERE event_id=? AND status IN ('received','needs_review','failed')").get(event.id);
+      if(!recorded&&!needsReview)return false;
       for(const update of updates)update();
+      const supported=['payment_intent.canceled','charge.succeeded','refund.created','refund.updated','refund.failed','charge.refunded','charge.dispute.created','charge.dispute.closed','transfer.updated','transfer.reversed','payout.paid','payout.failed','account.updated'].includes(event.type);
+      markStripeInbox(db,event.id,updates.length?'processed':supported?'needs_review':'ignored');
       return true;
     })();
     return NextResponse.json({received:true,...(!applied?{duplicate:true}:{})});
   }catch{
+    try{markStripeInbox(db,event.id,'failed');}catch{/* Stripe retries the non-2xx response. */}
     return NextResponse.json({error:"Sincronizarea Stripe a eșuat. Notificarea poate fi retrimisă."},{status:500});
   }
 }

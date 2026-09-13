@@ -1,5 +1,11 @@
 # NITIDO v3 — verificare integrată și corecții
 
+## Continuare P0 — reconciliere sandbox și poartă de lansare
+
+Implementarea actuală adaugă reconcilierea payout–transfer–lucrare în sandbox, rapoarte persistente cu audit, inbox durabil cu referințele financiare minime și vizibilitatea notificărilor nereconciliate în admin. Retrimiterea poate recupera un refund al cărui ID a fost salvat după prima notificare. Nu se schimbă stările financiare ale lucrărilor prin raportul de payout.
+
+Configurația de staging și dovezile de lansare pot fi verificate cu scripturile noi. Criteriile exacte, operarea, migrarea și limitele sunt în [NITIDO-RELEASE-GATE.md](NITIDO-RELEASE-GATE.md). Secțiunile istorice de mai jos descriu etapele anterioare: lipsa totală a unui inbox sau a asocierii payout–lucrare este înlocuită de această implementare limitată la sandbox, nu de o acceptare financiară finală. Testele noi folosesc provider simulat; provocarea bancară și dispozitivele fizice rămân nevalidate.
+
 Bază verificată: PR #49, pornind de la `de6fa8c`. Această etapă nu reprezintă publicarea în producție sau închiderea întregului brief.
 
 ## Probleme reproduse și corectate

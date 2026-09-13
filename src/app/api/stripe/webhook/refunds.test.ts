@@ -7,8 +7,47 @@ import {db} from '@/lib/db';
 import {POST} from './route';
 function request(){return new NextRequest('https://nitido.test/api/stripe/webhook',{method:'POST',headers:{'stripe-signature':'fixture'},body:'fixture'});}
 const refund=(status:string)=>({id:'re_test',payment_intent:'pi_test',currency:'ron',amount:50000,status});
-beforeEach(()=>{vi.resetAllMocks();vi.stubEnv('STRIPE_SECRET_KEY','sk_test_fixture');vi.stubEnv('STRIPE_WEBHOOK_SECRET','whsec_fixture');db.exec("DROP TRIGGER IF EXISTS reject_refund_update;DELETE FROM payment_authorization_attempts;DELETE FROM stripe_bank_payouts;DELETE FROM stripe_events;DELETE FROM payment_refunds;DELETE FROM payments;DELETE FROM jobs;DELETE FROM firms;DELETE FROM users;INSERT INTO users(id,role,name) VALUES('u','client','Test');INSERT INTO jobs(id,client_id,city,street,sqm,space_type,when_type,price_gross,duration_minutes,status) VALUES('j','u','Test','Test',50,'apartament','asap',500,120,'completed');INSERT INTO payments(id,job_id,amount_gross,commission_amount,amount_net,status,stripe_payment_intent_id,refund_status) VALUES('p','j',500,90,410,'captured','pi_test','pending');INSERT INTO payment_refunds(id,payment_id,amount,stripe_refund_id,status) VALUES('r','p',500,'re_test','pending')");state.constructEvent.mockReturnValue({id:'evt_test',type:'refund.updated',data:{object:{id:'re_test'}}});});
+beforeEach(()=>{vi.resetAllMocks();vi.stubEnv('STRIPE_SECRET_KEY','sk_test_fixture');vi.stubEnv('STRIPE_WEBHOOK_SECRET','whsec_fixture');db.exec("DROP TRIGGER IF EXISTS reject_refund_update;DELETE FROM payment_authorization_attempts;DELETE FROM stripe_bank_payouts;DELETE FROM stripe_events;DELETE FROM stripe_webhook_inbox;DELETE FROM payment_refunds;DELETE FROM payments;DELETE FROM jobs;DELETE FROM firms;DELETE FROM users;INSERT INTO users(id,role,name) VALUES('u','client','Test');INSERT INTO jobs(id,client_id,city,street,sqm,space_type,when_type,price_gross,duration_minutes,status) VALUES('j','u','Test','Test',50,'apartament','asap',500,120,'completed');INSERT INTO payments(id,job_id,amount_gross,commission_amount,amount_net,status,stripe_payment_intent_id,refund_status) VALUES('p','j',500,90,410,'captured','pi_test','pending');INSERT INTO payment_refunds(id,payment_id,amount,stripe_refund_id,status) VALUES('r','p',500,'re_test','pending')");state.constructEvent.mockReturnValue({id:'evt_test',type:'refund.updated',data:{object:{id:'re_test'}}});});
 afterEach(()=>vi.unstubAllEnvs());
+describe('durable webhook inbox',()=>{
+ it('retains a safe receipt before provider failure and recovers it on retry',async()=>{
+   state.retrieve.mockImplementationOnce(async()=>{expect(db.prepare('SELECT status FROM stripe_webhook_inbox').get()).toEqual({status:'received'});throw Error('private provider details');}).mockResolvedValueOnce(refund('succeeded'));
+   expect((await POST(request())).status).toBe(500);
+   expect(db.prepare('SELECT status,last_error,attempts FROM stripe_webhook_inbox').get()).toEqual({status:'failed',last_error:'PROVIDER_OR_DATABASE_SYNC_FAILED',attempts:1});
+   expect((await POST(request())).status).toBe(200);
+   expect(db.prepare('SELECT status,attempts FROM stripe_webhook_inbox').get()).toEqual({status:'processed',attempts:2});
+ });
+ it('does not retain card, customer, metadata or client-secret payloads',async()=>{
+   event('refund.updated',{id:'re_test',client_secret:'secret_fixture',customer:{email:'private@test.invalid'},metadata:{address:'private fixture'}});
+   state.retrieve.mockResolvedValue(refund('succeeded'));await POST(request());
+   const row=db.prepare('SELECT envelope_json FROM stripe_webhook_inbox').get() as {envelope_json:string};
+   expect(row.envelope_json).toContain('re_test');expect(row.envelope_json).not.toMatch(/secret_fixture|private fixture|private@test/);
+ });
+ it('reconciles an event that arrived before the refund ID was saved, including a failed redelivery',async()=>{
+   db.exec('UPDATE payment_refunds SET stripe_refund_id=NULL');
+   expect((await POST(request())).status).toBe(200);expect(db.prepare('SELECT status FROM stripe_webhook_inbox').get()).toEqual({status:'needs_review'});
+   db.exec("UPDATE payment_refunds SET stripe_refund_id='re_test'");
+   state.retrieve.mockRejectedValueOnce(Error('timeout')).mockResolvedValueOnce(refund('succeeded'));
+   expect((await POST(request())).status).toBe(500);expect(db.prepare('SELECT status FROM stripe_webhook_inbox').get()).toEqual({status:'failed'});
+   expect((await POST(request())).status).toBe(200);expect(db.prepare('SELECT status FROM payments').get()).toEqual({status:'refunded'});
+   expect(db.prepare('SELECT status FROM stripe_webhook_inbox').get()).toEqual({status:'processed'});
+ });
+ it('rejects signed event identity collisions without replacing the original receipt',async()=>{
+   state.retrieve.mockResolvedValue(refund('succeeded'));await POST(request());
+   event('payout.paid',{id:'po_other'},'acct_other');expect((await POST(request())).status).toBe(500);
+   expect(db.prepare('SELECT event_type,resource_id FROM stripe_webhook_inbox').get()).toEqual({event_type:'refund.updated',resource_id:'re_test'});
+ });
+ it('does not acknowledge a receipt that cannot be persisted',async()=>{
+   db.exec("CREATE TRIGGER reject_inbox BEFORE INSERT ON stripe_webhook_inbox BEGIN SELECT RAISE(ABORT,'fixture'); END");
+   try{expect((await POST(request())).status).toBe(500);expect(state.retrieve).not.toHaveBeenCalled();expect(db.prepare('SELECT * FROM stripe_events').all()).toHaveLength(0);}finally{db.exec('DROP TRIGGER reject_inbox');}
+ });
+ it('keeps unknown connected payouts visible until an account is associated',async()=>{
+   event('payout.paid',{id:'po_test'},'acct_f');await POST(request());
+   expect(db.prepare('SELECT status FROM stripe_webhook_inbox').get()).toEqual({status:'needs_review'});
+   firm();state.payout.mockResolvedValue({id:'po_test',amount:41000,currency:'ron',status:'paid',arrival_date:1800000000});
+   expect((await POST(request())).status).toBe(200);expect(db.prepare('SELECT status FROM stripe_webhook_inbox').get()).toEqual({status:'processed'});
+ });
+});
 describe('refund webhook reconciliation',()=>{
  it('fetches current provider state and deduplicates delivery',async()=>{state.retrieve.mockResolvedValue(refund('succeeded'));expect((await POST(request())).status).toBe(200);expect(db.prepare('SELECT status FROM payments').get()).toEqual({status:'refunded'});expect((await POST(request())).status).toBe(200);expect(state.retrieve).toHaveBeenCalledTimes(1);});
  it('allows retry after provider failure',async()=>{state.retrieve.mockRejectedValueOnce(Error('timeout')).mockResolvedValueOnce(refund('succeeded'));expect((await POST(request())).status).toBe(500);expect(db.prepare('SELECT * FROM stripe_events').all()).toHaveLength(0);expect((await POST(request())).status).toBe(200);expect(db.prepare('SELECT status FROM payments').get()).toEqual({status:'refunded'});});

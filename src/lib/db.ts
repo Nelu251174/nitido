@@ -1,3 +1,5 @@
+import {PAYOUT_RECONCILIATION_SCHEMA} from "./payoutReconciliation";
+import {STRIPE_INBOX_SCHEMA} from "./stripeInbox";
 import {EMAIL_VERIFICATION_SCHEMA} from "./emailVerification";
 import { ASSESSMENT_SCHEMA } from "./assessments";
 import { CATALOG_CAPACITY_SCHEMA } from "./catalogCapacity";
@@ -28,6 +30,8 @@ db.pragma("foreign_keys = ON");
 // Exportată separat ca teste (vitest) să poată crea o bază de date in-memory
 // cu aceeași schemă, izolată de fișierul de date reale.
 export const SCHEMA_SQL = `
+${PAYOUT_RECONCILIATION_SCHEMA}
+${STRIPE_INBOX_SCHEMA}
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   role TEXT NOT NULL CHECK (role IN ('client','firma')),

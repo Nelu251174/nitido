@@ -32,6 +32,8 @@ jobs:
         run: node --test scripts/recovery.test.mjs
       - name: Verifică executabilul de recurență
         run: node --test scripts/recurring-runner.test.mjs
+      - name: Verifică poarta de lansare și preflight staging
+        run: node --test scripts/release-gate.test.mjs
       - name: Build
         env:
           STRIPE_SECRET_KEY: sk_test_ci_dummy

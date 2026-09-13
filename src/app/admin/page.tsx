@@ -5,6 +5,7 @@ import Link from "next/link";
 import {AdminServiceCatalog} from "@/components/AdminServiceCatalog";
 import {AdminAssessments} from "@/components/AdminAssessments";
 import {AdminOperations} from "@/components/AdminOperations";
+import {PayoutReconciliation} from "@/components/PayoutReconciliation";
 import {BoardSidebar} from "@/components/BoardSidebar";
 import { Logo, Card, Button, inputClass } from "@/components/ui";
 import { JobRow } from "@/lib/types";
@@ -36,6 +37,7 @@ interface PaymentRow {
   dispute_status: string;
 }
 
+interface WebhookIssue {event_id:string;event_type:string;resource_id:string|null;status:string;attempts:number;received_at:string}
 interface AuthorizationIssue {job_id:string;status:string;created_ms:number;stripe_payment_intent_id:string|null}
 const authorizationLabels:Record<string,string>={reconciliation_required:"Reconciliere obligatorie",pending:"Verificare în curs",unknown:"Rezultat neconfirmat",requires_action:"Confirmare necesară de la client",requires_payment_method:"Card necesar",canceled:"Autorizare anulată sau expirată",processing:"Procesare Stripe"};
 
@@ -74,6 +76,7 @@ export default function AdminPage() {
   const [firms, setFirms] = useState<FirmRow[]>([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [authorizationIssues,setAuthorizationIssues]=useState<AuthorizationIssue[]>([]);
+  const [webhookIssues,setWebhookIssues]=useState<WebhookIssue[]>([]);
   const [bankPayouts,setBankPayouts]=useState<BankPayoutRow[]>([]);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [proofs, setProofs] = useState<ProofRow[]>([]);
@@ -98,6 +101,7 @@ export default function AdminPage() {
     setFirms(data.firms);
     setPayments(data.payments);
     setBankPayouts(data.bankPayouts??[]);
+    setWebhookIssues(data.webhookIssues??[]);
     setAuthorizationIssues(data.authorizationIssues??[]);
     setNotifications(data.notifications ?? []);
     setProofs(data.proofs ?? []);
@@ -428,6 +432,11 @@ export default function AdminPage() {
             </table>
           </div>
         </section>
+        <section aria-label="Notificări Stripe de verificat">
+          <h2 className="font-display font-bold text-ink mb-3">Notificări Stripe de verificat</h2>
+          <p className="text-sm text-muted mb-3">Erorile pot fi retrimise din Stripe. Resursele neasociate necesită verificarea referinței înainte de retrimitere.</p>
+          {!webhookIssues.length?<p className="text-sm text-muted">Nu sunt notificări restante înregistrate.</p>:<div className="overflow-x-auto"><table className="workspace-table"><thead><tr><th>Eveniment</th><th>Resursă</th><th>Stare</th><th>Încercări</th></tr></thead><tbody>{webhookIssues.map(e=><tr key={e.event_id}><td className="break-all">{e.event_type}<small>{e.event_id}</small></td><td className="break-all">{e.resource_id??'Neidentificată'}</td><td>{e.status==='failed'?'Sincronizare eșuată':e.status==='received'?'Procesare neconfirmată':'Necesită reconciliere'}</td><td>{e.attempts}</td></tr>)}</tbody></table></div>}
+        </section>
         <section aria-label="Autorizări de verificat">
           <h2 className="font-display font-bold text-ink mb-3">Autorizări de plată de verificat</h2>
           <p className="text-sm text-muted mb-3">Cererile cu rezultat neclar trebuie reconciliate înainte de o nouă blocare pe card.</p>
@@ -436,7 +445,7 @@ export default function AdminPage() {
         <section aria-label="Viramente bancare Stripe">
           <h2 className="font-display font-bold text-ink mb-3">Viramente bancare către firme</h2>
           <p className="text-sm text-muted mb-3">Un virament poate cumula mai multe lucrări. Asocierea sumelor cu fiecare lucrare necesită reconciliere financiară.</p>
-          {bankPayouts.length===0?<p className="text-sm text-muted">Încă nu sunt înregistrate notificări de virament bancar.</p>:<div className="overflow-x-auto"><table className="w-full text-sm bg-white border border-line"><thead className="bg-mist text-muted"><tr><th className="text-left p-3">Firmă</th><th className="text-left p-3">Sumă</th><th className="text-left p-3">Stare</th><th className="text-left p-3">Sosire estimată</th><th className="text-left p-3">Referință Stripe</th></tr></thead><tbody>{bankPayouts.map(p=><tr key={`${p.account_id}:${p.payout_id}`} className="border-t border-line"><td className="p-3">{p.firm_name??"Firmă neidentificată"}</td><td className="p-3 whitespace-nowrap">{payoutAmount(p)}</td><td className="p-3">{payoutLabels[p.status]??"Necesită verificare"}</td><td className="p-3">{new Date(p.arrival_date*1000).toLocaleDateString("ro-RO",{timeZone:"Europe/Bucharest"})}</td><td className="p-3 break-all">{p.payout_id}</td></tr>)}</tbody></table></div>}
+          {bankPayouts.length===0?<p className="text-sm text-muted">Încă nu sunt înregistrate notificări de virament bancar.</p>:<div className="overflow-x-auto"><table className="w-full text-sm bg-white border border-line"><thead className="bg-mist text-muted"><tr><th className="text-left p-3">Firmă</th><th className="text-left p-3">Sumă</th><th className="text-left p-3">Stare</th><th className="text-left p-3">Sosire estimată</th><th className="text-left p-3">Referință Stripe</th><th className="text-left p-3">Reconciliere</th></tr></thead><tbody>{bankPayouts.map(p=><tr key={`${p.account_id}:${p.payout_id}`} className="border-t border-line"><td className="p-3">{p.firm_name??"Firmă neidentificată"}</td><td className="p-3 whitespace-nowrap">{payoutAmount(p)}</td><td className="p-3">{payoutLabels[p.status]??"Necesită verificare"}</td><td className="p-3">{new Date(p.arrival_date*1000).toLocaleDateString("ro-RO",{timeZone:"Europe/Bucharest"})}</td><td className="p-3 break-all">{p.payout_id}</td><td className="p-3"><PayoutReconciliation accountId={p.account_id} payoutId={p.payout_id}/></td></tr>)}</tbody></table></div>}
         </section>
         <section>
           <h2 className="font-display font-bold text-ink mb-3">Notificări SMS</h2>
