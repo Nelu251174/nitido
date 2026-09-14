@@ -1057,6 +1057,8 @@ function ReferralCard({ code, creditBalance }: { code: string; creditBalance: nu
 }
 
 function RecurringSection({ defaults }: { defaults: { street: string; postalCode: string; city: string; floor: string; sqm: number; spaceType: SpaceType } }) {
+  const [address, setAddress] = useState(defaults);
+  const [visitDetails, setVisitDetails] = useState("");
   const [editing, setEditing] = useState<{plan: PlanView; frequency: PlanView["frequency"]; hour: number; startDate: string; endDate: string; details: string} | null>(null);
   const [pausePlan,setPausePlan]=useState("");
   const [pauseStart,setPauseStart]=useState("");
@@ -1091,7 +1093,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
     if(statusLock.current)return;
     statusLock.current=true;setBusy(true);setMsg(null);
     try {
-      const input={...defaults,frequency,hour,startDate,endDate:endDate||null};
+      const input={...address,details:visitDetails,frequency,hour,startDate,endDate:endDate||null};
       const payload=JSON.stringify(input);
       if(!creationRequest.current||creationRequest.current.payload!==payload)creationRequest.current={payload,id:crypto.randomUUID()};
       const r=await fetch("/api/recurring",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...input,requestId:creationRequest.current.id})});
@@ -1269,9 +1271,16 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
       </details>
       {open && (
         <div className="mt-4 border-t border-line pt-4">
-          <p className="text-[11px] text-muted mb-2">
-            Se folosește adresa și spațiul din formularul de mai jos: <b>{defaults.spaceType}</b> · {defaults.sqm} m² · {defaults.city}.
-          </p>
+          <p className="text-sm text-muted mb-3">Configurează spațiul pentru această serie de vizite.</p>
+          <div className="grid gap-3 sm:grid-cols-2 mb-4">
+            <Field label="Stradă și număr"><input className={inputClass} maxLength={300} value={address.street} onChange={event=>setAddress({...address,street:event.target.value})}/></Field>
+            <Field label="Oraș"><input className={inputClass} maxLength={120} value={address.city} onChange={event=>setAddress({...address,city:event.target.value})}/></Field>
+            <Field label="Cod poștal"><input className={inputClass} maxLength={30} value={address.postalCode} onChange={event=>setAddress({...address,postalCode:event.target.value})}/></Field>
+            <Field label="Etaj"><input className={inputClass} maxLength={100} value={address.floor} onChange={event=>setAddress({...address,floor:event.target.value})}/></Field>
+            <Field label="Suprafață, m²"><input className={inputClass} type="number" min={1} max={1000} step={1} value={address.sqm} onChange={event=>setAddress({...address,sqm:Number(event.target.value)})}/></Field>
+            <Field label="Tip spațiu"><select className={inputClass} value={address.spaceType} onChange={event=>setAddress({...address,spaceType:event.target.value as SpaceType})}><option value="apartament">Apartament</option><option value="casa">Casă</option><option value="birou">Birou</option><option value="altul">Alt spațiu</option></select></Field>
+          </div>
+          <Field label="Preferințe pentru vizite"><textarea className={inputClass} maxLength={500} rows={3} value={visitDetails} onChange={event=>setVisitDetails(event.target.value)} placeholder="Materiale sensibile, animale de companie, preferințe de curățenie…"/></Field>
           <span className="block text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1">Frecvență</span>
           <div className="grid grid-cols-3 gap-2 mb-3">
             {(["weekly", "biweekly", "monthly"] as const).map((f) => (
