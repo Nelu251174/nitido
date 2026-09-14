@@ -1,3 +1,4 @@
+import {HOST_DEFAULTS,hostLocalInstant,type HostSettings} from './hostScheduleShared';
 import {propertyOrganization,ORGANIZATION_SCHEMA} from "./organizations";
 import {firmAvailabilityError} from "./firmAvailability";
 import {notice} from "./visitCare";
@@ -52,6 +53,22 @@ CREATE TABLE IF NOT EXISTS workspace_calendar_events (
  status TEXT NOT NULL DEFAULT 'active', imported_at TEXT NOT NULL,
  UNIQUE(property_id,source,uid)
 );
+CREATE TABLE IF NOT EXISTS workspace_host_settings (
+ property_id TEXT PRIMARY KEY REFERENCES workspace_properties(id),
+ arrival_hour INTEGER NOT NULL DEFAULT 15 CHECK(arrival_hour BETWEEN 0 AND 23),
+ departure_hour INTEGER NOT NULL DEFAULT 11 CHECK(departure_hour BETWEEN 0 AND 23),
+ after_minutes INTEGER NOT NULL DEFAULT 0 CHECK(after_minutes BETWEEN 0 AND 240),
+ before_minutes INTEGER NOT NULL DEFAULT 30 CHECK(before_minutes BETWEEN 0 AND 240)
+);
+CREATE TABLE IF NOT EXISTS workspace_host_event_dates (
+ event_id TEXT PRIMARY KEY REFERENCES workspace_calendar_events(id),
+ arrival_date TEXT NOT NULL, departure_date TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS workspace_host_jobs (
+ job_id TEXT PRIMARY KEY REFERENCES jobs(id), event_id TEXT NOT NULL REFERENCES workspace_calendar_events(id),
+ revision TEXT NOT NULL, created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS workspace_host_jobs_event ON workspace_host_jobs(event_id);
 CREATE TABLE IF NOT EXISTS workspace_audit (
  id TEXT PRIMARY KEY, actor_id TEXT NOT NULL REFERENCES users(id), action TEXT NOT NULL,
  resource_id TEXT NOT NULL, created_at TEXT NOT NULL
@@ -167,6 +184,7 @@ export function saveProperty(db:Database,userId:string,b:Record<string,unknown>)
 export function linkPropertyJob(db:Database,userId:string,propertyId:string,jobId:string){
  ownProperty(db,userId,propertyId);
  const previous=db.prepare('SELECT property_id FROM workspace_property_jobs WHERE job_id=?').get(jobId) as {property_id:string}|undefined;
+ if(previous&&previous.property_id!==propertyId&&db.prepare('SELECT 1 FROM workspace_host_jobs WHERE job_id=?').get(jobId))throw new WorkspaceError('Curățenia dintre rezervări rămâne asociată proprietății inițiale.',409);
  if(previous&&previous.property_id!==propertyId&&(propertyOrganization(db,previous.property_id)||propertyOrganization(db,propertyId)))throw new WorkspaceError('Lucrarea este deja asociată. Mutarea între portofolii nu este permisă.',409);
  if(!db.prepare("SELECT id FROM jobs WHERE id=? AND client_id=?").get(jobId,userId))throw new WorkspaceError("Lucrare inexistentă",404);
  db.prepare("INSERT INTO workspace_property_jobs(job_id,property_id) VALUES(?,?) ON CONFLICT(job_id) DO UPDATE SET property_id=excluded.property_id").run(jobId,propertyId);
@@ -254,15 +272,32 @@ export function parseCalendar(input:string) {
   function date(name:string){const raw=val(name);if(!/^\d{8}(T\d{6}Z)?$/.test(raw))throw new WorkspaceError("Calendarul trebuie să folosească date întregi sau ore UTC (Z).");const iso=`${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`+(raw.length===8?"T00:00:00Z":`T${raw.slice(9,11)}:${raw.slice(11,13)}:${raw.slice(13,15)}Z`);const d=new Date(iso);if(!Number.isFinite(d.getTime())||d.toISOString().slice(0,10)!==iso.slice(0,10))throw new WorkspaceError("Dată invalidă în calendar.");return d.toISOString()}
   const uid=requireText(val("UID"),"UID",500),status=val("STATUS")==="CANCELLED"?"cancelled":"active";
   if(status==="cancelled"&&!val("DTSTART"))return {uid,status,starts_at:"",ends_at:""};
+  if((val("DTSTART").length===8)!==(val("DTEND").length===8))throw new WorkspaceError("Folosește același tip de dată pentru sosire și plecare.");
   const starts_at=date("DTSTART"),ends_at=date("DTEND");
   if(ends_at<=starts_at)throw new WorkspaceError("Interval calendaristic invalid.");
   if(val("RRULE")||val("RECURRENCE-ID"))throw new WorkspaceError("Exportă evenimente individuale; recurențele iCal nu sunt acceptate la import.");
-  return {uid,status,starts_at,ends_at};
+  return {uid,status,starts_at,ends_at,dateOnly:val("DTSTART").length===8&&val("DTEND").length===8};
  });
 }
 export function importCalendar(db:Database,userId:string,propertyId:string,source:string,input:string){
- ownProperty(db,userId,propertyId);const key=requireText(source,"Sursă",80),events=parseCalendar(input),now=new Date().toISOString();
- return db.transaction(()=>{for(const e of events){if(!e.starts_at){db.prepare("UPDATE workspace_calendar_events SET status='cancelled',imported_at=? WHERE property_id=? AND source=? AND uid=?").run(now,propertyId,key,e.uid);continue}db.prepare("INSERT INTO workspace_calendar_events VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(property_id,source,uid) DO UPDATE SET starts_at=excluded.starts_at,ends_at=excluded.ends_at,status=excluded.status,imported_at=excluded.imported_at").run(randomUUID(),propertyId,key,e.uid,e.starts_at,e.ends_at,"Perioadă ocupată",e.status,now)}audit(db,userId,"calendar.import",propertyId);return events.length})();
+ const key=requireText(source,"Sursă",80),events=parseCalendar(input),now=new Date().toISOString();
+ if(key==='Manual NITIDO')throw new WorkspaceError('Alege alt nume pentru sursa importată.');
+ if(new Set(events.map(e=>e.uid)).size!==events.length)throw new WorkspaceError('Calendarul conține identificatori dubli. Exportă evenimente individuale.');
+ return db.transaction(()=>{
+  const property=ownProperty(db,userId,propertyId);
+  const settings=(db.prepare('SELECT * FROM workspace_host_settings WHERE property_id=?').get(propertyId)??HOST_DEFAULTS) as HostSettings;
+  for(const e of events){
+   if(!e.starts_at){db.prepare("UPDATE workspace_calendar_events SET status='cancelled',imported_at=? WHERE property_id=? AND source=? AND uid=?").run(now,propertyId,key,e.uid);continue;}
+   let starts=e.starts_at,ends=e.ends_at;
+   if(property.kind==='host'&&e.dateOnly){try{starts=hostLocalInstant(e.starts_at.slice(0,10),settings.arrival_hour);ends=hostLocalInstant(e.ends_at.slice(0,10),settings.departure_hour);}catch(err){throw new WorkspaceError(err instanceof Error?err.message:'Dată invalidă.');}}
+   if(ends<=starts)throw new WorkspaceError('Orele proprietății produc un interval invalid.');
+   db.prepare("INSERT INTO workspace_calendar_events VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(property_id,source,uid) DO UPDATE SET starts_at=excluded.starts_at,ends_at=excluded.ends_at,status=excluded.status,imported_at=excluded.imported_at").run(randomUUID(),propertyId,key,e.uid,starts,ends,"Perioadă ocupată",e.status,now);
+   const saved=db.prepare('SELECT id FROM workspace_calendar_events WHERE property_id=? AND source=? AND uid=?').get(propertyId,key,e.uid) as {id:string};
+   if(property.kind==='host'&&e.dateOnly)db.prepare('INSERT INTO workspace_host_event_dates VALUES(?,?,?) ON CONFLICT(event_id) DO UPDATE SET arrival_date=excluded.arrival_date,departure_date=excluded.departure_date').run(saved.id,e.starts_at.slice(0,10),e.ends_at.slice(0,10));
+   else db.prepare('DELETE FROM workspace_host_event_dates WHERE event_id=?').run(saved.id);
+  }
+  audit(db,userId,'calendar.import',propertyId);return events.length;
+ }).immediate();
 }
 
 export function messageInbox(db:Database,userId:string){

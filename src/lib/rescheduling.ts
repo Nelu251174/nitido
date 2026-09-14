@@ -1,3 +1,4 @@
+import {validateHostReschedule} from './hostTurnover';
 import {notifySchedule} from "./visitCare";
 import type {Database} from 'better-sqlite3';
 import {randomUUID} from 'node:crypto';
@@ -37,6 +38,7 @@ function movable(db:Database,job:JobRow){
  if(authorizationMustStop(db,job.id))fail('Rezervarea are o operațiune de anulare în curs.');
 }
 function applyDate(db:Database,job:JobRow,date:string){
+ validateHostReschedule(db,job,date);
  db.prepare("UPDATE jobs SET scheduled_at=?,when_type='scheduled' WHERE id=?").run(date,job.id);
  // occurrence_date remains the immutable series identity, even when the visit moves.
  db.prepare('UPDATE recurring_occurrences SET scheduled_at=? WHERE job_id=?').run(date,job.id);
@@ -55,6 +57,7 @@ export function proposeReschedule(db:Database,id:string,user:Actor,input:{date:u
   const job=access(db,id,user);movable(db,job);
   if(job.scheduled_at!==input.expectedAt)fail('Programul s-a schimbat. Reîncarcă rezervarea.');
   if(job.scheduled_at===date)fail('Alege un interval diferit.',400);
+  validateHostReschedule(db,job,date);
   const prior=db.prepare("SELECT * FROM job_reschedule_requests WHERE job_id=? AND status='pending'").get(id) as RequestRow|undefined;
   if(prior){if(prior.proposed_at===date)return {status:'pending'};fail('Există deja o propunere. Retrage-o înainte să alegi alt interval.')}
   const status=job.status==='waiting'?'accepted':'pending';
@@ -76,6 +79,7 @@ export async function decideReschedule(db:Database,id:string,user:Actor,requestI
  const status=action==='accept'?'accepted':action==='reject'?'rejected':'withdrawn';
  if(request.status===status)return {status};
  if(request.status!=='pending')fail('Propunerea a fost deja soluționată.');
+ if(action==='accept')validateHostReschedule(db,job,request.proposed_at);
  let paymentId:string|null=null;
  let intentId:string|null=null,needsAuthorization=false;
  if(action==='accept'&&!job.guarantee_of){

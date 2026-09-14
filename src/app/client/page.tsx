@@ -104,6 +104,7 @@ export default function ClientPage() {
   const { user, loading } = useCurrentUser();
 
   const [approvalId,setApprovalId]=useState<string|null>(null);
+  const [hostEventId,setHostEventId]=useState<string|null>(null),[hostRevision,setHostRevision]=useState<string|null>(null);
   const [propertyId,setPropertyId]=useState<string|null>(null);
   const requestRef=useRef<{payload:string;id:string}|null>(null);
   const [showBooking,setShowBooking]=useState(false);
@@ -164,7 +165,7 @@ export default function ClientPage() {
         setSqm(draft.sqm);setSpaceType(draft.spaceType);setWhenType(draft.whenType);setMode(draft.mode);setExpress60(draft.express60);
         setScheduledDate(draft.scheduledDate);setScheduledHour(draft.scheduledHour);
         restoredCardId.current=draft.cardId??null;
-        setPropertyId(draft.propertyId);setApprovalId(draft.approvalId);setPhotos(draft.photos);setShowBooking(true);
+        setHostEventId(draft.hostEventId??null);setHostRevision(draft.hostRevision??null);setPropertyId(draft.propertyId);setApprovalId(draft.approvalId);setPhotos(draft.photos);setShowBooking(true);
         setDraftNotice(params.get('card')==='cancelled'?'Adăugarea cardului a fost anulată. Rezervarea ta este păstrată.':'Rezervarea ta a fost restaurată. Verifică detaliile înainte de publicare.');
       }
     }
@@ -176,6 +177,8 @@ export default function ClientPage() {
     const requestedDate=params.get("date"),requestedHour=Number(params.get("hour"));
     if(requestedDate&&bookingDateKey(requestedDate)===requestedDate){setWhenType("scheduled");setScheduledDate(requestedDate);if(params.has("hour")&&(SLOT_HOURS as readonly number[]).includes(requestedHour))setScheduledHour(requestedHour)}
     const approval=params.get("approvalId");if(approval){void fetch("/api/collaboration").then(r=>r.json()).then(d=>{const a=d.approvals?.find((a:{id:string;status:string})=>a.id===approval&&a.status==='approved');if(!a||!bookingDateKey(a.date)){setError("Aprobarea nu este disponibilă sau data ei este invalidă.");return}setApprovalId(a.id);setWhenType("scheduled");setScheduledDate(bookingDateKey(a.date)!);setScheduledHour(null)}).catch(()=>setError("Aprobarea nu a putut fi încărcată."))}
+    const hostEvent=params.get('hostEventId'),hostVersion=params.get('hostRevision');
+    if(hostEvent&&hostVersion&&/^[a-f0-9]{64}$/.test(hostVersion)){setHostEventId(hostEvent);setHostRevision(hostVersion);setMode('standard');setExpress60(false);}
     const id=params.get("propertyId");if(id){void fetch("/api/workspace").then(r=>{if(!r.ok)throw new Error();return r.json()}).then(d=>{const p=d.properties.find((p:{id:string})=>p.id===id);if(!p){setError("Proprietatea nu este disponibilă.");return}setPropertyId(p.id);setStreet(p.street);setPostalCode(p.postal_code??"");setFloor(p.floor??"");setCity(p.city);setSqm(p.sqm);setSpaceType(p.space_type);setTimeout(()=>document.getElementById("sec-form")?.scrollIntoView({behavior:"smooth",block:"start"}),60)}).catch(()=>setError("Proprietatea nu a putut fi încărcată."))}
   },[user?.id,user?.role]);
 
@@ -273,7 +276,7 @@ export default function ClientPage() {
       }
       if(showBooking){
         let saved=false;
-        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{street,postalCode,city,floor,details,sqm,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,photos,cardId:selectedCardId}));}catch{/* Storage can be blocked by the browser. */}
+        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{street,postalCode,city,floor,details,sqm,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,hostEventId,hostRevision,photos,cardId:selectedCardId}));}catch{/* Storage can be blocked by the browser. */}
         if(!saved){setCardError('Rezervarea nu poate fi păstrată în această filă. Permite stocarea pentru site și încearcă din nou.');setCardBusy(false);return;}
       }else{try{clearBookingDraft(window.sessionStorage);}catch{/* No draft to preserve. */}}
       window.location.href = d.url; // redirect către pagina de card găzduită de Stripe
@@ -328,7 +331,7 @@ export default function ClientPage() {
     return()=>{window.clearInterval(timer);window.removeEventListener('focus',refresh);};
   },[]);
   const asapSlot=useMemo(()=>nextBucharestSlot(calendarNow),[calendarNow]);
-  const next14Days=useMemo(()=>bookingCalendarDays(calendarNow),[calendarNow]);
+  const next14Days=useMemo(()=>bookingCalendarDays(calendarNow,hostEventId?32:14),[calendarNow,hostEventId]);
   const scheduledSlotExpired=whenType==='scheduled'&&scheduledHour!==null&&!isBookableRomanianSlot(scheduledDate,scheduledHour,calendarNow);
 
   async function postJob() {
@@ -348,6 +351,7 @@ export default function ClientPage() {
         details,
         photoIds: photos.map((p) => p.id),
         propertyId,
+        hostEventId,hostRevision,
         approvalId,
         ...(cardConfigured?{cardId:selectedCardId}:{}),
       };
@@ -379,7 +383,7 @@ export default function ClientPage() {
       setJob(data.job);
       setDraftNotice(null);
       try{clearBookingDraft(window.sessionStorage);}catch{/* Storage can be unavailable. */}
-      requestRef.current=null;
+      requestRef.current=null;setHostEventId(null);setHostRevision(null);
       setShowBooking(false);
       refreshMyJobs();
     } catch (e) {
@@ -590,6 +594,7 @@ export default function ClientPage() {
         <div id="sec-form" />
         {!job && showBooking && (
           <Card>
+            {hostEventId&&<p role="status" className="mb-4 rounded-xl border border-aqua bg-mist p-4 text-sm">Curățenie între rezervări. Proprietatea și intervalul sunt verificate din nou la publicare. <Link href="/client/host" className="underline">Înapoi la calendar</Link></p>}
             {draftNotice&&<p role="status" className="mb-4 rounded-xl border border-aqua bg-mist p-4 text-sm">{draftNotice}</p>}
             <h1 className="font-display font-extrabold text-xl text-ink mb-1">
               Postează o lucrare

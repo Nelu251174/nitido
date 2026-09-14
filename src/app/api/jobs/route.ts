@@ -1,3 +1,4 @@
+import {turnoverReplay,validateTurnoverBooking} from '@/lib/hostTurnover';
 import {enforceOrganizationBooking,OrganizationError} from "@/lib/organizations";
 import {snapshotInstructions} from "@/lib/visitCare";
 import {firmJobView} from "@/lib/firmJobView";
@@ -155,6 +156,7 @@ export async function POST(req: NextRequest) {
   if(!body||typeof body!=="object")return NextResponse.json({error:"Cerere invalidă"},{status:400});
   if(body.propertyId){try{ownProperty(db,user.id,String(body.propertyId))}catch(e){return NextResponse.json({error:e instanceof WorkspaceError?e.message:"Proprietate invalidă"},{status:404})}}
 
+  if(body.hostEventId){const existing=turnoverReplay(db,user.id,String(body.hostEventId));if(existing)return NextResponse.json({job:existing,replayed:true});}
   const {
     street,
     postalCode,
@@ -294,6 +296,11 @@ export async function POST(req: NextRequest) {
       const existing = db.prepare("SELECT * FROM jobs WHERE client_id = ? AND client_request_id = ?").get(user.id, requestId) as JobRow | undefined;
       if (existing) return { job: existing, replayed: true };
     }
+    let hostLink:{eventId:string;revision:string}|null=null;
+    if(body.hostEventId){
+      const replay=turnoverReplay(db,user.id,String(body.hostEventId));if(replay)return {job:replay,replayed:true};
+      hostLink=validateTurnoverBooking(db,user.id,body,scheduledAt.toISOString(),durationMinutes,BUFFER_MINUTES);
+    }
     if (creditUsed > 0) db.prepare("UPDATE users SET credit_balance = credit_balance - ? WHERE id = ?").run(creditUsed, user.id);
     db.prepare(
       `INSERT INTO jobs
@@ -308,12 +315,13 @@ export async function POST(req: NextRequest) {
       const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL");
       for (const photoId of ownedPhotoIds) linkPhoto.run(id, photoId, user.id);
     }
+    if(hostLink)db.prepare('INSERT INTO workspace_host_jobs VALUES(?,?,?,?)').run(id,hostLink.eventId,hostLink.revision,new Date().toISOString());
     if(body.propertyId)linkPropertyJob(db,user.id,String(body.propertyId),id);
     if(body.approvalId)consumeApproval(db,user.id,String(body.approvalId),id);
     const linked=db.prepare("SELECT property_id FROM workspace_property_jobs WHERE job_id=?").get(id) as {property_id:string}|undefined;
     if(linked){enforceOrganizationBooking(db,linked.property_id,id);enforcePropertyBudget(db,linked.property_id,id);snapshotInstructions(db,id,linked.property_id,user.id);}
     return { job: db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow, replayed: false };
-  })();
+  }).immediate();
   } catch(e) { if(e instanceof AccessError || e instanceof OrganizationError || e instanceof WorkspaceError || e instanceof CardSetupError)return NextResponse.json({error:e.message},{status:e.status}); throw e; }
   if (created.replayed) return NextResponse.json({ job: created.job, replayed: true });
   const job = created.job;

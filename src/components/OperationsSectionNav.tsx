@@ -3,10 +3,10 @@ import {DesignIcon,type DesignIconName} from './DesignIcon';
 export function OperationsSectionNav({screen}:{screen:'host'|'business'}){
  const items:{label:string;href:string;icon:DesignIconName}[]=screen==='host'?[
  {label:'Proprietăți',href:'#locatii',icon:'home'},
- {label:'Calendar și pregătire',href:'#pregatire',icon:'calendar'},
+ {label:'Curățenie între rezervări',href:'#plan-curatenie',icon:'calendar'},
  {label:'Curățenie',href:'/client#sec-lucrari',icon:'broom'},
  {label:'Lenjerie și consumabile',href:'#inventar',icon:'check'},
- {label:'Integrări',href:'#calendar-import',icon:'calendar'},
+ {label:'Import calendar',href:'#calendar-import',icon:'calendar'},
  ]:[
  {label:'Organizații',href:'/client/organizatii',icon:'building'},
  {label:'Portofoliu',href:'#locatii',icon:'building'},
