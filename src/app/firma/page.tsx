@@ -1,4 +1,5 @@
 "use client";
+import {VisitCare} from "@/components/VisitCare";
 import {RescheduleVisit} from '@/components/RescheduleVisit';
 import { logoutWithNativePush } from "@/lib/nativePushClient";
 import {EmailVerificationNotice} from "@/components/EmailVerificationNotice";
@@ -428,6 +429,7 @@ export default function FirmaPage() {
                 <div className="text-xs text-muted mb-3">
                   {job.sqm} mp · {job.firm_payout ?? job.financial?.firmPayout ?? "—"} lei · status: {job.status}
                 </div>
+                <VisitCare jobId={job.id}/>
                 {job.status==='accepted'&&!job.express_60&&<RescheduleVisit jobId={job.id} scheduledAt={job.scheduled_at} status={job.status} role="firma" onChanged={refresh}/>}
                 {job.details&&<section className="mb-3 rounded-lg border border-line p-3"><h3 className="font-bold text-sm">Instrucțiunile clientului</h3><p className="text-sm whitespace-pre-wrap break-words">{job.details}</p></section>}
                 {job.status === "accepted" && (

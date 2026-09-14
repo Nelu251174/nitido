@@ -1,3 +1,4 @@
+import {notice} from "./visitCare";
 import type { Database } from "better-sqlite3";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { calcGrossPrice, type SpaceType } from "./pricing";
@@ -77,7 +78,7 @@ export function acceptInvite(db:Database,userId:string,token:string){
 export function revokeMember(db:Database,userId:string,id:string){
   const member=db.prepare("SELECT kind,resource_id,user_id FROM workspace_members WHERE id=?").get(id) as {kind:string;resource_id:string;user_id:string}|undefined;
   if(!member||resourceOwner(db,member.kind,member.resource_id)!==userId)throw new AccessError("Acces interzis.",403);
-  db.transaction(()=>{db.prepare("UPDATE workspace_members SET active=0 WHERE id=?").run(id);db.prepare("UPDATE workspace_invites SET revoked=1 WHERE kind=? AND resource_id=? AND accepted_by=?").run(member.kind,member.resource_id,member.user_id);audit(db,userId,"member.revoke",id)})();
+  db.transaction(()=>{db.prepare("UPDATE workspace_members SET active=0 WHERE id=?").run(id);db.prepare("UPDATE workspace_invites SET revoked=1 WHERE kind=? AND resource_id=? AND accepted_by=?").run(member.kind,member.resource_id,member.user_id);notice(db,member.user_id,null,"Accesul tău la o echipă sau proprietate a fost revocat.",member.kind==="team"?"/echipa":"/colaborari");audit(db,userId,"member.revoke",id)})();
 }
 /** Resolve on every request: membership revocation and job reassignment take effect immediately. */
 export function executionAccess(db:Database,userId:string,jobId:string){

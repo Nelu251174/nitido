@@ -1,3 +1,4 @@
+import {VISIT_CARE_SCHEMA} from "./visitCare";
 import {SAVED_CARDS_SCHEMA,initializeSavedCards} from "./savedCards";
 import {NOTIFICATION_CLAIM_SCHEMA,initializeNotificationClaims} from "./notificationClaims";
 import {SELECTION_RECOVERY_SCHEMA} from "./selectionRecovery";
@@ -368,7 +369,7 @@ CREATE INDEX IF NOT EXISTS idx_offers_job ON offers(job_id, status);
 
 -- Nitido Repeat (Etapa 3): abonamente recurente — aceeași echipă, la interval fix.
 -- Planul păstrează șablonul lucrării; sistemul generează automat următoarea
--- lucrare când e scadentă (next_run_date) și o alocă firmei preferate.
+-- lucrare în orizontul curent; alocarea și plata se confirmă per vizită.
 CREATE TABLE IF NOT EXISTS recurring_plans (
   id TEXT PRIMARY KEY,
   client_id TEXT NOT NULL REFERENCES users(id),
@@ -453,6 +454,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS reschedule_authorizations (
  last_error TEXT, applied_at TEXT
 );
 CREATE INDEX IF NOT EXISTS reschedule_authorization_cleanup ON reschedule_authorizations(cleanup_status,retry_after_ms);`);
+db.exec(VISIT_CARE_SCHEMA);
 initializeCatalog(db);
 db.exec(CATALOG_CAPACITY_SCHEMA);
 db.exec(ASSESSMENT_SCHEMA);
@@ -529,6 +531,28 @@ ensureColumn("payments", "transfer_status", "TEXT NOT NULL DEFAULT 'not_started'
 ensureColumn("payments", "stripe_transfer_id", "TEXT");
 ensureColumn("payments", "payout_status", "TEXT NOT NULL DEFAULT 'unknown'");
 ensureColumn("payments", "refund_status", "TEXT NOT NULL DEFAULT 'none'");
+ensureColumn("workspace_teams", "minimum_duration_minutes", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("workspace_teams", "travel_minutes", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("recurring_plans", "schedule_generation", "INTEGER NOT NULL DEFAULT 0");
+// Preserve each visit identity across frequency changes, including dates reused by a new schedule.
+db.transaction(() => {
+  const occurrenceColumns = db.prepare('PRAGMA table_info(recurring_occurrences)').all() as {name:string;pk:number}[];
+  if (occurrenceColumns.some(c => c.name === 'schedule_generation')) return;
+  db.exec(`CREATE TABLE recurring_occurrences_next (
+    plan_id TEXT NOT NULL REFERENCES recurring_plans(id),
+    schedule_generation INTEGER NOT NULL DEFAULT 0,
+    occurrence_date TEXT NOT NULL,
+    job_id TEXT NOT NULL UNIQUE REFERENCES jobs(id),
+    scheduled_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY(plan_id,schedule_generation,occurrence_date)
+  );
+  INSERT INTO recurring_occurrences_next(plan_id,occurrence_date,job_id,scheduled_at,created_at)
+    SELECT plan_id,occurrence_date,job_id,scheduled_at,created_at FROM recurring_occurrences;
+  DROP TABLE recurring_occurrences;
+  ALTER TABLE recurring_occurrences_next RENAME TO recurring_occurrences;
+  CREATE INDEX idx_recurring_occurrence_date ON recurring_occurrences(occurrence_date DESC);`);
+}).immediate();
 ensureColumn("recurring_plans", "anchor_day", "INTEGER");
 ensureColumn("recurring_plans", "end_date", "TEXT");
 ensureColumn("recurring_plans", "property_id", "TEXT REFERENCES workspace_properties(id)");

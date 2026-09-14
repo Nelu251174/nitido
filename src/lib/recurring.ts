@@ -1,3 +1,4 @@
+import {snapshotInstructions,notice} from "./visitCare";
 import { bucharestScheduledAt } from "@/lib/scheduling";
 export { bucharestScheduledAt } from "@/lib/scheduling";
 import type { Database } from "better-sqlite3";
@@ -14,8 +15,7 @@ import {enforcePropertyBudget,AccessError} from './collaborationAccess';
 /**
  * Nitido Repeat (Etapa 3) — abonamente recurente cu aceeași echipă.
  * Un plan păstrează șablonul lucrării; `generateDueRecurringJobs` creează
- * automat următoarea lucrare când e scadentă și o alocă firmei preferate
- * (dacă e disponibilă), reutilizând acceptJobAtomic pentru blocare + plată.
+ * vizitele următoare; firma și plata se confirmă separat pentru fiecare vizită.
  * Funcții pure (primesc `db`), testabile fără Next.js.
  */
 
@@ -104,6 +104,7 @@ export function createRecurringPlan(db: Database, input: RecurringPlanInput): Pl
     const prior=db.prepare("SELECT plan_id,payload_hash FROM recurring_creation_requests WHERE client_id=? AND request_id=?").get(input.clientId,input.requestId) as {plan_id:string;payload_hash:string}|undefined;
     if(prior)return prior.payload_hash===payloadHash?{ok:true,planId:prior.plan_id}:{ok:false,status:409,error:"Cererea a fost deja folosită cu alte date. Verifică abonamentele înainte de a crea unul nou."};
   }
+  if(input.preferredFirmId&&!db.prepare("SELECT 1 FROM firms f JOIN jobs j ON j.accepted_firm_id=f.id WHERE f.id=? AND j.client_id=? AND j.status='completed' AND f.verified=1").get(input.preferredFirmId,input.clientId))return {ok:false,status:400,error:'Alege o firmă verificată cu care ai finalizat o lucrare.'};
   const planId = `plan_${randomUUID()}`;
   db.prepare(
     `INSERT INTO recurring_plans
@@ -134,6 +135,7 @@ export function createRecurringPlan(db: Database, input: RecurringPlanInput): Pl
 }
 
 interface PlanRow {
+  schedule_generation: number;
   property_id: string | null;
   id: string;
   client_id: string;
@@ -156,7 +158,7 @@ interface PlanRow {
 function scheduleRevision(plan: PlanRow): string {
   return createHash("sha256").update(JSON.stringify([
     plan.frequency, plan.hour, plan.next_run_date, plan.anchor_day,
-    plan.end_date, plan.details, plan.status,
+    plan.end_date, plan.details, plan.status, plan.schedule_generation,
   ])).digest("hex");
 }
 
@@ -180,7 +182,7 @@ export function updateRecurringSchedule(
     if (input.startDate < plan.next_run_date || bucharestScheduledAt(input.startDate, input.hour) <= now) {
       return { ok: false, status: 400, error: "Alege o dată viitoare, cel mai devreme următoarea dată a seriei." };
     }
-    const last = db.prepare("SELECT MAX(occurrence_date) date FROM recurring_occurrences WHERE plan_id=?").get(planId) as { date: string | null };
+    const last = db.prepare("SELECT MAX(occurrence_date) date FROM recurring_occurrences WHERE plan_id=? AND schedule_generation=?").get(planId,plan.schedule_generation) as { date: string | null };
     if (last.date && input.startDate <= last.date) return { ok: false, status: 409, error: "Există deja vizite generate până la această dată. Alege o dată ulterioară." };
     const anchor = input.frequency === plan.frequency && input.startDate === plan.next_run_date
       ? plan.anchor_day ?? Number(input.startDate.slice(8, 10))
@@ -216,18 +218,21 @@ export function listPlansForClient(db: Database, clientId: string) {
     )
     .all(clientId) as Array<PlanRow & { pause_start: string | null; pause_end: string | null }>;
   const now = new Date();
-  return plans.map(plan => ({ ...plan, schedule_revision: scheduleRevision(plan), upcoming_dates: upcomingPlanDates(plan, now),
+  return plans.map(plan => ({ ...plan, preferred_firm_name:plan.preferred_firm_id?(db.prepare("SELECT u.name FROM firms f JOIN users u ON u.id=f.user_id WHERE f.id=?").get(plan.preferred_firm_id) as {name:string}|undefined)?.name??null:null,schedule_revision: scheduleRevision(plan), upcoming_dates: upcomingPlanDates(plan, now),
     next_visit_at:(db.prepare("SELECT MIN(j.scheduled_at) date FROM recurring_occurrences o JOIN jobs j ON j.id=o.job_id WHERE o.plan_id=? AND j.status IN ('waiting','accepted','arrived') AND j.scheduled_at>=?").get(plan.id,now.toISOString()) as {date:string|null}).date,
   }));
 }
 
 /** Historicul demonstrabil, inclusiv seriile anulate; fără backfill presupus. */
 export function listRecurringOccurrences(db:Database,clientId:string){
-  return db.prepare(`SELECT o.plan_id,o.occurrence_date,o.job_id,o.scheduled_at,j.status,j.city
+  return db.prepare(`SELECT o.plan_id,o.occurrence_date,o.job_id,j.scheduled_at,j.status,j.city,p.preferred_firm_id,
+    (SELECT u.name FROM firms f JOIN users u ON u.id=f.user_id WHERE f.id=p.preferred_firm_id) preferred_firm_name,
+    (SELECT status FROM offers WHERE job_id=j.id AND firm_id=p.preferred_firm_id ORDER BY created_at DESC LIMIT 1) preferred_offer_status,
+    j.accepted_firm_id
     FROM recurring_occurrences o JOIN recurring_plans p ON p.id=o.plan_id
     JOIN jobs j ON j.id=o.job_id
     WHERE p.client_id=? AND j.client_id=p.client_id
-    ORDER BY o.occurrence_date DESC,o.created_at DESC,o.job_id DESC LIMIT 200`).all(clientId);
+    ORDER BY j.scheduled_at DESC,o.created_at DESC,o.job_id DESC LIMIT 200`).all(clientId);
 }
 
 function pauseIntervalError(start:unknown,end:unknown,now:Date):Extract<PlanResult,{ok:false}>|null {
@@ -251,7 +256,7 @@ export function previewPlanPause(db:Database,planId:string,clientId:string,start
     const bounds=pauseBounds(start as string,end as string);
     const clause="FROM recurring_occurrences o JOIN jobs j ON j.id=o.job_id WHERE o.plan_id=? AND j.scheduled_at >= ? AND j.scheduled_at < ? AND j.status NOT IN ('cancelled','completed')";
     const count=(db.prepare("SELECT COUNT(*) n "+clause).get(planId,...bounds) as {n:number}).n;
-    const visits=db.prepare("SELECT o.job_id,o.scheduled_at,j.status,j.city "+clause+" AND j.client_id=? ORDER BY j.scheduled_at,o.job_id LIMIT 100").all(planId,...bounds,clientId) as Extract<PausePreview,{ok:true}>['visits'];
+    const visits=db.prepare("SELECT o.job_id,j.scheduled_at,j.status,j.city "+clause+" AND j.client_id=? ORDER BY j.scheduled_at,o.job_id LIMIT 100").all(planId,...bounds,clientId) as Extract<PausePreview,{ok:true}>['visits'];
     return {ok:true,count,visits};
   })();
 }
@@ -326,14 +331,17 @@ export async function generateDueRecurringJobs(
       while(date<=horizon&&(!plan.end_date||date<=plan.end_date)){
         const scheduled=bucharestScheduledAt(date,plan.hour);
         const paused=pause&&date>=pause.start_date&&date<=pause.end_date;
-        if(scheduled.getTime()>=now.getTime()+3600000&&!paused&&!db.prepare('SELECT 1 FROM recurring_occurrences WHERE plan_id=? AND occurrence_date=?').get(id,date)){
+        if(scheduled.getTime()>=now.getTime()+3600000&&!paused&&!db.prepare('SELECT 1 FROM recurring_occurrences WHERE plan_id=? AND schedule_generation=? AND occurrence_date=?').get(id,plan.schedule_generation,date)){
+          if(db.prepare("SELECT 1 FROM recurring_occurrences o JOIN jobs j ON j.id=o.job_id WHERE o.plan_id=? AND j.scheduled_at=? AND j.status NOT IN ('cancelled','no_show')").get(id,scheduled.toISOString()))throw new AccessError('O vizită existentă ocupă noul interval al seriei. Soluționează reprogramarea înainte de generare.',409);
           const jobId=`job_${randomUUID()}`;
           const snapshot=pricingSnapshot({spaceType:plan.space_type,sqm:plan.sqm,expressFeeLei:0,creditLei:0,createdAt:now.toISOString()});
           db.prepare(`INSERT INTO jobs(id,client_id,street,postal_code,city,floor,details,sqm,space_type,when_type,scheduled_at,price_gross,credit_applied,duration_minutes,buffer_minutes,photos_count,mode,status,pricing_snapshot)
             VALUES(?,?,?,?,?,?,?,?,?,'scheduled',?,?,0,?,?,0,'standard','waiting',?)`).run(jobId,plan.client_id,plan.street,plan.postal_code,plan.city,plan.floor,plan.details,plan.sqm,plan.space_type,scheduled.toISOString(),calcGrossPrice(plan.space_type,plan.sqm),calcDurationMinutes(plan.sqm),BUFFER_MINUTES,JSON.stringify(snapshot));
-          db.prepare('INSERT INTO recurring_occurrences(plan_id,occurrence_date,job_id,scheduled_at) VALUES(?,?,?,?)').run(id,date,jobId,scheduled.toISOString());
-          if(plan.property_id){db.prepare('INSERT INTO workspace_property_jobs(job_id,property_id) VALUES(?,?)').run(jobId,plan.property_id);enforcePropertyBudget(db,plan.property_id,jobId);}
+          db.prepare('INSERT INTO recurring_occurrences(plan_id,schedule_generation,occurrence_date,job_id,scheduled_at) VALUES(?,?,?,?,?)').run(id,plan.schedule_generation,date,jobId,scheduled.toISOString());
+          if(plan.property_id){db.prepare('INSERT INTO workspace_property_jobs(job_id,property_id) VALUES(?,?)').run(jobId,plan.property_id);enforcePropertyBudget(db,plan.property_id,jobId);snapshotInstructions(db,jobId,plan.property_id,plan.client_id);}
           db.prepare('UPDATE recurring_plans SET last_job_id=? WHERE id=?').run(jobId,id);
+          notice(db,plan.client_id,jobId,'O vizită recurentă a fost creată. Verifică prețul și alege firma.',`/client?jobId=${encodeURIComponent(jobId)}`);
+          if(plan.preferred_firm_id){const recipient=db.prepare('SELECT user_id FROM firms WHERE id=? AND verified=1').get(plan.preferred_firm_id) as {user_id:string}|undefined;if(recipient)notice(db,recipient.user_id,jobId,'Ai o invitație pentru o vizită recurentă. Verifică disponibilitatea și trimite candidatura.',`/firma?job=${encodeURIComponent(jobId)}`);}
           result.push(jobId);
         }
         date=computeNextDate(plan.frequency,new Date(`${date}T12:00:00Z`),plan.anchor_day??undefined);
@@ -345,4 +353,13 @@ export async function generateDueRecurringJobs(
     }catch(error){if(error instanceof AccessError)blocked.push({planId:id,error:error.message});else throw error;}
   }
   return {created,blocked};
+}
+
+export function setPreferredFirm(db:Database,clientId:string,planId:string,firmId:unknown){
+ return db.transaction(():PlanResult=>{
+  if(!db.prepare("SELECT 1 FROM recurring_plans WHERE id=? AND client_id=? AND status!='cancelled'").get(planId,clientId))return {ok:false,status:404,error:'Serie inexistentă.'};
+  if(firmId!==null&&(typeof firmId!=='string'||!db.prepare("SELECT 1 FROM firms f JOIN jobs j ON j.accepted_firm_id=f.id WHERE f.id=? AND j.client_id=? AND j.status='completed' AND f.verified=1").get(firmId,clientId)))return {ok:false,status:400,error:'Alege o firmă verificată cu care ai finalizat o lucrare.'};
+  db.prepare('UPDATE recurring_plans SET preferred_firm_id=? WHERE id=?').run(firmId,planId);
+  return {ok:true,planId};
+ }).immediate();
 }

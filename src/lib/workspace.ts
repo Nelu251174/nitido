@@ -1,3 +1,5 @@
+import {firmAvailabilityError} from "./firmAvailability";
+import {notice} from "./visitCare";
 import { COLLABORATION_SCHEMA, executionAccess } from "@/lib/collaborationAccess";
 import type { Database } from "better-sqlite3";
 import { randomUUID } from "node:crypto";
@@ -188,7 +190,7 @@ export function createTeamBlock(db:Database,userId:string,teamId:string,startsAt
  const label=requireText(reason,"Motiv",160);
  return db.transaction(()=>{
   if(!db.prepare("SELECT t.id FROM workspace_teams t JOIN firms f ON f.id=t.firm_id WHERE t.id=? AND f.user_id=? AND t.active=1").get(teamId,userId))throw new WorkspaceError("Echipă inexistentă.",404);
-  const jobs=db.prepare("SELECT j.scheduled_at,j.duration_minutes,j.buffer_minutes FROM workspace_assignments a JOIN jobs j ON j.id=a.job_id WHERE a.team_id=? AND j.status IN ('accepted','arrived')").all(teamId) as {scheduled_at:string;duration_minutes:number;buffer_minutes:number}[];
+  const jobs=db.prepare("SELECT j.scheduled_at,MAX(j.duration_minutes,t.minimum_duration_minutes) duration_minutes,MAX(j.buffer_minutes,t.travel_minutes) buffer_minutes FROM workspace_assignments a JOIN jobs j ON j.id=a.job_id JOIN workspace_teams t ON t.id=a.team_id WHERE a.team_id=? AND j.status IN ('accepted','arrived')").all(teamId) as {scheduled_at:string;duration_minutes:number;buffer_minutes:number}[];
   if(jobs.some(j=>{const t=Date.parse(j.scheduled_at);return t<end&&t+(j.duration_minutes+j.buffer_minutes)*60000>start}))throw new WorkspaceError("Există o lucrare alocată în acest interval, inclusiv timpul de deplasare. Realocă lucrarea înainte de blocare.",409);
   if(db.prepare("SELECT id FROM workspace_team_blocks WHERE team_id=? AND cancelled=0 AND starts_at<? AND ends_at>?").get(teamId,endsAt,startsAt))throw new WorkspaceError("Există deja o indisponibilitate suprapusă.",409);
   const id=randomUUID();db.prepare("INSERT INTO workspace_team_blocks(id,team_id,starts_at,ends_at,reason,created_by,created_at) VALUES(?,?,?,?,?,?,?)").run(id,teamId,startsAt,endsAt,label,userId,new Date().toISOString());audit(db,userId,"team.block",id);return id;
@@ -204,25 +206,36 @@ export function cancelTeamBlock(db:Database,userId:string,id:string){
 }
 export function assignTeam(db:Database,userId:string,teamId:string,jobId:string){
  return db.transaction(()=>{
- const team=db.prepare("SELECT t.* FROM workspace_teams t JOIN firms f ON f.id=t.firm_id WHERE t.id=? AND f.user_id=? AND t.active=1").get(teamId,userId) as {id:string;firm_id:string}|undefined;
+ const previous=db.prepare('SELECT team_id FROM workspace_assignments WHERE job_id=?').get(jobId) as {team_id:string}|undefined;
+ const team=db.prepare("SELECT t.* FROM workspace_teams t JOIN firms f ON f.id=t.firm_id WHERE t.id=? AND f.user_id=? AND t.active=1").get(teamId,userId) as {id:string;firm_id:string;minimum_duration_minutes:number;travel_minutes:number}|undefined;
  const job=authorizedJob(db,userId,jobId);
  if(!team||job.accepted_firm_id!==team.firm_id||!["accepted","arrived"].includes(job.status))throw new WorkspaceError("Echipa sau lucrarea nu poate fi alocată.",403);
  const timing=db.prepare("SELECT scheduled_at,duration_minutes,buffer_minutes FROM jobs WHERE id=?").get(jobId) as {scheduled_at:string|null;duration_minutes:number;buffer_minutes:number};
  if(!timing.scheduled_at)throw new WorkspaceError("Lucrarea trebuie să aibă o programare.");
- const start=new Date(timing.scheduled_at).getTime(),end=start+(timing.duration_minutes+timing.buffer_minutes)*60000;
+ const occupied=firmAvailabilityError(db,team.firm_id,{...timing,id:jobId,when_type:'scheduled',duration_minutes:Math.max(timing.duration_minutes,team.minimum_duration_minutes),buffer_minutes:Math.max(timing.buffer_minutes,team.travel_minutes)});if(occupied)throw new WorkspaceError(occupied,409);
+ const start=new Date(timing.scheduled_at).getTime(),end=start+(Math.max(timing.duration_minutes,team.minimum_duration_minutes)+Math.max(timing.buffer_minutes,team.travel_minutes))*60000;
  if(!Number.isFinite(start)||!Number.isFinite(end))throw new WorkspaceError("Programare invalidă.");
  if(db.prepare("SELECT id FROM workspace_team_blocks WHERE team_id=? AND cancelled=0 AND starts_at<? AND ends_at>?").get(teamId,new Date(end).toISOString(),new Date(start).toISOString()))throw new WorkspaceError("Echipa este indisponibilă în acest interval, inclusiv timpul de deplasare.",409);
  const other=db.prepare("SELECT j.scheduled_at,j.duration_minutes,j.buffer_minutes FROM workspace_assignments a JOIN jobs j ON j.id=a.job_id WHERE a.team_id=? AND a.job_id!=? AND j.status IN ('accepted','arrived')").all(teamId,jobId) as typeof timing[];
- if(other.some(j=>{const s=new Date(j.scheduled_at??"").getTime();return s<end&&s+(j.duration_minutes+j.buffer_minutes)*60000>start}))throw new WorkspaceError("Echipa are deja o lucrare în acest interval.",409);
+ if(other.some(j=>{const s=new Date(j.scheduled_at??"").getTime();return !Number.isFinite(s)||(s<end&&s+(Math.max(j.duration_minutes,team.minimum_duration_minutes)+Math.max(j.buffer_minutes,team.travel_minutes))*60000>start)}))throw new WorkspaceError("Echipa are deja o lucrare în acest interval.",409);
  db.prepare("INSERT INTO workspace_assignments VALUES(?,?,?,?) ON CONFLICT(job_id) DO UPDATE SET team_id=excluded.team_id,assigned_by=excluded.assigned_by,created_at=excluded.created_at").run(jobId,teamId,userId,new Date().toISOString());audit(db,userId,"team.assign",jobId);
+ if(previous?.team_id!==teamId){
+  const members=db.prepare("SELECT DISTINCT user_id FROM workspace_members WHERE kind='team' AND active=1 AND resource_id IN (?,?)").all(teamId,previous?.team_id??'') as {user_id:string}[];
+  for(const m of members)notice(db,m.user_id,null,'Alocările echipei au fost actualizate. Verifică lucrările tale.','/echipa');
+  notice(db,job.client_id,jobId,'Echipa lucrării tale a fost actualizată.',`/client?jobId=${encodeURIComponent(jobId)}`);
+ }
+
  })();
 }
 export function setChecklist(db:Database,userId:string,jobId:string,key:string,done:boolean){
+ return db.transaction(()=>{
  const access=executionAccess(db,userId,jobId);
  if(!access||!["accepted","arrived"].includes(access.status))throw new WorkspaceError("Nu poți modifica verificările acestei lucrări.",403);
  if(db.prepare("SELECT 1 FROM workspace_execution_reports WHERE job_id=?").get(jobId))throw new WorkspaceError("Raportul a fost trimis. Verificările sunt blocate pentru a păstra dovada raportată.",409);
+ if(done&&db.prepare("SELECT 1 FROM visit_cases WHERE job_id=? AND item_key=? AND category='task' AND status NOT IN ('resolved','closed')").get(jobId,key))throw new WorkspaceError('Sarcina este raportată ca nerealizabilă. Soluționează dosarul înainte de a o marca realizată.',409);
  if(!CHECKLIST.some(i=>i.key===key))throw new WorkspaceError("Verificare invalidă.");
  db.prepare("INSERT INTO workspace_checklist VALUES(?,?,?,?,?) ON CONFLICT(job_id,item_key) DO UPDATE SET done=excluded.done,updated_by=excluded.updated_by,updated_at=excluded.updated_at").run(jobId,key,done?1:0,userId,new Date().toISOString());
+ }).immediate();
 }
 
 // Manual iCal import: no server-side URL fetch and no guest data copied into titles.
@@ -263,4 +276,29 @@ export function readJobMessages(db:Database,userId:string,jobId:string,ids:unkno
  const insert=db.prepare(`INSERT OR IGNORE INTO workspace_message_reads(message_id,user_id)
  SELECT id,? FROM workspace_messages WHERE id=? AND job_id=? AND sender_id!=? AND sender_id IN (?,?)`);
  db.transaction(()=>{for(const id of ids)insert.run(userId,id,jobId,userId,job.client_id,job.firm_user_id)})();
+}
+
+export function manageTeam(db:Database,userId:string,id:string,action:'rename'|'archive',name?:unknown){
+ return db.transaction(()=>{
+  if(!db.prepare('SELECT t.id FROM workspace_teams t JOIN firms f ON f.id=t.firm_id WHERE t.id=? AND f.user_id=? AND t.active=1').get(id,userId))throw new WorkspaceError('Echipă inexistentă.',404);
+  if(action==='rename'){db.prepare('UPDATE workspace_teams SET name=? WHERE id=?').run(requireText(name,'Nume echipă',80),id);audit(db,userId,'team.rename',id);return;}
+  if(db.prepare("SELECT 1 FROM workspace_assignments a JOIN jobs j ON j.id=a.job_id WHERE a.team_id=? AND j.status IN ('accepted','arrived')").get(id))throw new WorkspaceError('Realocă lucrările active înainte de arhivarea echipei.',409);
+  const members=db.prepare("SELECT user_id FROM workspace_members WHERE kind='team' AND resource_id=? AND active=1").all(id) as {user_id:string}[];
+  db.prepare('UPDATE workspace_teams SET active=0 WHERE id=?').run(id);
+  db.prepare("UPDATE workspace_members SET active=0 WHERE kind='team' AND resource_id=?").run(id);
+  db.prepare("UPDATE workspace_invites SET revoked=1 WHERE kind='team' AND resource_id=?").run(id);
+  for(const m of members)notice(db,m.user_id,null,'O echipă din care făceai parte a fost arhivată.','/echipa');
+  audit(db,userId,'team.archive',id);
+ }).immediate();
+}
+
+export function configureTeamTiming(db:Database,userId:string,id:string,minimum:unknown,travel:unknown){
+ if(typeof minimum!=='number'||!Number.isInteger(minimum)||minimum<0||minimum>1440||typeof travel!=='number'||!Number.isInteger(travel)||travel<0||travel>240)throw new WorkspaceError('Durata trebuie să fie între 0 și 1440 minute; deplasarea între 0 și 240 minute.');
+ return db.transaction(()=>{
+  if(!db.prepare('SELECT t.id FROM workspace_teams t JOIN firms f ON f.id=t.firm_id WHERE t.id=? AND f.user_id=? AND t.active=1').get(id,userId))throw new WorkspaceError('Echipă inexistentă.',404);
+  db.prepare('UPDATE workspace_teams SET minimum_duration_minutes=?,travel_minutes=? WHERE id=?').run(minimum,travel,id);
+  const active=db.prepare("SELECT a.job_id FROM workspace_assignments a JOIN jobs j ON j.id=a.job_id WHERE a.team_id=? AND j.status IN ('accepted','arrived')").all(id) as {job_id:string}[];
+  for(const job of active)assignTeam(db,userId,id,job.job_id);
+  audit(db,userId,'team.timing',id);
+ }).immediate();
 }

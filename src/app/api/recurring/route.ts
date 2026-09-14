@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   };
   const invalid=validateRecurringPlan(input);
   if(invalid)return NextResponse.json({error:invalid.error},{status:invalid.status});
-  // Card necesar: lucrările generate autorizează plata automat pe firma preferată.
+  // Metodă salvată pentru confirmarea financiară separată a fiecărei vizite.
   const card = getClientCardInfo(db, user.id);
   if (card.stripeConfigured && !card.hasCard) {
     return NextResponse.json(

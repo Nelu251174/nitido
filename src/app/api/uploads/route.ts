@@ -1,3 +1,5 @@
+import {readVisitCare} from "@/lib/visitCare";
+import {WorkspaceError} from "@/lib/workspace";
 import { prepareUploadImage } from "@/lib/uploadImage";
 import { hasTrustedMutationOrigin } from "@/lib/security";
 import { executionAccess } from "@/lib/collaborationAccess";
@@ -7,7 +9,7 @@ import path from "path";
 import fs from "fs";
 import { getCurrentUser } from "@/lib/auth";
 import { consumeRateLimit, requestIp } from "@/lib/security";
-import { auditWorkflow, WorkProofType } from "@/lib/proofOfWork";
+import { auditWorkflow } from "@/lib/proofOfWork";
 import { normalizeScanRoom } from "@/lib/nitidoScan";
 
 // Upload real de poze la postarea lucrării — spec secțiunea 3, punct 2:
@@ -54,7 +56,7 @@ export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const file = formData.get("file");
   const jobId = String(formData.get("jobId") ?? "");
-  const proofType = String(formData.get("proofType") ?? "").toUpperCase() as WorkProofType;
+  const proofType = String(formData.get("proofType") ?? "").toUpperCase();
   // Nitido Scan: eticheta încăperii pentru pozele de context ale clientului.
   const contextLabel = normalizeScanRoom(formData.get("room"));
 
@@ -80,6 +82,19 @@ export async function POST(req: NextRequest) {
   const ext = detected.ext;
   const id = newId("photo");
   const filename = `${id}.${ext}`;
+
+  if(proofType==='CASE'){
+    try{
+      db.transaction(()=>{
+        if(!jobId||!readVisitCare(db,jobId,user).canReport)throw new WorkspaceError('Nu poți adăuga o dovadă acestei lucrări.',403);
+        const count=db.prepare('SELECT COUNT(*) n FROM job_photos WHERE job_id=?').get(jobId) as {n:number};
+        if(count.n>=20)throw new WorkspaceError('Maximum 20 de fotografii per lucrare.',409);
+        fs.writeFileSync(path.join(UPLOAD_DIR,filename),stored);
+        db.prepare("INSERT INTO job_photos(id,job_id,owner_user_id,proof_type,filename,mime_type,file_size,status,validated_at) VALUES(?,?,?,?,?,?,?,'VALID',datetime('now'))").run(id,jobId,user.id,'CASE',filename,detected.mime,stored.length);
+      }).immediate();
+      return NextResponse.json({id,url:`/api/uploads/${id}`,proofType},{status:201});
+    }catch(e){fs.rmSync(path.join(UPLOAD_DIR,filename),{force:true});return NextResponse.json({error:e instanceof WorkspaceError?e.message:'Încărcarea nu a fost confirmată.'},{status:e instanceof WorkspaceError?e.status:503});}
+  }
 
   if (user.role === "firma" || (jobId && ["ARRIVAL", "COMPLETION"].includes(proofType))) {
     const access = executionAccess(db,user.id,jobId);

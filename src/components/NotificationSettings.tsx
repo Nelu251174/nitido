@@ -1,4 +1,5 @@
 'use client';
+import {CommunicationPreferences} from './CommunicationPreferences';
 import {useEffect} from 'react';
 import Link from 'next/link';
 import {useRouter} from 'next/navigation';
@@ -19,6 +20,7 @@ export function NotificationSettings({role}:{role:'client'|'firma'}) {
     <aside className="operations-sidebar"><Logo href={`/${role}`}/><WorkspaceNav role={role}/></aside>
     <main className="operations-main"><div className="notification-settings">
       <h1>Setări</h1>
+      <CommunicationPreferences/>
       <section className="v2-card">
         <h2>Notificări și sunet</h2>
         <p>Primește notificări despre mesaje și activitatea lucrărilor.</p>

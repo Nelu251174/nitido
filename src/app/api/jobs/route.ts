@@ -1,3 +1,4 @@
+import {snapshotInstructions} from "@/lib/visitCare";
 import {firmJobView} from "@/lib/firmJobView";
 import {CardSetupError,saveJobCard} from "@/lib/savedCards";
 import { pricingSnapshot } from "@/lib/pricingSnapshot";
@@ -309,7 +310,7 @@ export async function POST(req: NextRequest) {
     if(body.propertyId)linkPropertyJob(db,user.id,String(body.propertyId),id);
     if(body.approvalId)consumeApproval(db,user.id,String(body.approvalId),id);
     const linked=db.prepare("SELECT property_id FROM workspace_property_jobs WHERE job_id=?").get(id) as {property_id:string}|undefined;
-    if(linked)enforcePropertyBudget(db,linked.property_id,id);
+    if(linked){enforcePropertyBudget(db,linked.property_id,id);snapshotInstructions(db,id,linked.property_id,user.id);}
     return { job: db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow, replayed: false };
   })();
   } catch(e) { if(e instanceof AccessError || e instanceof CardSetupError)return NextResponse.json({error:e.message},{status:e.status}); throw e; }

@@ -1,5 +1,17 @@
 # NITIDO — situația celor 6 etape din brief
 
+## Actualizare curentă — 14 septembrie 2026
+
+Beneficiarul a confirmat continuarea după E2, funcționarea pe iPhone și AI, a cerut verde peste tot și a interzis repetarea testelor. A autorizat finalizarea E3 și pornirea E4 imediat după instalare.
+
+**Livrarea E3:** [funcții, migrare, politică și limite de verificare](NITIDO-E3-DELIVERY-20260914.md). Implementarea acoperă proprietăți/preferințe, reprogramări individuale și de grup, generații unice, orizont 30 zile, firmă preferată, calendar/timpi echipe și dosare de remediere cu revenire confirmată. Compilarea și instalarea sunt evidențe distincte de acceptarea funcțională; nu se pretind teste noi.
+
+**Următoarea etapă autorizată: E4 Business/Host.** Restanțele de lansare E5 și activările comerciale nu sunt închise prin această livrare.
+
+## Istoric anterior — păstrat pentru trasabilitate
+
+Afirmațiile de mai jos despre „E2 activă” descriu momentul documentării lor și nu înlocuiesc actualizarea curentă de mai sus.
+
 Sursa numerotării: `NITIDO-MASTER-SOURCE.md`, §18. Documentul urmărește execuția și acceptarea separat. Nu reprezintă acceptarea beneficiarului.
 
 Continuare E2 după configurarea ADMIN: beneficiarul a confirmat loginul în sandbox și păstrarea filtrului ANAF pentru toate firmele. Integritatea retrimiterii push a fost instalată pe `4e561c7`. Livrarea următoare adaugă recuperarea notificărilor întrerupte și izolarea rezultatelor necunoscute: [contract, probe și limite](NITIDO-NOTIFICATION-RECOVERY.md). E2 rămâne deschisă pentru probele complete Stripe/notificări și primirea reală pe telefon. Actualizările mai vechi de mai jos sunt istoric, nu starea curentă a înrolării ADMIN.

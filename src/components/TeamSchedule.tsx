@@ -6,8 +6,9 @@ import type {TeamBlock} from './TeamAvailability';
 import {DesignIcon} from './DesignIcon';
 import {JOB_STATUS} from '@/lib/workspaceShared';
 const dateKey=serviceDate;
-export function TeamSchedule({blocks=[],jobs,teams,assignments,selected,onSelect,onAssign,busy}:{blocks?:TeamBlock[];jobs:JobRow[];teams:{id:string;name:string}[];assignments:{job_id:string;team_id:string}[];selected:string;onSelect:(id:string)=>void;onAssign:(jobId:string,teamId:string)=>void;busy:boolean}){
+export function TeamSchedule({blocks=[],jobs:sourceJobs,teams,assignments,selected,onSelect,onAssign,busy}:{blocks?:TeamBlock[];jobs:JobRow[];teams:{id:string;name:string;minimum_duration_minutes?:number;travel_minutes?:number}[];assignments:{job_id:string;team_id:string}[];selected:string;onSelect:(id:string)=>void;onAssign:(jobId:string,teamId:string)=>void;busy:boolean}){
  const [anchor,setAnchor]=useState(()=>serviceDate(new Date())),[view,setView]=useState<CalendarView>('week'),[team,setTeam]=useState(''),[service,setService]=useState(''),[city,setCity]=useState('');
+ const jobs=sourceJobs.map(j=>{const t=teams.find(t=>assignments.some(a=>a.job_id===j.id&&a.team_id===t.id));return {...j,duration_minutes:Math.max(j.duration_minutes,t?.minimum_duration_minutes??0),buffer_minutes:Math.max(j.buffer_minutes,t?.travel_minutes??0)}});
  const dayKeys=calendarDays(anchor,view),days=dayKeys.map(day=>new Date(`${day}T12:00:00Z`));
  const filtered=jobs.filter(j=>['accepted','arrived'].includes(j.status)&&(!service||j.space_type===service)&&(!city||j.city===city)&&(!team||assignments.some(a=>a.job_id===j.id&&a.team_id===team))).sort((a,b)=>(a.scheduled_at??'').localeCompare(b.scheduled_at??''));
  const visibleBlocks=blocks.filter(b=>!team||b.team_id===team);

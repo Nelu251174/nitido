@@ -1,3 +1,4 @@
+import {notifySchedule} from "./visitCare";
 import type {Database} from 'better-sqlite3';
 import {randomUUID} from 'node:crypto';
 import {bucharestScheduledAt} from './scheduling';
@@ -39,6 +40,7 @@ function applyDate(db:Database,job:JobRow,date:string){
  db.prepare("UPDATE jobs SET scheduled_at=?,when_type='scheduled' WHERE id=?").run(date,job.id);
  // occurrence_date remains the immutable series identity, even when the visit moves.
  db.prepare('UPDATE recurring_occurrences SET scheduled_at=? WHERE job_id=?').run(date,job.id);
+ notifySchedule(db,job.id,'Reprogramarea unei vizite a fost confirmată.');
  const property=db.prepare('SELECT property_id FROM workspace_property_jobs WHERE job_id=?').get(job.id) as {property_id:string}|undefined;
  if(property){try{enforcePropertyBudget(db,property.property_id,job.id)}catch(error){if(error instanceof AccessError)fail(error.message);throw error}}
 }
@@ -62,6 +64,7 @@ export function proposeReschedule(db:Database,id:string,user:Actor,input:{date:u
    db.prepare("UPDATE offers SET status='rejected',updated_at=datetime('now') WHERE job_id=? AND status='pending'").run(id);
   }
   db.prepare('INSERT INTO job_reschedule_requests(id,job_id,client_id,firm_id,original_at,proposed_at,status,created_at,resolved_at) VALUES(?,?,?,?,?,?,?,?,?)').run(randomUUID(),id,user.id,job.accepted_firm_id,job.scheduled_at,date,status,new Date().toISOString(),status==='accepted'?new Date().toISOString():null);
+  if(status==='pending')notifySchedule(db,id,'O vizită are o propunere de reprogramare. Intervalul actual rămâne valabil.');
   return {status};
  }).immediate();
 }
@@ -75,7 +78,7 @@ export async function decideReschedule(db:Database,id:string,user:Actor,requestI
  if(request.status!=='pending')fail('Propunerea a fost deja soluționată.');
  let paymentId:string|null=null;
  let intentId:string|null=null,needsAuthorization=false;
- if(action==='accept'){
+ if(action==='accept'&&!job.guarantee_of){
   movable(db,job);
   const payment=db.prepare('SELECT id,status,stripe_payment_intent_id,amount_gross FROM payments WHERE job_id=?').get(id) as {id:string;status:string;stripe_payment_intent_id:string|null;amount_gross:number}|undefined;
   const paymentCount=(db.prepare('SELECT count(*) AS n FROM payments WHERE job_id=?').get(id) as {n:number}).n;
@@ -97,20 +100,23 @@ export async function decideReschedule(db:Database,id:string,user:Actor,requestI
   if(latest.status!=='pending')fail('Propunerea a fost modificată între timp.');
   if(action==='accept'){
    movable(db,current);
-   if(current.scheduled_at!==request.original_at||current.accepted_firm_id!==request.firm_id||current.status!=='accepted'||current.duration_minutes!==job.duration_minutes||current.buffer_minutes!==job.buffer_minutes||current.price_gross!==job.price_gross||current.credit_applied!==job.credit_applied)fail('Rezervarea s-a schimbat între timp.');
+   if(current.guarantee_of!==job.guarantee_of||current.scheduled_at!==request.original_at||current.accepted_firm_id!==request.firm_id||current.status!=='accepted'||current.duration_minutes!==job.duration_minutes||current.buffer_minutes!==job.buffer_minutes||current.price_gross!==job.price_gross||current.credit_applied!==job.credit_applied)fail('Rezervarea s-a schimbat între timp.');
    if(Date.parse(request.proposed_at)<Date.now()+3600000)fail('Noul interval este prea apropiat sau a trecut.');
    if(!db.prepare("SELECT 1 FROM payments WHERE id=? AND job_id=? AND stripe_payment_intent_id=? AND status IN ('authorized','cancelled')").get(paymentId,id,intentId))fail('Starea plății s-a schimbat.');
    const error=firmAvailabilityError(db,current.accepted_firm_id!,{...current,scheduled_at:request.proposed_at});if(error)fail(error);
    if(needsAuthorization){
     db.prepare("UPDATE job_reschedule_requests SET firm_confirmed_at=COALESCE(firm_confirmed_at,?),confirmed_snapshot=? WHERE id=? AND status='pending'").run(new Date().toISOString(),rescheduleSnapshot(current),requestId);
+    if(!latest.firm_confirmed_at)notifySchedule(db,id,'Firma a acceptat noul interval. Clientul trebuie să reconfirme autorizarea cardului.');
     return {status:'awaiting_authorization'};
    }
-   if(!db.prepare("SELECT 1 FROM payments WHERE id=? AND status='authorized' AND stripe_payment_intent_id=?").get(paymentId,intentId))fail('Starea plății s-a schimbat.');
+   if(current.guarantee_of&&(db.prepare('SELECT 1 FROM payments WHERE job_id=?').get(id)||db.prepare('SELECT 1 FROM payment_authorization_attempts WHERE job_id=?').get(id)))fail('Remedierea are o înregistrare financiară care necesită verificare.');
+   if(!current.guarantee_of&&!db.prepare("SELECT 1 FROM payments WHERE id=? AND status='authorized' AND stripe_payment_intent_id=?").get(paymentId,intentId))fail('Starea plății s-a schimbat.');
    applyDate(db,current,request.proposed_at);
    const assignment=db.prepare('SELECT team_id FROM workspace_assignments WHERE job_id=?').get(id) as {team_id:string}|undefined;
    if(assignment)assignTeam(db,user.id,assignment.team_id,id);
   }
   db.prepare("UPDATE job_reschedule_requests SET status=?,resolved_at=? WHERE id=? AND status='pending'").run(status,new Date().toISOString(),requestId);
+  if(action!=='accept')notifySchedule(db,id,'Propunerea de reprogramare a fost refuzată sau retrasă. Intervalul inițial rămâne valabil.');
   return {status};
  }).immediate();
 }

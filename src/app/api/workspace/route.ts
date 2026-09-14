@@ -1,3 +1,4 @@
+import {manageTeam,configureTeamTiming} from "@/lib/workspace";
 import {previewPropertyImport,commitPropertyImport} from "@/lib/propertyImport";
 import { hasTrustedMutationOrigin } from "@/lib/security";
 import { NextRequest,NextResponse } from "next/server";
@@ -19,8 +20,12 @@ export async function GET(req:NextRequest){
  const checklist=db.prepare("SELECT c.* FROM workspace_checklist c JOIN jobs j ON j.id=c.job_id LEFT JOIN firms f ON f.id=j.accepted_firm_id WHERE j.client_id=? OR f.user_id=?").all(user.id,user.id);
  const events=user.role==="client"?db.prepare("SELECT e.*,p.name AS property_name FROM workspace_calendar_events e JOIN workspace_properties p ON p.id=e.property_id WHERE p.owner_id=? AND p.archived=0 ORDER BY e.starts_at").all(user.id):[];
  const propertyJobs=user.role==="client"?db.prepare(`SELECT pj.* FROM workspace_property_jobs pj JOIN workspace_properties p ON p.id=pj.property_id JOIN jobs j ON j.id=pj.job_id WHERE p.owner_id=? AND j.client_id=? AND p.archived=0`).all(user.id,user.id):[];
- const firms=user.role==='client'?db.prepare(`SELECT DISTINCT f.id,u.name FROM firms f JOIN users u ON u.id=f.user_id JOIN jobs j ON j.accepted_firm_id=f.id WHERE j.client_id=? ORDER BY u.name`).all(user.id):[];
- return response({firms,inventoryHistory:user.role==="client"?inventoryHistory(db,user.id):[],inventory:user.role==="client"?hostInventory(db,user.id):[],blocks:firm?teamBlocks(db,user.id):[],properties,teams,assignments,checklist,events,propertyJobs,hostChecks:user.role==="client"?hostChecks(db,user.id):[]});
+ const firms=user.role==='client'?db.prepare(`SELECT DISTINCT f.id,u.name FROM firms f JOIN users u ON u.id=f.user_id JOIN jobs j ON j.accepted_firm_id=f.id WHERE j.client_id=? AND j.status='completed' AND f.verified=1 ORDER BY u.name`).all(user.id):[];
+ const dailyActions=firm?db.prepare(`SELECT DISTINCT j.id,j.city,j.scheduled_at,
+ EXISTS(SELECT 1 FROM visit_cases c WHERE c.job_id=j.id AND c.status NOT IN ('resolved','closed')) issue,
+ EXISTS(SELECT 1 FROM job_reschedule_requests r WHERE r.job_id=j.id AND r.status='pending') reschedule
+ FROM jobs j WHERE j.accepted_firm_id=? AND (EXISTS(SELECT 1 FROM visit_cases c WHERE c.job_id=j.id AND c.status NOT IN ('resolved','closed')) OR EXISTS(SELECT 1 FROM job_reschedule_requests r WHERE r.job_id=j.id AND r.status='pending'))`).all(firm.id):[];
+ return response({dailyActions,firms,inventoryHistory:user.role==="client"?inventoryHistory(db,user.id):[],inventory:user.role==="client"?hostInventory(db,user.id):[],blocks:firm?teamBlocks(db,user.id):[],properties,teams,assignments,checklist,events,propertyJobs,hostChecks:user.role==="client"?hostChecks(db,user.id):[]});
 }
 export async function POST(req:NextRequest){
  const user=await getCurrentUser(req);if(!user)return response({error:"Autentificare nécessaire"},401);
@@ -42,6 +47,8 @@ export async function POST(req:NextRequest){
    case "property.save":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);return response({id:saveProperty(db,user.id,b)});
    case "property.link":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);linkPropertyJob(db,user.id,requireText(b.propertyId,"Proprietate"),requireText(b.jobId,"Lucrare"));break;
    case "calendar.import":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);return response({count:importCalendar(db,user.id,requireText(b.propertyId,"Proprietate"),requireText(b.source,"Sursă"),requireText(b.ical,"Calendar",1_000_000))});
+   case "team.timing":if(user.role!=="firma")throw new WorkspaceError("Acces interzis",403);configureTeamTiming(db,user.id,requireText(b.teamId,"Echipă"),b.minimum,b.travel);break;
+   case "team.rename":case "team.archive":if(user.role!=="firma")throw new WorkspaceError("Acces interzis",403);manageTeam(db,user.id,requireText(b.teamId,"Echipă"),b.action==='team.rename'?'rename':'archive',b.name);break;
    case "team.create":{
     const firm=getFirmByUserId(user.id);if(user.role!=="firma"||!firm)throw new WorkspaceError("Acces interzis",403);
     const name=requireText(b.name,"Nume echipă",80);db.prepare("INSERT INTO workspace_teams(id,firm_id,name) VALUES(?,?,?)").run(randomUUID(),firm.id,name);break;

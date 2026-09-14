@@ -1,3 +1,6 @@
+import {setPreferredFirm} from "@/lib/recurring";
+import {previewSeriesChange,applySeriesChange} from "@/lib/seriesChanges";
+import {WorkspaceError} from "@/lib/workspace";
 import {consumeRateLimit,hasTrustedMutationOrigin} from "@/lib/security";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -18,6 +21,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try{b=JSON.parse(raw)}catch{return NextResponse.json({error:"Cerere JSON invalidă"},{status:400})}
   if(!b||typeof b!=="object"||Array.isArray(b))return NextResponse.json({error:"Cerere invalidă"},{status:400});
   const { id } = await params;
+  if(b.action==='preferred_firm'){const result=setPreferredFirm(db,user.id,id,b.firmId);return NextResponse.json(result.ok?{ok:true}:{error:result.error},{status:result.ok?200:result.status})}
+  if(b.action==="preview_following"||b.action==="apply_following"){
+    try{return NextResponse.json(b.action==="preview_following"?previewSeriesChange(db,user.id,id,b):applySeriesChange(db,user.id,id,b),{headers:{"Cache-Control":"private, no-store"}})}catch(e){return NextResponse.json({error:e instanceof WorkspaceError?e.message:"Modificarea nu a fost confirmată."},{status:e instanceof WorkspaceError?e.status:503})}
+  }
   if(b.action==="update_schedule"){
     const result=updateRecurringSchedule(db,id,user.id,{
       revision:b.revision,frequency:b.frequency,hour:b.hour,startDate:b.startDate,
