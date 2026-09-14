@@ -32,6 +32,13 @@ const paths = {
  help:'M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0M9 8c0-4 8-3 6 1l-3 3v2M12 18h.01',
 } as const;
 export type DesignIconName=keyof typeof paths;
-export function DesignIcon({name,size=24,className='',style}:{name:DesignIconName;size?:number;className?:string;style?:CSSProperties}){
- return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className} style={style}><path d={paths[name]}/></svg>;
+export function DesignIcon({name,size=24,className='',style,variant='outline'}:{name:DesignIconName;size?:number;className?:string;style?:CSSProperties;variant?:'outline'|'trust'}){
+ const artwork=variant==='trust'&&name==='shield'
+  ? <><path d="m12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6l9-4Z" fill="#111827" stroke="#111827"/><path d="m8 11 3 3 5-6" stroke="#009E60" strokeWidth="2.2"/></>
+  : variant==='trust'&&name==='star'
+  ? <path d={paths.star} fill="#D4AF37" stroke="#B8860B"/>
+  : variant==='trust'&&name==='leaf'
+  ? <><path d="M20 3C8 2 2 8 5 15c4 7 15 3 15-12Z" fill="#009E60" stroke="#007A4A"/><path d="M3 22 16 8" stroke="#007A4A"/></>
+  : <path d={paths[name]}/>;
+ return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className} style={style}>{artwork}</svg>;
 }
