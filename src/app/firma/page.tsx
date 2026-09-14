@@ -1,4 +1,5 @@
 "use client";
+import { logoutWithNativePush } from "@/lib/nativePushClient";
 import {EmailVerificationNotice} from "@/components/EmailVerificationNotice";
 
 import { useEffect, useState, useCallback } from "react";
@@ -177,8 +178,8 @@ export default function FirmaPage() {
   }
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
+    try { await logoutWithNativePush(); router.push("/login"); }
+    catch (error) { setMessage(error instanceof Error ? error.message : "Ieșirea din cont nu a reușit."); }
   }
 
   if (loading || !user || user.role !== "firma") {

@@ -52,8 +52,12 @@ jobs:
       - name: Instalează dependințele
         run: npm ci
 
-      - name: Sync Capacitor (iOS)
-        run: npx cap sync ios
+      - name: Sync Capacitor (iOS) — sandbox E2
+        env:
+          NITIDO_NATIVE_SERVER_URL: https://sandbox.nitido.ro
+        run: |
+          npx cap sync ios
+          node -e 'const c=require("./ios/App/App/capacitor.config.json");if(c.appId!=="ro.nitido.app"||c.server.url!=="https://sandbox.nitido.ro")throw Error("Invalid TestFlight target");'
 
       - name: Pregătește cheia API App Store Connect
         env:

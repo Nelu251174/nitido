@@ -1,4 +1,5 @@
 "use client";
+import { logoutWithNativePush } from "@/lib/nativePushClient";
 import {bookingCalendarDays,bookingDateKey,bucharestDateKey,isBookableRomanianSlot,nextBucharestSlot} from "@/lib/scheduling";
 import {saveBookingDraft,takeBookingDraft,clearBookingDraft} from "@/lib/bookingDraft";
 import {ClientCards,type ClientCardView} from "@/components/ClientCards";
@@ -494,8 +495,8 @@ export default function ClientPage() {
   }
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
+    try { await logoutWithNativePush(); router.push("/login"); }
+    catch (error) { setError(error instanceof Error ? error.message : "Ieșirea din cont nu a reușit."); }
   }
 
   if (loading || !user || user.role !== "client") {

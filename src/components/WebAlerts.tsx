@@ -1,5 +1,7 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
+import {NativePushControls} from './NativePushControls';
+import {nativePushAvailable} from '@/lib/nativePushClient';
 import {usePathname} from 'next/navigation';
 import type {WebAlert} from '@/lib/webAlerts';
 import {alertHref,freshAlerts} from '@/lib/webAlertState';
@@ -30,8 +32,8 @@ function WebAlertsSession(){
     const result=freshAlerts(feed.events,seen);memory.set(key,result.seen);try{localStorage.setItem(key,JSON.stringify(result.seen));}catch{}
     if(!result.fresh.length)return;
     const event=result.fresh[0],title=event.kind==='message'?'Ai primit un mesaj nou':'Lucrarea ta a fost finalizată',href=alertHref(feed.role,event);
-    setToast({title,href,count:result.fresh.length});if(on){if(sound.current?.state==='running')chime();else setHint("Popup primit, dar sunetul nu este activ în această filă. Apasă Testează sunetul.");}
-    if(on&&document.visibilityState!=='visible'&&'Notification' in window&&Notification.permission==='granted'){try{const n=new Notification(title,{body:'Deschide NITIDO pentru detalii.',tag:'nitido-activity',silent:Boolean(sound.current?.state==='running')});native.push(n);n.onclick=()=>{window.focus();window.location.assign(href);n.close();};}catch{}}
+    setToast({title,href,count:result.fresh.length});if(on&&!nativePushAvailable()){if(sound.current?.state==='running')chime();else setHint("Popup primit, dar sunetul nu este activ în această filă. Apasă Testează sunetul.");}
+    if(on&&!nativePushAvailable()&&document.visibilityState!=='visible'&&'Notification' in window&&Notification.permission==='granted'){try{const n=new Notification(title,{body:'Deschide NITIDO pentru detalii.',tag:'nitido-activity',silent:Boolean(sound.current?.state==='running')});native.push(n);n.onclick=()=>{window.focus();window.location.assign(href);n.close();};}catch{}}
    };
    if(navigator.locks)await navigator.locks.request(key,claim);else claim();
   }catch{}finally{busy=false;}};
@@ -50,5 +52,5 @@ function WebAlertsSession(){
   setHint(granted==='granted'?'Alerte active cât timp NITIDO este deschis în browser.':'Sunet activ în pagină. Notificările desktop nu sunt permise în acest browser.');
  }
  if(!account)return null;
- return <aside className="web-alerts" aria-label="Alerte NITIDO"><button className="web-alert-toggle" onClick={()=>void enable()}>{enabled?'Oprește sunetul și alertele desktop':'Activează sunetul și alertele desktop'}</button><button className="web-alert-toggle" onClick={()=>void testSound()}>Testează sunetul</button>{hint&&<p className="web-alert-hint" role="status">{hint}<button aria-label="Închide explicația" onClick={()=>setHint('')}>×</button></p>}{toast&&<div className="web-alert-toast" role="status"><button aria-label="Închide alerta" onClick={()=>setToast(null)}>×</button><strong>{toast.title}</strong>{toast.count>1&&<p>{toast.count} noutăți în cont.</p>}<a href={toast.href}>Vezi detaliile</a></div>}</aside>;
+ return <aside className="web-alerts" aria-label="Alerte NITIDO"><NativePushControls role={account.role}/><button className="web-alert-toggle" onClick={()=>void enable()}>{enabled?'Oprește sunetul și alertele desktop':'Activează sunetul și alertele desktop'}</button><button className="web-alert-toggle" onClick={()=>void testSound()}>Testează sunetul</button>{hint&&<p className="web-alert-hint" role="status">{hint}<button aria-label="Închide explicația" onClick={()=>setHint('')}>×</button></p>}{toast&&<div className="web-alert-toast" role="status"><button aria-label="Închide alerta" onClick={()=>setToast(null)}>×</button><strong>{toast.title}</strong>{toast.count>1&&<p>{toast.count} noutăți în cont.</p>}<a href={toast.href}>Vezi detaliile</a></div>}</aside>;
 }
