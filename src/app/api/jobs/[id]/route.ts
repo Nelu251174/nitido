@@ -1,3 +1,4 @@
+import {firmJobView} from "@/lib/firmJobView";
 import {selectionRecoveryState} from "@/lib/selectionRecovery";
 import { NextRequest, NextResponse } from "next/server";
 import { db, getFirmByUserId } from "@/lib/db";
@@ -24,7 +25,7 @@ export async function GET(
   if (!authorized) {
     const canPreview=Boolean(user.role==="firma"&&firm?.verified&&job.status==="waiting"&&firmCoversCity(firm.coverage_city,firm.coverage_cities_extra,job.city));
     if(!canPreview) return NextResponse.json({ error: "Acces interzis" }, { status: 403 });
-    return NextResponse.json({job:{id:job.id,city:job.city,sqm:job.sqm,space_type:job.space_type,scheduled_at:job.scheduled_at,price_gross:job.price_gross,firm_payout:calcNetForFirm(job.price_gross),duration_minutes:job.duration_minutes,status:job.status,created_at:job.created_at}});
+    return NextResponse.json({job:{id:job.id,city:job.city,sqm:job.sqm,space_type:job.space_type,scheduled_at:job.scheduled_at,firm_payout:calcNetForFirm(job.price_gross),duration_minutes:job.duration_minutes,status:job.status,created_at:job.created_at}});
   }
 
   let firmName: string | null = null;
@@ -46,5 +47,5 @@ export async function GET(
   const photos=db.prepare("SELECT id FROM job_photos WHERE job_id=? AND status='VALID'").all(id) as {id:string}[];
   const proofs=db.prepare("SELECT id,proof_type type,created_at createdAt FROM job_photos WHERE job_id=? AND proof_type IN ('ARRIVAL','COMPLETION') AND status='VALID' AND validated_at IS NOT NULL").all(id) as {id:string;type:"ARRIVAL"|"COMPLETION";createdAt:string}[];
   const safeFinancial=payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null;
-  return NextResponse.json({ job:{...job,...(user.role==="client"?{selectionRecovery:selectionRecoveryState(db,id,user.id)}:{}),photos:photos.map(photo=>`/api/uploads/${photo.id}`),proofs:proofs.map(proof=>({...proof,url:`/api/uploads/${proof.id}`})),ownReview:ownReview?{...ownReview,badge:"Recenzie verificată"}:null,financial:safeFinancial,...(user.role==="firma"&&payment?{firm_payout:payment.firmPayout}:{})}, firmName });
+  return NextResponse.json({ job:{...(user.role==="firma"?firmJobView(job):job),...(user.role==="client"?{selectionRecovery:selectionRecoveryState(db,id,user.id)}:{}),photos:photos.map(photo=>`/api/uploads/${photo.id}`),proofs:proofs.map(proof=>({...proof,url:`/api/uploads/${proof.id}`})),ownReview:ownReview?{...ownReview,badge:"Recenzie verificată"}:null,financial:safeFinancial,...(user.role==="firma"&&payment?{firm_payout:payment.firmPayout}:{})}, firmName });
 }

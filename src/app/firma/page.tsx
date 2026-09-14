@@ -10,7 +10,7 @@ import {FirmEarnings} from "@/components/FirmEarnings";
 import {bucharestDay} from "@/lib/monthlyFirmEarnings";
 import {FirmSummary} from "@/components/FirmSummary";
 import { Logo, Card, Button, inputClass } from "@/components/ui";
-import { calcNetForFirm } from "@/lib/pricing";
+
 import { mapsDirectionsUrl } from "@/lib/maps";
 import { JobRow } from "@/lib/types";
 import { useCurrentUser } from "@/lib/useCurrentUser";
@@ -278,6 +278,10 @@ export default function FirmaPage() {
                 <span className="text-muted">Website (opțional)</span>
                 <input className={inputClass} value={profileForm.website} onChange={(e)=>setProfileForm(f=>({...f,website:e.target.value}))} placeholder="Ex: www.firma-ta.ro" />
               </label>
+              <label className="flex items-center gap-3 text-sm">
+                <input type="checkbox" checked={profileForm.services.split(/[,;\n]/).some(service=>service.trim().toLocaleLowerCase('ro-RO')==='spălare geamuri')} onChange={e=>{const checked=e.target.checked;setProfileForm(f=>({...f,services:[...f.services.split(/[,;\n]/).map(service=>service.trim()).filter(service=>service&&service.toLocaleLowerCase('ro-RO')!=='spălare geamuri'),...(checked?['Spălare geamuri']:[])].join(', ')}))}}/>
+                Spălare geamuri
+              </label>
               <p className="text-xs text-muted">CUI-ul firmei este verificat la ANAF și nu poate fi modificat de aici.</p>
               <div className="flex gap-2 pt-1">
                 <Button onClick={saveProfile} disabled={savingProfile}>{savingProfile?"Se salvează...":"Salvează"}</Button>
@@ -360,12 +364,9 @@ export default function FirmaPage() {
                     </div>
                   </div>
                 )}
-                <div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold">
-                  Valoare lucrare: {job.price_gross} lei
-                </div>
                 <div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold mt-1">Tu încasezi</div>
                 <div className="font-display font-extrabold text-lg text-aqua-deep mb-3">
-                  {calcNetForFirm(job.price_gross)} lei
+                  {job.firm_payout ?? job.financial?.firmPayout ?? "—"} lei
                 </div>
                 {job.mode === "standard" ? (
                   offeredJobIds.includes(job.id) ? (
@@ -424,7 +425,7 @@ export default function FirmaPage() {
                   Se deschide în Google Maps — durată și distanță până la locație
                 </div>
                 <div className="text-xs text-muted mb-3">
-                  {job.sqm} mp · {calcNetForFirm(job.price_gross)} lei · status: {job.status}
+                  {job.sqm} mp · {job.firm_payout ?? job.financial?.firmPayout ?? "—"} lei · status: {job.status}
                 </div>
                 {job.details&&<section className="mb-3 rounded-lg border border-line p-3"><h3 className="font-bold text-sm">Instrucțiunile clientului</h3><p className="text-sm whitespace-pre-wrap break-words">{job.details}</p></section>}
                 {job.status === "accepted" && (

@@ -1,3 +1,4 @@
+import {firmJobView} from "@/lib/firmJobView";
 import {CardSetupError,saveJobCard} from "@/lib/savedCards";
 import { pricingSnapshot } from "@/lib/pricingSnapshot";
 import { hasTrustedMutationOrigin } from "@/lib/security";
@@ -106,7 +107,7 @@ export async function GET(req: NextRequest) {
 
   const jobsWithPhotos = jobs.map((j) => {
     const canSeePrivate = user.role === "client" || j.accepted_firm_id === firmId;
-    if (canSeePrivate) {const payment=paymentsByJob.get(j.id)??null;return { ...j, ...(user.role==="client"?{authorizationStatus:authorizationByJob.get(j.id)??null}:{}), photos: photosByJob.get(j.id) ?? [], scan: scanByJob.get(j.id) ?? [], proofs: proofsByJob.get(j.id) ?? [], ownReview:user.role==="client"?ownReviewsByJob.get(j.id)??null:undefined, financial:payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null,...(user.role==="firma"?{firm_payout:payment?.firmPayout??null}:{}) };}
+    if (canSeePrivate) {const payment=paymentsByJob.get(j.id)??null;return { ...j, ...(user.role==="client"?{authorizationStatus:authorizationByJob.get(j.id)??null}:{}), photos: photosByJob.get(j.id) ?? [], scan: scanByJob.get(j.id) ?? [], proofs: proofsByJob.get(j.id) ?? [], ownReview:user.role==="client"?ownReviewsByJob.get(j.id)??null:undefined, financial:payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null,...(user.role==="firma"?{firm_payout:payment?.firmPayout??calcNetForFirm(j.price_gross)}:{}) };}
     return {
       id: j.id,
       city: j.city,
@@ -137,7 +138,7 @@ export async function GET(req: NextRequest) {
       .prepare("SELECT job_id FROM offers WHERE firm_id = ? AND status IN ('pending','accepted')")
       .all(firmId) as { job_id: string }[]).map((o) => o.job_id);
   }
-  return NextResponse.json({ jobs: jobsWithPhotos, offeredJobIds });
+  return NextResponse.json({ jobs: user.role==="firma"?jobsWithPhotos.map(firmJobView):jobsWithPhotos, offeredJobIds });
 }
 
 export async function POST(req: NextRequest) {

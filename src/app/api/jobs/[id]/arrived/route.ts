@@ -1,3 +1,4 @@
+import {firmJobView} from "@/lib/firmJobView";
 import { after, NextRequest, NextResponse } from "next/server";
 import { db, getFirmByUserId } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
@@ -16,5 +17,5 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>
   const job=db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow;
   try{const ids=queueArrivedClientPush(db,id);if(ids.length)after(()=>processPushOutbox(db,ids));}
   catch{console.error("[push-outbox] enqueue_failed JOB_ARRIVED_CLIENT_PUSH");}
-  return NextResponse.json({job});
+  return NextResponse.json({job:job?firmJobView(job):job});
 }
