@@ -145,15 +145,73 @@ interface PlanRow {
   next_run_date: string;
   anchor_day: number|null;
   end_date: string|null;
+  status: string;
+}
+
+function scheduleRevision(plan: PlanRow): string {
+  return createHash("sha256").update(JSON.stringify([
+    plan.frequency, plan.hour, plan.next_run_date, plan.anchor_day,
+    plan.end_date, plan.details, plan.status,
+  ])).digest("hex");
+}
+
+/** Change only the template for ungenerated visits, never jobs or payments. */
+export function updateRecurringSchedule(
+  db: Database, planId: string, clientId: string,
+  input: { revision: unknown; frequency: Frequency; hour: number; startDate: string; endDate?: string | null; details?: string | null },
+  now = new Date()
+): PlanResult {
+  return db.transaction((): PlanResult => {
+    const plan = db.prepare("SELECT * FROM recurring_plans WHERE id=? AND client_id=?").get(planId, clientId) as PlanRow | undefined;
+    if (!plan) return { ok: false, status: 404, error: "Seria nu există." };
+    if (plan.status === "cancelled") return { ok: false, status: 409, error: "Seria a fost anulată." };
+    if (input.revision !== scheduleRevision(plan)) return { ok: false, status: 409, error: "Programul s-a schimbat între timp. Reîncarcă lista și redeschide modificarea." };
+    const invalid = validateRecurringPlan({
+      clientId, street: plan.street, city: plan.city, sqm: plan.sqm, spaceType: plan.space_type,
+      frequency: input.frequency, hour: input.hour, startDate: input.startDate,
+      endDate: input.endDate, details: input.details,
+    });
+    if (invalid) return invalid;
+    if (input.startDate < plan.next_run_date || bucharestScheduledAt(input.startDate, input.hour) <= now) {
+      return { ok: false, status: 400, error: "Alege o dată viitoare, cel mai devreme următoarea dată a seriei." };
+    }
+    const last = db.prepare("SELECT MAX(occurrence_date) date FROM recurring_occurrences WHERE plan_id=?").get(planId) as { date: string | null };
+    if (last.date && input.startDate <= last.date) return { ok: false, status: 409, error: "Există deja vizite generate până la această dată. Alege o dată ulterioară." };
+    const anchor = input.frequency === plan.frequency && input.startDate === plan.next_run_date
+      ? plan.anchor_day ?? Number(input.startDate.slice(8, 10))
+      : Number(input.startDate.slice(8, 10));
+    db.prepare("UPDATE recurring_plans SET frequency=?,hour=?,next_run_date=?,anchor_day=?,end_date=?,details=? WHERE id=? AND client_id=?")
+      .run(input.frequency, input.hour, input.startDate, anchor, input.endDate ?? null, input.details?.trim() || null, planId, clientId);
+    return { ok: true, planId };
+  })();
+}
+
+/** Read-only, rolling 30-day calendar. No bookings, allocation or card actions. */
+function upcomingPlanDates(plan: PlanRow & { pause_start: string | null; pause_end: string | null }, now: Date): string[] {
+  if (plan.status !== "active") return [];
+  const horizon = new Date(`${ymd(now)}T12:00:00Z`);
+  horizon.setUTCDate(horizon.getUTCDate() + 30);
+  const until = horizon.toISOString().slice(0, 10);
+  const dates: string[] = [];
+  let date = plan.next_run_date;
+  while (date <= until && (!plan.end_date || date <= plan.end_date)) {
+    const scheduled = bucharestScheduledAt(date, plan.hour);
+    const paused = plan.pause_start && plan.pause_end && date >= plan.pause_start && date <= plan.pause_end;
+    if (scheduled >= now && !paused) dates.push(scheduled.toISOString());
+    date = computeNextDate(plan.frequency, new Date(`${date}T12:00:00Z`), plan.anchor_day ?? undefined);
+  }
+  return dates;
 }
 
 /** Planurile unui client (active + pauză), pentru afișare în cont. */
 export function listPlansForClient(db: Database, clientId: string) {
-  return db
+  const plans = db
     .prepare(
       "SELECT p.*, r.start_date AS pause_start, r.end_date AS pause_end FROM recurring_plans p LEFT JOIN recurring_pauses r ON r.plan_id=p.id WHERE p.client_id = ? AND p.status != 'cancelled' ORDER BY p.created_at DESC"
     )
-    .all(clientId);
+    .all(clientId) as Array<PlanRow & { pause_start: string | null; pause_end: string | null }>;
+  const now = new Date();
+  return plans.map(plan => ({ ...plan, schedule_revision: scheduleRevision(plan), upcoming_dates: upcomingPlanDates(plan, now) }));
 }
 
 /** Historicul demonstrabil, inclusiv seriile anulate; fără backfill presupus. */

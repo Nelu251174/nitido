@@ -53,6 +53,10 @@ interface OfferView {
 }
 
 interface PlanView {
+  hour: number;
+  details: string | null;
+  schedule_revision: string;
+  upcoming_dates: string[];
   end_date?: string|null;
   pause_start?: string|null;
   pause_end?: string|null;
@@ -1053,6 +1057,7 @@ function ReferralCard({ code, creditBalance }: { code: string; creditBalance: nu
 }
 
 function RecurringSection({ defaults }: { defaults: { street: string; postalCode: string; city: string; floor: string; sqm: number; spaceType: SpaceType } }) {
+  const [editing, setEditing] = useState<{plan: PlanView; frequency: PlanView["frequency"]; hour: number; startDate: string; endDate: string; details: string} | null>(null);
   const [pausePlan,setPausePlan]=useState("");
   const [pauseStart,setPauseStart]=useState("");
   const [pauseEnd,setPauseEnd]=useState("");
@@ -1099,6 +1104,24 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
     } catch(error){
       setMsg(error instanceof Error&&!(error instanceof TypeError)?error.message:"Crearea nu a fost confirmată. Reîncearcă fără să modifici datele sau verifică lista abonamentelor.");
     } finally {statusLock.current=false;setBusy(false)}
+  }
+  async function saveSchedule() {
+    if (!editing || statusLock.current) return;
+    statusLock.current = true; setStatusBusy(true); setMsg(null);
+    try {
+      const response = await fetch(`/api/recurring/${encodeURIComponent(editing.plan.id)}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({action: "update_schedule", revision: editing.plan.schedule_revision,
+          frequency: editing.frequency, hour: editing.hour, startDate: editing.startDate,
+          endDate: editing.endDate || null, details: editing.details}),
+      });
+      const result = await response.json();
+      if (!response.ok || result.ok !== true) throw new Error(result.error || "Programul nu a fost salvat.");
+      setEditing(null);
+      setMsg("Programul a fost salvat pentru vizitele încă negenerate. Rezervările existente își păstrează data și plata.");
+      try { await load(); } catch { setMsg("Programul a fost salvat. Reîncarcă pagina pentru lista actualizată."); }
+    } catch (error) { setMsg(error instanceof Error ? error.message : "Salvarea nu a fost confirmată. Reîncarcă lista înainte de a reîncerca."); }
+    finally { statusLock.current = false; setStatusBusy(false); }
   }
   async function generateVisits(){
     if(statusLock.current||busy)return;
@@ -1169,7 +1192,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
     <div className="v2-card p-5 mb-5">
       <div className="flex items-center justify-between">
         <h2 className="font-bold">
-          Abonament recurent{" "}
+          Rezervări recurente{" "}
           <span className="text-[11px] font-bold text-aqua-deep bg-aqua/10 rounded-full px-2 py-0.5 align-middle">Nitido Repeat</span>
         </h2>
         <button onClick={() => setOpen((o) => !o)} className="text-xs font-display font-bold text-aqua-deep">
@@ -1183,16 +1206,18 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
       {plans.length > 0 && (
         <div className="mt-3 divide-y divide-[#e2e8f0]">
           {plans.map((p) => (
-            <div key={p.id} className="py-3 flex items-center gap-3">
+            <div key={p.id} className="py-3 flex flex-wrap items-center gap-3">
               <span className="w-10 h-10 rounded-lg bg-[var(--nitido-brand-soft)] flex items-center justify-center text-[var(--nitido-brand-dark)] font-bold">↻</span>
               <span className="min-w-0 flex-1">
                 {p.end_date&&<span className="block text-xs text-muted">Ultima zi a seriei: {p.end_date} inclusiv</span>}
                 {p.pause_start&&p.pause_end&&<span className="block text-xs text-aqua-deep">Pauză programată: {p.pause_start} – {p.pause_end} inclusiv<button type="button" disabled={statusBusy||busy} onClick={()=>void removePause(p)} className="block mt-2 underline disabled:opacity-50">Elimină pauza programată</button></span>}
                 <b className="text-sm block truncate">{FREQ_LABELS[p.frequency]} · {p.space_type} · {p.city}</b>
                 <span className="text-xs text-[#6b756f]">{p.end_date&&p.next_run_date>p.end_date?"Serie încheiată":`Următoarea: ${p.next_run_date}`} · {p.status === "active" ? "activ" : p.status === "paused" ? "pe pauză" : p.status}</span>
+                <span className="block text-xs text-muted">Ora {String(p.hour).padStart(2,"0")}:00 · ora României</span>
               </span>
               {p.status !== "cancelled" && (
-                <span className="flex gap-2 flex-shrink-0">
+                <span className="flex flex-wrap gap-3">
+                  <button type="button" disabled={statusBusy||busy} onClick={() => setEditing({plan:p,frequency:p.frequency,hour:p.hour,startDate:p.next_run_date,endDate:p.end_date??"",details:p.details??""})} className="text-xs font-bold text-aqua-deep">Modifică programul</button>
                   {p.status === "active" ? (
                     <button disabled={statusBusy} onClick={() => changeStatus(p.id, "paused")} className="text-xs font-bold text-muted">Pauză</button>
                   ) : (
@@ -1201,10 +1226,29 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
                   <button disabled={statusBusy} onClick={() => changeStatus(p.id, "cancelled")} className="text-xs font-bold text-coral">Anulează</button>
                 </span>
               )}
+              {!!p.upcoming_dates?.length && <details className="basis-full rounded-lg bg-aqua/5 p-3">
+                <summary className="cursor-pointer text-sm font-bold">Date estimate în următoarele 30 de zile</summary>
+                <p className="mt-2 text-xs text-muted">Calendar orientativ al vizitelor încă negenerate. Disponibilitatea firmei și plata se confirmă pentru fiecare rezervare.</p>
+                <ul className="mt-2 flex flex-wrap gap-2">{p.upcoming_dates.map(date => <li key={date} className="rounded-lg bg-white px-3 py-2 text-xs">{new Intl.DateTimeFormat("ro-RO",{timeZone:"Europe/Bucharest",dateStyle:"medium",timeStyle:"short"}).format(new Date(date))}</li>)}</ul>
+              </details>}
             </div>
           ))}
         </div>
       )}
+
+      {editing && <form className="mt-4 rounded-xl border border-line p-4" onSubmit={event => {event.preventDefault(); void saveSchedule();}}>
+        <h3 className="font-bold">Modifică programul · {editing.plan.city}</h3>
+        <p className="mt-2 text-xs text-muted">Se aplică doar vizitelor care nu au fost încă generate. Pentru o rezervare deja creată, deschide rezervarea din istoric. Pauzele programate rămân valabile.</p>
+        <fieldset disabled={statusBusy||busy} className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="text-sm">Frecvență<select className={inputClass} value={editing.frequency} onChange={event => setEditing({...editing,frequency:event.target.value as PlanView["frequency"]})}>{(["weekly","biweekly","monthly"] as const).map(value => <option key={value} value={value}>{FREQ_LABELS[value]}</option>)}</select></label>
+          <label className="text-sm">Ora României<select className={inputClass} value={editing.hour} onChange={event => setEditing({...editing,hour:Number(event.target.value)})}>{SLOT_HOURS.map(value => <option key={value} value={value}>{String(value).padStart(2,"0")}:00</option>)}</select></label>
+          <label className="text-sm">Prima dată din noul program<input required type="date" className={inputClass} min={editing.plan.next_run_date} value={editing.startDate} onChange={event => setEditing({...editing,startDate:event.target.value})}/></label>
+          <label className="text-sm">Data de sfârșit (opțional)<input type="date" className={inputClass} min={editing.startDate} value={editing.endDate} onChange={event => setEditing({...editing,endDate:event.target.value})}/></label>
+          <label className="text-sm sm:col-span-2">Preferințe pentru vizitele viitoare<textarea className={inputClass} maxLength={500} rows={3} value={editing.details} onChange={event => setEditing({...editing,details:event.target.value})}/></label>
+        </fieldset>
+        <p className="mt-2 text-xs text-muted">Pentru o zi lunară inexistentă se folosește ultima zi a lunii, apoi se revine la ziua inițială. Ora locală se păstrează și la schimbarea orei de vară.</p>
+        <div className="mt-3 flex flex-wrap gap-3"><button type="submit" disabled={statusBusy||busy} className="rounded-lg bg-aqua px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{statusBusy?"Se salvează…":"Salvează programul"}</button><button type="button" disabled={statusBusy} className="px-3 py-2 text-sm" onClick={() => setEditing(null)}>Renunță</button></div>
+      </form>}
 
       {plans.some(plan=>plan.status==="active")&&<details className="mt-4 border-t border-line pt-3">
         <summary className="cursor-pointer text-sm font-bold">Programează pauză pe interval</summary>
