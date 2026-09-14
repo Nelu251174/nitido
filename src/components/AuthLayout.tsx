@@ -11,7 +11,7 @@ import { Logo } from "@/components/ui";
  */
 export function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen flex">
+    <div className="auth-layout min-h-screen flex">
       <div className="hidden md:flex md:w-[42%] lg:w-[38%] mesh-dark relative overflow-hidden flex-col justify-between p-10 lg:p-14">
         {/* pete de gradient animate, discret, fără să distragă */}
         <div className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 rounded-full bg-aqua/25 blur-3xl animate-blob" />
@@ -59,12 +59,12 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         <p className="relative text-white/30 text-xs">© 2026 Nitido</p>
       </div>
 
-      <div className="flex-1 flex flex-col mesh-light">
+      <div className="auth-content flex-1 flex flex-col mesh-light">
         <div className="p-6 md:hidden">
           <Logo />
         </div>
-        <div className="flex-1 flex items-center justify-center px-6 py-10">
-          <div className="w-full max-w-md bg-white/90 backdrop-blur-sm border border-white rounded-3xl p-8 shadow-[0_8px_40px_-12px_rgba(20,37,48,0.18)]">
+        <div className="auth-form-wrap flex-1 flex items-center justify-center px-6 py-10">
+          <div className="auth-form-card w-full max-w-md bg-white/90 backdrop-blur-sm border border-white rounded-3xl p-8 shadow-[0_8px_40px_-12px_rgba(20,37,48,0.18)]">
             {children}
           </div>
         </div>

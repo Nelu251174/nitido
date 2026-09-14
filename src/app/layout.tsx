@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import "./approved-design.css";
+import "./mobile-layout.css";
 import "@fontsource-variable/instrument-sans";
 import { WebAlerts } from "@/components/WebAlerts";
 import { PwaProvider } from "@/components/PwaProvider";

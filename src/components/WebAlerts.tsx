@@ -1,15 +1,22 @@
 'use client';
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useRef,useState,useSyncExternalStore} from 'react';
 import {NativePushControls} from './NativePushControls';
 import {nativePushAvailable} from '@/lib/nativePushClient';
+import {Capacitor} from '@capacitor/core';
 import {usePathname} from 'next/navigation';
 import type {WebAlert} from '@/lib/webAlerts';
 import {alertHref,freshAlerts} from '@/lib/webAlertState';
 type Feed={userId:string;role:'client'|'firma';events:WebAlert[]};
+const desktopQuery='(min-width: 761px) and (hover: hover) and (pointer: fine)';
+const subscribeDesktop=(notify:()=>void)=>{const query=window.matchMedia(desktopQuery);query.addEventListener('change',notify);return()=>query.removeEventListener('change',notify)};
+const readDesktop=()=>!Capacitor.isNativePlatform()&&window.matchMedia(desktopQuery).matches;
+const serverDesktop=()=>false;
 export function WebAlerts(){
  const path=usePathname();
+ const desktop=useSyncExternalStore(subscribeDesktop,readDesktop,serverDesktop);
  if(!/^\/(client|firma)(\/|$)/.test(path))return null;
- return <WebAlertsSession key={path.split('/')[1]}/>;
+ const role=path.split('/')[1] as 'client'|'firma';
+ return <><NativePushControls role={role} controls={false}/>{desktop&&<WebAlertsSession key={role}/>}</>;
 }
 function WebAlertsSession(){
  const [account,setAccount]=useState<Feed|null>(null),[toast,setToast]=useState<{title:string;href:string;count:number}|null>(null),[enabled,setEnabled]=useState(false),[hint,setHint]=useState('');
@@ -52,5 +59,5 @@ function WebAlertsSession(){
   setHint(granted==='granted'?'Alerte active cât timp NITIDO este deschis în browser.':'Sunet activ în pagină. Notificările desktop nu sunt permise în acest browser.');
  }
  if(!account)return null;
- return <aside className="web-alerts" aria-label="Alerte NITIDO"><NativePushControls role={account.role}/><button className="web-alert-toggle" onClick={()=>void enable()}>{enabled?'Oprește sunetul și alertele desktop':'Activează sunetul și alertele desktop'}</button><button className="web-alert-toggle" onClick={()=>void testSound()}>Testează sunetul</button>{hint&&<p className="web-alert-hint" role="status">{hint}<button aria-label="Închide explicația" onClick={()=>setHint('')}>×</button></p>}{toast&&<div className="web-alert-toast" role="status"><button aria-label="Închide alerta" onClick={()=>setToast(null)}>×</button><strong>{toast.title}</strong>{toast.count>1&&<p>{toast.count} noutăți în cont.</p>}<a href={toast.href}>Vezi detaliile</a></div>}</aside>;
+ return <aside className="web-alerts" aria-label="Alerte NITIDO"><button className="web-alert-toggle" onClick={()=>void enable()}>{enabled?'Oprește sunetul și alertele desktop':'Activează sunetul și alertele desktop'}</button><button className="web-alert-toggle" onClick={()=>void testSound()}>Testează sunetul</button>{hint&&<p className="web-alert-hint" role="status">{hint}<button aria-label="Închide explicația" onClick={()=>setHint('')}>×</button></p>}{toast&&<div className="web-alert-toast" role="status"><button aria-label="Închide alerta" onClick={()=>setToast(null)}>×</button><strong>{toast.title}</strong>{toast.count>1&&<p>{toast.count} noutăți în cont.</p>}<a href={toast.href}>Vezi detaliile</a></div>}</aside>;
 }

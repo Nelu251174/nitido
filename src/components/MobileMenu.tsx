@@ -40,14 +40,14 @@ export function MobileMenu() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 top-[66px] z-40 bg-[#f7f9fc]" role="dialog" aria-modal="true">
-          <nav className="v2-container py-4 flex flex-col">
+        <div className="public-mobile-menu" aria-label="Meniu principal">
+          <nav className="public-mobile-menu-links">
             {LINKS.map(([href, label]) => (
               <Link
                 key={href}
                 href={href}
                 onClick={() => setOpen(false)}
-                className="py-4 text-lg font-semibold text-[#111827] border-b border-[#e2e8f0]"
+                className="public-mobile-menu-link"
               >
                 {label}
               </Link>

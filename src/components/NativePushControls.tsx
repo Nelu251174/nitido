@@ -6,19 +6,19 @@ import { nativeNotificationHref, nativePushAvailable, registerNativePush } from 
 
 const subscribeNative = () => () => {};
 const serverNative = () => false;
-export function NativePushControls({ role }: { role: 'client' | 'firma' }) {
+export function NativePushControls({ role, controls = true }: { role: 'client' | 'firma'; controls?: boolean }) {
   const router = useRouter();
   const available = useSyncExternalStore(subscribeNative, nativePushAvailable, serverNative);
   const [busy, setBusy] = useState(false), [message, setMessage] = useState('');
   useEffect(() => {
-    if (!available) return;
+    if (!available || controls) return;
     let disposed = false;
     const handle = PushNotifications.addListener('pushNotificationActionPerformed', action => {
       const href = nativeNotificationHref(role, action.notification.data ?? {});
       if (!disposed && href) router.push(href);
     });
     return () => { disposed = true; void handle.then(value => value.remove()); };
-  }, [available, role, router]);
+  }, [available, controls, role, router]);
   async function enable() {
     setBusy(true);
     try {
@@ -30,6 +30,6 @@ export function NativePushControls({ role }: { role: 'client' | 'firma' }) {
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Activarea nu a reușit.'); }
     finally { setBusy(false); }
   }
-  if (!available) return null;
+  if (!available || !controls) return null;
   return <div><button className="web-alert-toggle" disabled={busy} onClick={() => void enable()}>{busy ? 'Se activează…' : 'Activează notificările telefonului'}</button>{message && <p className="web-alert-hint" role="status">{message}</p>}</div>;
 }
