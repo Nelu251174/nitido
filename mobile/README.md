@@ -16,7 +16,7 @@ Folosește `npm run android` pentru Android. Pentru iOS este necesar macOS/Xcode
 
 Singurele variabile publice sunt URL-ul API și EAS Project ID. Nu adăuga aici chei Stripe, OpenAI, Firebase Admin, APNs sau SMS. Tokenul de sesiune este păstrat în Expo SecureStore. Prețurile și payout-ul nu sunt calculate în aplicație.
 
-Identificatorii finali aprobați sunt `ro.nitido.app` pentru iOS și Android. `OWNER_EAS_PROJECT_ID_REQUIRED`, domeniile Universal Links/App Links și URL-urile de politici rămân blocaje deliberate până la configurarea conturilor și domeniilor aprobate.
+Identificatorii finali aprobați sunt `ro.nitido.app` pentru iOS și Android. Proiectul Expo verificat pe 14.09.2026 este `@nitido-ro/nitido-ro`, ID `3887c4e7-445a-4954-9d04-7c8adc8519f9`. Profilele development și preview folosesc sandboxul HTTPS. Semnarea și furnizorii push rămân de configurat.
 
 Sursa canonică aprobată rămâne `../public/icons/icon-512x512.png`: pătratul verde rotunjit cu un singur „N” alb. Derivatele mecanice, fără redesenare, sunt în `assets/`: icon iOS/store 1024 px fără transparență, foreground adaptive Android și icon monocrom pentru notificări. Splash-ul folosește aceeași identitate, fără branding Expo.
 

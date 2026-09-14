@@ -3,8 +3,8 @@ import { findSupportTopic, SUPPORT_TOPICS } from "./supportKnowledge";
 
 describe("canonical NITIDO support knowledge", () => {
   it("contains every requested canonical topic with unique ids and complete answers", () => {
-    expect(SUPPORT_TOPICS).toHaveLength(60);
-    expect(new Set(SUPPORT_TOPICS.map((topic) => topic.id)).size).toBe(60);
+    expect(SUPPORT_TOPICS).toHaveLength(61);
+    expect(new Set(SUPPORT_TOPICS.map((topic) => topic.id)).size).toBe(61);
     for (const topic of SUPPORT_TOPICS) {
       expect(topic.answer.trim().length, topic.title).toBeGreaterThan(80);
       expect(topic.answer.trim(), topic.title).toMatch(/[.!?]$/);

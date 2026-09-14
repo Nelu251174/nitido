@@ -1,5 +1,6 @@
 import type { Database } from "better-sqlite3";
 import { newId } from "@/lib/db";
+import {requestPaymentCancellation} from "@/lib/paymentCancellation";
 import { cancelPayment } from "@/lib/payments";
 import { determineConsequence } from "@/lib/strikes";
 import { JobRow } from "@/lib/types";
@@ -30,55 +31,61 @@ export async function markNoShow(
 
   const firmId = job.accepted_firm_id;
 
-  const result = db
-    .prepare(`UPDATE jobs SET status = 'no_show' WHERE id = ? AND status = 'accepted'`)
-    .run(jobId);
-  if (result.changes === 0) {
-    return { ok: false, error: "Lucrarea nu mai e în starea acceptată", status: 409 };
-  }
+  const outcome=db.transaction(():NoShowResult=>{
+    const result = db
+      .prepare(`UPDATE jobs SET status = 'no_show' WHERE id = ? AND status = 'accepted' AND accepted_firm_id = ?`)
+      .run(jobId,firmId);
+    if (result.changes === 0) {
+      return { ok: false, error: "Lucrarea nu mai e în starea acceptată", status: 409 };
+    }
 
-  await cancelPayment(db, jobId);
+    requestPaymentCancellation(db,jobId);
 
-  // Strike automat — nu depinde de o recenzie manuală a clientului.
-  db.prepare(
-    `INSERT INTO strikes (id, firm_id, job_id, reason) VALUES (?, ?, ?, 'no_show')`
-  ).run(newId("strike"), firmId, jobId);
-
-  const firm = db.prepare("SELECT * FROM firms WHERE id = ?").get(firmId) as {
-    strikes_30d: number;
-    strikes_90d: number;
-  };
-  const newStrikes30d = firm.strikes_30d + 1;
-  const newStrikes90d = firm.strikes_90d + 1;
-  const consequence = determineConsequence(newStrikes30d, newStrikes90d);
-
-  let suspendedUntil: string | null = null;
-  if (consequence === "suspend_7d") {
-    const until = new Date();
-    until.setDate(until.getDate() + 7);
-    suspendedUntil = until.toISOString();
-  } else if (consequence === "suspend_permanent") {
-    const until = new Date();
-    until.setFullYear(until.getFullYear() + 100); // suspendare permanentă, cu contestație posibilă
-    suspendedUntil = until.toISOString();
-  }
-
-  db.prepare(
-    `UPDATE firms SET strikes_30d = ?, strikes_90d = ?, suspended_until = COALESCE(?, suspended_until) WHERE id = ?`
-  ).run(newStrikes30d, newStrikes90d, suspendedUntil, firmId);
-
-  let repostedJobId: string | null = null;
-  if (repost) {
-    repostedJobId = newId("job");
+    // Strike automat — nu depinde de o recenzie manuală a clientului.
     db.prepare(
-      `INSERT INTO jobs
-        (id, client_id, street, postal_code, city, floor, sqm, space_type, when_type,
-         scheduled_at, price_gross, duration_minutes, buffer_minutes, photos_count, status)
-       SELECT ?, client_id, street, postal_code, city, floor, sqm, space_type, when_type,
-              NULL, price_gross, duration_minutes, buffer_minutes, photos_count, 'waiting'
-       FROM jobs WHERE id = ?`
-    ).run(repostedJobId, jobId);
-  }
+      `INSERT INTO strikes (id, firm_id, job_id, reason) VALUES (?, ?, ?, 'no_show')`
+    ).run(newId("strike"), firmId, jobId);
 
-  return { ok: true, consequence, repostedJobId };
+    const firm = db.prepare("SELECT * FROM firms WHERE id = ?").get(firmId) as {
+      strikes_30d: number;
+      strikes_90d: number;
+    };
+    const newStrikes30d = firm.strikes_30d + 1;
+    const newStrikes90d = firm.strikes_90d + 1;
+    const consequence = determineConsequence(newStrikes30d, newStrikes90d);
+
+    let suspendedUntil: string | null = null;
+    if (consequence === "suspend_7d") {
+      const until = new Date();
+      until.setDate(until.getDate() + 7);
+      suspendedUntil = until.toISOString();
+    } else if (consequence === "suspend_permanent") {
+      const until = new Date();
+      until.setFullYear(until.getFullYear() + 100); // suspendare permanentă, cu contestație posibilă
+      suspendedUntil = until.toISOString();
+    }
+
+    db.prepare(
+      `UPDATE firms SET strikes_30d = ?, strikes_90d = ?, suspended_until = COALESCE(?, suspended_until) WHERE id = ?`
+    ).run(newStrikes30d, newStrikes90d, suspendedUntil, firmId);
+
+    let repostedJobId: string | null = null;
+    if (repost) {
+      repostedJobId = newId("job");
+      db.prepare(
+        `INSERT INTO jobs
+          (id, client_id, street, postal_code, city, floor, sqm, space_type, when_type,
+           scheduled_at, price_gross, duration_minutes, buffer_minutes, photos_count, status)
+         SELECT ?, client_id, street, postal_code, city, floor, sqm, space_type, when_type,
+                NULL, price_gross, duration_minutes, buffer_minutes, photos_count, 'waiting'
+         FROM jobs WHERE id = ?`
+      ).run(repostedJobId, jobId);
+    }
+
+    return { ok: true, consequence, repostedJobId };
+  })();
+  if(outcome.ok){
+    try{await cancelPayment(db,jobId);}catch{/* Nu pierdem strike-ul/repostarea dacă Stripe nu răspunde. */}
+  }
+  return outcome;
 }

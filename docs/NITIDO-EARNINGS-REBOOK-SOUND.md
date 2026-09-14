@@ -1,0 +1,7 @@
+# Câștiguri pe zile, rezervare repetată și sunet — 14 septembrie 2026
+
+- Rezervă din nou folosește navigare completă către proprietatea selectată și deschide formularul precompletat, inclusiv codul poștal și etajul. Nu publică automat, nu reutilizează data veche și nu inițiază plata. Cauza: navigarea internă pe aceeași pagină nu relansa efectul inițial de precompletare.
+- Sunet web: două semnale, amplitudine crescută, atac gradual. Testează sunetul deblochează contextul audio printr-un clic și redă proba. Volumul sistemului, fila fără sunet și permisiunile browserului rămân aplicabile.
+- Câștiguri pe zile: lună și zi, în fusul Europe/Bucharest. Gruparea este după finalizarea lucrării, nu după viramentul bancar. Sunt afișate clientul, locația, orele de sosire/final, durata înregistrată și estimată, suma brută, comisionul, netul și stările financiare. Doar plățile capturate fără rambursări/dispute intră în totalul confirmat. Valorile vin din payments, nu din tarife recalculabile. API-ul identifică firma din sesiune și nu acceptă un firmId extern.
+- Bifa ADMIN Include cererile închise controlează filtrul listei de evaluări asistate. Actualizează reîncarcă lista; niciuna nu aprobă cereri sau efectuează plăți. Checkboxul are dimensiune normală și etichetă alăturată.
+- Fără migrații sau modificări ale plăților. Probele vizuale și auzirea efectivă se confirmă separat pe dispozitivul utilizatorului. E2 rămâne deschisă pentru configurația mobilă, acces și dovezile scenariilor financiare speciale încă neconfirmate.

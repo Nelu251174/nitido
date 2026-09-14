@@ -25,7 +25,7 @@ Completează informațiile cerute despre serviciu: tipul spațiului sau al cură
 
 După ce publici lucrarea, NITIDO identifică firmele eligibile din zona respectivă și le trimite alerta de lucrare nouă. Adresa ta exactă nu trebuie expusă firmelor înainte ca lucrarea să fie alocată.
 
-Prima firmă eligibilă care acceptă prin sistemul NITIDO poate primi lucrarea, după validările serverului și ale fluxului de plată aplicabil.
+La Standard, firmele trimit candidaturi, iar clientul alege firma. La Express, prima firmă eligibilă care acceptă prin sistemul NITIDO poate primi lucrarea, după validările serverului și ale fluxului de plată aplicabil.
 
 După confirmarea alocării vei vedea firma care a preluat lucrarea și vei putea urmări statusul din contul tău. NITIDO îți poate trimite și notificarea/SMS-ul de confirmare atunci când acest serviciu este activ.`
   },
@@ -37,7 +37,7 @@ Firma deschide NITIDO, verifică informațiile disponibile înainte de alocare �
 
 Acceptarea nu este decisă de telefon sau de interfață, ci de serverul NITIDO. Sistemul verifică autentificarea firmei, eligibilitatea, statusul lucrării și faptul că lucrarea nu a fost deja preluată.
 
-Regula principală este primul Accept valid confirmat de server. Dacă mai multe firme încearcă simultan, o singură firmă poate câștiga lucrarea.
+La Express, regula principală este primul Accept valid confirmat de server. La Standard, firma trimite candidatura, iar clientul alege dintre firmele candidate. Dacă mai multe firme încearcă simultan, o singură firmă poate câștiga lucrarea.
 
 După alocarea confirmată, firma câștigătoare primește acces la informațiile necesare executării, inclusiv detaliile de locație permise după alocare.
 
@@ -160,17 +160,15 @@ Nu comunica Asistentului AI parole, coduri de autentificare sau date complete al
 3. Introdu emailul și parola, apoi apasă Autentificare.
 
 Dacă alegi alt rol decât cel asociat contului, NITIDO îți va indica tipul corect de cont.` },
-  { id: "forgot-password", title: "Mi-am uitat parola", aliases: ["uitat parola", "resetare parolă", "recuperez parola"], audience: "all", answer: `NITIDO nu oferă în prezent un flux automat de resetare a parolei în interfața disponibilă. Nu crea un cont nou pentru a înlocui contul existent și nu transmite parola sau coduri de autentificare în conversație.
+  { id: "forgot-password", title: "Mi-am uitat parola", aliases: ["uitat parola", "resetare parolă", "recuperez parola"], audience: "all", answer: `Deschide pagina Autentificare și apasă Am uitat parola. Introdu adresa contului și solicită linkul de resetare. Verifică Inbox și Spam; mesajul afișat în pagină nu confirmă livrarea emailului.
 
-${humanSupport}` },
-  { id: "edit-profile", title: "Cum îmi modific profilul?", aliases: ["modific profilul", "editez profil", "schimb numele"], audience: "all", answer: `În versiunea actuală nu există un flux complet de editare a profilului disponibil utilizatorului. Pentru corectarea datelor contului este necesară intervenția echipei NITIDO.
+Deschide linkul primit, valabil o oră, și introdu de două ori parola nouă: minimum 10 caractere, cu litere și cifre. După confirmarea schimbării, revino la Autentificare. Nu trimite parola sau linkul de resetare în conversație. Dacă emailul nu ajunge, contactează suportul.` },
+  { id: "edit-profile", title: "Cum îmi modific profilul?", aliases: ["modific profilul", "editez profil", "schimb numele"], audience: "all", answer: `Autentifică-te și deschide Contul meu în panoul clientului sau profilul din panoul firmei. Apasă Editează profilul, modifică datele și apasă Salvează. Verifică mesajul de confirmare înainte de a părăsi formularul.
 
-${authenticate}
+Clientul poate modifica numele, emailul și telefonul. Firma poate modifica numele, telefonul, zonele de acoperire, descrierea, serviciile, programul și website-ul. CUI-ul nu se modifică din acest formular. Parola se schimbă prin Am uitat parola.` },
+  { id: "change-phone", title: "Cum îmi schimb numărul de telefon?", aliases: ["schimb telefonul", "număr de telefon nou", "modific telefon"], audience: "all", answer: `Autentifică-te în cont, deschide Editează profilul și modifică câmpul Telefon. Apasă Salvează și verifică rezultatul. Dacă numărul este refuzat, corectează formatul indicat de formular.
 
-${humanSupport}` },
-  { id: "change-phone", title: "Cum îmi schimb numărul de telefon?", aliases: ["schimb telefonul", "număr de telefon nou", "modific telefon"], audience: "all", answer: `Numărul de telefon nu poate fi schimbat în prezent din profil. Deoarece este folosit pentru notificări tranzacționale, actualizarea trebuie verificată de echipa NITIDO.
-
-${humanSupport}` },
+Schimbarea numărului nu confirmă automat livrarea notificărilor SMS. Pentru probleme de livrare, contactează suportul NITIDO.` },
   { id: "delete-account", title: "Cum îmi șterg contul?", aliases: ["șterg contul", "închid contul", "ștergere date", "cum îmi șterg contul"], audience: "all", answer: `Interfața actuală nu include o comandă de ștergere a contului. Trimite solicitarea de pe adresa asociată contului la contact@nitido.ro. Echipa va verifica identitatea și îți va comunica ce date pot fi șterse și ce date trebuie păstrate pentru obligații legale sau tranzacționale.
 
 ${humanSupport}` },
@@ -183,9 +181,9 @@ ${humanSupport}` },
   { id: "firm-unverified", title: "De ce firma apare neverificată?", aliases: ["apare neverificată", "neverificată", "nu sunt verificat"], audience: "firma", answer: `Firma poate apărea neverificată dacă serviciul ANAF a fost indisponibil la înregistrare sau dacă verificarea nu a putut confirma o firmă activă. O firmă neverificată nu este tratată ca eligibilă pentru alertele și acceptarea lucrărilor.
 
 Starea poate fi reverificată numai prin fluxul administrativ autorizat. ${humanSupport}` },
-  { id: "coverage", title: "Cum adaug orașe/zone de acoperire?", aliases: ["zone de acoperire", "adaug orașe", "localități acoperite"], audience: "firma", answer: `La crearea contului de firmă, completează orașul principal și localitățile suplimentare, separate prin virgulă. Potrivirea lucrărilor folosește aceste zone.
+  { id: "coverage", title: "Cum adaug orașe/zone de acoperire?", aliases: ["zone de acoperire", "adaug orașe", "localități acoperite"], audience: "firma", answer: `În panoul firmei, deschide Editează profilul. Completează Oraș principal de acoperire și, dacă este cazul, Orașe suplimentare, separate prin virgulă. Apasă Salvează și verifică confirmarea.
 
-Interfața actuală nu oferă editarea ulterioară completă a zonelor. Pentru o firmă deja înregistrată, ${humanSupport.toLowerCase()}` },
+Acoperirea este folosită la eligibilitatea pentru lucrări. Adăugarea unui oraș nu garantează primirea unei lucrări și nu înlocuiește verificarea firmei sau disponibilitatea echipelor.` },
   { id: "job-not-visible", title: "De ce nu văd o anumită lucrare?", aliases: ["nu văd lucrarea", "lucrare lipsește", "nu apare lucrarea"], audience: "firma", answer: `O firmă vede lucrările disponibile numai dacă este verificată, nesuspendată și acoperă localitatea lucrării. O lucrare poate lipsi și dacă a fost deja acceptată, anulată sau nu mai este disponibilă.
 
 Pentru datele propriului cont, ${authenticate.toLowerCase()} Dacă problema persistă, contactează suportul cu identificatorul lucrării, dacă îl ai.` },
@@ -206,9 +204,9 @@ Regulile și eventualele consecințe pentru fiecare moment al anulării nu sunt 
   { id: "payment-failed", title: "Ce se întâmplă dacă plata eșuează?", aliases: ["plata eșuează", "card refuzat", "autorizare eșuată"], audience: "client", answer: `Dacă autorizarea necesară eșuează, serverul nu trebuie să lase lucrarea fals confirmată sau alocată. Verifică datele prin fluxul securizat al providerului de plată și încearcă din nou dacă aplicația permite. Nu trimite date complete de card Asistentului AI. Pentru o plată care rămâne blocată, contactează suportul cu identificatorul lucrării.` },
   { id: "send-photos", title: "Cum trimit poze?", aliases: ["trimit poze", "adaug fotografii", "încarc imagini"], audience: "client", answer: `În formularul de postare a lucrării poți încărca fotografii și le poți atașa înainte de publicare. Platforma acceptă cel mult 5 fotografii asociate unei lucrări. Folosește imagini relevante pentru evaluarea spațiului și evită documente, fețe sau alte date personale care nu sunt necesare.` },
   { id: "photo-visibility", title: "Cine poate vedea pozele?", aliases: ["vede pozele", "fotografii private", "acces imagini", "cine vede pozele"], audience: "all", answer: `Fotografiile unei lucrări sunt informații protejate. Clientul proprietar și firma căreia i-a fost alocată lucrarea le pot accesa prin verificările serverului. O firmă care doar vede o lucrare disponibilă nu trebuie să primească fotografiile private înainte de alocare, iar alți utilizatori nu au acces.` },
-  { id: "messages", title: "Cum funcționează mesajele?", aliases: ["mesajele", "chat lucrare", "vorbesc cu firma"], audience: "all", answer: `Pentru o lucrare existentă, folosește zona de mesaje sau suport asociată lucrării, dacă este disponibilă în panoul tău. Mesajele trebuie folosite numai de participanții autorizați și păstrează contextul lucrării.
+  { id: "messages", title: "Cum funcționează mesajele?", aliases: ["mesajele", "chat lucrare", "vorbesc cu firma"], audience: "all", answer: `Deschide Mesaje în contul clientului sau al firmei și selectează lucrarea. Conversația este disponibilă după alocarea unei firme; fără lucrări alocate, lista poate fi goală.
 
-Funcțiile exacte de mesagerie nu sunt complet documentate în versiunea actuală; dacă zona nu apare, contactează suportul și menționează identificatorul lucrării.` },
+Scrie în câmpul Mesaj și apasă Trimite mesajul. Mesajele sunt vizibile clientului și firmei alocate. Dacă apare o eroare de încărcare, apasă Reîncearcă. Pentru ajutor înainte de alocare, folosește asistentul sau contact@nitido.ro.` },
   { id: "map", title: "Cum deschid locația în hartă?", aliases: ["deschid harta", "locația în hartă", "navigație"], audience: "firma", answer: `După alocare, firma câștigătoare poate folosi adresa exactă afișată în detaliile lucrării. Versiunea actuală nu documentează un buton garantat de deschidere directă într-o aplicație de hărți. Dacă nu există un astfel de buton, copiază adresa din lucrarea alocată într-o aplicație de navigație. Adresa nu este disponibilă firmelor înainte de alocare.` },
   { id: "push", title: "Cum funcționează notificările push?", aliases: ["notificări push", "push", "alertă aplicație"], audience: "all", answer: `Interfața actuală nu include o implementare verificată de notificări push pe dispozitiv. Evenimentele importante pot apărea în panoul NITIDO și, când serviciul este activ, prin SMS. Nu te baza pe o notificare push pentru starea oficială; verifică lucrarea în cont.` },
   { id: "sms-missing", title: "De ce nu am primit SMS?", aliases: ["nu am primit sms", "sms lipsă"], audience: "all", answer: `Un SMS poate lipsi dacă serviciul nu este activ/configurat, numărul din cont este invalid, firma nu era eligibilă pentru alertă sau providerul a refuzat ori nu a finalizat livrarea. Starea oficială rămâne cea din NITIDO.
@@ -257,9 +255,9 @@ Firma nu poate edita, șterge sau marca drept verificată recenzia clientului. U
   { id:"trust-center",title:"Ce este Centrul de Încredere?",aliases:["centrul de încredere","trust center","încredere și siguranță","siguranța nitido"],audience:"all",answer:`Pagina Încredere & Siguranță explică elementele verificabile ale marketplace-ului: verificarea firmelor, recenziile provenite din lucrări reale, dovezile foto, responsabilitatea la no-show, plata controlată de server și protejarea adresei exacte.
 
 NITIDO afișează numai indicatori derivați din date reale. Nu folosește recenzii, ratinguri, numere sau certificări inventate.`},
-  { id:"email-change",title:"Cum îmi schimb adresa de email?",aliases:["schimb emailul","modific email","adresă email nouă"],audience:"all",answer:`Interfața actuală nu oferă un flux complet pentru schimbarea adresei de email. Deoarece emailul identifică autentificarea și comunicarea contului, modificarea necesită verificarea identității de către echipa NITIDO.
+  { id:"email-change",title:"Cum îmi schimb adresa de email?",aliases:["schimb emailul","modific email","adresă email nouă"],audience:"all",answer:`În contul de client, deschide Contul meu, apasă Editează profilul, modifică Email și apasă Salvează. Folosește o adresă la care ai acces și verifică starea confirmării după modificare.
 
-${humanSupport}`},
+Formularul de profil al firmei nu include schimbarea emailului. Pentru acest cont, solicită ajutor la contact@nitido.ro. Nu comunica parola sau linkurile de confirmare.`},
   { id:"legal-pages",title:"Unde găsesc termenii și politica de confidențialitate?",aliases:["termeni și condiții","politica de confidențialitate","cookie-uri","cookies","date legale"],audience:"all",answer:`Documentele informative sunt disponibile pe site în paginile Termeni și condiții, Politica de confidențialitate și Politica de cookie-uri.
 
 Cookie-urile strict necesare pot fi folosite pentru autentificare și funcționare. Aplicația nu trebuie să pretindă existența cookie-urilor de analytics sau marketing dacă acestea nu sunt active. Pentru o solicitare privind propriile date, scrie la contact@nitido.ro.`},
@@ -269,6 +267,11 @@ Nu instala aplicații care pretind că sunt NITIDO fără confirmarea canalelor 
   { id:"service-types",title:"Ce tipuri de spații sunt acceptate?",aliases:["tipuri servicii","tipuri de curățenie","apartament casă birou","ce pot posta"],audience:"client",answer:`Tipurile de spațiu acceptate în fluxul autoritar actual sunt apartament, casă, birou și alt tip de spațiu. Prețul este calculat pe server din tipul selectat și suprafață.
 
 Etichete precum hotel, vilă, hală sau curățenie după constructor nu trebuie considerate categorii distincte dacă nu apar în formularul și configurația activă. Pentru o nevoie care nu se potrivește clar, alege numai opțiunea disponibilă relevantă sau contactează suportul înainte de postare.`},
+  { id: "confirm-email", title: "Cum confirm emailul și ce fac dacă ajunge în Spam?", aliases: ["confirm email", "confirmare email", "email în spam", "nu am primit email", "retrimite email"], audience: "all", answer: `În cont, găsește Confirmarea adresei de email și apasă Retrimite emailul de confirmare dacă nu ai primit mesajul. Verifică Inbox și Spam pentru adresa folosită la înregistrare. Acceptarea mesajului de furnizor nu confirmă livrarea în Inbox.
+
+Deschide linkul din cel mai recent mesaj și apasă Confirmă emailul. Linkul este valabil 24 de ore. Dacă este expirat sau deja folosit, verifică starea contului și solicită un link nou numai dacă adresa nu este confirmată.
+
+Dacă mesajul ajunge în Spam, marchează-l ca Nu este spam. Nu trimite linkul de confirmare altor persoane. După trei retrimiteri într-o oră, așteaptă înainte de o nouă cerere.` },
 ] as const;
 
 function normalize(value: string): string {

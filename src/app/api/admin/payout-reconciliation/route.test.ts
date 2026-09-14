@@ -1,0 +1,23 @@
+import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
+import {NextRequest} from 'next/server';
+const state=vi.hoisted(()=>({admin:vi.fn(),limit:vi.fn(),reconcile:vi.fn(),construct:vi.fn(),get:vi.fn()}));
+vi.mock('@/lib/adminAuth',()=>({isAdmin:state.admin}));
+vi.mock('@/lib/db',()=>({db:{prepare:()=>({get:state.get})}}));
+vi.mock('@/lib/security',()=>({consumeRateLimit:state.limit}));
+vi.mock('@/lib/payoutReconciliation',()=>({reconcileSandboxPayout:state.reconcile}));
+vi.mock('stripe',()=>({default:class{constructor(){state.construct();}}}));
+import {GET,POST} from './route';
+const call=(origin='https://nitido.test',body:unknown={accountId:'acct_one',payoutId:'po_one'})=>POST(new NextRequest('https://nitido.test/api/admin/payout-reconciliation',{method:'POST',headers:{origin,authorization:'Bearer untrusted'},body:JSON.stringify(body)}));
+beforeEach(()=>{vi.resetAllMocks();vi.stubEnv('STRIPE_SECRET_KEY','rk_test_fixture');vi.stubEnv('NEXT_PUBLIC_SITE_URL','https://sandbox.nitido.test');vi.stubEnv('NITIDO_ENABLE_BEARER_AUTH','true');state.admin.mockResolvedValue(true);state.limit.mockReturnValue(true);state.reconcile.mockResolvedValue({status:'matched'});});
+afterEach(()=>vi.unstubAllEnvs());
+describe('admin payout reconciliation boundary',()=>{
+ it('requires an admin session',async()=>{state.admin.mockResolvedValue(false);expect((await call()).status).toBe(401);expect(state.construct).not.toHaveBeenCalled();});
+ it.each(['https://other.test',''])('rejects a foreign or missing origin even with an arbitrary Bearer header',async origin=>{expect((await call(origin)).status).toBe(403);expect(state.reconcile).not.toHaveBeenCalled();});
+ it('accepts the configured HTTPS reverse-proxy origin',async()=>{expect((await call('https://sandbox.nitido.test')).status).toBe(200);});
+ it.each(['sk_live_fixture','rk_live_fixture',''])('blocks non-sandbox configuration',async key=>{vi.stubEnv('STRIPE_SECRET_KEY',key);expect((await call()).status).toBe(503);expect(state.construct).not.toHaveBeenCalled();});
+ it('validates IDs before provider access',async()=>{expect((await call('https://nitido.test',{accountId:'../../other',payoutId:'po_one'})).status).toBe(400);expect(state.construct).not.toHaveBeenCalled();});
+ it('limits expensive reconciliation reads',async()=>{state.limit.mockReturnValue(false);expect((await call()).status).toBe(429);expect(state.reconcile).not.toHaveBeenCalled();});
+ it('returns a private report without modifying financial state',async()=>{const res=await call();expect(res.headers.get('cache-control')).toBe('private, no-store');expect(await res.json()).toEqual({report:{status:'matched'}});});
+ it('does not leak provider error details',async()=>{state.reconcile.mockRejectedValue(Error('private key details'));const res=await call();expect(res.status).toBe(409);expect(JSON.stringify(await res.json())).not.toContain('private key details');});
+ it('reads only the requested saved report under admin authentication',async()=>{state.get.mockReturnValue({report_json:'{"id":"report"}'});const req=new NextRequest('https://nitido.test/api/admin/payout-reconciliation?accountId=acct_one&payoutId=po_one');expect(await (await GET(req)).json()).toEqual({report:{id:'report'}});expect(state.get).toHaveBeenCalledWith('acct_one','po_one');expect(state.construct).not.toHaveBeenCalled();state.admin.mockResolvedValue(false);expect((await GET(req)).status).toBe(401);});
+});

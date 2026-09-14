@@ -1,31 +1,20 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
-// Aplicația mobilă NITIDO (Capacitor). Încarcă site-ul live într-un shell nativ
-// și adaugă funcții native reale (splash, status bar, push) — nu un simplu webview.
+// TestFlight E2 uses an explicit sandbox target; ordinary builds keep the live site.
+const serverUrl = process.env.NITIDO_NATIVE_SERVER_URL || 'https://nitido.ro';
+if (!['https://nitido.ro', 'https://sandbox.nitido.ro'].includes(serverUrl)) {
+  throw new Error('NITIDO_NATIVE_SERVER_URL must be an approved HTTPS origin.');
+}
 const config: CapacitorConfig = {
   appId: "ro.nitido.app",
   appName: "NITIDO",
   webDir: "mobile-shell",
   server: {
-    url: "https://nitido.ro",
+    url: serverUrl,
     cleartext: false,
   },
   backgroundColor: "#f4f3ee",
-  plugins: {
-    SplashScreen: {
-      launchShowDuration: 1200,
-      backgroundColor: "#101711",
-      showSpinner: false,
-      androidScaleType: "CENTER_CROP",
-    },
-    StatusBar: {
-      style: "DARK",
-      backgroundColor: "#101711",
-    },
-    PushNotifications: {
-      presentationOptions: ["badge", "sound", "alert"],
-    },
-  },
+  plugins: { PushNotifications: { presentationOptions: ['sound', 'banner', 'list'] } },
 };
 
 export default config;

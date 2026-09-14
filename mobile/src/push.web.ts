@@ -1,5 +1,6 @@
 import type {UserRole} from "./types";
 export async function registerPush(){return false}
+export async function currentPushSettings(){return {registeredLocally:false,permissionGranted:false}}
 export async function unregisterCurrentPush(){}
 export async function refreshRegisteredPushToken(){return false}
 export function notificationRoute(role:UserRole,event:string,jobId:string){void event;return jobId?(role==="firma"?`/(firma)/job-preview/${encodeURIComponent(jobId)}`:`/(client)/job/${encodeURIComponent(jobId)}`):(role==="firma"?"/(firma)":"/(client)")}

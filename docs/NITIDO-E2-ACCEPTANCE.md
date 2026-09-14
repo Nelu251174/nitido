@@ -1,0 +1,67 @@
+# E2 — nucleu și criteriul de închidere
+
+Sursa: `NITIDO-MASTER-SOURCE.md`, §18–19. E2 cuprinde Standard, Express, conturi, preț, execuție, plăți, notificări și admin esențial. E2 este deschisă; codul sau CI verde nu înlocuiesc traseele complete în staging.
+
+## Livrare verificată anterior
+
+Actualizare 13 septembrie 2026: sandboxul rulează `9f37fb6d071a63a41f26824b7a77e8f64f09b5a4`, CI [34764952716](https://github.com/Nelu251174/nitido/actions/runs/34764952716), trei joburi reușite. Instalarea `c6xeup9ywnaovjyxuig7yjyy` este terminată, cu healthcheck `healthy`. Include confirmarea vizibilă a creării contului și rezultatului trimiterii emailului, plus corecțiile navigării și coloanei ADMIN. Producția nu a fost promovată.
+
+Sandbox `12fdd8aa883a80e4f2b4e51e53e73638c090d228`, CI [34762818849](https://github.com/Nelu251174/nitido/actions/runs/34762818849), toate cele trei joburi reușite. Recuperarea notificărilor rulează la fiecare minut; prima execuție automată 2026-09-13 14:35:02 UTC a fost `completed`, cu toate contoarele zero. Container healthy, migrare aditivă prezentă, SQLite integrity OK și zero erori FK. Aceste dovezi nu înseamnă notificări primite pe telefon.
+
+## Blocaje închise în această verificare
+
+- Beneficiarul confirmă primirea emailului pentru noua firmă reală. Citirea read-only, limitată la adresa exactă furnizată de beneficiar și exclusiv la sandbox, confirmă contul de rol `firma`, `firms.verified=1` și confirmarea emailului curent. Adresa, ID-ul utilizatorului și tokenurile nu sunt publicate în raport. Nu s-au modificat date și nu s-a ocolit ANAF.
+- Funcția `inspectStaging` din repository, executată cu mediul containerului curent, a returnat `configurationReady=true`: toate cele 10 verificări locale au trecut. Acestea verifică formatul/prezența configurației; nu confirmă identitatea contului Stripe prin API, livrarea webhookurilor sau ciclul financiar.
+- Scriptul `staging-preflight.mjs` nu este inclus în imaginea finală. Invocarea inițială a fișierului a eșuat cu `MODULE_NOT_FOUND`; rezultatul de mai sus provine din executarea aceleiași surse prin stdin, fără scriere în container. Nu s-a executat cu succes `--verify-stripe` și nu se declară acea probă PASS.
+
+## Următoarea probă E2
+
+O lucrare nouă, cu dată viitoare și localitate deservită de firma verificată: publicare din cont client → afișare în Oportunități → ofertă/acceptare după modul Standard/Express → aceeași lucrare și stare în conturi. Se păstrează ID-urile după execuție, fără a crea înregistrări direct în DB sau a înlocui fluxul de autentificare. Primirea push este o probă separată. Sesiunea browserului de test este încă pe formularul de autentificare; nu există o probă nouă finalizată de publicare/preluare.
+
+## Defecte mobile corectate în această continuare
+
+- `push.native.ts` conținea o implementare veche, selectată de bundler în locul celei testate în `push.ts`. Lipsea `currentPushSettings`, cerută de ecranul Notificări; revocarea ștergea tokenul local inclusiv după eșec.
+- Cele două puncte de intrare folosesc acum aceeași implementare. Varianta web expune explicit lipsa unei înregistrări native.
+- Înregistrarea și rotația tokenului cer confirmarea serverului înainte de salvarea locală. Revocarea eșuată păstrează posibilitatea de retry; deconectarea nu abandonează sesiunea necesară acestei operațiuni.
+- Atingerea notificării la pornire este păstrată până la login și deschide exact lucrarea, o singură dată. Evenimentele necunoscute sau destinate altui rol sunt ignorate. Listenerul este eliminat corect.
+- Android pregătește canalul înainte de solicitarea permisiunii. Testele încarcă explicit punctul de intrare nativ și folosesc adaptoare OS/API simulate.
+- CI exportă acum și pachetele Hermes iOS/Android. Exportul nu este semnare, distribuire TestFlight sau test pe telefon.
+
+## Matricea probelor rămase
+
+Toate rândurile de mai jos cer dovezi pe candidatul și mediul testat. Fișierele enumerate arată ce poate fi verificat în repository; nu declară PASS de staging.
+
+| Domeniu E2 | Probe în repository | Ce mai trebuie demonstrat în staging |
+|---|---|---|
+| Preț și publicare, T01–T02 | pricing, pricingSnapshot, publishedPrice, jobs/quote | Același preț/versionare din estimare până la lucrarea publicată; respingere tarif modificat/expirat |
+| Standard/Express și capacitate, T03–T05 | offers, acceptJob, allocationConcurrency, selectionRecovery | Trasee complete pentru ambele moduri; două cereri simultane, o singură firmă/plată, fără depășire de capacitate |
+| Autorizare/3DS și timeout, T06–T09 | stripePayments, paymentConfirmation, acceptJobRecovery, stripeResourceFence | Succes, refuz, abandon, conexiune pierdută, aceeași intenție; expirare și compensare vizibile corect |
+| Dovezi, execuție și anulare, T10–T11/T18 | proofOfWork, proofSecurity, collaborationFlow, refund webhook | Foto sosire/finalizare, upload întrerupt, captură blocată fără dovadă; anulare/refund corelat cu Stripe |
+| ANAF, eligibilitate și acces, T12–T14 | cui, authorization, securityRoutes, privateContextAccess | Firmă reală verificată; conturi client/firmă/angajat/admin, izolare și revocare, protecția adresei |
+| Notificări, T18/T21 | notificationClaims, notificationRecovery, pushDelivery, pushNative | Furnizori configurați, telefon înregistrat, primire reală, deschiderea lucrării și retry fără duplicate |
+| Recenzii și suport, T19–T20 | reviews, referral, supportAi, support/ai | Recenzie eligibilă după lucrare, credit fără duplicare; suport fără operații financiare neautorizate |
+| Reconciliere | payoutReconciliation, financialRecovery | Payout–transfer–plată–lucrare în sandbox, diferență neexplicată zero și excepții explicate |
+| Restaurare/rollback, T22 | scripts/recovery.test.mjs și procedura de restaurare | Restaurare cu fotografii și totaluri, dovadă pe candidatul final; backupul DB singur nu închide proba foto |
+
+T15–T17 aparțin recurenței/integrărilor din E3/E4. Publicarea în magazine și promovarea producției sunt E5; pentru acceptarea mobilă E2 este însă necesar un build de test instalabil.
+
+## Dependențe externe concrete
+
+1. **Firmă reală verificată ANAF — rezolvat pentru contul indicat.** Confirmată de beneficiar și verificată read-only pe server. Eligibilitatea pentru localitatea, serviciul și capacitatea unei lucrări concrete rămâne parte din proba de publicare/preluare.
+2. **Canal de notificare configurat și dispozitiv activ.** Reverificarea actuală: push și SMS dezactivate; configurațiile complete APNs/FCM/Twilio nu sunt prezente. Pentru firma indicată sunt zero dispozitive active și zero înregistrări push. Aceste numere sunt limitate la acel cont, nu reprezintă un inventar al tuturor utilizatorilor. Înrolarea Google Authenticator pentru ADMIN nu înregistrează telefonul pentru push.
+3. **Identitatea buildului mobil.** Shell-ul Capacitor din rădăcină indică producția; `mobile/` este Expo și are încă `OWNER_EAS_PROJECT_ID_REQUIRED`. Configurarea și semnarea buildului de test rămân neefectuate. Nu se afirmă că modificările Expo au ajuns în TestFlight.
+4. **Operații Stripe sandbox și sesiuni QA.** Auditul contului sandbox a returnat zero PaymentIntents; suprafața conectorului nu a expus operațiuni de creare aplicabile. Browserul automatizat nu are sesiuni autentificate client/firmă/admin; loginul ADMIN confirmat de beneficiar nu dovedește accesul browserului automatizat.
+
+## Închiderea E2
+
+E2 se închide numai cu rezultate păstrate pentru traseele de mai sus, identificatori de lucrare/plată/eveniment, model și versiune de telefon, SHA, mediu și dovezi autentificate. Nu se marchează primirea push din răspunsul furnizorului și nu se marchează payout din simpla captură a plății.
+
+Referințe tehnice: [API notificări Expo](https://docs.expo.dev/versions/latest/sdk/notifications/), [tratarea notificărilor primite](https://docs.expo.dev/push-notifications/receiving-notifications/). Contractul recuperării de server: [NITIDO-NOTIFICATION-RECOVERY.md](NITIDO-NOTIFICATION-RECOVERY.md).
+
+## Actualizare: sunet pentru mesajele mobile (13 septembrie 2026)
+
+Beneficiarul confirmă funcționarea mesageriei interne. Noua implementare adaugă evenimentul `MESSAGE_RECEIVED_PUSH`, salvat atomic cu mesajul și deduplicat per mesaj, destinatar și dispozitiv. Workerul reverifică participantul curent, dispozitivul, preferința existentă `job_status_notifications` și citirea mesajului înainte de dispatch. Nu există fallback SMS pentru mesaje. Textul privat al mesajului nu apare pe ecranul blocat.
+
+Expo cere sunetul implicit iOS și un canal Android `messages-v1` cu sunet/vibrație. În prim-plan, aceeași notificare este ignorată la redelivery și sunetele pentru rafale sunt limitate la unul la trei secunde; bannerele mesajelor distincte rămân vizibile. Apăsarea deschide conversația lucrării pentru rolul autentificat. În fundal sunetul este gestionat de sistemul telefonului și respectă setările utilizatorului.
+
+Verificări locale: 110 teste mobile, 41 teste workspace/push/claims, TypeScript și lint. Migrarea păstrează rândurile existente, idempotency keys și stările de livrare. Aceste teste nu probează livrarea pe telefon. Distribuirea buildului mobil, configurarea APNs/FCM și proba auditivă pe dispozitiv rămân deschise. SMS rămâne amânat.

@@ -1,3 +1,4 @@
+import { colors } from "./theme";
 import {existsSync,readFileSync} from "node:fs";
 import {join} from "node:path";
 import {describe,expect,it} from "vitest";
@@ -16,11 +17,13 @@ describe("mobile release readiness",()=>{
     expect(existsSync(join(root,config.android.adaptiveIcon.foregroundImage))).toBe(true);
   });
 
-  it("uses the owner-approved platform identifiers and keeps EAS linking blocked",()=>{
+  it("uses the owner-approved platform identifiers and verified EAS project",()=>{
     const config=JSON.parse(read("app.json")).expo;
     expect(config.ios.bundleIdentifier).toBe("ro.nitido.app");
     expect(config.android.package).toBe("ro.nitido.app");
-    expect(config.extra.eas.projectId).toBe("OWNER_EAS_PROJECT_ID_REQUIRED");
+    expect(config.extra.eas.projectId).toBe("3887c4e7-445a-4954-9d04-7c8adc8519f9");
+    expect(config.owner).toBe("nitido-ro");
+    expect(config.slug).toBe("nitido-ro");
   });
 
   it("does not request Android microphone access for still-photo proof",()=>{
@@ -35,7 +38,7 @@ describe("mobile release readiness",()=>{
     const config=JSON.parse(read("app.json")).expo;
     const notifications=config.plugins.find((entry:unknown)=>Array.isArray(entry)&&entry[0]==="expo-notifications");
     expect(config.scheme).toBe("nitido");
-    expect(notifications?.[1]).toMatchObject({icon:"./assets/notification-icon.png",color:"#1B8A4C"});
+    expect(notifications?.[1]).toMatchObject({icon:"./assets/notification-icon.png",color:colors.green});
     expect(existsSync(join(root,notifications[1].icon))).toBe(true);
   });
 
@@ -44,6 +47,11 @@ describe("mobile release readiness",()=>{
     expect(eas.build.development).toMatchObject({developmentClient:true,distribution:"internal",channel:"development"});
     expect(eas.build.preview).toMatchObject({distribution:"internal",channel:"preview"});
     expect(eas.build.production).toMatchObject({channel:"production",autoIncrement:true});
+    for(const profile of ['development','preview']) {
+      expect(eas.build[profile].env.EXPO_PUBLIC_NITIDO_API_BASE_URL).toBe('https://sandbox.nitido.ro');
+      expect(eas.build[profile].environment).toBe('preview');
+    }
+    expect(eas.build.preview.android.buildType).toBe('apk');
   });
 
   it("documents only public mobile environment variables",()=>{
@@ -73,7 +81,7 @@ describe("mobile release readiness",()=>{
 
   it("keeps sensitive provider credentials out of mobile application source",()=>{
     const sources=[
-      "src/api.ts","src/auth.tsx","src/push.ts","src/sessionStore.ts",
+      "src/api.ts","src/auth.tsx","src/push.ts","src/push.native.ts","src/pushClient.ts","src/sessionStore.ts",
       "src/tracking.ts","src/firmOperations.ts","app/_layout.tsx",
     ].map(read).join("\n");
     for(const secret of ["sk_live_","STRIPE_SECRET_KEY","OPENAI_API_KEY","FIREBASE_PRIVATE_KEY","APNS_PRIVATE_KEY","TWILIO_AUTH_TOKEN"])

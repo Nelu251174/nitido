@@ -14,6 +14,7 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
+      signal: AbortSignal.timeout(8000),
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({ from, to: [opts.to], subject: opts.subject, html: opts.html }),
     });

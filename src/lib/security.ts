@@ -33,3 +33,16 @@ export function constantTimeEqual(a: string, b: string): boolean {
   const right = Buffer.from(b);
   return left.length === right.length && timingSafeEqual(left, right);
 }
+
+/** Call after getCurrentUser: only an enabled, validated Bearer session may replace cookie-origin protection. */
+export function hasTrustedMutationOrigin(req: NextRequest): boolean {
+  const origin = req.headers.get('origin');
+  if (!origin || origin === req.nextUrl.origin) return true;
+  // Reverse proxies may expose an internal origin to Next.js. Trust only the
+  // exact public origin configured by the operator, never forwarded headers.
+  try {
+    const site = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "");
+    if (site.protocol === "https:" && !site.username && !site.password && origin === site.origin) return true;
+  } catch { /* Invalid/missing configuration does not grant an exception. */ }
+  return process.env.NITIDO_ENABLE_BEARER_AUTH === 'true' && /^Bearer \S+$/.test(req.headers.get('authorization') ?? '');
+}

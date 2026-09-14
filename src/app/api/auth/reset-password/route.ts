@@ -1,27 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { consumeResetToken } from "@/lib/passwordReset";
+import { applyPasswordReset } from "@/lib/passwordReset";
 import { hashPassword } from "@/lib/auth";
-import { consumeRateLimit, requestIp } from "@/lib/security";
+import { consumeRateLimit, requestIp, hasTrustedMutationOrigin } from "@/lib/security";
+
+const reply = (body: object, status = 200) => NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
 
 export async function POST(req: NextRequest) {
+  if (!hasTrustedMutationOrigin(req)) return reply({error:"Origine invalidă"},403);
   if (!consumeRateLimit(`reset:${requestIp(req)}`, 10, 15 * 60 * 1000)) {
-    return NextResponse.json({ error: "Prea multe încercări. Încearcă mai târziu." }, { status: 429 });
+    return reply({ error: "Prea multe încercări. Încearcă mai târziu." },429);
   }
-  const body = await req.json().catch(() => ({}));
-  const token = body?.token as string | undefined;
-  const password = body?.password as string | undefined;
-  if (!token || !password) return NextResponse.json({ error: "Token și parolă necesare" }, { status: 400 });
-  if (password.length < 10 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
-    return NextResponse.json({ error: "Parola trebuie să aibă minim 10 caractere, litere și cifre" }, { status: 400 });
+  const raw = await req.text();
+  if (Buffer.byteLength(raw) > 2000) return reply({error:"Cerere prea mare"},413);
+  let body;
+  try { body=JSON.parse(raw); } catch { return reply({error:"Date invalide"},400); }
+  if (!body || typeof body!=="object" || Array.isArray(body)) return reply({error:"Date invalide"},400);
+  const { token, password } = body;
+  if (typeof token!=="string" || !/^[a-f0-9]{64}$/.test(token) || typeof password!=="string") return reply({error:"Link sau parolă invalide"},400);
+  if (password.length < 10 || Buffer.byteLength(password) > 72 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+    return reply({ error: "Parola trebuie să aibă minim 10 caractere, litere și cifre și maximum 72 de octeți." },400);
   }
-
-  const userId = consumeResetToken(db, token);
-  if (!userId) return NextResponse.json({ error: "Link invalid sau expirat. Cere un link nou." }, { status: 400 });
-
-  const hash = await hashPassword(password);
-  db.prepare("UPDATE users SET password_hash=? WHERE id=?").run(hash, userId);
-  // Din motive de securitate, invalidăm toate sesiunile active ale userului.
-  db.prepare("DELETE FROM sessions WHERE user_id=?").run(userId);
-  return NextResponse.json({ ok: true });
+  try {
+    // Hashing may yield; the token is rechecked only inside the final transaction.
+    const hash = await hashPassword(password);
+    if (!applyPasswordReset(db,token,hash)) return reply({error:"Link invalid sau expirat. Cere un link nou."},400);
+    return reply({ok:true});
+  } catch {
+    return reply({error:"Nu am putut salva parola. Reîncearcă folosind același link."},503);
+  }
 }

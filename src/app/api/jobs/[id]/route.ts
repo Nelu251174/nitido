@@ -1,3 +1,4 @@
+import {selectionRecoveryState} from "@/lib/selectionRecovery";
 import { NextRequest, NextResponse } from "next/server";
 import { db, getFirmByUserId } from "@/lib/db";
 import { JobRow } from "@/lib/types";
@@ -45,5 +46,5 @@ export async function GET(
   const photos=db.prepare("SELECT id FROM job_photos WHERE job_id=? AND status='VALID'").all(id) as {id:string}[];
   const proofs=db.prepare("SELECT id,proof_type type,created_at createdAt FROM job_photos WHERE job_id=? AND proof_type IN ('ARRIVAL','COMPLETION') AND status='VALID' AND validated_at IS NOT NULL").all(id) as {id:string;type:"ARRIVAL"|"COMPLETION";createdAt:string}[];
   const safeFinancial=payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null;
-  return NextResponse.json({ job:{...job,photos:photos.map(photo=>`/api/uploads/${photo.id}`),proofs:proofs.map(proof=>({...proof,url:`/api/uploads/${proof.id}`})),ownReview:ownReview?{...ownReview,badge:"Recenzie verificată"}:null,financial:safeFinancial,...(user.role==="firma"&&payment?{firm_payout:payment.firmPayout}:{})}, firmName });
+  return NextResponse.json({ job:{...job,...(user.role==="client"?{selectionRecovery:selectionRecoveryState(db,id,user.id)}:{}),photos:photos.map(photo=>`/api/uploads/${photo.id}`),proofs:proofs.map(proof=>({...proof,url:`/api/uploads/${proof.id}`})),ownReview:ownReview?{...ownReview,badge:"Recenzie verificată"}:null,financial:safeFinancial,...(user.role==="firma"&&payment?{firm_payout:payment.firmPayout}:{})}, firmName });
 }

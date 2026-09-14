@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function ContactPage() {
-  return <main className="bg-[#f4f3ee] text-[#101711]"><SiteHeader/><div className="contact-page-top-spacer" aria-hidden="true"/><div className="contact-page-content"><SupportCenter/></div><SiteFooter/></main>;
+  return <main className="bg-[#f7f9fc] text-[#111827]"><SiteHeader/><div className="contact-page-top-spacer" aria-hidden="true"/><div className="contact-page-content"><SupportCenter/></div><SiteFooter/></main>;
 }

@@ -1,7 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import "./approved-design.css";
 import "@fontsource-variable/instrument-sans";
+import { WebAlerts } from "@/components/WebAlerts";
 import { PwaProvider } from "@/components/PwaProvider";
 
 const sora = localFont({
@@ -24,6 +26,15 @@ const inter = localFont({
 });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://nitido.ro";
+
+// viewport-fit=cover expune zonele „safe area" (notch / bară de stare) prin
+// env(safe-area-inset-*), folosite în globals.css ca bara de sus a aplicației
+// native (Capacitor) să nu mai stea sub ceas/baterie.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -49,7 +60,7 @@ export const metadata: Metadata = {
     template: "%s — NITIDO.RO",
   },
   description:
-    "Postezi o lucrare de curățenie, primești oferte de la firme verificate din zona ta și alegi pe calitate. Pentru urgențe, Nitido Express preia instant. Preț fix afișat de la început, plată securizată.",
+    "Configurezi curățenia, verifici prețul și urmărești rezervarea în cont. Standard îți permite să alegi firma; Express depinde de disponibilitatea firmelor eligibile.",
   keywords: [
     "curățenie apartament",
     "firme de curățenie",
@@ -74,7 +85,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "NITIDO.RO — Marketplace de curățenie în România",
     description:
-      "Postezi o lucrare de curățenie, firmele verificate din zona ta sunt notificate instant. Preț fix, plată securizată.",
+      "Postezi o lucrare de curățenie, firmele eligibile din zona ta pot vedea cererea. Preț fix, plată securizată.",
     url: SITE_URL,
     siteName: "NITIDO.RO",
     locale: "ro_RO",
@@ -84,7 +95,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "NITIDO.RO — Marketplace de curățenie în România",
     description:
-      "Postezi o lucrare de curățenie, firmele din zonă sunt notificate instant. Preț fix, plată securizată.",
+      "Postezi o lucrare de curățenie, firmele eligibile din zonă pot vedea cererea. Preț fix, plată securizată.",
   },
 };
 
@@ -94,6 +105,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         {children}
         <PwaProvider />
+        <WebAlerts />
       </body>
     </html>
   );

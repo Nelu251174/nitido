@@ -1,13 +1,16 @@
 # Publicare aplicație mobilă NITIDO (Capacitor) — App Store & Google Play
 
+## Stare verificată în E2, 13 septembrie 2026
+
+Acesta este ghidul istoric pentru shell-ul Capacitor. `capacitor.config.ts` indică `https://nitido.ro`, iar pluginul push a fost eliminat din configurația curentă. Nu este demonstrată primirea notificărilor native în această variantă. Aplicația Expo din `mobile/` este o implementare separată, cu același identificator aprobat; un redeploy al sandboxului nu o instalează pe telefon. Buildul aflat în TestFlight trebuie identificat după versiune/build și sursă înainte de a atribui rezultatele unei implementări. [Starea și gate-ul E2](NITIDO-E2-ACCEPTANCE.md).
+
 ## Ce este aplicația
 Aplicația NITIDO (Capacitor, `appId: ro.nitido.app`) încarcă site-ul live
-`https://nitido.ro` într-un **shell nativ** cu funcții native reale: splash
-screen, status bar și **notificări push**.
+`https://nitido.ro` într-un **shell nativ**. Capabilitățile native se verifică în configurația și binarul efectiv distribuit.
 
 **Avantaj mare:** fiindcă încarcă site-ul live, aplicația conține automat tot ce
 e pe site (Nitido Scan, Express 60, rating etc.). După ce e publicată o dată,
-**orice update de site apare instant în aplicație — fără resubmitere în magazine.**
+actualizările paginilor încărcate de shell pot apărea după redeploy. Modificările pluginurilor, permisiunilor și codului nativ necesită un build nou și distribuire prin magazine.
 
 Proiectele native sunt deja generate: `android/`, `ios/`, `capacitor.config.ts`.
 Nume: **NITIDO**. Versiune de start: Android `versionCode 1` / `versionName 1.0`,
@@ -85,11 +88,7 @@ calitate, Express 60, Nitido Scan, plată securizată, urmărire live.
 ---
 
 ## Sfat important pentru App Store (ca să treacă de review)
-Apple respinge uneori aplicațiile care sunt „doar un site într-un ambalaj"
-(ghidul 4.2). NITIDO trece pentru că are **funcții native reale**: notificări
-push, splash nativ, integrare cameră pentru dovezi foto. La review, subliniază
-în notele pentru recenzor că aplicația oferă notificări push native și acces la
-cameră pentru dovezile lucrării — nu e un simplu webview.
+Notele pentru review trebuie să descrie numai funcțiile demonstrate în buildul trimis. Nu se promite acceptarea de către Apple și nu se declară push nativ activ pe baza existenței unui endpoint web.
 
 ---
 

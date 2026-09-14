@@ -1,0 +1,142 @@
+name: Robot TestFlight (iOS)
+
+# Construiește varianta iOS a aplicației NITIDO (Capacitor) pe o mașină macOS
+# din cloud și o urcă pe TestFlight. Semnare automată prin cheia API App Store
+# Connect (fără certificate manuale).
+#
+# Pornire: push pe branch-ul „release-ios" (sau manual din Actions).
+#
+# SECRETE necesare (Settings → Secrets and variables → Actions):
+#   APPLE_TEAM_ID                     – Team ID (Apple Developer → Membership)
+#   APP_STORE_CONNECT_KEY_ID          – Key ID al cheii API
+#   APP_STORE_CONNECT_ISSUER_ID       – Issuer ID (App Store Connect → Keys)
+#   APP_STORE_CONNECT_API_KEY         – conținutul fișierului .p8 (text simplu, lipit direct)
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "release-ios"
+
+jobs:
+  ios:
+    # Nucleul Capacitor (framework precompilat) e construit cu Swift 6.2, deci
+    # avem nevoie de un Xcode recent. macos-14 vine cu Xcode 15.4 (Swift 5.10),
+    # care nu poate citi framework-ul → simboluri „lipsă" false (reject/getString).
+    runs-on: macos-26
+    steps:
+      - name: Checkout cod
+        uses: actions/checkout@v4
+
+      - name: Verifică secretele Apple
+        env:
+          T: ${{ secrets.APPLE_TEAM_ID }}
+          K: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          I: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          P: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          missing=""
+          [ -z "$T" ] && missing="$missing APPLE_TEAM_ID"
+          [ -z "$K" ] && missing="$missing APP_STORE_CONNECT_KEY_ID"
+          [ -z "$I" ] && missing="$missing APP_STORE_CONNECT_ISSUER_ID"
+          [ -z "$P" ] && missing="$missing APP_STORE_CONNECT_API_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::Lipsesc secretele Apple:$missing. Adaugă-le în Settings → Secrets → Actions."
+            exit 1
+          fi
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Instalează dependințele
+        run: npm ci
+
+      - name: Sync Capacitor (iOS) — sandbox E2
+        env:
+          NITIDO_NATIVE_SERVER_URL: https://sandbox.nitido.ro
+        run: |
+          npx cap sync ios
+          node -e 'const c=require("./ios/App/App/capacitor.config.json");if(c.appId!=="ro.nitido.app"||c.server.url!=="https://sandbox.nitido.ro")throw Error("Invalid TestFlight target");'
+
+      - name: Pregătește cheia API App Store Connect
+        env:
+          ASC_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          mkdir -p ~/private_keys
+          printf '%s' "$ASC_KEY" > ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+
+      - name: Verifică autentificarea Apple (preflight rapid)
+        env:
+          KID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISS: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          python3 -m pip install --quiet --break-system-packages pyjwt cryptography 2>/dev/null || python3 -m pip install --quiet pyjwt cryptography
+          export KEYPATH="$HOME/private_keys/AuthKey_${KID}.p8"
+          TOKEN=$(python3 -c 'import os,time,jwt; print(jwt.encode({"iss":os.environ["ISS"],"iat":int(time.time()),"exp":int(time.time())+600,"aud":"appstoreconnect-v1"}, open(os.environ["KEYPATH"]).read(), algorithm="ES256", headers={"kid":os.environ["KID"],"typ":"JWT"}))')
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $TOKEN" "https://api.appstoreconnect.apple.com/v1/apps?limit=1")
+          echo "App Store Connect auth -> HTTP $CODE"
+          if [ "$CODE" != "200" ]; then
+            echo "::error::Cheia API NU se autentifica (HTTP $CODE). De verificat: Key ID din care ai descarcat .p8-ul, continutul complet al .p8, Issuer ID, rolul Admin si ca ai asteptat ~2 min sa se activeze cheia."
+            exit 1
+          fi
+          echo "Autentificare Apple OK."
+
+      - name: Archive (semnare automată)
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8 \
+            -authenticationKeyID "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" \
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            CODE_SIGN_STYLE=Automatic \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            clean archive
+
+      - name: Creează ExportOptions.plist
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>export</string>
+            <key>teamID</key><string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          PLIST
+
+      - name: Exportă .ipa
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8 \
+            -authenticationKeyID "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"
+
+      - name: Publică .ipa ca artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nitido-ios-ipa
+          path: ${{ runner.temp }}/export/*.ipa
+          if-no-files-found: error
+
+      - name: Urcă pe TestFlight
+        run: |
+          IPA=$(ls "$RUNNER_TEMP"/export/*.ipa | head -1)
+          xcrun altool --upload-app -f "$IPA" --type ios \
+            --apiKey "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
+            --apiIssuer "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"

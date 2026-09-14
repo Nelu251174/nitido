@@ -27,21 +27,21 @@ export function AuthLayout({ children }: { children: ReactNode }) {
             Marketplace de curățenie · România
           </span>
           <h2 className="font-display font-extrabold text-3xl lg:text-4xl text-white leading-tight">
-            Postezi. Prima firmă care apasă „Accept&quot; o ia.
+            Curățenia ta, organizată de la început.
           </h2>
           <p className="text-white/60 text-sm mt-4 max-w-sm leading-relaxed">
-            Fără telefoane, fără negociere. Preț fix afișat de la început, plată
-            securizată prin Stripe, firme verificate real la ANAF.
+            Vezi prețul înainte de publicare. La Standard alegi firma; la Express,
+            lucrarea este preluată de prima firmă eligibilă care acceptă.
           </p>
           <div className="mt-8 space-y-3">
             {[
-              "Alertă instant către firmele din zonă",
+              "Cereri către firmele eligibile din zonă",
               "Banii se rezervă doar la acceptare",
-              "Firme verificate direct la ANAF",
+              "Fotografii și etape urmărite din cont",
             ].map((t) => (
               <div key={t} className="flex items-center gap-2.5 text-white/80 text-sm">
                 <svg width="18" height="18" viewBox="0 0 16 16" fill="none" className="flex-shrink-0">
-                  <circle cx="8" cy="8" r="8" fill="#17B8A6" />
+                  <circle cx="8" cy="8" r="8" fill="var(--nitido-brand-on-dark)" />
                   <path
                     d="M4.5 8.2l2.2 2.2L11.5 5.5"
                     stroke="white"
