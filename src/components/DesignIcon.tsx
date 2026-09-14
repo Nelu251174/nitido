@@ -32,7 +32,7 @@ const paths = {
  help:'M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0M9 8c0-4 8-3 6 1l-3 3v2M12 18h.01',
 } as const;
 export type DesignIconName=keyof typeof paths;
-export function DesignIcon({name,size=24,className='',style,variant='outline'}:{name:DesignIconName;size?:number;className?:string;style?:CSSProperties;variant?:'outline'|'trust'}){
+export function DesignIcon({name,size=24,className='',style,variant='outline'}:{name:DesignIconName;size?:number;className?:string;style?:CSSProperties;variant?:'outline'|'trust'|'booking'}){
  const artwork=variant==='trust'&&name==='shield'
   ? <><path d="m12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6l9-4Z" fill="#111827" stroke="#111827"/><path d="m8 11 3 3 5-6" stroke="#009E60" strokeWidth="2.2"/></>
   : variant==='trust'&&name==='star'
@@ -43,6 +43,14 @@ export function DesignIcon({name,size=24,className='',style,variant='outline'}:{
   ? <><path d="M2 12 12 2h9v9L11 21 2 12Z" fill="#F7F3EC" stroke="#9A8267"/><circle cx="17" cy="6" r="1.2" fill="#9A8267" stroke="none"/></>
   : variant==='trust'&&name==='photo'
   ? <><rect x="2" y="6" width="16" height="16" rx="2" fill="#F7F3EC" stroke="#9A8267"/><rect x="6" y="2" width="16" height="16" rx="2" fill="#F7F3EC" stroke="#17212B"/><circle cx="17.5" cy="6.5" r="1.5" fill="#D4AF37" stroke="none"/><path d="m7 15 4-5 3 3 2-2 5 5v1H7Z" fill="#009E60" stroke="#007A4A" strokeWidth="1.2"/></>
+  : variant==='booking'&&name==='pin'
+  ? <><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z" fill="#009E60" stroke="#007A4A"/><circle cx="12" cy="10" r="3" fill="#F7F3EC" stroke="#007A4A"/></>
+  : variant==='booking'&&name==='broom'
+  ? <><path d="m14 2-4 10" stroke="#9A6845" strokeWidth="2.5"/><path d="m8 11 7 3-4 8-9-4 6-7Z" fill="#D4AF37" stroke="#9A6845"/><path d="m6 16-2 3m6-2-2 4" stroke="#9A6845" strokeWidth="1.2"/><path d="m8 11 7 3" stroke="#007A4A" strokeWidth="2.5"/></>
+  : variant==='booking'&&name==='home'
+  ? <><path d="M4 10v11h16V10l-8-6Z" fill="#F7F3EC" stroke="#9A8267"/><path d="m2 10 10-8 10 8-2 2-8-6-8 6Z" fill="#009E60" stroke="#007A4A"/><path d="M9 21v-7h6v7" fill="#9A8267" stroke="#9A8267"/></>
+  : variant==='booking'&&name==='calendar'
+  ? <><rect x="3" y="5" width="18" height="16" rx="2" fill="#F7F3EC" stroke="#9A8267"/><path d="M5 5h14a2 2 0 0 1 2 2v3H3V7a2 2 0 0 1 2-2Z" fill="#009E60" stroke="#007A4A"/><path d="M7 3v4m10-4v4" stroke="#17212B"/><path d="m8 15 3 3 5-5" stroke="#007A4A"/></>
   : <path d={paths[name]}/>;
  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className} style={style}>{artwork}</svg>;
 }
