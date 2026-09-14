@@ -39,6 +39,10 @@ export function DesignIcon({name,size=24,className='',style,variant='outline'}:{
   ? <path d={paths.star} fill="#D4AF37" stroke="#B8860B"/>
   : variant==='trust'&&name==='leaf'
   ? <><path d="M20 3C8 2 2 8 5 15c4 7 15 3 15-12Z" fill="#009E60" stroke="#007A4A"/><path d="M3 22 16 8" stroke="#007A4A"/></>
+  : variant==='trust'&&name==='tag'
+  ? <><path d="M2 12 12 2h9v9L11 21 2 12Z" fill="#F7F3EC" stroke="#9A8267"/><circle cx="17" cy="6" r="1.2" fill="#9A8267" stroke="none"/></>
+  : variant==='trust'&&name==='photo'
+  ? <><rect x="2" y="6" width="16" height="16" rx="2" fill="#F7F3EC" stroke="#9A8267"/><rect x="6" y="2" width="16" height="16" rx="2" fill="#F7F3EC" stroke="#17212B"/><circle cx="17.5" cy="6.5" r="1.5" fill="#D4AF37" stroke="none"/><path d="m7 15 4-5 3 3 2-2 5 5v1H7Z" fill="#009E60" stroke="#007A4A" strokeWidth="1.2"/></>
   : <path d={paths[name]}/>;
  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className} style={style}>{artwork}</svg>;
 }
