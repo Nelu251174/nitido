@@ -14,7 +14,10 @@ export async function GET(req: NextRequest) {
   const params = new URL(req.url).searchParams;
   const month = params.get("month");
   if (month !== null && !validReportMonth(month)) return NextResponse.json({error:"Luna trebuie să fie în format YYYY-MM."},{status:400});
-  const report = executionReport(db, user.id, month);
+  const scope=params.get('scope')??'all',propertyId=params.get('propertyId');
+  if(!['all','business'].includes(scope)||propertyId!==null&&(!propertyId||propertyId.length>100))return NextResponse.json({error:'Filtru invalid.'},{status:400});
+  if(propertyId&&!db.prepare('SELECT 1 FROM workspace_properties WHERE id=? AND owner_id=?').get(propertyId,user.id))return NextResponse.json({error:'Locație inexistentă.'},{status:404});
+  const report = executionReport(db,user.id,month,{scope:scope as 'all'|'business',propertyId});
   const headers = {"Cache-Control":"private, no-store"};
   if (params.get("format") === "csv") return new NextResponse(executionCsv(report), {headers:{...headers,"Content-Type":"text/csv; charset=utf-8","Content-Disposition":`attachment; filename="nitido-executie-${month??'toate'}.csv"`}});
   return NextResponse.json({ report }, {headers});

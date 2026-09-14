@@ -1086,7 +1086,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
     const data=await r.json();
     setPlans(data.plans??[]);setOccurrences(data.occurrences??[]);
     const properties=await fetch('/api/workspace');
-    if(properties.ok){const workspace=await properties.json();setSavedProperties(workspace.properties??[]);setPreviousFirms(workspace.firms??[]);}
+    if(properties.ok){const workspace=await properties.json();setSavedProperties(workspace.properties??[]);setPreviousFirms(workspace.preferredFirms??[]);}
   }, []);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- încărcare inițială a abonamentelor (client-only)

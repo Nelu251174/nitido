@@ -6,7 +6,7 @@
 
 Beneficiarul a cerut finalizarea E3 și începerea E4 imediat după. A confirmat anterior funcționarea fluxurilor și a cerut explicit să nu fie repetate testele. Livrarea folosește revizuirea codului, compilarea Next.js/TypeScript și healthcheck-ul instalării. Nu sunt declarate teste noi de plată, concurență, dispozitiv sau acceptare autentificată. Confirmările istorice nu sunt prezentate drept probe ale modificărilor noi.
 
-Compilarea finală `npm run build` s-a încheiat cu cod 0 (Next.js și TypeScript), fără executarea testelor. `git diff --check` nu a raportat erori. Rezultatul instalării va fi consemnat cu SHA-ul emis după commit.
+Compilarea finală `npm run build` s-a încheiat cu cod 0 (Next.js și TypeScript), fără executarea testelor. `git diff --check` nu a raportat erori. Instalare confirmată: `3ef1fd7d5a488e1dcb718ad8a3565b385bcaf194`, Coolify deployment `jybgkpqyy6gcrze5bewp01hf`. Container healthy la 20:10:01 UTC și rolling update finalizat la 20:10:02 UTC, 14 septembrie 2026.
 
 ## Funcții livrate
 
