@@ -7,11 +7,24 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "channel": "development"
+      "channel": "development",
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_NITIDO_API_BASE_URL": "https://sandbox.nitido.ro",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "3887c4e7-445a-4954-9d04-7c8adc8519f9"
+      }
     },
     "preview": {
       "distribution": "internal",
-      "channel": "preview"
+      "channel": "preview",
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_NITIDO_API_BASE_URL": "https://sandbox.nitido.ro",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "3887c4e7-445a-4954-9d04-7c8adc8519f9"
+      },
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production": {
       "channel": "production",

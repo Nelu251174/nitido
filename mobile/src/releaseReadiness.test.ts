@@ -17,11 +17,13 @@ describe("mobile release readiness",()=>{
     expect(existsSync(join(root,config.android.adaptiveIcon.foregroundImage))).toBe(true);
   });
 
-  it("uses the owner-approved platform identifiers and keeps EAS linking blocked",()=>{
+  it("uses the owner-approved platform identifiers and verified EAS project",()=>{
     const config=JSON.parse(read("app.json")).expo;
     expect(config.ios.bundleIdentifier).toBe("ro.nitido.app");
     expect(config.android.package).toBe("ro.nitido.app");
-    expect(config.extra.eas.projectId).toBe("OWNER_EAS_PROJECT_ID_REQUIRED");
+    expect(config.extra.eas.projectId).toBe("3887c4e7-445a-4954-9d04-7c8adc8519f9");
+    expect(config.owner).toBe("nitido-ro");
+    expect(config.slug).toBe("nitido-ro");
   });
 
   it("does not request Android microphone access for still-photo proof",()=>{
@@ -45,6 +47,11 @@ describe("mobile release readiness",()=>{
     expect(eas.build.development).toMatchObject({developmentClient:true,distribution:"internal",channel:"development"});
     expect(eas.build.preview).toMatchObject({distribution:"internal",channel:"preview"});
     expect(eas.build.production).toMatchObject({channel:"production",autoIncrement:true});
+    for(const profile of ['development','preview']) {
+      expect(eas.build[profile].env.EXPO_PUBLIC_NITIDO_API_BASE_URL).toBe('https://sandbox.nitido.ro');
+      expect(eas.build[profile].environment).toBe('preview');
+    }
+    expect(eas.build.preview.android.buildType).toBe('apk');
   });
 
   it("documents only public mobile environment variables",()=>{
