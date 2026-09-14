@@ -2,13 +2,16 @@
 
 /* Design system Nitido — spec secțiunea 9, v2 „aurora" (mesh gradients + glass) */
 :root {
-  /* Shared NITIDO brand; mirrored by the native theme. */
+  /* Teal supports operational UI; green is reserved for primary actions. */
+  --nitido-action-color: #009E60;
+  --nitido-action-hover: #007A4A;
+  --nitido-action-background: #009E60;
   --nitido-brand: #087e84;
   --nitido-brand-dark: #00676d;
   --nitido-brand-soft: #eaf6f7;
   --nitido-brand-on-dark: #7bd2da;
   --mist: #f7f9fc;
-  --ink: #111827;
+  --ink: #17212B;
   --aqua: var(--nitido-brand);
   --aqua-deep: var(--nitido-brand-dark);
   --coral: #94620a;
@@ -47,8 +50,8 @@ html { scroll-behavior: smooth; scroll-padding-top: 76px; }
 .v2-dark { background: #111827; color: #fff; }
 .v2-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; border-radius:12px; padding:0 18px; font-weight:700; font-size:14px; transition:150ms ease; }
 .v2-btn:active { transform: scale(.98); }
-.v2-btn-primary { background:var(--nitido-brand); color:white; }
-.v2-btn-primary:hover { background:var(--nitido-brand-dark); }
+.v2-btn-primary { background:var(--nitido-action-color); color:white; }
+.v2-btn-primary:hover { background:var(--nitido-action-hover); }
 .v2-btn-secondary { background:white; color:#111827; border:1px solid #d8d7d0; }
 .v2-eyebrow { font-size:12px; letter-spacing:.08em; text-transform:uppercase; font-weight:700; color:var(--nitido-brand-dark); }
 .v2-h2 { font-size:34px; line-height:1.1; letter-spacing:-.025em; font-weight:700; }
@@ -324,3 +327,7 @@ html{scrollbar-gutter:stable}
 .web-alerts{position:fixed;bottom:16px;right:16px;z-index:70;width:min(340px,calc(100vw - 32px));display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}.web-alerts>*{pointer-events:auto}.web-alert-toggle{background:white;border:1px solid var(--line);border-radius:20px;padding:8px 12px;font-size:11px;color:var(--nitido-brand-dark);box-shadow:0 3px 15px #0001}.web-alert-hint,.web-alert-toast{background:white;border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 6px 25px #0002;width:100%;font-size:13px}.web-alert-toast strong{display:block;padding-right:20px}.web-alert-toast a{display:inline-block;margin-top:10px;color:var(--nitido-brand-dark);text-decoration:underline}.web-alert-toast>button,.web-alert-hint>button{float:right;margin-left:8px;font-size:20px;line-height:1}.web-alert-hint{font-size:12px}@media(max-width:760px){.web-alerts{bottom:82px}}
 
 .assessment-workspace .assessment-closed-filter{display:inline-flex;align-items:center;gap:10px;margin:12px 16px}.assessment-workspace .assessment-closed-filter input[type=checkbox]{width:18px;height:18px;min-height:0;margin:0;padding:0;flex:none}
+
+.desktop-alert-settings{display:none}@media(min-width:761px) and (hover:hover) and (pointer:fine){.desktop-alert-settings{display:inline-flex}}
+
+.btn-aurora{background:var(--nitido-action-color);background-image:none}.btn-aurora:hover{background:var(--nitido-action-hover);background-image:none}

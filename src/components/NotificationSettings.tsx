@@ -24,7 +24,8 @@ export function NotificationSettings({role}:{role:'client'|'firma'}) {
         <p>Primește notificări despre mesaje și activitatea lucrărilor.</p>
         <NativePushControls role={role}/>
         <p>Pentru sunet, vibrații și afișarea pe ecranul blocat, deschide Setări pe telefon, alege NITIDO, apoi Notificări. Se respectă volumul și modul silențios al telefonului.</p>
-        <p>În browser, permisiunile se gestionează din setările site-ului. Pe calculator, butoanele de activare și testare rămân în colțul paginii.</p>
+        <p>În browser, permisiunile se gestionează din setările site-ului. Pe calculator, poți afișa comenzile de sunet timp de 15 secunde.</p>
+        <button className="v2-btn v2-btn-secondary desktop-alert-settings" onClick={()=>window.dispatchEvent(new Event("nitido:alert-controls"))}>Afișează comenzile de sunet</button>
       </section>
       <Link className="v2-btn v2-btn-secondary mt-6" href={`/${role}`}>Înapoi în cont</Link>
     </div></main>

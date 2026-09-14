@@ -19,7 +19,8 @@ const aiConfigured = () => {
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req);
   return NextResponse.json({
-    available: aiConfigured(),
+    available: true,
+    aiAvailable: aiConfigured(),
     authenticated: Boolean(user),
     role: user?.role ?? null,
     supportHref: user?.role === "firma" ? "/firma" : user?.role === "client" ? "/client" : null,
@@ -32,9 +33,6 @@ export async function POST(req: NextRequest) {
   const identity = user?.id ?? requestIp(req);
   if (!consumeRateLimit(`support-ai:${tokenHash(identity).slice(0, 24)}`, 10, 10 * 60_000)) {
     return NextResponse.json({ error: "Ai trimis prea multe întrebări. Încearcă din nou peste câteva minute." }, { status: 429, headers: { "Retry-After": "600" } });
-  }
-  if (!aiConfigured()) {
-    return NextResponse.json({ error: UNAVAILABLE, code: "AI_UNAVAILABLE" }, { status: 503, headers: RESPONSE_HEADERS });
   }
 
   if (!req.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
@@ -51,7 +49,9 @@ export async function POST(req: NextRequest) {
   if (!messages) return NextResponse.json({ error: "Conversația este invalidă sau depășește limitele permise." }, { status: 400 });
 
   const canonicalTopic = findSupportTopic(messages.at(-1)?.content ?? "");
-  if (canonicalTopic) return NextResponse.json({ answer: canonicalTopic.answer, topic: canonicalTopic.id }, { headers: RESPONSE_HEADERS });
+  if (canonicalTopic) return NextResponse.json({ answer: canonicalTopic.answer, topic: canonicalTopic.id, source: "guide" }, { headers: RESPONSE_HEADERS });
+
+  if (!aiConfigured()) return NextResponse.json({answer: "Pot răspunde din ghidul NITIDO despre rezervări, plăți, conturi, recenzii și execuția lucrărilor. Reformulează întrebarea pe unul dintre aceste subiecte. Pentru analiza unei situații particulare, contactează contact@nitido.ro sau 0341.402.403. AI-ul este momentan indisponibil.", source: "guide"}, {headers: RESPONSE_HEADERS});
 
   const config = aiConfig();
   const controller = new AbortController();
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
     const data = await response.json() as { output_text?: string; incomplete_details?: { reason?: string } | null; output?: { type?: string; content?: { type?: string; text?: string }[] }[] };
     const answer = data.output_text?.trim() || data.output?.flatMap(item => item.content ?? []).find(item => item.type === "output_text")?.text?.trim();
     if (!answer) return NextResponse.json({ error: UNAVAILABLE }, { status: 502 });
-    return NextResponse.json({ answer: finalizeSupportAnswer(answer, data.incomplete_details?.reason === "max_output_tokens") }, { headers: RESPONSE_HEADERS });
+    return NextResponse.json({ answer: finalizeSupportAnswer(answer, data.incomplete_details?.reason === "max_output_tokens"), source: "ai" }, { headers: RESPONSE_HEADERS });
   } catch (error) {
     console.error("[support-ai] request_failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ error: UNAVAILABLE }, { status: 504 });

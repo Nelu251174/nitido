@@ -62,7 +62,7 @@
 .host-property-illustration{width:100%;height:100%;display:block}
 .property-image-caption{position:absolute;left:10px;bottom:8px;padding:3px 7px;border-radius:4px;background:#ffffffde;color:#28444b;font-size:10px}
 
-:root{--nitido-action-color:var(--nitido-brand);--nitido-action-background:linear-gradient(110deg,var(--nitido-brand),var(--nitido-brand-dark))}
+:root{--nitido-action-color:#009E60;--nitido-action-hover:#007A4A;--nitido-action-background:#009E60}
 .live-price-estimator .estimator-option-active{background:var(--nitido-action-background)}
 .estimator-home>.live-price-estimator-inline{width:50%;min-width:280px;justify-self:end;padding:14px;border-radius:12px}
 .live-price-estimator .nitido-price-range{display:block;height:6px;min-height:6px;padding:0;border:0;margin-block:18px 12px}
@@ -119,3 +119,22 @@
 .board-firm #lucrari-active,.board-firm #castiguri,.board-firm #profil{scroll-margin-top:110px}
 
 .board-admin main>section[id]{scroll-margin-top:24px}
+
+/* Owner-approved green/cream client identity. Keep secondary elements quiet. */
+.design-button:hover{background:var(--nitido-action-hover);filter:none;box-shadow:0 5px 16px #007a4a20}
+.design-wordmark span span{color:var(--nitido-action-hover)}
+.approved-home{background:#F7F3EC;color:#17212B}
+.approved-home .design-hero{background:#F7F3EC}
+.approved-home .design-hero-image:after{background:linear-gradient(90deg,#F7F3EC 0%,#f7f3ecef 7%,#f7f3ec80 22%,transparent 37%)}
+.approved-home .design-kicker,.approved-home .v2-eyebrow{color:#52616A}
+.approved-home .design-trust-row svg,.approved-home .design-trust-strip svg,.approved-home .design-search-field>svg{color:#596C70}
+.approved-home .design-mode-standard,.approved-home .design-mode-express{background:#fff;border:1px solid #e4e1d9;color:#52616A}
+.approved-home .design-mode-label{background:#f1f0eb;color:#52616A}
+.approved-home .design-mode-express .design-button{background:var(--nitido-action-color)}
+.approved-home .design-mode-express .design-button:hover{background:var(--nitido-action-hover)}
+.approved-home .design-trust-row a{text-decoration:none;border-radius:4px}
+.approved-home .design-trust-row a:hover{text-decoration:underline}
+.brand-keyword{font-style:normal;color:var(--nitido-action-hover)}
+.approved-home .live-price-estimator{--nitido-action-background:#007C91;--nitido-action-color:#007C91}
+.approved-home .partner-banner{background:#17212B}
+@media(max-width:760px){.approved-home .design-hero-image:after{display:none}}

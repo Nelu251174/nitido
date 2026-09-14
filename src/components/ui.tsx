@@ -10,7 +10,7 @@ export function Logo({ inverted = false, href = "/", onClick }: { inverted?: boo
       onClick={onClick}
       className={`font-display font-extrabold text-lg tracking-tight ${inverted ? "text-white" : "text-ink"}`}
     >
-      NITIDO<span className="text-aqua">.RO</span>
+      NITIDO<span className="text-[var(--nitido-action-hover)]">.RO</span>
     </Link>
   );
 }

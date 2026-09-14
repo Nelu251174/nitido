@@ -20,6 +20,11 @@ export function WebAlerts(){
 }
 function WebAlertsSession(){
  const [account,setAccount]=useState<Feed|null>(null),[toast,setToast]=useState<{title:string;href:string;count:number}|null>(null),[enabled,setEnabled]=useState(false),[hint,setHint]=useState('');
+ const [controls,setControls]=useState(true),[controlsRevision,setControlsRevision]=useState(0);
+ useEffect(()=>{const show=()=>{setControls(true);setControlsRevision(v=>v+1)};window.addEventListener("nitido:alert-controls",show);return()=>window.removeEventListener("nitido:alert-controls",show)},[]);
+ useEffect(()=>{if(!account)return;const timer=setTimeout(()=>setControls(false),15000);return()=>clearTimeout(timer)},[account?.userId,controlsRevision]);
+ useEffect(()=>{if(!hint)return;const timer=setTimeout(()=>setHint(""),15000);return()=>clearTimeout(timer)},[hint]);
+ useEffect(()=>{if(!toast)return;const timer=setTimeout(()=>setToast(null),30000);return()=>clearTimeout(timer)},[toast]);
  const sound=useRef<AudioContext|null>(null),lastSound=useRef(0),soundEnabled=useRef(false);
  function chime(force=false){const ctx=sound.current;if(!ctx||ctx.state!=='running'||(!force&&Date.now()-lastSound.current<3000))return;lastSound.current=Date.now();
   for(const offset of [0,.42]){const oscillator=ctx.createOscillator(),gain=ctx.createGain();oscillator.connect(gain);gain.connect(ctx.destination);const at=ctx.currentTime+offset;oscillator.frequency.setValueAtTime(740,at);oscillator.frequency.setValueAtTime(980,at+.16);gain.gain.setValueAtTime(.001,at);gain.gain.linearRampToValueAtTime(.28,at+.02);gain.gain.exponentialRampToValueAtTime(.001,at+.36);oscillator.start(at);oscillator.stop(at+.38);oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};}
@@ -39,8 +44,8 @@ function WebAlertsSession(){
     const result=freshAlerts(feed.events,seen);memory.set(key,result.seen);try{localStorage.setItem(key,JSON.stringify(result.seen));}catch{}
     if(!result.fresh.length)return;
     const event=result.fresh[0],title=event.kind==='message'?'Ai primit un mesaj nou':'Lucrarea ta a fost finalizată',href=alertHref(feed.role,event);
-    setToast({title,href,count:result.fresh.length});if(on&&!nativePushAvailable()){if(sound.current?.state==='running')chime();else setHint("Popup primit, dar sunetul nu este activ în această filă. Apasă Testează sunetul.");}
-    if(on&&!nativePushAvailable()&&document.visibilityState!=='visible'&&'Notification' in window&&Notification.permission==='granted'){try{const n=new Notification(title,{body:'Deschide NITIDO pentru detalii.',tag:'nitido-activity',silent:Boolean(sound.current?.state==='running')});native.push(n);n.onclick=()=>{window.focus();window.location.assign(href);n.close();};}catch{}}
+    setToast({title,href,count:result.fresh.length});if(on&&!nativePushAvailable()){if(sound.current?.state==='running')chime();else setHint("Popup primit, dar sunetul nu este activ în această filă. Deschide Setări și afișează comenzile de sunet.");}
+    if(on&&!nativePushAvailable()&&document.visibilityState!=='visible'&&'Notification' in window&&Notification.permission==='granted'){try{const n=new Notification(title,{body:'Deschide NITIDO pentru detalii.',tag:'nitido-activity',silent:Boolean(sound.current?.state==='running')});native.push(n);setTimeout(()=>n.close(),30000);n.onclick=()=>{window.focus();window.location.assign(href);n.close();};}catch{}}
    };
    if(navigator.locks)await navigator.locks.request(key,claim);else claim();
   }catch{}finally{busy=false;}};
@@ -59,5 +64,5 @@ function WebAlertsSession(){
   setHint(granted==='granted'?'Alerte active cât timp NITIDO este deschis în browser.':'Sunet activ în pagină. Notificările desktop nu sunt permise în acest browser.');
  }
  if(!account)return null;
- return <aside className="web-alerts" aria-label="Alerte NITIDO"><button className="web-alert-toggle" onClick={()=>void enable()}>{enabled?'Oprește sunetul și alertele desktop':'Activează sunetul și alertele desktop'}</button><button className="web-alert-toggle" onClick={()=>void testSound()}>Testează sunetul</button>{hint&&<p className="web-alert-hint" role="status">{hint}<button aria-label="Închide explicația" onClick={()=>setHint('')}>×</button></p>}{toast&&<div className="web-alert-toast" role="status"><button aria-label="Închide alerta" onClick={()=>setToast(null)}>×</button><strong>{toast.title}</strong>{toast.count>1&&<p>{toast.count} noutăți în cont.</p>}<a href={toast.href}>Vezi detaliile</a></div>}</aside>;
+ return <aside className="web-alerts" aria-label="Alerte NITIDO">{controls&&<><button className="web-alert-toggle" onClick={()=>void enable()}>{enabled?'Oprește sunetul și alertele desktop':'Activează sunetul și alertele desktop'}</button><button className="web-alert-toggle" onClick={()=>void testSound()}>Testează sunetul</button></>}{hint&&<p className="web-alert-hint" role="status">{hint}<button aria-label="Închide explicația" onClick={()=>setHint('')}>×</button></p>}{toast&&<div className="web-alert-toast" role="status"><button aria-label="Închide alerta" onClick={()=>setToast(null)}>×</button><strong>{toast.title}</strong>{toast.count>1&&<p>{toast.count} noutăți în cont.</p>}<a href={toast.href}>Vezi detaliile</a></div>}</aside>;
 }
