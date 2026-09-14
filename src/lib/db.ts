@@ -448,6 +448,8 @@ function ensureColumn(table: string, column: string, definition: string) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   }
 }
+ensureColumn("workspace_properties", "postal_code", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("workspace_properties", "floor", "TEXT NOT NULL DEFAULT ''");
 ensureColumn("firms", "coverage_cities_extra", "TEXT");
 ensureColumn("firms", "stripe_account_status", "TEXT NOT NULL DEFAULT 'not_started'");
 ensureColumn("firms", "stripe_transfers_capability", "TEXT NOT NULL DEFAULT 'inactive'");

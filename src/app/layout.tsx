@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import "./approved-design.css";
 import "@fontsource-variable/instrument-sans";
+import { WebAlerts } from "@/components/WebAlerts";
 import { PwaProvider } from "@/components/PwaProvider";
 
 const sora = localFont({
@@ -104,6 +105,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         {children}
         <PwaProvider />
+        <WebAlerts />
       </body>
     </html>
   );

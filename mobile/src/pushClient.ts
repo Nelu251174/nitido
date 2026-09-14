@@ -21,6 +21,7 @@ export function notificationRoute(role:UserRole,event:string,jobId:string){
 async function prepareChannels(){
  if(Platform.OS!=='android')return;
  await Notifications.setNotificationChannelAsync('default',{name:'Lucrări NITIDO',importance:Notifications.AndroidImportance.DEFAULT,sound:'default'});
+ await Notifications.setNotificationChannelAsync('activity-v1',{name:'Activitatea lucrărilor',importance:Notifications.AndroidImportance.HIGH,sound:'default',enableVibrate:true});
  await Notifications.setNotificationChannelAsync('messages-v1',{name:'Mesaje NITIDO',importance:Notifications.AndroidImportance.HIGH,sound:'default',enableVibrate:true});
 }
 export async function registerPush(){

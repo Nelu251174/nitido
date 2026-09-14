@@ -73,5 +73,14 @@ it('plays sound once for a new message and suppresses duplicate deliveries',asyn
 });
 it('creates an audible Android message channel',async()=>{
  mock.platform.OS='android';const native=await import('./push.native');await native.registerPush();
+ expect(mock.channel).toHaveBeenCalledWith('activity-v1',expect.objectContaining({sound:'default',importance:4,enableVibrate:true}));
  expect(mock.channel).toHaveBeenCalledWith('messages-v1',expect.objectContaining({sound:'default',importance:4,enableVibrate:true}));
+});
+
+it.each(['ios','android'])('plays completion sound and opens the client job on %s',async platform=>{
+ mock.platform.OS=platform;mock.get.mockResolvedValue(null);const native=await import('./push.native');native.useNotificationRouting('client');
+ const handler=mock.handler.mock.calls[0][0].handleNotification;const completed=response('JOB_COMPLETED');
+ expect(await handler(completed.notification)).toMatchObject({shouldPlaySound:true,shouldShowBanner:true});
+ expect(await handler(completed.notification)).toMatchObject({shouldPlaySound:false,shouldShowBanner:false});
+ mock.listener?.(completed);expect(mock.navigate).toHaveBeenCalledWith('/(client)/job/job%3A42');
 });
