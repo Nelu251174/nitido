@@ -19,7 +19,7 @@ export function LivePriceEstimator({options,inline=false}:{options?:EstimatorOpt
   const activeLabel=opts.find(o=>o.key===spaceType)?.label??"Apartament";
   const progress=((sqm-ESTIMATOR_MIN_SQM)/(ESTIMATOR_MAX_SQM-ESTIMATOR_MIN_SQM))*100;
   return <div className={`live-price-estimator ${inline?"live-price-estimator-inline relative w-full":"absolute bottom-[-20px] right-[-18px] w-[330px] max-sm:right-3 max-sm:w-[calc(100%-24px)]"} rounded-2xl bg-[#111827] p-5 text-white shadow-2xl`}>
-    <div className="text-xs font-bold text-[#7bd2da]">ESTIMATOR LIVE</div>
+    <div className="text-xs font-bold text-[#79D8AA]">ESTIMATOR LIVE</div>
     <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label="Tip spațiu">
       {opts.map(option=><button key={option.key} type="button" onClick={()=>setSpaceType(option.key)} aria-pressed={spaceType===option.key} className={`whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold transition ${spaceType===option.key?"estimator-option-active text-white":"bg-[#263647] text-[#c2ccd7] hover:text-white"}`}>{option.label}</button>)}
     </div>

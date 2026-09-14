@@ -46,7 +46,7 @@ export function GooglePlayBadge({ className = "" }: { className?: string }) {
       <rect x=".5" y=".5" width="134" height="39" rx="6.5" fill="#000" stroke="rgba(255,255,255,.5)" />
       <svg x="13" y="9" width="20" height="22" viewBox="0 0 29 32">
         <polygon points="3,3 16.5,16 3,16" fill="#00C853" />
-        <polygon points="3,16 16.5,16 3,29" fill="#00C3FF" />
+        <polygon points="3,16 16.5,16 3,29" fill="#009E60" />
         <polygon points="3,3 26,16 16.5,16" fill="#FF3B3B" />
         <polygon points="16.5,16 26,16 3,29" fill="#FFC400" />
       </svg>

@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS workspace_property_jobs (
 );
 CREATE TABLE IF NOT EXISTS workspace_teams (
  id TEXT PRIMARY KEY, firm_id TEXT NOT NULL REFERENCES firms(id), name TEXT NOT NULL,
- color TEXT NOT NULL DEFAULT '#0f766e', active INTEGER NOT NULL DEFAULT 1
+ color TEXT NOT NULL DEFAULT '#007A4A', active INTEGER NOT NULL DEFAULT 1
 );
 CREATE TABLE IF NOT EXISTS workspace_team_blocks (
  id TEXT PRIMARY KEY, team_id TEXT NOT NULL REFERENCES workspace_teams(id),

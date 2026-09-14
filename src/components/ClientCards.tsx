@@ -18,7 +18,7 @@ export function ClientCards({cards,selected,loading,busy,booking=false,onSelect,
       {cards.map(card=><div key={card.id} className={`rounded-xl border p-3 ${booking&&selected===card.id?"border-aqua bg-mist":"border-line"}`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <label className="flex min-w-0 items-center gap-3 text-sm font-semibold">
-            {booking&&<input type="radio" name="booking-card" value={card.id} checked={selected===card.id} disabled={busy} onChange={()=>onSelect(card.id)} className="h-4 w-4 accent-teal-700"/>}
+            {booking&&<input type="radio" name="booking-card" value={card.id} checked={selected===card.id} disabled={busy} onChange={()=>onSelect(card.id)} className="h-4 w-4 accent-[var(--nitido-brand)]"/>}
             <span><span className="uppercase">{card.brand??"Card"}</span> ···· {card.last4??"—"}
               {card.expMonth&&card.expYear&&<span className="mt-1 block text-xs font-normal text-muted">Expiră {String(card.expMonth).padStart(2,"0")}/{card.expYear}</span>}
             </span>

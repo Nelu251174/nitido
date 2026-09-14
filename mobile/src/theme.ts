@@ -1,2 +1,2 @@
-export const colors={ivory:"#F7F9FC",white:"#FFFFFF",green:"#087E84",greenDark:"#00676D",greenSoft:"#EAF6F7",ink:"#111827",muted:"#64748B",border:"#E2E8F0",danger:"#A63D40"} as const;
+export const colors={ivory:"#F7F9FC",white:"#FFFFFF",green:"#009E60",greenDark:"#007A4A",greenSoft:"#EAF7F0",ink:"#111827",muted:"#64748B",border:"#E2E8F0",danger:"#A63D40"} as const;
 export const space={xs:6,sm:10,md:16,lg:24,xl:32,xxl:48} as const;

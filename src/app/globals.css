@@ -2,14 +2,14 @@
 
 /* Design system Nitido — spec secțiunea 9, v2 „aurora" (mesh gradients + glass) */
 :root {
-  /* Teal supports operational UI; green is reserved for primary actions. */
+  /* Green brand palette shared by every public and operational screen. */
   --nitido-action-color: #009E60;
   --nitido-action-hover: #007A4A;
   --nitido-action-background: #009E60;
-  --nitido-brand: #087e84;
-  --nitido-brand-dark: #00676d;
-  --nitido-brand-soft: #eaf6f7;
-  --nitido-brand-on-dark: #7bd2da;
+  --nitido-brand: #009E60;
+  --nitido-brand-dark: #007A4A;
+  --nitido-brand-soft: #EAF7F0;
+  --nitido-brand-on-dark: #79D8AA;
   --mist: #f7f9fc;
   --ink: #17212B;
   --aqua: var(--nitido-brand);
@@ -155,7 +155,7 @@ html { scroll-behavior: smooth; scroll-padding-top: 76px; }
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(38% 45% at 15% 20%, rgba(23, 184, 166, 0.35), transparent 70%),
+    radial-gradient(38% 45% at 15% 20%, rgba(0,158,96, 0.35), transparent 70%),
     radial-gradient(32% 40% at 85% 15%, rgba(106, 92, 242, 0.28), transparent 70%),
     radial-gradient(45% 50% at 75% 90%, rgba(255, 107, 91, 0.16), transparent 70%),
     linear-gradient(180deg, #0f1e27 0%, #142530 100%);
@@ -182,7 +182,7 @@ html { scroll-behavior: smooth; scroll-padding-top: 76px; }
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(40% 60% at 10% 0%, rgba(23, 184, 166, 0.08), transparent 70%),
+    radial-gradient(40% 60% at 10% 0%, rgba(0,158,96, 0.08), transparent 70%),
     radial-gradient(35% 50% at 100% 30%, rgba(106, 92, 242, 0.06), transparent 70%),
     var(--mist);
 }
@@ -217,13 +217,13 @@ html { scroll-behavior: smooth; scroll-padding-top: 76px; }
 .btn-aurora {
   background-image: linear-gradient(100deg, var(--aqua) 0%, var(--aqua-deep) 50%, var(--indigo) 100%);
   box-shadow:
-    0 1px 2px rgba(14, 143, 128, 0.2),
-    0 8px 24px -6px rgba(23, 184, 166, 0.5),
+    0 1px 2px rgba(0,158,96, 0.2),
+    0 8px 24px -6px rgba(0,158,96, 0.5),
     0 0 0 1px rgba(255, 255, 255, 0.08) inset;
 }
 .btn-aurora:hover {
   box-shadow:
-    0 2px 4px rgba(14, 143, 128, 0.25),
+    0 2px 4px rgba(0,158,96, 0.25),
     0 12px 32px -6px rgba(106, 92, 242, 0.55),
     0 0 0 1px rgba(255, 255, 255, 0.12) inset;
 }
@@ -238,7 +238,7 @@ html { scroll-behavior: smooth; scroll-padding-top: 76px; }
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(135deg, rgba(23, 184, 166, 0.5), rgba(106, 92, 242, 0.3), rgba(255, 107, 91, 0.35));
+  background: linear-gradient(135deg, rgba(0,158,96, 0.5), rgba(106, 92, 242, 0.3), rgba(255, 107, 91, 0.35));
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -311,7 +311,7 @@ button,input,select { min-height:44px; }
 .mode-express { background:#fff8ed;border-color:#f1e5cc; }.mode-express .eyebrow-pill { color:#92400e;background:#faebcf; }
 .steps-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:32px;margin-top:40px; }
 .step-number { font-size:14px;font-weight:700;color:var(--aqua);background:var(--nitido-brand-soft);padding:12px;border-radius:12px; }
-.partner-banner { display:flex;align-items:center;justify-content:space-between;gap:32px;background:#142b31;color:white;border-radius:24px;padding:48px; }
+.partner-banner { display:flex;align-items:center;justify-content:space-between;gap:32px;background:#143125;color:white;border-radius:24px;padding:48px; }
 .faq-list details { border-bottom:1px solid var(--line);padding:22px 0; }.faq-list summary { font-weight:600; }.faq-list p { color:var(--muted);line-height:1.8;margin-top:16px;max-width:820px; }
 @media(max-width:1000px){.home-hero{gap:32px}.booking-estimator{grid-template-columns:1fr 1fr}.booking-estimator>div:first-child{grid-column:1/-1}.steps-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:760px){.home-hero{grid-template-columns:1fr;padding-top:32px;gap:28px}.home-hero-photo{min-height:320px}.home-hero h1{font-size:44px}.home-trust{gap:10px}.booking-estimator{padding:20px;gap:16px}.booking-estimator>a{grid-column:1/-1}.service-grid,.mode-grid{grid-template-columns:1fr}.section-heading{align-items:start;flex-direction:column}.partner-banner{padding:28px;align-items:start;flex-direction:column}.steps-grid{gap:24px}.home-photo-note{left:16px;right:16px;bottom:16px}}

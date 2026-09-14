@@ -50,7 +50,7 @@ function LoginForm() {
           onClick={() => setRole("client")}
           className={`flex-1 py-2.5 rounded-xl border font-display font-bold text-xs transition-all ${
             role === "client"
-              ? "border-aqua bg-aqua/10 text-ink shadow-[0_1px_2px_rgba(14,143,128,0.1)]"
+              ? "border-aqua bg-aqua/10 text-ink shadow-[0_1px_2px_rgba(0,158,96,0.1)]"
               : "border-line text-muted hover:border-ink/20"
           }`}
         >
@@ -61,7 +61,7 @@ function LoginForm() {
           onClick={() => setRole("firma")}
           className={`flex-1 py-2.5 rounded-xl border font-display font-bold text-xs transition-all ${
             role === "firma"
-              ? "border-aqua bg-aqua/10 text-ink shadow-[0_1px_2px_rgba(14,143,128,0.1)]"
+              ? "border-aqua bg-aqua/10 text-ink shadow-[0_1px_2px_rgba(0,158,96,0.1)]"
               : "border-line text-muted hover:border-ink/20"
           }`}
         >
