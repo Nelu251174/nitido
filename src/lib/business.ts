@@ -34,11 +34,16 @@ export function getBusinessProfile(db: Database, userId: string): BusinessProfil
 export function setBusinessProfile(
   db: Database,
   userId: string,
-  input: { companyName?: string; companyCui?: string; companyAddress?: string }
+  input: { companyName?: unknown; companyCui?: unknown; companyAddress?: unknown }
 ): BusinessResult {
-  const name = (input.companyName ?? "").trim();
-  const cui = (input.companyCui ?? "").trim();
-  const address = (input.companyAddress ?? "").trim();
+  if (!input || typeof input !== "object" || Array.isArray(input)) return { ok: false, error: "Date de firmă invalide", status: 400 };
+  for (const [key, limit] of [["companyName", 200], ["companyCui", 50], ["companyAddress", 500]] as const) {
+    const value = input[key];
+    if (value != null && (typeof value !== "string" || value.length > limit)) return { ok: false, error: "Date de firmă invalide sau prea lungi", status: 400 };
+  }
+  const name = typeof input.companyName === "string" ? input.companyName.trim() : "";
+  const cui = typeof input.companyCui === "string" ? input.companyCui.trim() : "";
+  const address = typeof input.companyAddress === "string" ? input.companyAddress.trim() : "";
   if (!name) return { ok: false, error: "Numele firmei este obligatoriu", status: 400 };
   if (!cui) return { ok: false, error: "CUI-ul firmei este obligatoriu", status: 400 };
   const res = db

@@ -28,6 +28,20 @@ jobs:
         run: npx eslint
       - name: Teste (vitest)
         run: npx vitest run
+      - name: Probă izolată backup și restaurare
+        run: node --test scripts/recovery.test.mjs
+      - name: Verifică executabilul de recurență
+        run: node --test scripts/recurring-runner.test.mjs
+      - name: Verifică poarta de lansare și preflight staging
+        run: node --test scripts/release-gate.test.mjs
+      - name: Verifică executabilul recuperării financiare
+        run: node --test scripts/financial-recovery-runner.test.mjs
+      - name: Verifică executabilul recuperării notificărilor
+        run: node --test scripts/notification-recovery-runner.test.mjs
+      - name: Verifică healthcheck HTTP și SQLite
+        run: node --test scripts/healthcheck.test.mjs
+      - name: Verifică înrolarea MFA offline
+        run: node --test scripts/admin-mfa-provision.test.mjs
       - name: Build
         env:
           STRIPE_SECRET_KEY: sk_test_ci_dummy
@@ -45,17 +59,34 @@ jobs:
           cache: npm
       - name: Instalează dependențele
         run: npm ci
-      - name: Scanează vulnerabilitățile
-        run: |
-          echo "== Raport securitate dependențe =="
-          npm audit || true
-          echo ""
-          echo "== Rezumat =="
-          crt=$(npm audit --json 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const v=JSON.parse(s).metadata.vulnerabilities;console.log((v.critical||0)+' '+(v.high||0)+' '+(v.moderate||0)+' '+(v.low||0));}catch(e){console.log('0 0 0 0');}})")
-          set -- $crt
-          echo "Critice: $1 | Mari: $2 | Medii: $3 | Mici: $4"
-          if [ "${1:-0}" -gt 0 ] || [ "${2:-0}" -gt 0 ]; then
-            echo "::warning::Robotul de securitate a găsit ${1:-0} vulnerabilități critice și ${2:-0} mari. De reparat într-un task dedicat."
-          else
-            echo "✅ Nicio vulnerabilitate critică sau mare."
-          fi
+      - name: Verifică interpretarea raportului de securitate
+        run: node --test scripts/audit-report.test.mjs
+      - name: Scanează dependențele website și mobile
+        run: node scripts/audit-report.mjs
+
+  mobile:
+    name: Aplicație mobilă (teste + TypeScript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - name: Instalează dependențele mobile
+        run: npm ci
+      - name: Teste mobile
+        run: npm test
+      - name: Verificare TypeScript mobil
+        run: npm run typecheck
+      - name: Exportă pachetele mobile iOS și Android
+        env:
+          EXPO_OFFLINE: "1"
+          EXPO_NO_TELEMETRY: "1"
+          EXPO_PUBLIC_NITIDO_API_BASE_URL: https://sandbox.nitido.ro
+        run: npx expo export --platform ios --platform android --output-dir /tmp/nitido-mobile-export --max-workers 2

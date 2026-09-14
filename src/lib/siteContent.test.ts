@@ -96,7 +96,12 @@ describe("Contact structural layout", () => {
       expect(support).toContain(question);
     }
     expect(support).toContain('suggestions.slice(0,6).map(question => <button type="button"');
-    expect(support).toContain("onClick={() => void send(question)}");
+    expect(support).toContain("onClick={() => setGuide(question)}");
+    expect(support).not.toContain("onClick={() => void send(question)}");
+    expect(support).toContain("SUPPORT_TOPICS.find(topic=>topic.title===guide)?.answer");
+    expect(support).toContain("Răspuns din ghidul NITIDO · fără AI");
+    expect(support).toContain('id="support-guide-answer" aria-live="polite"');
+    expect(support).toContain("status?.available !== true");
     expect(support).not.toContain('href="#');
     expect(support).toContain('<form onSubmit={submit}');
     expect(support).toContain('<button type="submit"');

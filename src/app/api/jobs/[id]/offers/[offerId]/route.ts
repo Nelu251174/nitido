@@ -19,7 +19,7 @@ export async function POST(
   const result = await selectOffer(db, id, offerId, user.id);
   if (!result.ok) {
     return NextResponse.json(
-      { error: result.error, code: result.status === 409 ? "ALREADY_TAKEN" : "SELECT_FAILED" },
+      { error: result.error, code: result.code ?? "SELECT_FAILED" },
       { status: result.status }
     );
   }

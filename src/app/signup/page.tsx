@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Field, inputClass, Button } from "@/components/ui";
 import { AuthLayout } from "@/components/AuthLayout";
+import { EmailVerificationNotice } from "@/components/EmailVerificationNotice";
+import {postAuthDestination,authSwitchHref} from "@/lib/authRedirect";
 
 export default function SignupPage() {
   return (
@@ -29,6 +31,7 @@ function SignupForm() {
   const [referralCode, setReferralCode] = useState(searchParams.get("ref") ?? "");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [created, setCreated] = useState<{ email: string; emailAccepted: boolean; role: "client" | "firma"; destination: string } | null>(null);
 
   async function submit(e?: FormEvent) {
     e?.preventDefault();
@@ -60,13 +63,42 @@ function SignupForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Eroare la înregistrare");
-      router.push(role === "client" ? "/client" : "/firma");
-      router.refresh();
+      setCreated({
+        email: email.trim(),
+        emailAccepted: data.welcomeEmailStatus === "accepted",
+        role,
+        destination: postAuthDestination(searchParams.get("next"), role),
+      });
+      setPassword("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Eroare necunoscută");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (created) {
+    return (
+      <AuthLayout>
+        <div role="status" aria-live="polite">
+          <h1 className="font-display font-bold text-2xl text-ink mb-3">Contul a fost creat cu succes</h1>
+          <p className="text-sm text-ink mb-4 break-words">Adresa contului: <strong>{created.email}</strong></p>
+          <p className="text-sm text-muted mb-5">
+            {created.emailAccepted
+              ? "Emailul de confirmare a fost acceptat pentru trimitere. Caută mesajul «NITIDO — confirmă adresa de email» în Inbox sau Spam. Primirea lui nu este încă confirmată."
+              : "Contul este salvat, dar trimiterea emailului de confirmare nu a fost confirmată. Nu trebuie să creezi contul din nou."}
+          </p>
+        </div>
+        <EmailVerificationNotice />
+        {created.role === "firma" && (
+          <p className="text-sm text-muted mb-5">Confirmarea emailului este separată de verificarea firmei. Pentru a primi lucrări, firma trebuie să fie validată prin ANAF.</p>
+        )}
+        <Button className="w-full" onClick={() => {
+          router.push(created.destination);
+          router.refresh();
+        }}>Continuă în cont</Button>
+      </AuthLayout>
+    );
   }
 
   return (
@@ -185,7 +217,7 @@ function SignupForm() {
 
       <p className="text-xs text-muted text-center mt-5">
         Ai deja cont?{" "}
-        <Link href="/login" className="text-aqua-deep font-semibold">
+        <Link href={authSwitchHref("login",searchParams.get("next"),role)} className="text-aqua-deep font-semibold">
           Autentifică-te
         </Link>
       </p>

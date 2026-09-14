@@ -1,0 +1,53 @@
+import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
+import Sqlite from 'better-sqlite3';
+import type Stripe from 'stripe';
+import {SCHEMA_SQL} from './db';
+import {reconcileSandboxPayout} from './payoutReconciliation';
+let db:Sqlite.Database;
+const payout=vi.fn(),balances=vi.fn(),charge=vi.fn(),transfer=vi.fn();
+const stripe={payouts:{retrieve:payout},balanceTransactions:{list:balances},charges:{retrieve:charge},transfers:{retrieve:transfer}} as unknown as Stripe;
+const po={id:'po_one',amount:41000,currency:'ron',status:'paid',automatic:true,reconciliation_status:'completed',livemode:false};
+const tx={id:'txn_one',amount:41000,fee:0,net:41000,currency:'ron',source:'py_one',type:'payment'};
+beforeEach(()=>{
+ vi.resetAllMocks();db=new Sqlite(':memory:');db.exec(SCHEMA_SQL);
+ db.exec(`INSERT INTO users(id,role,name) VALUES('u','client','Client'),('fu','firma','Firma');
+ INSERT INTO firms(id,user_id,coverage_city,stripe_account_id) VALUES('f','fu','Bucuresti','acct_one');
+ INSERT INTO jobs(id,client_id,street,city,sqm,space_type,when_type,price_gross,duration_minutes,status,accepted_firm_id) VALUES('j','u','Test','Test',50,'apartament','asap',500,120,'completed','f');
+ INSERT INTO payments(id,job_id,amount_gross,commission_amount,amount_net,status,stripe_transfer_id,stripe_charge_id,transfer_status) VALUES('p','j',500,90,410,'captured','tr_one','ch_one','processed');
+ INSERT INTO stripe_bank_payouts(account_id,payout_id,amount_minor,currency,status,arrival_date) VALUES('acct_one','po_one',41000,'ron','paid',1);`);
+ payout.mockResolvedValue({...po});balances.mockResolvedValue({data:[{...tx}],has_more:false});
+ charge.mockResolvedValue({id:'py_one',balance_transaction:'txn_one',source_transfer:'tr_one',amount:41000,currency:'ron',livemode:false});
+ transfer.mockResolvedValue({id:'tr_one',destination:'acct_one',destination_payment:'py_one',source_transaction:'ch_one',amount:41000,currency:'ron',livemode:false,reversed:false,amount_reversed:0});
+});
+afterEach(()=>db.close());
+const run=()=>reconcileSandboxPayout(db,stripe,'acct_one','po_one');
+describe('sandbox payout reconciliation',()=>{
+ it('traces provider IDs to one job, records an immutable report and does not mark payments paid',async()=>{
+   const before=db.prepare('SELECT * FROM payments').all();
+   const report=await run();expect(report).toMatchObject({status:'matched',netMinor:41000,differenceMinor:0,lines:[{jobId:'j',transferId:'tr_one',issue:null}]});
+   expect(balances).toHaveBeenCalledWith({payout:'po_one',limit:100},{stripeAccount:'acct_one'});
+   expect(charge).toHaveBeenCalledWith('py_one',{}, {stripeAccount:'acct_one'});
+   expect(db.prepare('SELECT * FROM payments').all()).toEqual(before);
+   expect(db.prepare('SELECT action FROM admin_audit_log').get()).toEqual({action:'SANDBOX_PAYOUT_RECONCILED'});
+   await run();expect(db.prepare('SELECT * FROM payout_reconciliation_runs').all()).toHaveLength(2);
+ });
+ it('uses net after fees, not gross, to reconcile totals',async()=>{payout.mockResolvedValue({...po,amount:40900});balances.mockResolvedValue({data:[{...tx,fee:100,net:40900}],has_more:false});expect(await run()).toMatchObject({status:'matched',netMinor:40900,differenceMinor:0});});
+ it('paginates every transaction and refuses a false green from unknown adjustments',async()=>{
+   payout.mockResolvedValue({...po,amount:40900});
+   balances.mockResolvedValueOnce({data:[tx],has_more:true}).mockResolvedValueOnce({data:[{id:'txn_fee',amount:-100,fee:0,net:-100,currency:'ron',source:null,type:'stripe_fee'}],has_more:false});
+   expect(await run()).toMatchObject({status:'needs_review',differenceMinor:0,issues:['UNRESOLVED_LINES']});
+   expect(balances.mock.calls[1][0]).toEqual({payout:'po_one',limit:100,starting_after:'txn_one'});
+ });
+ it.each([{automatic:false},{reconciliation_status:'in_progress'},{currency:'eur'}])('keeps unsupported or unfinished payouts open %j',async extra=>{payout.mockResolvedValue({...po,...extra});expect(await run()).toMatchObject({status:'needs_review',netMinor:null,differenceMinor:null});expect(balances).not.toHaveBeenCalled();});
+ it('does not label a pending payout matched even when amounts match',async()=>{payout.mockResolvedValue({...po,status:'pending'});expect(await run()).toMatchObject({status:'needs_review',issues:['PAYOUT_NOT_PAID']});});
+ it('rejects live-mode data',async()=>{payout.mockResolvedValue({...po,livemode:true});await expect(run()).rejects.toThrow();expect(balances).not.toHaveBeenCalled();});
+ it('rejects an unknown or ambiguous account before contacting Stripe',async()=>{db.exec("UPDATE firms SET stripe_account_id='acct_other'");await expect(run()).rejects.toThrow();expect(payout).not.toHaveBeenCalled();});
+ it.each([{destination:'acct_other'},{destination_payment:'py_other'},{amount:40999},{currency:'eur'}])('rejects a mismatched transfer %j',async extra=>{transfer.mockResolvedValue({...await transfer(),...extra});await expect(run()).rejects.toThrow();expect(db.prepare('SELECT * FROM payout_reconciliation_runs').all()).toHaveLength(0);});
+ it('does not map jobs using provider metadata or the amount alone',async()=>{db.exec("UPDATE payments SET stripe_transfer_id=NULL");expect(await run()).toMatchObject({status:'needs_review',lines:[{jobId:null,issue:'LOCAL_TRANSFER_MISSING_OR_AMBIGUOUS'}]});});
+ it('detects a total mismatch',async()=>{payout.mockResolvedValue({...po,amount:42000});expect(await run()).toMatchObject({status:'needs_review',differenceMinor:1000,issues:['TOTAL_MISMATCH']});});
+ it('rejects incomplete pagination and does not persist a partial report',async()=>{balances.mockResolvedValue({data:[],has_more:true});await expect(run()).rejects.toThrow();expect(db.prepare('SELECT * FROM payout_reconciliation_runs').all()).toHaveLength(0);});
+ it('rejects duplicate balance IDs',async()=>{balances.mockResolvedValue({data:[tx,tx],has_more:false});await expect(run()).rejects.toThrow();});
+ it('leaves no successful report after provider failure',async()=>{charge.mockRejectedValue(Error('private provider detail'));await expect(run()).rejects.toThrow();expect(db.prepare('SELECT * FROM payout_reconciliation_runs').all()).toHaveLength(0);});
+ it('detects local changes during provider reads',async()=>{payout.mockImplementation(async()=>{if(payout.mock.calls.length===2)db.exec("UPDATE payments SET refund_status='pending'");return po;});expect(await run()).toMatchObject({status:'needs_review',issues:['LOCAL_STATE_CHANGED']});});
+ it('records report and audit atomically',async()=>{db.exec("CREATE TRIGGER reject_audit BEFORE INSERT ON admin_audit_log BEGIN SELECT RAISE(ABORT,'fixture'); END");await expect(run()).rejects.toThrow();expect(db.prepare('SELECT * FROM payout_reconciliation_runs').all()).toHaveLength(0);});
+});

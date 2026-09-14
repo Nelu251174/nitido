@@ -1,0 +1,18 @@
+import {beforeEach,afterEach,it,expect} from 'vitest';
+import Sqlite from 'better-sqlite3';
+import {SCHEMA_SQL} from './db';
+import {WORKSPACE_SCHEMA,sendJobMessage,readJobMessages} from './workspace';
+import {webAlerts,type WebAlert} from './webAlerts';
+import {freshAlerts,alertHref} from './webAlertState';
+let db:Sqlite.Database;
+beforeEach(()=>{db=new Sqlite(':memory:');db.pragma('foreign_keys=ON');db.exec(SCHEMA_SQL);db.exec(WORKSPACE_SCHEMA);db.exec(`INSERT INTO users(id,role,name) VALUES('a','client','A'),('b','client','B'),('f','firma','F'),('g','firma','G');INSERT INTO firms(id,user_id,coverage_city) VALUES('firm','f','Constanța');INSERT INTO jobs(id,client_id,street,city,sqm,space_type,when_type,price_gross,duration_minutes,status,accepted_firm_id) VALUES('j','a','Test','Constanța',80,'apartament','scheduled',550,150,'arrived','firm');`);});
+afterEach(()=>db.close());
+it('alerts only the recipient, excluding the sender and unrelated accounts',()=>{sendJobMessage(db,'a','j','Salut','r1');expect(webAlerts(db,'f')).toHaveLength(1);for(const id of ['a','b','g'])expect(webAlerts(db,id)).toEqual([]);});
+it('alerts the client to a reply and removes messages already read',()=>{const id=sendJobMessage(db,'f','j','Salut','r1');expect(webAlerts(db,'a')).toHaveLength(1);readJobMessages(db,'a','j',[id]);expect(webAlerts(db,'a')).toEqual([]);});
+it('announces completion to its client only and does not imply captured payment',()=>{db.exec("UPDATE jobs SET status='completed',completed_at=datetime('now') WHERE id='j'");expect(webAlerts(db,'a')).toMatchObject([{kind:'completed',jobId:'j'}]);expect(webAlerts(db,'f')).toEqual([]);expect(webAlerts(db,'b')).toEqual([]);});
+it('honors disabled notifications',()=>{sendJobMessage(db,'f','j','Salut','r1');db.exec("UPDATE jobs SET status='completed',completed_at=datetime('now');INSERT INTO notification_preferences(user_id,job_status_notifications,completion_notifications) VALUES('a',0,0)");expect(webAlerts(db,'a')).toEqual([]);});
+it('excludes a previous firm and old events',()=>{sendJobMessage(db,'f','j','Salut','r1');db.exec("UPDATE jobs SET accepted_firm_id=NULL");expect(webAlerts(db,'a')).toEqual([]);db.exec("UPDATE jobs SET accepted_firm_id='firm';UPDATE workspace_messages SET created_at=datetime('now','-8 days')");expect(webAlerts(db,'a')).toEqual([]);});
+it('does not expose message bodies in desktop alert feeds',()=>{sendJobMessage(db,'a','j','Private text','r1');expect(Object.keys(webAlerts(db,'f')[0]).sort()).toEqual(['at','id','jobId','kind']);});
+const event:WebAlert={id:'message:1',kind:'message',jobId:'job:42',at:'2026-09-14T12:00:00Z'};
+it('baselines historical events and deduplicates refreshed and reloaded feeds',()=>{const first=freshAlerts([event],null);expect(first.fresh).toEqual([]);expect(freshAlerts([event],first.seen).fresh).toEqual([]);const next={...event,id:'message:2'};expect(freshAlerts([next,event],first.seen).fresh).toEqual([next]);});
+it('opens the correct conversation or completed job',()=>{expect(alertHref('firma',event)).toBe('/firma/mesaje?job=job%3A42');expect(alertHref('client',{...event,kind:'completed'})).toBe('/client?job=job%3A42');});

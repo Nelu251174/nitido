@@ -17,7 +17,7 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>
   const jobMode=db.prepare("SELECT mode FROM jobs WHERE id = ?").get(id) as {mode:string}|undefined;
   if(jobMode&&jobMode.mode!=="express") return NextResponse.json({error:"Această lucrare se preia prin ofertă, nu prin acceptare directă",code:"NOT_EXPRESS"},{status:409});
   const result=await acceptJobAtomic(db,id,firm.id);
-  if(!result.ok) return NextResponse.json({error:result.error,code:result.status===409?"ALREADY_TAKEN":"ACCEPT_FAILED"},{status:result.status});
+  if(!result.ok) return NextResponse.json({error:result.error,code:result.code??"ACCEPT_FAILED"},{status:result.status});
   // Express 60: o firmă a preluat lucrarea → garanția de 60 min e respectată.
   markExpress60Met(db,id);
   const updated=db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow;

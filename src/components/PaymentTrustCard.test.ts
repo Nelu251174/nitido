@@ -27,10 +27,8 @@ describe("payment trust section", () => {
     expect(card).toContain("procesarea NITIDO este realizată prin Stripe");
   });
 
-  it("fills both side cards and preserves the responsive three-column composition", () => {
-    expect(homepage).toContain("minmax(360px,1.08fr)");
-    expect(homepage).toContain("max-[1100px]:grid-cols-1");
-    expect(homepage).toContain("Suport rapid dacă apare o problemă");
-    expect(homepage).toContain("Capturarea plății după finalizare și confirmarea procesatorului");
+  it("explains payment states without a fabricated balance", () => {
+    expect(homepage).toContain("Autorizarea și încasarea sunt etape distincte");
+    expect(homepage).not.toContain("escrow");
   });
 });

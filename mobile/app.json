@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "NITIDO",
-    "slug": "nitido",
+    "slug": "nitido-ro",
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "nitido",
@@ -44,7 +44,7 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#1B8A4C",
+          "color": "#087E84",
           "sounds": []
         }
       ],
@@ -72,8 +72,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "OWNER_EAS_PROJECT_ID_REQUIRED"
+        "projectId": "3887c4e7-445a-4954-9d04-7c8adc8519f9"
       }
-    }
+    },
+    "owner": "nitido-ro"
   }
 }

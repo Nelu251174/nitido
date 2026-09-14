@@ -1,3 +1,17 @@
+import {SAVED_CARDS_SCHEMA,initializeSavedCards} from "./savedCards";
+import {NOTIFICATION_CLAIM_SCHEMA,initializeNotificationClaims} from "./notificationClaims";
+import {SELECTION_RECOVERY_SCHEMA} from "./selectionRecovery";
+import {ADMIN_MFA_SCHEMA} from "./adminMfa";
+import {FINANCIAL_RECOVERY_SCHEMA} from "./financialRecoverySchema";
+import {PAYMENT_RECOVERY_SCHEMA} from "./paymentCancellation";
+import {PAYOUT_RECONCILIATION_SCHEMA} from "./payoutReconciliation";
+import {STRIPE_INBOX_SCHEMA} from "./stripeInbox";
+import {EMAIL_VERIFICATION_SCHEMA} from "./emailVerification";
+import { ASSESSMENT_SCHEMA } from "./assessments";
+import { CATALOG_CAPACITY_SCHEMA } from "./catalogCapacity";
+import { initializeCatalog } from "./serviceCatalog";
+import { PRICING_SNAPSHOT_LOCK_SQL } from "./pricingSnapshot";
+import { WORKSPACE_SCHEMA } from "@/lib/workspace";
 import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
@@ -22,6 +36,14 @@ db.pragma("foreign_keys = ON");
 // Exportată separat ca teste (vitest) să poată crea o bază de date in-memory
 // cu aceeași schemă, izolată de fișierul de date reale.
 export const SCHEMA_SQL = `
+${SAVED_CARDS_SCHEMA}
+${NOTIFICATION_CLAIM_SCHEMA}
+${SELECTION_RECOVERY_SCHEMA}
+${ADMIN_MFA_SCHEMA}
+${FINANCIAL_RECOVERY_SCHEMA}
+${PAYMENT_RECOVERY_SCHEMA}
+${PAYOUT_RECONCILIATION_SCHEMA}
+${STRIPE_INBOX_SCHEMA}
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   role TEXT NOT NULL CHECK (role IN ('client','firma')),
@@ -215,6 +237,26 @@ CREATE TABLE IF NOT EXISTS stripe_events (
   processed_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS payment_authorization_attempts (
+ job_id TEXT PRIMARY KEY REFERENCES jobs(id),
+ request_json TEXT NOT NULL,
+ provider_key_hash TEXT NOT NULL,
+ created_ms INTEGER NOT NULL,
+ stripe_payment_intent_id TEXT,
+ status TEXT NOT NULL DEFAULT 'pending'
+);
+
+CREATE TABLE IF NOT EXISTS stripe_bank_payouts (
+ account_id TEXT NOT NULL,
+ payout_id TEXT NOT NULL,
+ amount_minor INTEGER NOT NULL,
+ currency TEXT NOT NULL,
+ status TEXT NOT NULL,
+ arrival_date INTEGER NOT NULL,
+ updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+ PRIMARY KEY(account_id,payout_id)
+);
+
 CREATE TABLE IF NOT EXISTS payment_refunds (
   id TEXT PRIMARY KEY,
   payment_id TEXT NOT NULL REFERENCES payments(id),
@@ -242,6 +284,7 @@ CREATE TABLE IF NOT EXISTS notification_outbox (
   event_type TEXT NOT NULL CHECK (event_type IN ('JOB_CREATED_FIRM_ALERT','JOB_ACCEPTED_CLIENT_CONFIRMATION','JOB_ARRIVED_CLIENT_NOTIFICATION')),
   job_id TEXT NOT NULL REFERENCES jobs(id),
   recipient TEXT NOT NULL,
+  recipient_user_id TEXT,
   channel TEXT NOT NULL DEFAULT 'sms' CHECK (channel = 'sms'),
   message_body TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','sending','sent','failed')),
@@ -278,7 +321,7 @@ CREATE TABLE IF NOT EXISTS notification_preferences (
 CREATE TABLE IF NOT EXISTS push_notification_outbox (
   id TEXT PRIMARY KEY,
   idempotency_key TEXT NOT NULL UNIQUE,
-  event_type TEXT NOT NULL CHECK (event_type IN ('JOB_CREATED_FIRM_PUSH','JOB_ACCEPTED_CLIENT_PUSH','JOB_ARRIVED_CLIENT_PUSH','JOB_COMPLETED_CLIENT_PUSH')),
+  event_type TEXT NOT NULL CHECK (event_type IN ('JOB_CREATED_FIRM_PUSH','JOB_ACCEPTED_CLIENT_PUSH','JOB_ARRIVED_CLIENT_PUSH','JOB_COMPLETED_CLIENT_PUSH','MESSAGE_RECEIVED_PUSH')),
   job_id TEXT NOT NULL REFERENCES jobs(id),
   recipient_user_id TEXT NOT NULL REFERENCES users(id),
   channel TEXT NOT NULL DEFAULT 'push' CHECK (channel='push'),
@@ -341,11 +384,40 @@ CREATE TABLE IF NOT EXISTS recurring_plans (
   details TEXT,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','paused','cancelled')),
   next_run_date TEXT NOT NULL,
+  anchor_day INTEGER,
+  end_date TEXT,
   last_job_id TEXT REFERENCES jobs(id),
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_recurring_due ON recurring_plans(status, next_run_date);
 CREATE INDEX IF NOT EXISTS idx_recurring_client ON recurring_plans(client_id, status);
+
+CREATE TABLE IF NOT EXISTS recurring_creation_requests (
+  client_id TEXT NOT NULL REFERENCES users(id),
+  request_id TEXT NOT NULL,
+  payload_hash TEXT NOT NULL,
+  plan_id TEXT NOT NULL REFERENCES recurring_plans(id),
+  PRIMARY KEY(client_id, request_id)
+);
+
+CREATE TABLE IF NOT EXISTS recurring_pauses (
+  plan_id TEXT PRIMARY KEY REFERENCES recurring_plans(id),
+  start_date TEXT NOT NULL,
+  end_date TEXT NOT NULL,
+  CHECK(start_date <= end_date)
+);
+
+-- Evidența vizitelor generate; o dată din serie poate crea o singură lucrare.
+CREATE TABLE IF NOT EXISTS recurring_occurrences (
+  plan_id TEXT NOT NULL REFERENCES recurring_plans(id),
+  occurrence_date TEXT NOT NULL,
+  job_id TEXT NOT NULL UNIQUE REFERENCES jobs(id),
+  scheduled_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY(plan_id, occurrence_date)
+);
+CREATE INDEX IF NOT EXISTS idx_recurring_occurrence_date ON recurring_occurrences(occurrence_date DESC);
+
 
 -- Opțiunile din ESTIMATOR LIVE, gestionate de admin (ce tipuri vede clientul).
 -- Cheia e limitată la tipurile cu tarif oficial; adminul schimbă doar
@@ -359,6 +431,12 @@ CREATE TABLE IF NOT EXISTS estimator_options (
 `;
 
 db.exec(SCHEMA_SQL);
+initializeNotificationClaims(db);
+db.exec(WORKSPACE_SCHEMA);
+initializeCatalog(db);
+db.exec(CATALOG_CAPACITY_SCHEMA);
+db.exec(ASSESSMENT_SCHEMA);
+db.exec(EMAIL_VERIFICATION_SCHEMA);
 
 // Migrare simplă pentru coloane noi adăugate DUPĂ ce baza de date există deja
 // în producție — `CREATE TABLE IF NOT EXISTS` de mai sus nu face nimic pe un
@@ -370,14 +448,21 @@ function ensureColumn(table: string, column: string, definition: string) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   }
 }
+ensureColumn("workspace_properties", "postal_code", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("workspace_properties", "floor", "TEXT NOT NULL DEFAULT ''");
 ensureColumn("firms", "coverage_cities_extra", "TEXT");
 ensureColumn("firms", "stripe_account_status", "TEXT NOT NULL DEFAULT 'not_started'");
 ensureColumn("firms", "stripe_transfers_capability", "TEXT NOT NULL DEFAULT 'inactive'");
+ensureColumn("firms", "description", "TEXT");
+ensureColumn("firms", "working_hours", "TEXT");
+ensureColumn("firms", "services", "TEXT");
+ensureColumn("firms", "website", "TEXT");
 ensureColumn("users", "referral_code", "TEXT");
 ensureColumn("users", "referred_by_code", "TEXT");
 ensureColumn("users", "credit_balance", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("users", "stripe_customer_id", "TEXT");
 ensureColumn("users", "stripe_payment_method_id", "TEXT");
+initializeSavedCards(db);
 // Etapa 3 — Nitido Office (cont business + date firmă pentru facturare/raport).
 ensureColumn("users", "is_business", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("users", "company_name", "TEXT");
@@ -385,6 +470,9 @@ ensureColumn("users", "company_cui", "TEXT");
 ensureColumn("users", "company_address", "TEXT");
 ensureColumn("jobs", "credit_applied", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("jobs", "details", "TEXT");
+ensureColumn("jobs", "pricing_snapshot", "TEXT");
+// Published pricing is an audit record, separate from later refunds/adjustments.
+db.exec(PRICING_SNAPSHOT_LOCK_SQL);
 ensureColumn("jobs", "client_request_id", "TEXT");
 // Etapa 2 — modul de preluare (implicit 'express' pentru lucrările existente,
 // ca să nu se schimbe comportamentul actual). CHECK-ul e aplicat doar pe baze
@@ -415,6 +503,12 @@ ensureColumn("payments", "transfer_status", "TEXT NOT NULL DEFAULT 'not_started'
 ensureColumn("payments", "stripe_transfer_id", "TEXT");
 ensureColumn("payments", "payout_status", "TEXT NOT NULL DEFAULT 'unknown'");
 ensureColumn("payments", "refund_status", "TEXT NOT NULL DEFAULT 'none'");
+ensureColumn("recurring_plans", "anchor_day", "INTEGER");
+ensureColumn("recurring_plans", "end_date", "TEXT");
+ensureColumn("workspace_properties", "budget_enforced", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("workspace_approvals", "snapshot_street", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("workspace_approvals", "snapshot_city", "TEXT NOT NULL DEFAULT ''");
+db.exec("UPDATE recurring_plans SET anchor_day=CAST(substr(next_run_date,9,2) AS INTEGER) WHERE anchor_day IS NULL");
 ensureColumn("payments", "dispute_status", "TEXT NOT NULL DEFAULT 'none'");
 db.exec("CREATE INDEX IF NOT EXISTS idx_job_photos_proof ON job_photos(job_id, uploaded_by_firm_id, proof_type, status)");
 db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_ratings_one_per_job ON ratings(job_id)");
@@ -534,11 +628,11 @@ export function getUserById(id: string): UserRow | undefined {
 
 export function getFirmByUserId(
   userId: string
-): { id: string; coverage_city: string; coverage_cities_extra: string | null; verified:number; stripe_account_status:string; stripe_transfers_capability:string } | undefined {
+): { id: string; coverage_city: string; coverage_cities_extra: string | null; verified:number; stripe_account_status:string; stripe_transfers_capability:string; description:string|null; working_hours:string|null; services:string|null; website:string|null } | undefined {
   return db
-    .prepare("SELECT id, coverage_city, coverage_cities_extra, verified, stripe_account_status, stripe_transfers_capability FROM firms WHERE user_id = ?")
+    .prepare("SELECT id, coverage_city, coverage_cities_extra, verified, stripe_account_status, stripe_transfers_capability, description, working_hours, services, website FROM firms WHERE user_id = ?")
     .get(userId) as
-    | { id: string; coverage_city: string; coverage_cities_extra: string | null; verified:number; stripe_account_status:string; stripe_transfers_capability:string }
+    | { id: string; coverage_city: string; coverage_cities_extra: string | null; verified:number; stripe_account_status:string; stripe_transfers_capability:string; description:string|null; working_hours:string|null; services:string|null; website:string|null }
     | undefined;
 }
 
