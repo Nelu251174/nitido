@@ -440,6 +440,19 @@ db.exec(`CREATE TABLE IF NOT EXISTS job_reschedule_requests (
  created_at TEXT NOT NULL, resolved_at TEXT
 );
 CREATE UNIQUE INDEX IF NOT EXISTS one_pending_reschedule ON job_reschedule_requests(job_id) WHERE status='pending';`);
+db.exec(`CREATE TABLE IF NOT EXISTS reschedule_authorizations (
+ request_id TEXT PRIMARY KEY REFERENCES job_reschedule_requests(id),
+ job_id TEXT NOT NULL REFERENCES jobs(id), payment_id TEXT NOT NULL,
+ old_intent_id TEXT NOT NULL, new_intent_id TEXT UNIQUE,
+ old_payment_json TEXT NOT NULL, old_attempt_json TEXT NOT NULL,
+ params_json TEXT NOT NULL, provider_key_hash TEXT NOT NULL,
+ created_ms INTEGER NOT NULL, expires_ms INTEGER NOT NULL,
+ state TEXT NOT NULL DEFAULT 'open' CHECK(state IN ('open','applied','aborting','aborted')),
+ cleanup_status TEXT NOT NULL DEFAULT 'pending' CHECK(cleanup_status IN ('pending','done')),
+ cleanup_attempts INTEGER NOT NULL DEFAULT 0, retry_after_ms INTEGER NOT NULL DEFAULT 0,
+ last_error TEXT, applied_at TEXT
+);
+CREATE INDEX IF NOT EXISTS reschedule_authorization_cleanup ON reschedule_authorizations(cleanup_status,retry_after_ms);`);
 initializeCatalog(db);
 db.exec(CATALOG_CAPACITY_SCHEMA);
 db.exec(ASSESSMENT_SCHEMA);
@@ -455,6 +468,8 @@ function ensureColumn(table: string, column: string, definition: string) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   }
 }
+ensureColumn("job_reschedule_requests", "firm_confirmed_at", "TEXT");
+ensureColumn("job_reschedule_requests", "confirmed_snapshot", "TEXT");
 ensureColumn("workspace_properties", "postal_code", "TEXT NOT NULL DEFAULT ''");
 ensureColumn("workspace_properties", "floor", "TEXT NOT NULL DEFAULT ''");
 ensureColumn("workspace_properties", "rooms", "INTEGER");

@@ -17,7 +17,8 @@ export async function runRecurring({env=process.env,request=fetch}={}){
   try{body=await response.json()}catch{throw new Error('Răspuns invalid de la procesarea recurenței.');}
   if(!body||!Number.isSafeInteger(body.created)||body.created<0)throw new Error('Numărul vizitelor create nu a fost confirmat.');
   if(Number(body.blocked)>0)throw new Error(`Generare parțială: ${body.created} vizite create, ${body.blocked} serii blocate de buget. Verifică seriile în cont.`);
-  return {created:body.created};
+  if(Number(body.authorizations?.blocked)>0)throw new Error(`Vizite create: ${body.created}. ${body.authorizations.blocked} eliberări de autorizare necesită reluare; operațiile rămân înregistrate.`);
+  return {created:body.created,...(body.authorizations?{authorizations:body.authorizations}:{})};
 }
 
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generateDueRecurringJobs } from "@/lib/recurring";
+import Stripe from 'stripe';
+import {recoverRescheduleAuthorizations} from '@/lib/rescheduleAuthorization';
 
 // Backstop programat: generează TOATE lucrările recurente scadente.
 // Protejat cu CRON_SECRET (header x-cron-secret). Dezactivat dacă secretul
@@ -15,5 +17,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
   }
   const { created,blocked } = await generateDueRecurringJobs(db, new Date());
-  return NextResponse.json({ created: created.length,blocked:blocked.length });
+  const key=process.env.STRIPE_SECRET_KEY;
+  const authorizations=key?await recoverRescheduleAuthorizations(db,new Stripe(key,{timeout:3000,maxNetworkRetries:0})):{processed:0,blocked:0};
+  return NextResponse.json({ created: created.length,blocked:blocked.length,authorizations });
 }
