@@ -138,3 +138,19 @@
 .approved-home .live-price-estimator{--nitido-action-background:#009E60;--nitido-action-color:#009E60}
 .approved-home .partner-banner{background:#17212B}
 @media(max-width:760px){.approved-home .design-hero-image:after{display:none}}
+
+/* Account navigation: the same green rail in Client, Partner, Business and cases. */
+:is(.operations-layout.role-client,.operations-layout.role-firma,.board-page.board-firm,.approved-client)>aside{
+ background:#007A4A;color:#fff;border-color:#005c38;
+}
+:is(.operations-layout.role-client,.operations-layout.role-firma,.board-page.board-firm,.approved-client)>aside :is(a,button,summary,.design-wordmark){color:#fff}
+:is(.operations-layout.role-client,.operations-layout.role-firma,.board-page.board-firm,.approved-client)>aside :is(.text-muted,.text-xs,.sidebar-user span,.board-role,.board-help,.professional-nav p,.professional-nav small,.board-sidebar-note p){color:#d8f3e5}
+:is(.operations-layout.role-client,.operations-layout.role-firma,.board-page.board-firm,.approved-client)>aside :is(.design-wordmark span, a.font-display span){color:#c9f7dc}
+:is(.operations-layout.role-client,.operations-layout.role-firma,.board-page.board-firm,.approved-client)>aside :is(.workspace-nav,.operations-section-nav) a{color:#fff}
+:is(.operations-layout.role-client,.operations-layout.role-firma,.board-page.board-firm,.approved-client)>aside :is(.workspace-nav,.operations-section-nav) a:is(:hover,[aria-current=page]){
+ background:#005c38;color:#fff;border-left-color:#c9f7dc;
+}
+:is(.operations-layout.role-client,.operations-layout.role-firma,.board-page.board-firm,.approved-client)>aside :is(a,button,summary):focus-visible{outline:2px solid #fff;outline-offset:3px}
+:is(.operations-layout.role-client,.operations-layout.role-firma,.board-page.board-firm,.approved-client)>aside :is(.workspace-menu-toggle,.board-sidebar-note){background:#00673f;color:#fff;border-color:#70b995}
+.approved-client>aside :is(button[aria-label=Meniu],nav.hidden){background:#00673f;color:#fff;border-color:#70b995}
+.approved-client>aside nav.hidden button{color:#fff}
