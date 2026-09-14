@@ -14,6 +14,11 @@ import { getStripeClient } from "@/lib/payments";
 
 type UserRow = { id: string; email: string | null; name: string; stripe_customer_id: string | null; stripe_payment_method_id: string | null };
 
+export class CardSetupError extends Error {
+  constructor(message: string, public status = 409) { super(message); }
+}
+const idOf = (value: string | { id: string } | null) => typeof value === "string" ? value : value?.id;
+
 function getUser(db: Database, userId: string): UserRow | undefined {
   return db
     .prepare("SELECT id, email, name, stripe_customer_id, stripe_payment_method_id FROM users WHERE id = ?")
@@ -37,8 +42,9 @@ export async function getOrCreateStripeCustomer(db: Database, userId: string): P
       if (existing && !(existing as { deleted?: boolean }).deleted) {
         return user.stripe_customer_id;
       }
-    } catch {
-      // client inexistent în contul curent → cădem pe creare mai jos
+    } catch (error) {
+      // A network/provider failure must not replace the customer and clear their card.
+      if ((error as { code?: string }).code !== "resource_missing") throw error;
     }
   }
 
@@ -61,32 +67,58 @@ export async function createCardSetupSession(db: Database, userId: string, baseU
   if (!stripe) return { configured: false };
   const customerId = await getOrCreateStripeCustomer(db, userId);
   if (!customerId) return { configured: false };
+  const previousCard = getUser(db, userId)?.stripe_payment_method_id ?? "";
 
   const session = await stripe.checkout.sessions.create({
     mode: "setup",
     payment_method_types: ["card"],
     customer: customerId,
-    success_url: `${baseUrl}/client?card=added`,
+    client_reference_id: userId,
+    metadata: { previousPaymentMethodId: previousCard },
+    success_url: `${baseUrl}/client?card=added&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${baseUrl}/client?card=cancelled`,
   });
   return { configured: true, url: session.url ?? undefined };
 }
 
 /**
- * După Checkout, sincronizează cardul salvat: ia cea mai recentă metodă de
- * plată a clientului și o setează ca implicită pe cont. Întoarce dacă are card.
+ * Confirm only the card from this owner's completed Checkout session.
+ * Existing authorizations keep their original payment method; no card is detached.
  */
-export async function syncClientDefaultCard(db: Database, userId: string): Promise<boolean> {
+export async function syncClientDefaultCard(db: Database, userId: string, sessionId: string): Promise<boolean> {
+  if (!/^cs_[A-Za-z0-9_]{1,240}$/.test(sessionId)) {
+    throw new CardSetupError("Sesiunea cardului lipsește sau este invalidă. Pornește din nou adăugarea cardului.", 400);
+  }
   const stripe = getStripeClient();
   if (!stripe) return false;
   const user = getUser(db, userId);
   if (!user?.stripe_customer_id) return false;
 
-  const methods = await stripe.paymentMethods.list({ customer: user.stripe_customer_id, type: "card", limit: 1 });
-  const pm = methods.data[0];
-  if (!pm) return false;
-
-  db.prepare("UPDATE users SET stripe_payment_method_id = ? WHERE id = ?").run(pm.id, userId);
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
+  const setupId = idOf(session.setup_intent);
+  if (session.id !== sessionId || session.mode !== "setup" || session.status !== "complete" ||
+      session.client_reference_id !== userId || idOf(session.customer) !== user.stripe_customer_id ||
+      typeof session.metadata?.previousPaymentMethodId !== "string" || !setupId) {
+    throw new CardSetupError("Salvarea cardului nu este confirmată pentru contul tău.");
+  }
+  const setup = await stripe.setupIntents.retrieve(setupId);
+  const methodId = idOf(setup.payment_method);
+  if (setup.id !== setupId || setup.status !== "succeeded" || idOf(setup.customer) !== user.stripe_customer_id || !methodId) {
+    throw new CardSetupError("Cardul nu a fost confirmat de Stripe. Cardul anterior este păstrat.");
+  }
+  const pm = await stripe.paymentMethods.retrieve(methodId);
+  if (pm.id !== methodId || pm.type !== "card" || !pm.card || idOf(pm.customer) !== user.stripe_customer_id) {
+    throw new CardSetupError("Cardul nu corespunde contului tău.");
+  }
+  // Compare-and-set also rejects a late return from another tab after a newer change.
+  db.transaction(() => {
+    const current = getUser(db, userId);
+    if (current?.stripe_customer_id !== user.stripe_customer_id) throw new CardSetupError("Contul de plată s-a schimbat. Reîncearcă.");
+    if (current.stripe_payment_method_id === pm.id) return; // Idempotent confirmation.
+    const changed = db.prepare("UPDATE users SET stripe_payment_method_id = ? WHERE id = ? AND stripe_customer_id = ? AND stripe_payment_method_id IS ?")
+      .run(pm.id, userId, user.stripe_customer_id, session.metadata!.previousPaymentMethodId || null);
+    if (changed.changes !== 1) throw new CardSetupError("Cardul a fost schimbat între timp. Reîncarcă pagina înainte de o nouă schimbare.");
+  })();
   return true;
 }
 
