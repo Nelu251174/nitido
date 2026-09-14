@@ -8,6 +8,7 @@ export function OperationsSectionNav({screen}:{screen:'host'|'business'}){
  {label:'Lenjerie și consumabile',href:'#inventar',icon:'check'},
  {label:'Integrări',href:'#calendar-import',icon:'calendar'},
  ]:[
+ {label:'Organizații',href:'/client/organizatii',icon:'building'},
  {label:'Portofoliu',href:'#locatii',icon:'building'},
  {label:'Calendar',href:'#calendar-business',icon:'calendar'},
  {label:'Aprobări',href:'#aprobari',icon:'check'},

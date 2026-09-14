@@ -17,7 +17,11 @@ export async function GET(req: NextRequest) {
   const scope=params.get('scope')??'all',propertyId=params.get('propertyId');
   if(!['all','business'].includes(scope)||propertyId!==null&&(!propertyId||propertyId.length>100))return NextResponse.json({error:'Filtru invalid.'},{status:400});
   if(propertyId&&!db.prepare('SELECT 1 FROM workspace_properties WHERE id=? AND owner_id=?').get(propertyId,user.id))return NextResponse.json({error:'Locație inexistentă.'},{status:404});
-  const report = executionReport(db,user.id,month,{scope:scope as 'all'|'business',propertyId});
+  const organizationId=params.get('organizationId');
+  if(organizationId!==null&&(!organizationId||organizationId.length>100))return NextResponse.json({error:'Organizație invalidă.'},{status:400});
+  if(organizationId&&!db.prepare('SELECT 1 FROM workspace_organizations WHERE id=? AND owner_id=?').get(organizationId,user.id))return NextResponse.json({error:'Organizație inexistentă.'},{status:404});
+  if(organizationId&&propertyId&&!db.prepare('SELECT 1 FROM workspace_organization_properties WHERE property_id=? AND organization_id=?').get(propertyId,organizationId))return NextResponse.json({error:'Locația nu aparține organizației.'},{status:400});
+  const report = executionReport(db,user.id,month,{scope:scope as 'all'|'business',propertyId,organizationId});
   const headers = {"Cache-Control":"private, no-store"};
   if (params.get("format") === "csv") return new NextResponse(executionCsv(report), {headers:{...headers,"Content-Type":"text/csv; charset=utf-8","Content-Disposition":`attachment; filename="nitido-executie-${month??'toate'}.csv"`}});
   return NextResponse.json({ report }, {headers});

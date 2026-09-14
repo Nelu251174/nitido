@@ -474,6 +474,9 @@ function ensureColumn(table: string, column: string, definition: string) {
     }
   }).immediate();
 }
+ensureColumn("workspace_approvals", "organization_id", "TEXT REFERENCES workspace_organizations(id)");
+ensureColumn("workspace_approvals", "policy_revision", "INTEGER");
+ensureColumn("workspace_approvals", "approval_mode", "TEXT NOT NULL DEFAULT 'manual'");
 ensureColumn("job_reschedule_requests", "firm_confirmed_at", "TEXT");
 ensureColumn("job_reschedule_requests", "confirmed_snapshot", "TEXT");
 ensureColumn("workspace_properties", "postal_code", "TEXT NOT NULL DEFAULT ''");

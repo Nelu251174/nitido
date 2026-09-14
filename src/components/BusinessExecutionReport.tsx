@@ -3,18 +3,20 @@ import {useState} from 'react';
 import Link from 'next/link';
 import type {ExecutionReport} from '@/lib/business';
 import {money} from '@/lib/workspaceShared';
-export function BusinessExecutionReport({properties=[]}:{properties?:{id:string;name:string;kind:string}[]}){
+export function BusinessExecutionReport({properties=[]}:{properties?:{id:string;name:string;kind:string;organization_id?:string|null;organization_name?:string|null}[]}){
  const [month,setMonth]=useState(()=>new Date().toISOString().slice(0,7));
- const [scope,setScope]=useState<'all'|'business'>('business'),[property,setProperty]=useState('');
+ const [scope,setScope]=useState<'all'|'business'>('business'),[property,setProperty]=useState(''),[organization,setOrganization]=useState('');
+ const organizations=Array.from(new Map(properties.filter(p=>p.organization_id).map(p=>[p.organization_id!,p.organization_name??'Organizație'])).entries());
  const [report,setReport]=useState<ExecutionReport|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
- const query=new URLSearchParams({month,scope});if(property)query.set('propertyId',property);
+ const query=new URLSearchParams({month,scope});if(property)query.set('propertyId',property);if(organization)query.set('organizationId',organization);
  async function load(){setBusy(true);setError('');setReport(null);try{const r=await fetch(`/api/reports/execution?${query}`);const d=await r.json();if(!r.ok)throw new Error(d.error||'Raport indisponibil');setReport(d.report)}catch(e){setError(e instanceof Error?e.message:'Eroare de conexiune')}finally{setBusy(false)}}
  return <section className="design-panel mt-6"><h2 className="font-bold text-xl">Raport lunar de execuție</h2>
   <p className="text-sm text-muted mt-2">Lucrări finalizate, locații și centre de cost. Luna folosește data finalizării în UTC. Sumele sunt în RON și reprezintă valoarea lucrărilor; raportul nu este o factură sau o confirmare de încasare.</p>
   <div className="workspace-toolbar">
    <label>Luna<input className="booking-input" type="month" value={month} disabled={busy} onChange={e=>{setMonth(e.target.value);setReport(null)}}/></label>
    <label>Portofoliu<select className="booking-input" value={scope} disabled={busy} onChange={e=>{setScope(e.target.value as 'all'|'business');setProperty('');setReport(null)}}><option value="business">Locații Business</option><option value="all">Întregul cont client</option></select></label>
-   <label>Locația<select className="booking-input" value={property} disabled={busy} onChange={e=>{setProperty(e.target.value);setReport(null)}}><option value="">Toate locațiile din portofoliu</option>{properties.filter(p=>scope==='all'||p.kind==='business').map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+   <label>Organizația<select className="booking-input" disabled={busy} value={organization} onChange={e=>{setOrganization(e.target.value);setProperty('');setReport(null)}}><option value="">Toate organizațiile / contul propriu</option>{organizations.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
+   <label>Locația<select className="booking-input" value={property} disabled={busy} onChange={e=>{setProperty(e.target.value);setReport(null)}}><option value="">Toate locațiile din portofoliu</option>{properties.filter(p=>(scope==='all'||p.kind==='business')&&(!organization||p.organization_id===organization)).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
    <button className="v2-btn v2-btn-primary" disabled={busy||!month} onClick={()=>void load()}>{busy?'Se încarcă…':'Generează raportul'}</button>
   </div>
   {error&&<p role="alert" className="workspace-error">{error}</p>}

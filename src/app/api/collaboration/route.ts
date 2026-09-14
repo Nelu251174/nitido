@@ -1,3 +1,4 @@
+import {OrganizationError,organizationRole,propertyOrganization} from "@/lib/organizations";
 import { hasTrustedMutationOrigin } from "@/lib/security";
 import { after, NextRequest,NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -10,13 +11,17 @@ import { processPushOutbox,queueArrivedClientPush } from "@/lib/push";
 const response=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:{"Cache-Control":"private, no-store"}});
 export async function GET(req:NextRequest){
  const user=await getCurrentUser(req);if(!user)return response({error:"Autentificare necesară"},401);
- const resources=db.prepare(`SELECT 'team' kind,t.id,t.name,'owner' role FROM workspace_teams t JOIN firms f ON f.id=t.firm_id WHERE f.user_id=? AND t.active=1
+ const baseResources=db.prepare(`SELECT 'team' kind,t.id,t.name,'owner' role FROM workspace_teams t JOIN firms f ON f.id=t.firm_id WHERE f.user_id=? AND t.active=1
  UNION ALL SELECT 'property',p.id,p.name,CASE WHEN p.owner_id=? THEN 'owner' ELSE m.role END FROM workspace_properties p LEFT JOIN workspace_members m ON m.kind='property' AND m.resource_id=p.id AND m.user_id=? AND m.active=1 WHERE p.archived=0 AND (p.owner_id=? OR m.id IS NOT NULL)`).all(user.id,user.id,user.id,user.id) as {kind:string;id:string;name:string;role:string}[];
- const owned=resources.filter(r=>r.role==='owner');
+ const organizationProperties=db.prepare(`SELECT p.id,p.name FROM workspace_properties p JOIN workspace_organization_properties op ON op.property_id=p.id JOIN workspace_organizations o ON o.id=op.organization_id LEFT JOIN workspace_organization_members m ON m.organization_id=o.id AND m.user_id=? AND m.active=1 WHERE p.archived=0 AND p.owner_id=o.owner_id AND (o.owner_id=? OR m.id IS NOT NULL)`).all(user.id,user.id) as {id:string;name:string}[];
+ const allResources=[...baseResources,...organizationProperties.map(p=>({...p,kind:'property',role:''}))];
+ const resources=Array.from(new Map(allResources.map(r=>[`${r.kind}:${r.id}`,r])).values()).map(r=>{const org=r.kind==='property'?propertyOrganization(db,r.id):undefined;return org?{...r,role:organizationRole(db,user.id,org.id)}:r}).filter(r=>r.role);
+ const owned=resources.filter(r=>r.role==='owner'&&(r.kind!=='property'||!propertyOrganization(db,r.id)));
+
  const members=owned.flatMap(r=>db.prepare("SELECT m.id,m.resource_id,m.role,u.name,u.email FROM workspace_members m JOIN users u ON u.id=m.user_id WHERE m.kind=? AND m.resource_id=? AND m.active=1").all(r.kind,r.id));
  const invites=owned.flatMap(r=>db.prepare("SELECT id,resource_id,email,role,expires_at FROM workspace_invites WHERE kind=? AND resource_id=? AND revoked=0 AND accepted_by IS NULL AND expires_at>?").all(r.kind,r.id,new Date().toISOString()));
- const properties=resources.filter(r=>r.kind==='property').map(r=>({...db.prepare("SELECT id,name,street,city,sqm,space_type,budget_bani,budget_enforced FROM workspace_properties WHERE id=?").get(r.id) as object,role:r.role}));
- const approvals=resources.filter(r=>r.kind==='property').flatMap(r=>db.prepare("SELECT a.*,u.name requester_name FROM workspace_approvals a JOIN users u ON u.id=a.requested_by WHERE a.property_id=? ORDER BY a.created_at DESC LIMIT 100").all(r.id));
+ const properties=resources.filter(r=>r.kind==='property').map(r=>({...db.prepare("SELECT id,name,street,city,sqm,space_type,budget_bani,budget_enforced FROM workspace_properties WHERE id=?").get(r.id) as object,role:r.role,organization:propertyOrganization(db,r.id)??null}));
+ const approvals=resources.filter(r=>r.kind==='property').flatMap(r=>db.prepare("SELECT a.*,u.name requester_name FROM workspace_approvals a JOIN users u ON u.id=a.requested_by WHERE a.property_id=? ORDER BY a.created_at DESC LIMIT 100").all(r.id).map(row=>{const a=row as {requested_by:string};const org=propertyOrganization(db,r.id);return {...a,can_decide:['owner','approver'].includes(r.role??''),can_approve:['owner','approver'].includes(r.role??'')&&(!org?.separate_approver||a.requested_by!==user.id)}}));
  // Deliberate projection: worker responses contain no prices, credits, payment identifiers or client contact details.
  const jobs=db.prepare(`SELECT j.id,j.street,j.city,j.sqm,j.space_type,j.status,j.scheduled_at,j.details,j.duration_minutes FROM jobs j JOIN firms f ON f.id=j.accepted_firm_id WHERE j.status IN ('accepted','arrived') AND (f.user_id=? OR EXISTS(SELECT 1 FROM workspace_assignments a JOIN workspace_teams t ON t.id=a.team_id JOIN workspace_members m ON m.kind='team' AND m.resource_id=t.id WHERE a.job_id=j.id AND t.firm_id=j.accepted_firm_id AND t.active=1 AND m.user_id=? AND m.active=1 AND m.role='worker')) ORDER BY j.scheduled_at`).all(user.id,user.id) as {id:string}[];
  const execution=jobs.map(j=>({...j,checklist:db.prepare("SELECT item_key,done FROM workspace_checklist WHERE job_id=?").all(j.id),photos:db.prepare("SELECT id,proof_type FROM job_photos WHERE job_id=? AND status='VALID'").all(j.id),report:db.prepare("SELECT note,submitted_at FROM workspace_execution_reports WHERE job_id=?").get(j.id)??null}));
@@ -44,5 +49,5 @@ export async function POST(req:NextRequest){
    default:throw new AccessError('Acțiune invalidă');
   }
   return response({ok:true});
- }catch(e){if(e instanceof AccessError||e instanceof WorkspaceError)return response({error:e.message},e.status);if(e instanceof SyntaxError)return response({error:'Cerere invalidă'},400);console.error('[collaboration] operation_failed');return response({error:'Operația nu a putut fi salvată.'},500)}
+ }catch(e){if(e instanceof AccessError||e instanceof WorkspaceError||e instanceof OrganizationError)return response({error:e.message},e.status);if(e instanceof SyntaxError)return response({error:'Cerere invalidă'},400);console.error('[collaboration] operation_failed');return response({error:'Operația nu a putut fi salvată.'},500)}
 }

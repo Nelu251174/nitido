@@ -1,3 +1,5 @@
+import {enforceOrganizationBooking,OrganizationError} from "@/lib/organizations";
+import {enforcePropertyBudget,AccessError} from "@/lib/collaborationAccess";
 import {manageTeam,configureTeamTiming} from "@/lib/workspace";
 import {previewPropertyImport,commitPropertyImport} from "@/lib/propertyImport";
 import { hasTrustedMutationOrigin } from "@/lib/security";
@@ -12,6 +14,8 @@ export async function GET(req:NextRequest){
  const user=await getCurrentUser(req);if(!user)return response({error:"Autentificare necesară"},401);
  const firm=user.role==="firma"?getFirmByUserId(user.id):null;
  const properties=user.role==="client"?db.prepare(`SELECT p.*,
+ (SELECT op.organization_id FROM workspace_organization_properties op WHERE op.property_id=p.id) AS organization_id,
+ (SELECT o.name FROM workspace_organization_properties op JOIN workspace_organizations o ON o.id=op.organization_id WHERE op.property_id=p.id) AS organization_name,
  (SELECT COUNT(*) FROM workspace_property_jobs pj JOIN jobs j ON j.id=pj.job_id WHERE pj.property_id=p.id AND j.client_id=p.owner_id) AS jobs_count,
  (SELECT COALESCE(SUM(j.price_gross),0) FROM workspace_property_jobs pj JOIN jobs j ON j.id=pj.job_id WHERE pj.property_id=p.id AND j.client_id=p.owner_id AND j.status='completed' AND strftime('%Y-%m',j.completed_at)=strftime('%Y-%m','now')) AS month_total
  FROM workspace_properties p WHERE p.owner_id=? AND p.archived=0 ORDER BY p.created_at DESC`).all(user.id):[];
@@ -46,7 +50,7 @@ export async function POST(req:NextRequest){
    case "property.preview":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);return response(previewPropertyImport(db,user.id,b.csv));
    case "property.import":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);return response(commitPropertyImport(db,user.id,b.csv));
    case "property.save":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);return response({id:saveProperty(db,user.id,b)});
-   case "property.link":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);linkPropertyJob(db,user.id,requireText(b.propertyId,"Proprietate"),requireText(b.jobId,"Lucrare"));break;
+   case "property.link":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);db.transaction(()=>{const propertyId=requireText(b.propertyId,"Proprietate"),jobId=requireText(b.jobId,"Lucrare");linkPropertyJob(db,user.id,propertyId,jobId);const job=db.prepare('SELECT status FROM jobs WHERE id=?').get(jobId) as {status:string};if(!['completed','cancelled','no_show'].includes(job.status)){enforceOrganizationBooking(db,propertyId,jobId);enforcePropertyBudget(db,propertyId,jobId);}}).immediate();break;
    case "calendar.import":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);return response({count:importCalendar(db,user.id,requireText(b.propertyId,"Proprietate"),requireText(b.source,"Sursă"),requireText(b.ical,"Calendar",1_000_000))});
    case "team.timing":if(user.role!=="firma")throw new WorkspaceError("Acces interzis",403);configureTeamTiming(db,user.id,requireText(b.teamId,"Echipă"),b.minimum,b.travel);break;
    case "team.rename":case "team.archive":if(user.role!=="firma")throw new WorkspaceError("Acces interzis",403);manageTeam(db,user.id,requireText(b.teamId,"Echipă"),b.action==='team.rename'?'rename':'archive',b.name);break;
@@ -61,5 +65,5 @@ export async function POST(req:NextRequest){
    default:throw new WorkspaceError("Acțiune invalidă");
   }
   return response({ok:true});
- }catch(e){if(e instanceof WorkspaceError)return response({error:e.message},e.status);if(e instanceof SyntaxError)return response({error:"Cerere invalidă"},400);console.error("[workspace] operation_failed");return response({error:"Operația nu a putut fi salvată. Reîncearcă."},500)}
+ }catch(e){if(e instanceof WorkspaceError||e instanceof OrganizationError||e instanceof AccessError)return response({error:e.message},e.status);if(e instanceof SyntaxError)return response({error:"Cerere invalidă"},400);console.error("[workspace] operation_failed");return response({error:"Operația nu a putut fi salvată. Reîncearcă."},500)}
 }

@@ -6,7 +6,7 @@ Beneficiarul a confirmat continuarea după E2, funcționarea pe iPhone și AI, a
 
 **Livrarea E3:** [funcții, migrare, politică și limite de verificare](NITIDO-E3-DELIVERY-20260914.md). Implementarea acoperă proprietăți/preferințe, reprogramări individuale și de grup, generații unice, orizont 30 zile, firmă preferată, calendar/timpi echipe și dosare de remediere cu revenire confirmată. Compilarea și instalarea sunt evidențe distincte de acceptarea funcțională; nu se pretind teste noi.
 
-**Următoarea etapă autorizată: E4 Business/Host.** Restanțele de lansare E5 și activările comerciale nu sunt închise prin această livrare.
+**E4 în execuție:** prima livrare de raportare este instalată (`f98b10f`). [Organizațiile și pragurile de aprobare](NITIDO-E4-ORGANIZATIONS-20260914.md) sunt implementate în continuarea autorizată. Rămân funcțiile Host și raportarea istorică extinsă. Restanțele de lansare E5 și activările comerciale nu sunt închise prin această livrare.
 
 ## Istoric anterior — păstrat pentru trasabilitate
 

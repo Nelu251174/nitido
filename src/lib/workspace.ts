@@ -1,3 +1,4 @@
+import {propertyOrganization,ORGANIZATION_SCHEMA} from "./organizations";
 import {firmAvailabilityError} from "./firmAvailability";
 import {notice} from "./visitCare";
 import { COLLABORATION_SCHEMA, executionAccess } from "@/lib/collaborationAccess";
@@ -73,7 +74,7 @@ CREATE TABLE IF NOT EXISTS workspace_host_checks (
  updated_by TEXT NOT NULL REFERENCES users(id), updated_at TEXT NOT NULL,
  PRIMARY KEY(event_id,turnover_at,item_key)
 );
-` + COLLABORATION_SCHEMA;
+` + COLLABORATION_SCHEMA + ORGANIZATION_SCHEMA;
 import { CHECKLIST, HOST_CHECKLIST } from "@/lib/workspaceShared";
 export class WorkspaceError extends Error { constructor(message:string,public status=400){super(message)} }
 export function requireText(value:unknown,label:string,max=250) {
@@ -153,6 +154,7 @@ export function saveProperty(db:Database,userId:string,b:Record<string,unknown>)
  const notes=String(b.notes??"").trim(),center=String(b.cost_center??"").trim();
  if(notes.length>2000||center.length>100)throw new WorkspaceError("Detaliile sunt prea lungi.");
  const existing=typeof b.id==="string"?ownProperty(db,userId,b.id):null;
+ if(existing&&propertyOrganization(db,existing.id)&&b.kind!=="business")throw new WorkspaceError("Elimină locația din organizație înainte de schimbarea utilizării.",409);
  const postal=String(b.postal_code??existing?.postal_code??"" ).trim(),floor=String(b.floor??existing?.floor??"" ).trim();
  if(postal.length>20||floor.length>40)throw new WorkspaceError("Codul poștal sau etajul este prea lung.");
  const roomValue=b.rooms===undefined?existing?.rooms:b.rooms;
@@ -164,6 +166,8 @@ export function saveProperty(db:Database,userId:string,b:Record<string,unknown>)
 }
 export function linkPropertyJob(db:Database,userId:string,propertyId:string,jobId:string){
  ownProperty(db,userId,propertyId);
+ const previous=db.prepare('SELECT property_id FROM workspace_property_jobs WHERE job_id=?').get(jobId) as {property_id:string}|undefined;
+ if(previous&&previous.property_id!==propertyId&&(propertyOrganization(db,previous.property_id)||propertyOrganization(db,propertyId)))throw new WorkspaceError('Lucrarea este deja asociată. Mutarea între portofolii nu este permisă.',409);
  if(!db.prepare("SELECT id FROM jobs WHERE id=? AND client_id=?").get(jobId,userId))throw new WorkspaceError("Lucrare inexistentă",404);
  db.prepare("INSERT INTO workspace_property_jobs(job_id,property_id) VALUES(?,?) ON CONFLICT(job_id) DO UPDATE SET property_id=excluded.property_id").run(jobId,propertyId);
  audit(db,userId,"property.link_job",jobId);

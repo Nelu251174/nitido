@@ -1,3 +1,4 @@
+import {acceptOrganizationInvite,propertyOrganization,organizationRole,organizationAudit} from "./organizations";
 import {notice} from "./visitCare";
 import type { Database } from "better-sqlite3";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS workspace_approvals (
  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected','fulfilled')),
  decided_by TEXT REFERENCES users(id), decision_note TEXT, decided_at TEXT,
  job_id TEXT UNIQUE REFERENCES jobs(id), created_at TEXT NOT NULL,
+ organization_id TEXT REFERENCES workspace_organizations(id), policy_revision INTEGER, approval_mode TEXT NOT NULL DEFAULT 'manual',
  UNIQUE(requested_by,request_key)
 );
 CREATE INDEX IF NOT EXISTS workspace_approvals_property ON workspace_approvals(property_id,status);
@@ -46,6 +48,7 @@ export function resourceOwner(db: Database, kind: string, id: string): string | 
 }
 export function resourceRole(db: Database, userId:string, kind:string, id:string):string|null {
   const owner=resourceOwner(db,kind,id); if(!owner)return null;
+  if(kind==="property"){const org=propertyOrganization(db,id);if(org)return organizationRole(db,userId,org.id);}
   if(owner===userId)return "owner";
   return (db.prepare("SELECT role FROM workspace_members WHERE kind=? AND resource_id=? AND user_id=? AND active=1").get(kind,id,userId) as {role:string}|undefined)?.role??null;
 }
@@ -54,6 +57,7 @@ function audit(db:Database,userId:string,action:string,id:string){
 }
 const hash=(token:string)=>createHash("sha256").update(token).digest("hex");
 export function createInvite(db:Database,userId:string,kind:string,resourceId:string,email:string,role:string){
+  if(kind==="property"&&propertyOrganization(db,resourceId))throw new AccessError("Gestionează accesul din organizația locației.",409);
   if(resourceOwner(db,kind,resourceId)!==userId)throw new AccessError("Nu poți invita persoane aici.",403);
   if(!(kind==="team"&&role==="worker")&&!(kind==="property"&&["manager","viewer"].includes(role)))throw new AccessError("Rol invalid.");
   const address=email.trim().toLowerCase();if(address.length>254||!/^\S+@\S+\.\S+$/.test(address))throw new AccessError("Email invalid.");
@@ -63,6 +67,7 @@ export function createInvite(db:Database,userId:string,kind:string,resourceId:st
 }
 export function acceptInvite(db:Database,userId:string,token:string){
   if(token.length>100)throw new AccessError("Invitație invalidă.");
+  const organization=acceptOrganizationInvite(db,userId,token);if(organization)return organization;
   return db.transaction(()=>{
     const invite=db.prepare("SELECT * FROM workspace_invites WHERE token_hash=? AND revoked=0 AND expires_at>?").get(hash(token),new Date().toISOString()) as {id:string;kind:string;resource_id:string;role:string;email:string;accepted_by:string|null}|undefined;
     const user=db.prepare("SELECT email FROM users WHERE id=?").get(userId) as {email:string|null}|undefined;
@@ -104,29 +109,44 @@ export function submitExecutionReport(db:Database,userId:string,jobId:string,not
   })();
 }
 export function createApproval(db:Database,userId:string,b:{propertyId:string;date:string;note:string;requestKey:string}){
+ return db.transaction(()=>{
   const role=resourceRole(db,userId,"property",b.propertyId);
   if(!["owner","manager"].includes(role??""))throw new AccessError("Nu poți solicita lucrări pentru această locație.",403);
   const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Bucharest"}).format(new Date());
   if(!/^\d{4}-\d{2}-\d{2}$/.test(b.date)||b.date<today||!Number.isFinite(new Date(b.date).getTime())||new Date(b.date).toISOString().slice(0,10)!==b.date)throw new AccessError("Alege o dată validă, astăzi sau în viitor.");
   if(!b.requestKey||b.requestKey.length>100||b.note.length>2000)throw new AccessError("Cerere invalidă.");
-  const property=db.prepare("SELECT sqm,space_type,street,city FROM workspace_properties WHERE id=?").get(b.propertyId) as {sqm:number;space_type:SpaceType;street:string;city:string};
+  const property=db.prepare("SELECT sqm,space_type,street,city,budget_bani,budget_enforced FROM workspace_properties WHERE id=?").get(b.propertyId) as {sqm:number;space_type:SpaceType;street:string;city:string;budget_bani:number;budget_enforced:number};
   const existing=db.prepare("SELECT * FROM workspace_approvals WHERE requested_by=? AND request_key=?").get(userId,b.requestKey) as {id:string;property_id:string;date:string;note:string}|undefined;
   if(existing){if(existing.property_id!==b.propertyId||existing.date!==b.date||existing.note!==b.note.trim())throw new AccessError("Cheia aparține altei solicitări.",409);return existing.id;}
-  const id=randomUUID();db.prepare("INSERT INTO workspace_approvals(id,property_id,requested_by,request_key,date,note,sqm,space_type,snapshot_street,snapshot_city,price_bani,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").run(id,b.propertyId,userId,b.requestKey,b.date,b.note.trim(),property.sqm,property.space_type,property.street,property.city,calcGrossPrice(property.space_type,property.sqm)*100,new Date().toISOString());audit(db,userId,"approval.request",id);return id;
+  const org=propertyOrganization(db,b.propertyId),amount=Math.round(calcGrossPrice(property.space_type,property.sqm)*100);
+  const automatic=!!org&&amount<org.approval_threshold_bani;
+  if(automatic&&property.budget_enforced&&propertyMonthTotal(db,b.propertyId,b.date.slice(0,7))+amount>property.budget_bani)throw new AccessError("Bugetul lunar nu acoperă solicitarea.",409);
+  const id=randomUUID(),now=new Date().toISOString();
+  db.prepare(`INSERT INTO workspace_approvals(id,property_id,requested_by,request_key,date,note,sqm,space_type,snapshot_street,snapshot_city,price_bani,created_at,organization_id,policy_revision,approval_mode,status,decision_note,decided_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(id,b.propertyId,userId,b.requestKey,b.date,b.note.trim(),property.sqm,property.space_type,property.street,property.city,amount,now,org?.id??null,org?.revision??null,automatic?'threshold':'manual',automatic?'approved':'pending',automatic?'Aprobată automat: valoare sub pragul organizației.':null,automatic?now:null);
+  audit(db,userId,"approval.request",id);
+  if(org)organizationAudit(db,userId,org.id,'approval.request',id,{priceBani:amount,thresholdBani:org.approval_threshold_bani,revision:org.revision,automatic});
+  return id;
+ }).immediate();
 }
 export function decideApproval(db:Database,userId:string,id:string,approve:boolean,note:string){
-  if(note.length>1000)throw new AccessError("Motiv prea lung.");
-  return db.transaction(()=>{
-    const approval=db.prepare("SELECT a.*,p.owner_id,p.budget_bani,p.budget_enforced FROM workspace_approvals a JOIN workspace_properties p ON p.id=a.property_id WHERE a.id=? AND p.archived=0").get(id) as {owner_id:string;status:string;property_id:string;price_bani:number;date:string;budget_bani:number;budget_enforced:number}|undefined;
-    if(!approval||approval.owner_id!==userId)throw new AccessError("Numai titularul locației poate decide.",403);
-    if(approval.status!=="pending"&&!(approval.status==="approved"&&!approve))throw new AccessError("Solicitarea a fost deja decisă.",409);
-    if(approve&&approval.date<new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Bucharest"}).format(new Date()))throw new AccessError("Data solicitată a trecut. Creează o solicitare nouă.",409);
-    if(approve&&approval.budget_enforced){
-      const month=approval.date.slice(0,7);
-      if(propertyMonthTotal(db,approval.property_id,month)+approval.price_bani>approval.budget_bani)throw new AccessError("Bugetul lunar nu acoperă această solicitare. Actualizează bugetul înainte de aprobare.",409);
-    }
-    db.prepare("UPDATE workspace_approvals SET status=?,decided_by=?,decision_note=?,decided_at=? WHERE id=? AND status IN ('pending','approved')").run(approve?"approved":"rejected",userId,note.trim(),new Date().toISOString(),id);audit(db,userId,approve?"approval.approve":"approval.reject",id);
-  })();
+ if(note.length>1000)throw new AccessError("Motiv prea lung.");
+ return db.transaction(()=>{
+  const a=db.prepare("SELECT a.*,p.owner_id,p.budget_bani,p.budget_enforced FROM workspace_approvals a JOIN workspace_properties p ON p.id=a.property_id WHERE a.id=? AND p.archived=0").get(id) as {owner_id:string;requested_by:string;organization_id:string|null;policy_revision:number|null;status:string;property_id:string;price_bani:number;date:string;budget_bani:number;budget_enforced:number}|undefined;
+  if(!a)throw new AccessError("Solicitare inexistentă.",404);
+  const org=propertyOrganization(db,a.property_id);
+  if(org){
+   if(!['owner','approver'].includes(organizationRole(db,userId,org.id)??''))throw new AccessError('Nu ai rol de aprobator în organizație.',403);
+   if(approve&&!['owner','manager'].includes(organizationRole(db,a.requested_by,org.id)??''))throw new AccessError('Solicitantul nu mai are accesul necesar.',409);
+   if(a.organization_id!==org.id||a.policy_revision!==org.revision)throw new AccessError('Politica s-a modificat. Creează o solicitare nouă.',409);
+   if(approve&&org.separate_approver&&a.requested_by===userId)throw new AccessError('Solicitantul nu poate aproba propria cerere. Este necesar alt aprobator.',403);
+  }else if(a.owner_id!==userId)throw new AccessError("Numai titularul locației poate decide.",403);
+  if(a.status!=="pending"&&!(a.status==="approved"&&!approve))throw new AccessError("Solicitarea a fost deja decisă.",409);
+  if(approve&&a.date<new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Bucharest"}).format(new Date()))throw new AccessError("Data solicitată a trecut. Creează o solicitare nouă.",409);
+  if(approve&&a.budget_enforced&&propertyMonthTotal(db,a.property_id,a.date.slice(0,7))+a.price_bani>a.budget_bani)throw new AccessError("Bugetul lunar nu acoperă această solicitare. Actualizează bugetul înainte de aprobare.",409);
+  db.prepare("UPDATE workspace_approvals SET status=?,decided_by=?,decision_note=?,decided_at=?,approval_mode='manual' WHERE id=? AND status IN ('pending','approved')").run(approve?"approved":"rejected",userId,note.trim(),new Date().toISOString(),id);
+  audit(db,userId,approve?"approval.approve":"approval.reject",id);
+  if(org)organizationAudit(db,userId,org.id,approve?'approval.approve':'approval.reject',id,{note:note.trim(),revision:org.revision});
+ }).immediate();
 }
 /** Called inside the job creation transaction. An approval can fund exactly one matching job. */
 export function consumeApproval(db:Database,userId:string,id:string,jobId:string){
@@ -135,6 +155,8 @@ export function consumeApproval(db:Database,userId:string,id:string,jobId:string
   if(!a||a.owner_id!==userId||a.status!=="approved"||!j)throw new AccessError("Aprobarea nu mai este disponibilă.",409);
   const day=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Bucharest"}).format(new Date(j.scheduled_at));
   if(j.sqm!==a.sqm||j.space_type!==a.space_type||Math.round(j.price_gross*100)!==a.price_bani||j.street!==a.street||j.city!==a.city||day!==a.date)throw new AccessError("Detaliile sau prețul diferă de aprobare. Solicită o aprobare nouă.",409);
+  const linked=db.prepare('SELECT property_id FROM workspace_property_jobs WHERE job_id=?').get(jobId) as {property_id:string}|undefined;
+  if(linked&&linked.property_id!==a.property_id)throw new AccessError('Aprobarea aparține altei locații.',409);
   db.prepare("INSERT INTO workspace_property_jobs VALUES(?,?) ON CONFLICT(job_id) DO UPDATE SET property_id=excluded.property_id").run(jobId,a.property_id);
   const result=db.prepare("UPDATE workspace_approvals SET status='fulfilled',job_id=? WHERE id=? AND status='approved'").run(jobId,id);
   if(result.changes!==1)throw new AccessError("Aprobarea a fost deja folosită.",409);
