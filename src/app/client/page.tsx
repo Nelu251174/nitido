@@ -1,4 +1,5 @@
 "use client";
+import {RescheduleVisit} from '@/components/RescheduleVisit';
 import { logoutWithNativePush } from "@/lib/nativePushClient";
 import {bookingCalendarDays,bookingDateKey,bucharestDateKey,isBookableRomanianSlot,nextBucharestSlot} from "@/lib/scheduling";
 import {saveBookingDraft,takeBookingDraft,clearBookingDraft} from "@/lib/bookingDraft";
@@ -53,6 +54,7 @@ interface OfferView {
 }
 
 interface PlanView {
+  next_visit_at?: string|null;
   hour: number;
   details: string | null;
   schedule_revision: string;
@@ -872,6 +874,7 @@ export default function ClientPage() {
         )}
 
         {job && <PublishedPriceBreakdown snapshot={job.pricing_snapshot}/>}
+        {job&&!job.express_60&&<RescheduleVisit key={job.id} jobId={job.id} scheduledAt={job.scheduled_at} status={job.status} role="client" onChanged={async()=>{const r=await fetch(`/api/jobs/${encodeURIComponent(job.id)}`);if(r.ok)setJob((await r.json()).job)}}/>}
         {job?.details && <section className="design-panel"><h2>Instrucțiunile tale</h2><p className="whitespace-pre-wrap break-words">{job.details}</p></section>}
         {job && job.status === "waiting" && (
           <Card>
@@ -1059,6 +1062,8 @@ function ReferralCard({ code, creditBalance }: { code: string; creditBalance: nu
 function RecurringSection({ defaults }: { defaults: { street: string; postalCode: string; city: string; floor: string; sqm: number; spaceType: SpaceType } }) {
   const [address, setAddress] = useState(defaults);
   const [visitDetails, setVisitDetails] = useState("");
+  const [seriesPropertyId,setSeriesPropertyId]=useState('');
+  const [savedProperties,setSavedProperties]=useState<Array<{id:string;name:string;street:string;city:string;postal_code:string;floor:string;sqm:number;space_type:SpaceType;notes:string;sensitive_materials:string;usual_tasks:string}>>([]);
   const [editing, setEditing] = useState<{plan: PlanView; frequency: PlanView["frequency"]; hour: number; startDate: string; endDate: string; details: string} | null>(null);
   const [pausePlan,setPausePlan]=useState("");
   const [pauseStart,setPauseStart]=useState("");
@@ -1083,6 +1088,8 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
     if(!r.ok)throw new Error("Abonamentele nu au putut fi actualizate.");
     const data=await r.json();
     setPlans(data.plans??[]);setOccurrences(data.occurrences??[]);
+    const properties=await fetch('/api/workspace');
+    if(properties.ok)setSavedProperties((await properties.json()).properties??[]);
   }, []);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- încărcare inițială a abonamentelor (client-only)
@@ -1093,7 +1100,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
     if(statusLock.current)return;
     statusLock.current=true;setBusy(true);setMsg(null);
     try {
-      const input={...address,details:visitDetails,frequency,hour,startDate,endDate:endDate||null};
+      const input={...address,propertyId:seriesPropertyId||null,details:visitDetails,frequency,hour,startDate,endDate:endDate||null};
       const payload=JSON.stringify(input);
       if(!creationRequest.current||creationRequest.current.payload!==payload)creationRequest.current={payload,id:crypto.randomUUID()};
       const r=await fetch("/api/recurring",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...input,requestId:creationRequest.current.id})});
@@ -1127,14 +1134,14 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
   }
   async function generateVisits(){
     if(statusLock.current||busy)return;
-    if(!window.confirm("Generezi vizitele scadente ale abonamentelor active? Pentru firma preferată, sistemul poate încerca alocarea și autorizarea cardului conform regulilor existente. Vizitele trecute sunt omise."))return;
+    if(!window.confirm("Generezi rezervările viitoare ale seriilor active, în orizontul configurat (implicit 30 de zile)? Fiecare va avea propria dată și propriul preț. Generarea nu alocă o firmă și nu autorizează cardul. Vizitele trecute și pauzele sunt omise."))return;
     statusLock.current=true;setStatusBusy(true);setMsg(null);
     try{
       const r=await fetch("/api/recurring",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"generate"})});
       const result=await r.json();
       if(!r.ok||result.ok!==true||!Number.isInteger(result.created)||result.created<0)throw new Error("Generarea nu a fost confirmată. Verifică istoricul înainte de reîncercare.");
       await load();
-      setMsg(result.created?`${result.created} vizite create. Verifică alocarea și plata în fiecare rezervare.`:"Nu există vizite noi scadente de generat.");
+      setMsg(`${result.created} vizite create. Alocarea și plata se confirmă separat.${Array.isArray(result.blocked)&&result.blocked.length?" Serii blocate: "+result.blocked.map((item:{error:string})=>item.error).join(" "):""}`);
     }catch(cause){setMsg(cause instanceof Error?cause.message:"Generarea nu a fost confirmată. Verifică istoricul.")}
     finally{statusLock.current=false;setStatusBusy(false)}
   }
@@ -1201,9 +1208,9 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
           {open ? "Închide" : "+ Adaugă"}
         </button>
       </div>
-      <p className="text-xs text-muted mt-1">Vizite la interval fix. Firma preferată depinde de disponibilitate. Deschiderea acestei liste nu generează lucrări.</p>
+      <p className="text-xs text-muted mt-1">Vizite la interval fix, generate anticipat. Firmele pot trimite candidaturi; alegerea firmei și autorizarea cardului se deschid cu 48 de ore înainte de vizită. Deschiderea listei nu generează lucrări.</p>
 
-      <button type="button" disabled={statusBusy||busy} onClick={()=>void generateVisits()} className="mt-3 text-sm font-bold text-aqua-deep disabled:opacity-50">Generează vizitele scadente</button>
+      <button type="button" disabled={statusBusy||busy} onClick={()=>void generateVisits()} className="mt-3 text-sm font-bold text-aqua-deep disabled:opacity-50">Generează rezervările viitoare</button>
       {msg && <p role="status" className="text-sm mt-3">{msg}</p>}
       {plans.length > 0 && (
         <div className="mt-3 divide-y divide-[#e2e8f0]">
@@ -1214,7 +1221,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
                 {p.end_date&&<span className="block text-xs text-muted">Ultima zi a seriei: {p.end_date} inclusiv</span>}
                 {p.pause_start&&p.pause_end&&<span className="block text-xs text-aqua-deep">Pauză programată: {p.pause_start} – {p.pause_end} inclusiv<button type="button" disabled={statusBusy||busy} onClick={()=>void removePause(p)} className="block mt-2 underline disabled:opacity-50">Elimină pauza programată</button></span>}
                 <b className="text-sm block truncate">{FREQ_LABELS[p.frequency]} · {p.space_type} · {p.city}</b>
-                <span className="text-xs text-[#6b756f]">{p.end_date&&p.next_run_date>p.end_date?"Serie încheiată":`Următoarea: ${p.next_run_date}`} · {p.status === "active" ? "activ" : p.status === "paused" ? "pe pauză" : p.status}</span>
+                <span className="text-xs text-[#6b756f]">{p.next_visit_at?`Următoarea vizită: ${new Intl.DateTimeFormat('ro-RO',{timeZone:'Europe/Bucharest',dateStyle:'medium',timeStyle:'short'}).format(new Date(p.next_visit_at))}`:p.end_date&&p.next_run_date>p.end_date?"Generarea seriei s-a încheiat":`Următoarea dată de generat: ${p.next_run_date}`} · {p.status === "active" ? "activ" : p.status === "paused" ? "pe pauză" : p.status}</span>
                 <span className="block text-xs text-muted">Ora {String(p.hour).padStart(2,"0")}:00 · ora României</span>
               </span>
               {p.status !== "cancelled" && (
@@ -1272,6 +1279,8 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
       {open && (
         <div className="mt-4 border-t border-line pt-4">
           <p className="text-sm text-muted mb-3">Configurează spațiul pentru această serie de vizite.</p>
+          <Field label="Proprietate salvată (opțional)"><select className={inputClass} value={seriesPropertyId} onChange={event=>{const id=event.target.value;setSeriesPropertyId(id);const property=savedProperties.find(p=>p.id===id);if(property){setAddress({street:property.street,city:property.city,postalCode:property.postal_code??'',floor:property.floor??'',sqm:property.sqm,spaceType:property.space_type});setVisitDetails('')}}}><option value="">Introdu adresa manual</option>{savedProperties.map(p=><option key={p.id} value={p.id}>{p.name} · {p.city}</option>)}</select></Field>
+          {seriesPropertyId&&<div className="my-3 text-sm"><p>Preferințe salvate — selectează și adaptează instrucțiunile pentru această serie:</p><p className="whitespace-pre-wrap text-muted">{[savedProperties.find(p=>p.id===seriesPropertyId)?.notes,savedProperties.find(p=>p.id===seriesPropertyId)?.sensitive_materials,savedProperties.find(p=>p.id===seriesPropertyId)?.usual_tasks].filter(Boolean).join('\n')}</p><p className="text-xs mt-1">Instrucțiunile de acces nu sunt copiate automat.</p></div>}
           <div className="grid gap-3 sm:grid-cols-2 mb-4">
             <Field label="Stradă și număr"><input className={inputClass} maxLength={300} value={address.street} onChange={event=>setAddress({...address,street:event.target.value})}/></Field>
             <Field label="Oraș"><input className={inputClass} maxLength={120} value={address.city} onChange={event=>setAddress({...address,city:event.target.value})}/></Field>

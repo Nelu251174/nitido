@@ -39,6 +39,10 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
       }
       if (job.status !== 'waiting' || authorizationMustStop(db, jobId)) return fail('Lucrarea nu mai este disponibilă', 409,
         ['accepted', 'arrived'].includes(job.status) && job.accepted_firm_id && job.accepted_firm_id !== firmId ? 'ALREADY_TAKEN' : 'JOB_UNAVAILABLE');
+      if (db.prepare('SELECT 1 FROM recurring_occurrences WHERE job_id=?').get(jobId)
+        && Date.parse(job.scheduled_at ?? '') > Date.now() + 48 * 3600000) {
+        return fail('Vizita este generată anticipat. Confirmarea firmei și autorizarea cardului se deschid cu 48 de ore înainte de programare.',409,'RECURRING_CONFIRMATION_NOT_OPEN');
+      }
       if (!firmCoversCity(firm.coverage_city, firm.coverage_cities_extra, job.city)) return fail('Lucrarea este în afara zonei firmei', 403);
       const unavailable = firmAvailabilityError(db, firmId, job);
       if (unavailable) return fail(unavailable, 409, 'CAPACITY_UNAVAILABLE');

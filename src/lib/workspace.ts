@@ -142,7 +142,7 @@ export function setHostCheck(db:Database,userId:string,eventId:string,turnoverAt
   audit(db,userId,"host.check",`${eventId}:${key}`);
  })();
 }
-export interface Property {id:string;owner_id:string;name:string;city:string;street:string;postal_code:string;floor:string;sqm:number;space_type:string;kind:string;cost_center:string;budget_bani:number;notes:string;archived:number}
+export interface Property {rooms?:number|null;sensitive_materials?:string;usual_tasks?:string;access_notes?:string;id:string;owner_id:string;name:string;city:string;street:string;postal_code:string;floor:string;sqm:number;space_type:string;kind:string;cost_center:string;budget_bani:number;notes:string;archived:number}
 export function saveProperty(db:Database,userId:string,b:Record<string,unknown>) {
  const name=requireText(b.name,"Denumire",100),city=requireText(b.city,"Oraș",100),street=requireText(b.street,"Adresă");
  const sqm=Number(b.sqm),budget=Number(b.budget_bani??0);
@@ -153,8 +153,12 @@ export function saveProperty(db:Database,userId:string,b:Record<string,unknown>)
  const existing=typeof b.id==="string"?ownProperty(db,userId,b.id):null;
  const postal=String(b.postal_code??existing?.postal_code??"" ).trim(),floor=String(b.floor??existing?.floor??"" ).trim();
  if(postal.length>20||floor.length>40)throw new WorkspaceError("Codul poștal sau etajul este prea lung.");
+ const roomValue=b.rooms===undefined?existing?.rooms:b.rooms;
+ const rooms=roomValue==null||roomValue===""?null:Number(roomValue);
+ if(rooms!==null&&(!Number.isInteger(rooms)||rooms<1||rooms>100))throw new WorkspaceError("Numărul camerelor trebuie să fie între 1 și 100.");
+ const extra=Object.fromEntries((["sensitive_materials","usual_tasks","access_notes"] as const).map(key=>{const value=b[key]??existing?.[key]??"";if(typeof value!=="string"||value.length>500)throw new WorkspaceError("Detaliile proprietății trebuie să aibă maximum 500 de caractere pe câmp.");return [key,value.trim()]}));
  const id=typeof b.id==="string"?b.id:randomUUID();
- return db.transaction(()=>{if(b.id){ownProperty(db,userId,id);db.prepare("UPDATE workspace_properties SET name=?,city=?,street=?,sqm=?,space_type=?,kind=?,cost_center=?,budget_bani=?,notes=?,postal_code=?,floor=? WHERE id=? AND owner_id=?").run(name,city,street,sqm,b.space_type,b.kind,center,budget,notes,postal,floor,id,userId)}else{db.prepare("INSERT INTO workspace_properties(id,owner_id,name,city,street,sqm,space_type,kind,cost_center,budget_bani,notes,postal_code,floor,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(id,userId,name,city,street,sqm,b.space_type,b.kind,center,budget,notes,postal,floor,new Date().toISOString())}audit(db,userId,"property.save",id);return id})()
+ return db.transaction(()=>{if(b.id){ownProperty(db,userId,id);db.prepare("UPDATE workspace_properties SET name=?,city=?,street=?,sqm=?,space_type=?,kind=?,cost_center=?,budget_bani=?,notes=?,postal_code=?,floor=? WHERE id=? AND owner_id=?").run(name,city,street,sqm,b.space_type,b.kind,center,budget,notes,postal,floor,id,userId)}else{db.prepare("INSERT INTO workspace_properties(id,owner_id,name,city,street,sqm,space_type,kind,cost_center,budget_bani,notes,postal_code,floor,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(id,userId,name,city,street,sqm,b.space_type,b.kind,center,budget,notes,postal,floor,new Date().toISOString())}db.prepare("UPDATE workspace_properties SET rooms=?,sensitive_materials=?,usual_tasks=?,access_notes=? WHERE id=? AND owner_id=?").run(rooms,extra.sensitive_materials,extra.usual_tasks,extra.access_notes,id,userId);audit(db,userId,"property.save",id);return id})()
 }
 export function linkPropertyJob(db:Database,userId:string,propertyId:string,jobId:string){
  ownProperty(db,userId,propertyId);

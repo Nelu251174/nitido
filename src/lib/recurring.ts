@@ -8,7 +8,8 @@ import {
   BUFFER_MINUTES,
   type SpaceType,
 } from "@/lib/pricing";
-import { acceptJobAtomic } from "@/lib/acceptJob";
+import {pricingSnapshot} from './pricingSnapshot';
+import {enforcePropertyBudget,AccessError} from './collaborationAccess';
 
 /**
  * Nitido Repeat (Etapa 3) — abonamente recurente cu aceeași echipă.
@@ -22,6 +23,7 @@ export type Frequency = "weekly" | "biweekly" | "monthly";
 
 export interface RecurringPlanInput {
   requestId?: string;
+  propertyId?: string | null;
   clientId: string;
   preferredFirmId?: string | null;
   frequency: Frequency;
@@ -95,8 +97,9 @@ export function validateRecurringPlan(input: RecurringPlanInput): Extract<PlanRe
 
 export function createRecurringPlan(db: Database, input: RecurringPlanInput): PlanResult {
   const invalid=validateRecurringPlan(input);if(invalid)return invalid;
-  const payloadHash=createHash("sha256").update(JSON.stringify([input.preferredFirmId??null,input.frequency,input.street.trim(),input.postalCode??null,input.city.trim(),input.floor??null,input.sqm,input.spaceType,input.hour,input.details?.trim()||null,input.startDate,input.endDate??null])).digest("hex");
+  const payloadHash=createHash("sha256").update(JSON.stringify([input.preferredFirmId??null,input.frequency,input.street.trim(),input.postalCode??null,input.city.trim(),input.floor??null,input.sqm,input.spaceType,input.hour,input.details?.trim()||null,input.startDate,input.endDate??null,input.propertyId??null])).digest("hex");
   return db.transaction(():PlanResult=>{
+  if(input.propertyId!=null&&(typeof input.propertyId!=='string'||!db.prepare('SELECT 1 FROM workspace_properties WHERE id=? AND owner_id=? AND archived=0').get(input.propertyId,input.clientId)))return {ok:false,status:404,error:'Proprietate indisponibilă.'};
   if(input.requestId){
     const prior=db.prepare("SELECT plan_id,payload_hash FROM recurring_creation_requests WHERE client_id=? AND request_id=?").get(input.clientId,input.requestId) as {plan_id:string;payload_hash:string}|undefined;
     if(prior)return prior.payload_hash===payloadHash?{ok:true,planId:prior.plan_id}:{ok:false,status:409,error:"Cererea a fost deja folosită cu alte date. Verifică abonamentele înainte de a crea unul nou."};
@@ -124,12 +127,14 @@ export function createRecurringPlan(db: Database, input: RecurringPlanInput): Pl
     Number(input.startDate.slice(8,10)),
     input.endDate ?? null
   );
+  if(input.propertyId)db.prepare('UPDATE recurring_plans SET property_id=? WHERE id=?').run(input.propertyId,planId);
   if(input.requestId)db.prepare("INSERT INTO recurring_creation_requests(client_id,request_id,payload_hash,plan_id) VALUES(?,?,?,?)").run(input.clientId,input.requestId,payloadHash,planId);
   return { ok: true, planId };
   })();
 }
 
 interface PlanRow {
+  property_id: string | null;
   id: string;
   client_id: string;
   preferred_firm_id: string | null;
@@ -211,7 +216,9 @@ export function listPlansForClient(db: Database, clientId: string) {
     )
     .all(clientId) as Array<PlanRow & { pause_start: string | null; pause_end: string | null }>;
   const now = new Date();
-  return plans.map(plan => ({ ...plan, schedule_revision: scheduleRevision(plan), upcoming_dates: upcomingPlanDates(plan, now) }));
+  return plans.map(plan => ({ ...plan, schedule_revision: scheduleRevision(plan), upcoming_dates: upcomingPlanDates(plan, now),
+    next_visit_at:(db.prepare("SELECT MIN(j.scheduled_at) date FROM recurring_occurrences o JOIN jobs j ON j.id=o.job_id WHERE o.plan_id=? AND j.status IN ('waiting','accepted','arrived') AND j.scheduled_at>=?").get(plan.id,now.toISOString()) as {date:string|null}).date,
+  }));
 }
 
 /** Historicul demonstrabil, inclusiv seriile anulate; fără backfill presupus. */
@@ -230,6 +237,10 @@ function pauseIntervalError(start:unknown,end:unknown,now:Date):Extract<PlanResu
 }
 
 export type PausePreview = {ok:true;count:number;visits:Array<{job_id:string;scheduled_at:string;status:string;city:string}>}|Extract<PlanResult,{ok:false}>;
+function pauseBounds(start:string,end:string){
+  const next=new Date(`${end}T12:00:00Z`);next.setUTCDate(next.getUTCDate()+1);
+  return [bucharestScheduledAt(start,0).toISOString(),bucharestScheduledAt(next.toISOString().slice(0,10),0).toISOString()] as const;
+}
 /** Read-only impact preview; saving must still recheck inside its transaction. */
 export function previewPlanPause(db:Database,planId:string,clientId:string,start:unknown,end:unknown,now=new Date()):PausePreview {
   const invalid=pauseIntervalError(start,end,now);if(invalid)return invalid;
@@ -237,9 +248,10 @@ export function previewPlanPause(db:Database,planId:string,clientId:string,start
     const plan=db.prepare("SELECT status FROM recurring_plans WHERE id=? AND client_id=?").get(planId,clientId) as {status:string}|undefined;
     if(!plan)return {ok:false,status:404,error:"Abonament inexistent"};
     if(plan.status!=="active")return {ok:false,status:409,error:"Pauza pe interval se programează numai pentru un abonament activ."};
-    const clause="FROM recurring_occurrences o JOIN jobs j ON j.id=o.job_id WHERE o.plan_id=? AND o.occurrence_date BETWEEN ? AND ? AND j.status NOT IN ('cancelled','completed')";
-    const count=(db.prepare("SELECT COUNT(*) n "+clause).get(planId,start,end) as {n:number}).n;
-    const visits=db.prepare("SELECT o.job_id,o.scheduled_at,j.status,j.city "+clause+" AND j.client_id=? ORDER BY o.occurrence_date,o.job_id LIMIT 100").all(planId,start,end,clientId) as Extract<PausePreview,{ok:true}>['visits'];
+    const bounds=pauseBounds(start as string,end as string);
+    const clause="FROM recurring_occurrences o JOIN jobs j ON j.id=o.job_id WHERE o.plan_id=? AND j.scheduled_at >= ? AND j.scheduled_at < ? AND j.status NOT IN ('cancelled','completed')";
+    const count=(db.prepare("SELECT COUNT(*) n "+clause).get(planId,...bounds) as {n:number}).n;
+    const visits=db.prepare("SELECT o.job_id,o.scheduled_at,j.status,j.city "+clause+" AND j.client_id=? ORDER BY j.scheduled_at,o.job_id LIMIT 100").all(planId,...bounds,clientId) as Extract<PausePreview,{ok:true}>['visits'];
     return {ok:true,count,visits};
   })();
 }
@@ -251,7 +263,7 @@ export function schedulePlanPause(db:Database,planId:string,clientId:string,star
     const plan=db.prepare("SELECT status FROM recurring_plans WHERE id=? AND client_id=?").get(planId,clientId) as {status:string}|undefined;
     if(!plan)return {ok:false,status:404,error:"Abonament inexistent"};
     if(plan.status!=="active")return {ok:false,status:409,error:"Pauza pe interval se programează numai pentru un abonament activ."};
-    const existing=db.prepare(`SELECT COUNT(*) n FROM recurring_occurrences o JOIN jobs j ON j.id=o.job_id WHERE o.plan_id=? AND o.occurrence_date BETWEEN ? AND ? AND j.status NOT IN ('cancelled','completed')`).get(planId,start,end) as {n:number};
+    const existing=db.prepare(`SELECT COUNT(*) n FROM recurring_occurrences o JOIN jobs j ON j.id=o.job_id WHERE o.plan_id=? AND j.scheduled_at >= ? AND j.scheduled_at < ? AND j.status NOT IN ('cancelled','completed')`).get(planId,...pauseBounds(start as string,end as string)) as {n:number};
     if(existing.n)return {ok:false,status:409,error:`Există ${existing.n} vizite active în interval. Gestionează anularea lor din Rezervări, apoi programează pauza. Nicio vizită sau plată nu a fost modificată.`};
     db.prepare("INSERT INTO recurring_pauses(plan_id,start_date,end_date) VALUES(?,?,?) ON CONFLICT(plan_id) DO UPDATE SET start_date=excluded.start_date,end_date=excluded.end_date").run(planId,start,end);
     return {ok:true,planId};
@@ -289,57 +301,48 @@ export function setPlanStatus(
   })();
 }
 
-/**
- * Generează lucrările pentru toate abonamentele scadente (next_run_date <= azi).
- * Pentru fiecare: creează o lucrare (mod 'express', pre-alocată), încearcă
- * alocarea la firma preferată; apoi avansează next_run_date. Rulat de un
- * declanșator programat (vezi 3.2).
- */
+/** Creates a rolling horizon without allocating a firm or authorizing a card. */
 export async function generateDueRecurringJobs(
-  db: Database,
-  now: Date = new Date(),
-  clientId?: string
-): Promise<{ created: string[] }> {
-  const today = ymd(now);
-  const due = (clientId
-    ? db.prepare("SELECT * FROM recurring_plans WHERE status = 'active' AND (end_date IS NULL OR next_run_date <= end_date) AND next_run_date <= ? AND client_id = ?").all(today, clientId)
-    : db.prepare("SELECT * FROM recurring_plans WHERE status = 'active' AND (end_date IS NULL OR next_run_date <= end_date) AND next_run_date <= ?").all(today)) as PlanRow[];
-
-  const created: string[] = [];
-  for (const candidate of due) {
-    // Claim and advance synchronously before any Stripe/network work can yield.
-    const claimed=db.transaction(()=>{
-      const plan=db.prepare("SELECT * FROM recurring_plans WHERE id=? AND status='active' AND next_run_date=?").get(candidate.id,candidate.next_run_date) as PlanRow|undefined;
-      if(!plan||(plan.end_date&&plan.next_run_date>plan.end_date))return null;
-      // Skip only elapsed occurrences, preserving an upcoming visit today.
-      let occurrenceDate=plan.next_run_date;
-      let scheduledAt=bucharestScheduledAt(occurrenceDate,plan.hour);
-      const pause=db.prepare("SELECT start_date,end_date FROM recurring_pauses WHERE plan_id=?").get(plan.id) as {start_date:string;end_date:string}|undefined;
-      while(scheduledAt.getTime()<now.getTime()||(pause&&occurrenceDate>=pause.start_date&&occurrenceDate<=pause.end_date)){
-        occurrenceDate=computeNextDate(plan.frequency,new Date(`${occurrenceDate}T12:00:00Z`),plan.anchor_day??undefined);
-        scheduledAt=bucharestScheduledAt(occurrenceDate,plan.hour);
+  db: Database, now: Date = new Date(), clientId?: string
+): Promise<{created:string[];blocked:Array<{planId:string;error:string}>}> {
+  const configured=Number(process.env.NITIDO_RECURRING_HORIZON_DAYS??30);
+  const days=Number.isInteger(configured)&&configured>=1&&configured<=90?configured:30;
+  const boundary=new Date(`${ymd(now)}T12:00:00Z`);boundary.setUTCDate(boundary.getUTCDate()+days);
+  const horizon=boundary.toISOString().slice(0,10);
+  const ids=(clientId
+    ? db.prepare("SELECT id FROM recurring_plans WHERE status='active' AND client_id=? AND next_run_date<=?").all(clientId,horizon)
+    : db.prepare("SELECT id FROM recurring_plans WHERE status='active' AND next_run_date<=?").all(horizon)) as {id:string}[];
+  const created:string[]=[];
+  const blocked:Array<{planId:string;error:string}>=[];
+  for(const {id} of ids){
+    try {
+    const batch=db.transaction(()=>{
+      const plan=db.prepare("SELECT * FROM recurring_plans WHERE id=? AND status='active'").get(id) as PlanRow|undefined;
+      if(!plan||(clientId&&plan.client_id!==clientId))return [];
+      if(plan.property_id&&!db.prepare('SELECT 1 FROM workspace_properties WHERE id=? AND owner_id=? AND archived=0').get(plan.property_id,plan.client_id))return [];
+      const pause=db.prepare('SELECT start_date,end_date FROM recurring_pauses WHERE plan_id=?').get(id) as {start_date:string;end_date:string}|undefined;
+      const result:string[]=[];
+      let date=plan.next_run_date;
+      while(date<=horizon&&(!plan.end_date||date<=plan.end_date)){
+        const scheduled=bucharestScheduledAt(date,plan.hour);
+        const paused=pause&&date>=pause.start_date&&date<=pause.end_date;
+        if(scheduled.getTime()>=now.getTime()+3600000&&!paused&&!db.prepare('SELECT 1 FROM recurring_occurrences WHERE plan_id=? AND occurrence_date=?').get(id,date)){
+          const jobId=`job_${randomUUID()}`;
+          const snapshot=pricingSnapshot({spaceType:plan.space_type,sqm:plan.sqm,expressFeeLei:0,creditLei:0,createdAt:now.toISOString()});
+          db.prepare(`INSERT INTO jobs(id,client_id,street,postal_code,city,floor,details,sqm,space_type,when_type,scheduled_at,price_gross,credit_applied,duration_minutes,buffer_minutes,photos_count,mode,status,pricing_snapshot)
+            VALUES(?,?,?,?,?,?,?,?,?,'scheduled',?,?,0,?,?,0,'standard','waiting',?)`).run(jobId,plan.client_id,plan.street,plan.postal_code,plan.city,plan.floor,plan.details,plan.sqm,plan.space_type,scheduled.toISOString(),calcGrossPrice(plan.space_type,plan.sqm),calcDurationMinutes(plan.sqm),BUFFER_MINUTES,JSON.stringify(snapshot));
+          db.prepare('INSERT INTO recurring_occurrences(plan_id,occurrence_date,job_id,scheduled_at) VALUES(?,?,?,?)').run(id,date,jobId,scheduled.toISOString());
+          if(plan.property_id){db.prepare('INSERT INTO workspace_property_jobs(job_id,property_id) VALUES(?,?)').run(jobId,plan.property_id);enforcePropertyBudget(db,plan.property_id,jobId);}
+          db.prepare('UPDATE recurring_plans SET last_job_id=? WHERE id=?').run(jobId,id);
+          result.push(jobId);
+        }
+        date=computeNextDate(plan.frequency,new Date(`${date}T12:00:00Z`),plan.anchor_day??undefined);
       }
-      if(occurrenceDate>today||(plan.end_date&&occurrenceDate>plan.end_date)){
-        db.prepare("UPDATE recurring_plans SET next_run_date=? WHERE id=?").run(occurrenceDate,plan.id);
-        return null;
-      }
-      plan.next_run_date=occurrenceDate;
-      const next=()=>computeNextDate(plan.frequency,new Date(`${occurrenceDate}T12:00:00Z`),plan.anchor_day??undefined);
-      const existing=db.prepare("SELECT job_id FROM recurring_occurrences WHERE plan_id=? AND occurrence_date=?").get(plan.id,plan.next_run_date) as {job_id:string}|undefined;
-      if(existing){
-        db.prepare("UPDATE recurring_plans SET next_run_date=?,last_job_id=? WHERE id=?").run(next(),existing.job_id,plan.id);
-        return null;
-      }
-      const jobId=`job_${randomUUID()}`;
-      db.prepare(`INSERT INTO jobs(id,client_id,street,postal_code,city,floor,details,sqm,space_type,when_type,scheduled_at,price_gross,credit_applied,duration_minutes,buffer_minutes,photos_count,mode,status)
-        VALUES(?,?,?,?,?,?,?,?,?,'scheduled',?,?,0,?,?,0,'express','waiting')`).run(jobId,plan.client_id,plan.street,plan.postal_code,plan.city,plan.floor,plan.details,plan.sqm,plan.space_type,scheduledAt.toISOString(),calcGrossPrice(plan.space_type,plan.sqm),calcDurationMinutes(plan.sqm),BUFFER_MINUTES);
-      db.prepare("INSERT INTO recurring_occurrences(plan_id,occurrence_date,job_id,scheduled_at) VALUES(?,?,?,?)").run(plan.id,plan.next_run_date,jobId,scheduledAt.toISOString());
-      db.prepare("UPDATE recurring_plans SET next_run_date=?,last_job_id=? WHERE id=?").run(next(),jobId,plan.id);
-      return {jobId,preferredFirmId:plan.preferred_firm_id};
-    })();
-    if(!claimed)continue;
-    created.push(claimed.jobId);
-    if(claimed.preferredFirmId){try{await acceptJobAtomic(db,claimed.jobId,claimed.preferredFirmId)}catch{/* Job remains waiting for the existing recovery flow. */}}
+      db.prepare('UPDATE recurring_plans SET next_run_date=? WHERE id=?').run(date,id);
+      return result;
+    }).immediate();
+    created.push(...batch);
+    }catch(error){if(error instanceof AccessError)blocked.push({planId:id,error:error.message});else throw error;}
   }
-  return {created};
+  return {created,blocked};
 }

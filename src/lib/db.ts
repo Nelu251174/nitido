@@ -433,6 +433,13 @@ CREATE TABLE IF NOT EXISTS estimator_options (
 db.exec(SCHEMA_SQL);
 initializeNotificationClaims(db);
 db.exec(WORKSPACE_SCHEMA);
+db.exec(`CREATE TABLE IF NOT EXISTS job_reschedule_requests (
+ id TEXT PRIMARY KEY, job_id TEXT NOT NULL REFERENCES jobs(id), client_id TEXT NOT NULL,
+ firm_id TEXT, original_at TEXT NOT NULL, proposed_at TEXT NOT NULL,
+ status TEXT NOT NULL CHECK(status IN ('pending','accepted','rejected','withdrawn')),
+ created_at TEXT NOT NULL, resolved_at TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS one_pending_reschedule ON job_reschedule_requests(job_id) WHERE status='pending';`);
 initializeCatalog(db);
 db.exec(CATALOG_CAPACITY_SCHEMA);
 db.exec(ASSESSMENT_SCHEMA);
@@ -450,6 +457,10 @@ function ensureColumn(table: string, column: string, definition: string) {
 }
 ensureColumn("workspace_properties", "postal_code", "TEXT NOT NULL DEFAULT ''");
 ensureColumn("workspace_properties", "floor", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("workspace_properties", "rooms", "INTEGER");
+ensureColumn("workspace_properties", "sensitive_materials", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("workspace_properties", "usual_tasks", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("workspace_properties", "access_notes", "TEXT NOT NULL DEFAULT ''");
 ensureColumn("firms", "coverage_cities_extra", "TEXT");
 ensureColumn("firms", "stripe_account_status", "TEXT NOT NULL DEFAULT 'not_started'");
 ensureColumn("firms", "stripe_transfers_capability", "TEXT NOT NULL DEFAULT 'inactive'");
@@ -505,6 +516,7 @@ ensureColumn("payments", "payout_status", "TEXT NOT NULL DEFAULT 'unknown'");
 ensureColumn("payments", "refund_status", "TEXT NOT NULL DEFAULT 'none'");
 ensureColumn("recurring_plans", "anchor_day", "INTEGER");
 ensureColumn("recurring_plans", "end_date", "TEXT");
+ensureColumn("recurring_plans", "property_id", "TEXT REFERENCES workspace_properties(id)");
 ensureColumn("workspace_properties", "budget_enforced", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("workspace_approvals", "snapshot_street", "TEXT NOT NULL DEFAULT ''");
 ensureColumn("workspace_approvals", "snapshot_city", "TEXT NOT NULL DEFAULT ''");

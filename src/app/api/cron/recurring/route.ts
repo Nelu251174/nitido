@@ -14,6 +14,6 @@ export async function POST(req: NextRequest) {
   if (req.headers.get("x-cron-secret") !== secret) {
     return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
   }
-  const { created } = await generateDueRecurringJobs(db, new Date());
-  return NextResponse.json({ created: created.length });
+  const { created,blocked } = await generateDueRecurringJobs(db, new Date());
+  return NextResponse.json({ created: created.length,blocked:blocked.length });
 }

@@ -31,11 +31,12 @@ export async function POST(req: NextRequest) {
 
   if(b.action==="generate"){
     const result=await generateDueRecurringJobs(db,new Date(),user.id);
-    return NextResponse.json({ok:true,created:result.created.length},{headers:{"Cache-Control":"private, no-store"}});
+    return NextResponse.json({ok:true,created:result.created.length,blocked:result.blocked},{headers:{"Cache-Control":"private, no-store"}});
   }
   if(b.action!==undefined)return NextResponse.json({error:"Acțiune invalidă"},{status:400});
   const input:RecurringPlanInput = {
     clientId: user.id,
+    propertyId: b.propertyId ?? null,
     requestId: b?.requestId,
     preferredFirmId: typeof b?.preferredFirmId === "string" ? b.preferredFirmId : null,
     frequency: b?.frequency,
