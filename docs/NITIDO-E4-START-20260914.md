@@ -29,3 +29,7 @@ Facturarea consolidată, abonamentul software și integrarea PMS directă nu sun
 E4 rămâne în execuție după această primă intervenție. Nu sunt atribuite rezultate noi de pilot, izolare sau sincronizare doar pentru că sursa compilează.
 
 Compilarea primei intervenții E4 (`npm run build`, Next.js și TypeScript) s-a încheiat cu cod 0. Nu au fost executate teste.
+
+## Corecție la instalare
+
+Instalarea `9ff3094`, autorizată explicit de beneficiar, a eșuat în builder la 20:26:02 UTC: `duplicate column name: rooms`, în timpul colectării rutei `/api/account/business`. Procesele Next.js verificau și modificau concurent schema SQLite. `ensureColumn` folosește acum o tranzacție imediată: blocarea de scriere este obținută înainte de verificarea coloanei. Erorile reale de migrare rămân propagate. Containerul E3 a rămas disponibil după încercarea eșuată. Rezultatul instalării corecției se consemnează separat după healthcheck.

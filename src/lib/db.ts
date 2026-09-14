@@ -465,10 +465,14 @@ db.exec(EMAIL_VERIFICATION_SCHEMA);
 // fișier existent, deci orice coloană nouă trebuie adăugată explicit aici,
 // o singură dată (verificăm întâi dacă lipsește).
 function ensureColumn(table: string, column: string, definition: string) {
-  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-  if (!cols.some((c) => c.name === column)) {
-    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-  }
+  // Next.js build workers can initialize the same database concurrently.
+  // Acquire the write lock before checking, so only one worker adds a column.
+  db.transaction(() => {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    if (!cols.some((c) => c.name === column)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    }
+  }).immediate();
 }
 ensureColumn("job_reschedule_requests", "firm_confirmed_at", "TEXT");
 ensureColumn("job_reschedule_requests", "confirmed_snapshot", "TEXT");
