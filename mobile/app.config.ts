@@ -4,7 +4,9 @@ import { resolve } from 'node:path';
 
 const configureApp = ({ config }: ConfigContext): ExpoConfig => {
   const googleFile = process.env.GOOGLE_SERVICES_JSON || './google-services.json';
-  const hasGoogleFile = existsSync(resolve(__dirname, googleFile));
+  // EAS runs Expo config from the mobile project root; __dirname is unavailable
+  // when the TypeScript config is evaluated as an ES module.
+  const hasGoogleFile = existsSync(resolve(process.cwd(), googleFile));
   if (process.env.EAS_BUILD === 'true' && process.env.EAS_BUILD_PLATFORM === 'android' && !hasGoogleFile) {
     throw new Error('Android push requires the Firebase google-services.json file for ro.nitido.app.');
   }
