@@ -5,6 +5,7 @@ export interface BookingDraft {
  street:string;postalCode:string;city:string;floor:string;details:string;
  sqm:number;spaceType:SpaceType;whenType:'asap'|'scheduled';mode:'standard'|'express';express60:boolean;
  scheduledDate:string;scheduledHour:number|null;propertyId:string|null;approvalId:string|null;
+ cardId?:string|null;
  photos:{id:string;url:string;room:string|null}[];
 }
 type DraftStorage=Pick<Storage,'getItem'|'setItem'|'removeItem'>;
@@ -26,10 +27,11 @@ function decode(raw:string|null,userId:string,now:number):BookingDraft|null{
   if(!['asap','scheduled'].includes(String(d.whenType))||!['standard','express'].includes(String(d.mode))||typeof d.express60!=='boolean')return null;
   if(typeof d.scheduledDate!=='string'||bookingDateKey(d.scheduledDate)!==d.scheduledDate||(d.scheduledHour!==null&&!(SLOT_HOURS as readonly unknown[]).includes(d.scheduledHour)))return null;
   if(!nullableId(d.propertyId)||!nullableId(d.approvalId)||!Array.isArray(d.photos)||d.photos.length>5)return null;
+  if(d.cardId!==undefined&&!nullableId(d.cardId))return null;
   const photos:BookingDraft['photos']=[];
   for(const p of d.photos){if(!record(p)||!id(p.id)||(p.room!==null&&!bounded(p.room,100)))return null;photos.push({id:p.id,url:`/api/uploads/${p.id}`,room:p.room as string|null});}
   // Reconstruct explicitly: never restore prices, card state, arbitrary image URLs or authorization.
-  return {street:d.street,postalCode:d.postalCode,city:d.city,floor:d.floor,details:d.details,sqm:d.sqm,spaceType:d.spaceType as SpaceType,whenType:d.whenType as BookingDraft['whenType'],mode:d.mode as BookingDraft['mode'],express60:d.express60,scheduledDate:d.scheduledDate,scheduledHour:d.scheduledHour as number|null,propertyId:d.propertyId as string|null,approvalId:d.approvalId as string|null,photos};
+  return {street:d.street,postalCode:d.postalCode,city:d.city,floor:d.floor,details:d.details,sqm:d.sqm,spaceType:d.spaceType as SpaceType,whenType:d.whenType as BookingDraft['whenType'],mode:d.mode as BookingDraft['mode'],express60:d.express60,scheduledDate:d.scheduledDate,scheduledHour:d.scheduledHour as number|null,propertyId:d.propertyId as string|null,approvalId:d.approvalId as string|null,photos,...(d.cardId!==undefined?{cardId:d.cardId as string|null}:{})};
  }catch{return null;}
 }
 

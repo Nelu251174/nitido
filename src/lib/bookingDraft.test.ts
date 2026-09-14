@@ -12,3 +12,5 @@ describe('booking continuity across external card setup',()=>{
  it('fails safely when storage is unavailable instead of authorizing navigation',()=>{const fail=()=>{throw new Error('storage disabled');};const s={getItem:fail,setItem:fail,removeItem:fail};expect(saveBookingDraft(s,'client-1',draft)).toBe(false);expect(takeBookingDraft(s,'client-1')).toBeNull();expect(()=>clearBookingDraft(s)).not.toThrow();});
  it('removes a saved draft after successful publication or unrelated setup',()=>{const s=memory();saveBookingDraft(s,'client-1',draft);clearBookingDraft(s);expect(takeBookingDraft(s,'client-1')).toBeNull();});
 });
+
+it('preserves only the local card choice across Checkout and revalidates it on publication',()=>{const storage=memory();expect(saveBookingDraft(storage,'client-1',{...draft,cardId:'card_choice'},1000)).toBe(true);expect(takeBookingDraft(storage,'client-1',2000)?.cardId).toBe('card_choice');expect(saveBookingDraft(storage,'client-1',{...draft,cardId:'../bad'},1000)).toBe(false);});

@@ -1,6 +1,7 @@
 "use client";
 import {bookingCalendarDays,bookingDateKey,bucharestDateKey,isBookableRomanianSlot,nextBucharestSlot} from "@/lib/scheduling";
 import {saveBookingDraft,takeBookingDraft,clearBookingDraft} from "@/lib/bookingDraft";
+import {ClientCards,type ClientCardView} from "@/components/ClientCards";
 import {EmailVerificationNotice} from "@/components/EmailVerificationNotice";
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
@@ -127,6 +128,9 @@ export default function ClientPage() {
   const [choosing, setChoosing] = useState<string | null>(null);
   const [guaranteeEligible, setGuaranteeEligible] = useState(false);
   const [hasCard, setHasCard] = useState<boolean | null>(null); // null = se încarcă
+  const [cards,setCards]=useState<ClientCardView[]>([]);
+  const [selectedCardId,setSelectedCardId]=useState<string|null>(null);
+  const restoredCardId=useRef<string|null>(null);
   const [cardBusy, setCardBusy] = useState(false);
   const [cardNotice, setCardNotice] = useState<string | null>(null);
   const [cardError, setCardError] = useState<string | null>(null);
@@ -148,6 +152,7 @@ export default function ClientPage() {
         setStreet(draft.street);setPostalCode(draft.postalCode);setCity(draft.city);setFloor(draft.floor);setDetails(draft.details);
         setSqm(draft.sqm);setSpaceType(draft.spaceType);setWhenType(draft.whenType);setMode(draft.mode);setExpress60(draft.express60);
         setScheduledDate(draft.scheduledDate);setScheduledHour(draft.scheduledHour);
+        restoredCardId.current=draft.cardId??null;
         setPropertyId(draft.propertyId);setApprovalId(draft.approvalId);setPhotos(draft.photos);setShowBooking(true);
         setDraftNotice(params.get('card')==='cancelled'?'Adăugarea cardului a fost anulată. Rezervarea ta este păstrată.':'Rezervarea ta a fost restaurată. Verifică detaliile înainte de publicare.');
       }
@@ -202,13 +207,13 @@ export default function ClientPage() {
           if (!confirmation.ok || !result.hasCard) {
             setCardError(result.error ?? "Cardul nou nu a putut fi confirmat. Reîncarcă pagina pentru a reîncerca.");
           } else {
-            setCardNotice("Cardul a fost salvat. Plățile deja autorizate rămân pe cardul folosit inițial.");
+            setCardNotice("Cardul a fost adăugat. Poți alege cu care card plătești următoarea lucrare.");
             const currentParams = new URLSearchParams(window.location.search);
             currentParams.delete("card"); currentParams.delete("session_id");
             window.history.replaceState({}, "", `/client${currentParams.size ? `?${currentParams}` : ""}${window.location.hash}`);
           }
         } else if (params.get("card") === "cancelled") {
-          if (!cancelled) setCardNotice("Operațiunea a fost anulată. Cardul salvat anterior este păstrat.");
+          if (!cancelled) setCardNotice("Adăugarea a fost anulată. Cardurile tale sunt păstrate.");
         }
         const res = await fetch("/api/payments/card");
         if (!res.ok) throw new Error();
@@ -216,6 +221,10 @@ export default function ClientPage() {
         if (cancelled) return;
         setCardConfigured(Boolean(d.stripeConfigured));
         setHasCard(Boolean(d.hasCard));
+        const available:ClientCardView[]=d.cards??[];
+        setCards(available);
+        setSelectedCardId(current=>available.find(c=>c.id===(current??restoredCardId.current))?.id??available.find(c=>c.isDefault)?.id??available[0]?.id??null);
+        restoredCardId.current=null;
       } catch {
         if (!cancelled) {setHasCard(null);setCardError("Starea cardului nu a putut fi verificată. Reîncarcă pagina.");}
       }
@@ -223,8 +232,23 @@ export default function ClientPage() {
     return () => { cancelled = true; };
   }, [user?.id, user?.role]);
 
+  async function manageCard(cardId:string,method:"PATCH"|"DELETE") {
+    if(cardBusy||submitting||uploading)return;
+    setCardBusy(true);setCardError(null);setCardNotice(null);
+    try {
+      const res=await fetch("/api/payments/card",{method,headers:{"Content-Type":"application/json"},body:JSON.stringify({cardId})});
+      const result=await res.json();if(!res.ok)throw new Error(result.error??"Operațiunea nu a reușit.");
+      const updated=await fetch("/api/payments/card");if(!updated.ok)throw new Error("Reîncarcă pagina pentru a vedea lista actualizată.");
+      const data=await updated.json();const available:ClientCardView[]=data.cards??[];
+      setCards(available);setHasCard(Boolean(data.hasCard));
+      setSelectedCardId(current=>available.find(c=>c.id===current)?.id??available.find(c=>c.isDefault)?.id??available[0]?.id??null);
+      setCardNotice(method==="PATCH"?"Cardul implicit a fost actualizat pentru rezervările noi.":"Cardul a fost eliminat din lista ta.");
+    } catch(error) {setCardError(error instanceof Error?error.message:"Operațiunea nu a reușit.");}
+    finally {setCardBusy(false);}
+  }
+
   async function addCard() {
-    if (cardBusy || submitting || uploading) return;
+    if (cardBusy || submitting || uploading || cards.length>=3) return;
     setCardError(null);
     setCardNotice(null);
     setCardBusy(true);
@@ -238,7 +262,7 @@ export default function ClientPage() {
       }
       if(showBooking){
         let saved=false;
-        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{street,postalCode,city,floor,details,sqm,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,photos}));}catch{/* Storage can be blocked by the browser. */}
+        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{street,postalCode,city,floor,details,sqm,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,photos,cardId:selectedCardId}));}catch{/* Storage can be blocked by the browser. */}
         if(!saved){setCardError('Rezervarea nu poate fi păstrată în această filă. Permite stocarea pentru site și încearcă din nou.');setCardBusy(false);return;}
       }else{try{clearBookingDraft(window.sessionStorage);}catch{/* No draft to preserve. */}}
       window.location.href = d.url; // redirect către pagina de card găzduită de Stripe
@@ -314,6 +338,7 @@ export default function ClientPage() {
         photoIds: photos.map((p) => p.id),
         propertyId,
         approvalId,
+        ...(cardConfigured?{cardId:selectedCardId}:{}),
       };
       if (whenType === "scheduled") {
         if (scheduledHour === null) {
@@ -557,14 +582,8 @@ export default function ClientPage() {
           </section>
         )}
         {!job && !showBooking && cardConfigured && (
-          <section id="sec-plata" className="v2-card p-5 mb-5">
-            <h2 className="font-bold">Card pentru plăți</h2>
-            <p className="mt-2 text-sm text-muted">{hasCard === null ? "Se verifică starea cardului…" : hasCard ? "Ai un card salvat pentru plățile NITIDO." : "Adaugă un card pentru rezervările tale."}</p>
-            <p className="mt-2 text-xs text-muted">Noul card va fi folosit la autorizările viitoare. Plățile deja autorizate nu se modifică.</p>
-            <Button variant="outline" className="mt-3" onClick={addCard} disabled={cardBusy || hasCard === null}>
-              {cardBusy ? "Se deschide…" : hasCard ? "Schimbă cardul" : "Adaugă card"}
-            </Button>
-          </section>
+          <div className="mb-5"><ClientCards cards={cards} selected={selectedCardId} loading={hasCard===null} busy={cardBusy||submitting||uploading}
+            onSelect={setSelectedCardId} onDefault={id=>void manageCard(id,"PATCH")} onRemove={id=>void manageCard(id,"DELETE")} onAdd={addCard}/></div>
         )}
         <div id="sec-form" />
         {!job && showBooking && (
@@ -837,31 +856,11 @@ export default function ClientPage() {
 
             {error && <p className="text-coral text-xs mb-3">{error}</p>}
 
-            {!needsAssessment && cardConfigured && hasCard === false && (
-              <div id="sec-plata" className="mb-3 rounded-xl border border-[#e2e8f0] bg-[#f7f9fc] p-4">
-                <div className="text-sm font-bold text-[#111827]">Adaugă un card pentru plată</div>
-                <p className="text-xs text-[#64748b] mt-1 leading-5">
-                  Banii se rezervă abia când o firmă acceptă lucrarea și se încasează doar
-                  după finalizarea confirmată. Cardul e procesat securizat de Stripe.
-                </p>
-                <Button className="w-full mt-3" onClick={addCard} disabled={cardBusy || uploading || submitting}>
-                  {cardBusy ? "Se deschide..." : "Adaugă card"}
-                </Button>
-              </div>
-            )}
-            {!needsAssessment && cardConfigured && hasCard === true && (
-              <div id="sec-plata" className="mb-3 rounded-xl border border-line p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-xs font-semibold text-[var(--nitido-brand-dark)]">Card salvat — plată securizată</p>
-                  <Button variant="outline" className="!px-3 !py-2" onClick={addCard} disabled={cardBusy || uploading || submitting}>
-                    {cardBusy ? "Se deschide…" : "Schimbă cardul"}
-                  </Button>
-                </div>
-                <p className="mt-2 text-xs text-muted">Plățile deja autorizate rămân pe cardul folosit inițial.</p>
-              </div>
-            )}
+            {!needsAssessment && cardConfigured && <div className="mb-4"><ClientCards booking cards={cards} selected={selectedCardId} loading={hasCard===null}
+              busy={cardBusy||uploading||submitting} onSelect={setSelectedCardId} onDefault={id=>void manageCard(id,"PATCH")}
+              onRemove={id=>void manageCard(id,"DELETE")} onAdd={addCard}/></div>}
 
-            <Button className="w-full" onClick={postJob} disabled={needsAssessment || submitting || cardBusy || (cardConfigured && hasCard !== true) || !street.trim() || !city.trim()}>
+            <Button className="w-full" onClick={postJob} disabled={needsAssessment || submitting || cardBusy || (cardConfigured && (hasCard !== true || !selectedCardId)) || !street.trim() || !city.trim()}>
               {submitting ? "Se postează..." : "Postează lucrarea"}
             </Button>
           </Card>

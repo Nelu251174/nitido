@@ -1,3 +1,4 @@
+import {authorizationCard} from "./savedCards";
 import type { Database } from "better-sqlite3";
 import Stripe from "stripe";
 import {obtainAuthorization} from "@/lib/authorizationAttempts";
@@ -69,10 +70,7 @@ export async function authorizePayment(db: Database, jobId: string, grossAmount:
     // HOLD pe cardul salvat al clientului (card pe fișier — vezi clientPayments.ts).
     // off_session + confirm = autorizare imediată fără ca clientul să fie prezent;
     // capture_method:manual = doar rezervare, se încasează abia la finalizare.
-    const client=db.prepare("SELECT u.stripe_customer_id AS customerId, u.stripe_payment_method_id AS paymentMethodId FROM jobs j JOIN users u ON u.id=j.client_id WHERE j.id=?").get(jobId) as {customerId:string|null;paymentMethodId:string|null}|undefined;
-    if(!client?.customerId||!client?.paymentMethodId){
-      throw new Error("Clientul nu are un card salvat pentru această lucrare");
-    }
+    const client=authorizationCard(db,jobId);
     let intent:Stripe.PaymentIntent;
     try{intent=await obtainAuthorization(db,stripe,jobId,{
       amount:clientAmount*100,

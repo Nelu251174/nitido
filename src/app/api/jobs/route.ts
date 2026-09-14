@@ -1,3 +1,4 @@
+import {CardSetupError,saveJobCard} from "@/lib/savedCards";
 import { pricingSnapshot } from "@/lib/pricingSnapshot";
 import { hasTrustedMutationOrigin } from "@/lib/security";
 import { bookingDateKey, bucharestScheduledAt, hasSchedulingLeadTime, nextBucharestSlot } from "@/lib/scheduling";
@@ -298,6 +299,7 @@ export async function POST(req: NextRequest) {
          express_60, express_60_fee, express_60_deadline, express_60_status, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting')`
     ).run(id,user.id,street,postalCode ?? null,city,floor ?? null,typeof details === "string" ? details.trim() || null : null,requestId,sqm,spaceType,whenType,scheduledAt.toISOString(),priceGross,creditUsed,durationMinutes,BUFFER_MINUTES,ownedPhotoIds.length,jobMode,isExpress60?1:0,express60Fee,isExpress60?express60Deadline(new Date().toISOString()).toISOString():null,isExpress60?"pending":null);
+    if (card.stripeConfigured) saveJobCard(db,user.id,id,body.cardId);
     db.prepare("UPDATE jobs SET pricing_snapshot=? WHERE id=?").run(JSON.stringify(pricingSnapshot({spaceType,sqm,expressFeeLei:express60Fee,creditLei:creditUsed})),id);
     if (ownedPhotoIds.length > 0) {
       const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL");
@@ -309,7 +311,7 @@ export async function POST(req: NextRequest) {
     if(linked)enforcePropertyBudget(db,linked.property_id,id);
     return { job: db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow, replayed: false };
   })();
-  } catch(e) { if(e instanceof AccessError)return NextResponse.json({error:e.message},{status:e.status}); throw e; }
+  } catch(e) { if(e instanceof AccessError || e instanceof CardSetupError)return NextResponse.json({error:e.message},{status:e.status}); throw e; }
   if (created.replayed) return NextResponse.json({ job: created.job, replayed: true });
   const job = created.job;
 

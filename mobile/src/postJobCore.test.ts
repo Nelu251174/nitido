@@ -50,3 +50,5 @@ it("does not reuse a past property booking date", () => {
   expect(result.scheduledDate).toBe("");
   expect(result.details).toBe("");
 });
+
+it("sends the selected local card with the booking without Stripe customer data",async()=>{const request=vi.fn().mockResolvedValue({job:{id:"card-job"}});await publishClientJob(draft({cardId:"card_choice"}),"card-booking",request);const body=JSON.parse(String(request.mock.calls[0][1].body));expect(body.cardId).toBe("card_choice");expect(body).not.toHaveProperty("stripe_customer_id");expect(body).not.toHaveProperty("payment_method");});

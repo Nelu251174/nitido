@@ -1,3 +1,4 @@
+import {SAVED_CARDS_SCHEMA,initializeSavedCards} from "./savedCards";
 import {NOTIFICATION_CLAIM_SCHEMA,initializeNotificationClaims} from "./notificationClaims";
 import {SELECTION_RECOVERY_SCHEMA} from "./selectionRecovery";
 import {ADMIN_MFA_SCHEMA} from "./adminMfa";
@@ -35,6 +36,7 @@ db.pragma("foreign_keys = ON");
 // Exportată separat ca teste (vitest) să poată crea o bază de date in-memory
 // cu aceeași schemă, izolată de fișierul de date reale.
 export const SCHEMA_SQL = `
+${SAVED_CARDS_SCHEMA}
 ${NOTIFICATION_CLAIM_SCHEMA}
 ${SELECTION_RECOVERY_SCHEMA}
 ${ADMIN_MFA_SCHEMA}
@@ -458,6 +460,7 @@ ensureColumn("users", "referred_by_code", "TEXT");
 ensureColumn("users", "credit_balance", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("users", "stripe_customer_id", "TEXT");
 ensureColumn("users", "stripe_payment_method_id", "TEXT");
+initializeSavedCards(db);
 // Etapa 3 — Nitido Office (cont business + date firmă pentru facturare/raport).
 ensureColumn("users", "is_business", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("users", "company_name", "TEXT");

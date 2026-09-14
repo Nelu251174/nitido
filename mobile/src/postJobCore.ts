@@ -20,6 +20,7 @@ export type JobQuote = {
 export type SchedulingConfig = { slotHours: number[]; minLeadHours: number };
 
 export type PostJobDraft = {
+  cardId?:string;
   propertyId?: string;
   approvalId?: string;
   spaceType: SpaceType | null;
@@ -95,6 +96,7 @@ export function buildCreatePayload(draft: PostJobDraft) {
     throw new Error("Datele lucrării nu sunt complete.");
   }
   return {
+    ...(draft.cardId?{cardId:draft.cardId}:{}),
     street: draft.street.trim(),
     postalCode: draft.postalCode.trim() || undefined,
     city: draft.city.trim(),

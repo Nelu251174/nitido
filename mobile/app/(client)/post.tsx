@@ -1,6 +1,8 @@
+import {CardWallet} from "@/CardWallet";
+import {selectAvailableCard,type Wallet} from "@/cardWalletCore";
 import {useAuth} from "@/auth";
 import {assessmentFromBooking,assessmentHandoff} from "@/assessmentHandoff";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
@@ -33,6 +35,8 @@ export default function PostJob() {
   const [submitting, setSubmitting] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const requestId = useRef<string | null>(null);
+  const [cardsReady,setCardsReady]=useState(false),[cardsRequired,setCardsRequired]=useState(true),[cardsBusy,setCardsBusy]=useState(false);
+  const onCardsLoaded=useCallback((wallet:Wallet)=>{setCardsRequired(wallet.stripeConfigured);setCardsReady(true);setDraft(old=>({...old,cardId:selectAvailableCard(wallet.cards,old.cardId)??undefined}));},[]);
 
   useEffect(()=>{if(!propertyId)return;let cancelled=false;void api<{properties:{id:string;name:string;city:string;street:string;sqm:number;space_type:SpaceType;notes?:string|null}[]}>("/api/workspace").then(d=>{if(cancelled)return;const p=d.properties.find(p=>p.id===propertyId);if(!p){setError("Proprietate indisponibilă.");return}setDraft(draftFromProperty(p,approvalId,approvalDate));setQuote(null);setScheduling(null);setPhotos([]);setFailedPhoto(null);setCreatedId(null);requestId.current=null;setError(null);setStep(0);setLoadedPropertyId(p.id)}).catch(()=>{if(!cancelled)setError("Proprietatea nu a putut fi încărcată.")});return()=>{cancelled=true}},[propertyId,approvalId,approvalDate,propertyRetry]);
 
@@ -111,6 +115,8 @@ export default function PostJob() {
 
   async function publish() {
     if (submitting || createdId) return;
+    if (cardsBusy) return;
+    if(!cardsReady||(cardsRequired&&!draft.cardId)){setError("Alege un card pentru această lucrare.");return;}
     if (!quoteMatchesDraft(quote, draft)) { setError("Estimarea nu mai corespunde datelor. Revino la pasul de preț."); return; }
     setSubmitting(true); setError(null);
     requestId.current ??= `mobile-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -139,7 +145,8 @@ export default function PostJob() {
     {step === 6 ? <PremiumCard><Text style={styles.label}>Fotografii ale spațiului (opțional)</Text><Text style={styles.note}>Maximum 5 imagini JPEG, PNG, WebP sau GIF, de cel mult 8 MB fiecare.</Text><View style={styles.photoActions}><PrimaryButton secondary loading={photoLoading} icon="camera-outline" title="Cameră" onPress={() => void selectPhoto(true)}/><PrimaryButton secondary loading={photoLoading} icon="images-outline" title="Galerie" onPress={() => void selectPhoto(false)}/>{failedPhoto?<PrimaryButton secondary loading={photoLoading} icon="refresh" title="Reîncearcă încărcarea" onPress={() => void retryPhoto()}/>:null}</View><View style={styles.photos}>{photos.map(photo => <View key={photo.id} style={styles.photo}><Image alt="Fotografie atașată lucrării" source={{ uri: photo.uri }} style={styles.photoImage}/><Pressable accessibilityLabel="Elimină fotografia" onPress={() => removePhoto(photo.id)} style={styles.remove}><Ionicons name="close" color={colors.white} size={17}/></Pressable></View>)}</View><Text style={styles.note}>{photos.length} din {MAX_PHOTOS} fotografii încărcate și validate de server.</Text></PremiumCard> : null}
     {step === 7 ? <PremiumCard style={styles.priceCard}>{quoteLoading ? <Text style={styles.note}>NITIDO calculează estimarea…</Text> : quote ? <><Pill tone="green" label="PREȚ ESTIMAT"/><Text style={styles.price}>{quote.priceGross} lei</Text><Text style={styles.duration}>Durată estimată: {quote.durationMinutes} minute</Text><Text style={styles.note}>Prețul este calculat pe baza datelor introduse și confirmat de platformă.</Text><PrimaryButton secondary title="Recalculează" icon="refresh" onPress={() => void requestQuote()}/></> : <PrimaryButton title="Solicită estimarea" onPress={() => void requestQuote()}/>}</PremiumCard> : null}
     {step === 8 || step === 9 ? <Review draft={draft} dateText={dateText} quote={quote}/> : null}
-    {step === 9 && !createdId ? <PremiumCard><Text style={styles.confirmTitle}>Datele sunt corecte?</Text><Text style={styles.note}>La publicare, serverul validează din nou programarea, prețul, fotografiile și identitatea contului Client.</Text><PrimaryButton loading={submitting} disabled={submitting} title="Confirmă și publică" icon="checkmark-circle" onPress={() => void publish()}/></PremiumCard> : null}
+    {step === 9 && !createdId ? <CardWallet selected={draft.cardId} onLoaded={onCardsLoaded} onSelect={id=>update("cardId",id)} onBusy={setCardsBusy}/> : null}
+    {step === 9 && !createdId ? <PremiumCard><Text style={styles.confirmTitle}>Datele sunt corecte?</Text><Text style={styles.note}>La publicare, serverul validează din nou programarea, prețul, fotografiile și identitatea contului Client.</Text><PrimaryButton loading={submitting} disabled={submitting||cardsBusy||!cardsReady||(cardsRequired&&!draft.cardId)} title="Confirmă și publică" icon="checkmark-circle" onPress={() => void publish()}/></PremiumCard> : null}
     {createdId ? <PremiumCard style={styles.success}><Ionicons name="checkmark-circle" size={46} color={colors.green}/><Text style={styles.confirmTitle}>Lucrarea a fost publicată.</Text><Text style={styles.note}>Status actual: Așteptăm o firmă.</Text><PrimaryButton title="Vezi lucrarea" onPress={() => router.replace({ pathname: "/(client)/job/[id]", params: { id: createdId } })}/><PrimaryButton secondary title="Lucrările mele" onPress={() => router.replace("/(client)/jobs")}/></PremiumCard> : null}
     {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
     {!createdId && step < 9 ? <View style={styles.actions}>{step > 0 ? <PrimaryButton secondary title="Înapoi" icon="arrow-back" onPress={() => { setError(null); setStep(previousPostStep); }}/> : null}<PrimaryButton loading={quoteLoading && step === 7} title={step === 8 ? "Continuă spre confirmare" : "Continuă"} onPress={() => void next()}/></View> : null}
