@@ -1,3 +1,5 @@
+import { publicPageMetadata } from "@/lib/publicSeo";
+export const metadata = publicPageMetadata("/siguranta");
 import { InformationPage } from "@/components/InformationPage";
 export default function Page(){return <InformationPage eyebrow="TRUST & SAFETY" title="Siguranță construită prin limite clare și autoritate pe server." intro="NITIDO.RO separă rolurile, minimizează datele expuse și păstrează operațiunile sensibile în fluxurile autorizate. Nu pretindem certificări de securitate care nu sunt documentate." sections={[
   {title:"Identitate și autentificare",paragraphs:["Conturile folosesc sesiuni protejate prin cookie httpOnly, iar parolele sunt stocate sub formă de hash. Utilizatorul este responsabil să nu divulge parola sau codurile de autentificare."]},

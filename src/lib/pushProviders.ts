@@ -20,7 +20,7 @@ async function firebaseAccessToken(){
 
 export async function sendFcm(token:string,payload:PushPayload):Promise<{providerMessageId:string}>{
   const project=process.env.FIREBASE_PROJECT_ID;if(!project)throw new PushProviderError("FCM_NOT_CONFIGURED");
-  const response=await fetch(`https://fcm.googleapis.com/v1/projects/${encodeURIComponent(project)}/messages:send`,{method:"POST",headers:{Authorization:`Bearer ${await firebaseAccessToken()}`,"Content-Type":"application/json"},body:JSON.stringify({message:{token,notification:{title:payload.title,body:payload.body},data:payload.data,android:{priority:"high"}}}),signal:AbortSignal.timeout(10_000)});
+  const response=await fetch(`https://fcm.googleapis.com/v1/projects/${encodeURIComponent(project)}/messages:send`,{method:"POST",headers:{Authorization:`Bearer ${await firebaseAccessToken()}`,"Content-Type":"application/json"},body:JSON.stringify({message:{token,notification:{title:payload.title,body:payload.body},data:payload.data,android:{priority:"high",notification:{sound:"default",channel_id:payload.data.event_type==="MESSAGE_RECEIVED"?"messages-v1":"activity-v1",tag:payload.data.message_id}}}}),signal:AbortSignal.timeout(10_000)});
   const text=await response.text();if(!response.ok){const permanent=response.status===404||text.includes("UNREGISTERED")||text.includes("INVALID_ARGUMENT");throw new PushProviderError(permanent?"PUSH_TOKEN_INVALID":"FCM_TEMPORARY_FAILURE",permanent);}
   const data=JSON.parse(text) as {name:string};return {providerMessageId:data.name};
 }

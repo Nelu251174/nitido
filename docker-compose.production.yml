@@ -1,0 +1,43 @@
+# Production nitido.ro only. Preserve the existing Coolify volumes.
+# Coolify injects the application's environment file at deployment.
+services:
+  nitido:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SITE_URL: https://nitido.ro
+        NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:?Configure the production Stripe publishable key}
+    restart: unless-stopped
+    ports:
+      - "3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      NEXT_PUBLIC_SITE_URL: https://nitido.ro
+      SITE_PUBLIC_INDEXING: "true"
+      NITIDO_SEED_DEMO: "false"
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:?Configure the production Stripe publishable key}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:?Preserve the production Stripe secret key}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:?Preserve the production webhook secret}
+      STRIPE_CONNECT_WEBHOOK_SECRET: ${STRIPE_CONNECT_WEBHOOK_SECRET:?Configure the production Connect webhook secret}
+    volumes:
+      - nitido_data:/app/data
+      - nitido_uploads:/app/public/uploads
+    healthcheck:
+      test: ["CMD", "node", "scripts/healthcheck.mjs"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  nitido_data:
+    external: true
+    name: zxnelxi2cejranyvfpw0scac_nitido-data
+  nitido_uploads:
+    external: true
+    name: zxnelxi2cejranyvfpw0scac_nitido-uploads

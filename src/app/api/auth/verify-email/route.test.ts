@@ -1,0 +1,11 @@
+import {beforeEach,it,expect,vi} from 'vitest';
+const m=vi.hoisted(()=>({user:vi.fn(),origin:vi.fn(),rate:vi.fn(),verified:vi.fn(),confirm:vi.fn(),send:vi.fn()}));
+vi.mock('@/lib/db',()=>({db:{}}));vi.mock('@/lib/auth',()=>({getCurrentUser:m.user}));vi.mock('@/lib/security',()=>({consumeRateLimit:m.rate,hasTrustedMutationOrigin:m.origin,requestIp:()=> 'ip'}));vi.mock('@/lib/email',()=>({emailConfigured:()=>false}));vi.mock('@/lib/emailVerification',()=>({emailIsVerified:m.verified,confirmEmailVerification:m.confirm,sendVerificationEmail:m.send}));
+import {GET,POST} from './route';
+const req=(body:unknown={action:'resend'})=>new Request('https://sandbox.nitido.ro/api/auth/verify-email',{method:'POST',body:JSON.stringify(body)}) as never;
+beforeEach(()=>{vi.clearAllMocks();m.user.mockResolvedValue(null);m.origin.mockReturnValue(true);m.rate.mockReturnValue(true);m.verified.mockReturnValue(false);m.send.mockResolvedValue(false);m.confirm.mockReturnValue(false)});
+it('does not expose status or send to anonymous users',async()=>{expect((await GET(req())).status).toBe(401);expect((await POST(req())).status).toBe(401);expect(m.send).not.toHaveBeenCalled()});
+it('requires trusted origin for confirmation and resend',async()=>{m.origin.mockReturnValue(false);expect((await POST(req({action:'confirm',token:'a'}))).status).toBe(403);expect(m.confirm).not.toHaveBeenCalled()});
+it('GET never consumes a verification token',async()=>{m.user.mockResolvedValue({id:'a'});expect((await GET(req())).status).toBe(200);expect(m.confirm).not.toHaveBeenCalled()});
+it('reports delivery failure and selects the authenticated owner',async()=>{m.user.mockResolvedValue({id:'a'});expect((await POST(req({action:'resend',userId:'b',email:'b@example.com'}))).status).toBe(503);expect(m.send).toHaveBeenCalledWith({},'a')});
+it('rate limits token guesses before verification',async()=>{m.rate.mockReturnValue(false);expect((await POST(req({action:'confirm',token:'a'}))).status).toBe(429);expect(m.confirm).not.toHaveBeenCalled()});

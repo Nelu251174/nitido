@@ -1,14 +1,18 @@
 "use client";
 
-import { useState, FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense, FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Field, inputClass, Button } from "@/components/ui";
 import { AuthLayout } from "@/components/AuthLayout";
+import {postAuthDestination,authSwitchHref} from "@/lib/authRedirect";
 
-export default function LoginPage() {
+export default function LoginPage() {return <Suspense fallback={<p role="status">Se încarcă…</p>}><LoginForm/></Suspense>}
+
+function LoginForm() {
   const router = useRouter();
-  const [role, setRole] = useState<"client" | "firma">("client");
+  const searchParams=useSearchParams();
+  const [role, setRole] = useState<"client" | "firma">(searchParams.get("role")==="firma"?"firma":"client");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +30,7 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Eroare la autentificare");
-      router.push(data.role === "client" ? "/client" : "/firma");
+      router.push(postAuthDestination(searchParams.get("next"),data.role==="firma"?"firma":"client"));
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Eroare necunoscută");
@@ -46,7 +50,7 @@ export default function LoginPage() {
           onClick={() => setRole("client")}
           className={`flex-1 py-2.5 rounded-xl border font-display font-bold text-xs transition-all ${
             role === "client"
-              ? "border-aqua bg-aqua/10 text-ink shadow-[0_1px_2px_rgba(14,143,128,0.1)]"
+              ? "border-aqua bg-aqua/10 text-ink shadow-[0_1px_2px_rgba(0,158,96,0.1)]"
               : "border-line text-muted hover:border-ink/20"
           }`}
         >
@@ -57,7 +61,7 @@ export default function LoginPage() {
           onClick={() => setRole("firma")}
           className={`flex-1 py-2.5 rounded-xl border font-display font-bold text-xs transition-all ${
             role === "firma"
-              ? "border-aqua bg-aqua/10 text-ink shadow-[0_1px_2px_rgba(14,143,128,0.1)]"
+              ? "border-aqua bg-aqua/10 text-ink shadow-[0_1px_2px_rgba(0,158,96,0.1)]"
               : "border-line text-muted hover:border-ink/20"
           }`}
         >
@@ -98,7 +102,7 @@ export default function LoginPage() {
 
       <p className="text-xs text-muted text-center mt-5">
         Nu ai cont?{" "}
-        <Link href="/signup" className="text-aqua-deep font-semibold">
+        <Link href={authSwitchHref("signup",searchParams.get("next"),role)} className="text-aqua-deep font-semibold">
           Creează unul
         </Link>
       </p>

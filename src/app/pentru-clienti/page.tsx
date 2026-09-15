@@ -1,3 +1,5 @@
+import { publicPageMetadata } from "@/lib/publicSeo";
+export const metadata = publicPageMetadata("/pentru-clienti");
 import { InformationPage } from "@/components/InformationPage";
 export default function Page(){return <InformationPage eyebrow="PENTRU CLIENȚI" title="Curățenie organizată clar, de la postare la evaluare." intro="NITIDO.RO te ajută să publici o nevoie de curățenie și să lucrezi cu o firmă eligibilă printr-un flux transparent și controlat." cta={{label:"Postează o lucrare",href:"/signup?role=client"}} sections={[
   {title:"Ce este NITIDO.RO pentru client",paragraphs:["O platformă de intermediere tehnică între client și firme de curățenie. NITIDO.RO nu execută serviciul, ci facilitează publicarea, alocarea, comunicarea, statusurile și plata."]},

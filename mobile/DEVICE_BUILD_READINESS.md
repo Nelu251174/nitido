@@ -5,9 +5,10 @@
 - iOS Bundle Identifier: `ro.nitido.app`
 - Android Package Name: `ro.nitido.app`
 - Scheme intern: `nitido`
-- EAS Project ID: se completează numai după `eas init`/legarea proiectului real.
+- EAS Project ID verificat în Expo: `3887c4e7-445a-4954-9d04-7c8adc8519f9`.
+- Owner și slug: `nitido-ro` / `nitido-ro`.
 
-EAS Project ID rămâne placeholder și împiedică deliberat un build cloud accidental înainte de legarea proiectului real.
+Identitatea proiectului este conectată în cod. Aceasta nu confirmă semnarea, generarea sau instalarea unui build.
 
 ## API pe dispozitiv
 
@@ -57,7 +58,7 @@ Execută aceeași matrice pe un dispozitiv compact și unul modern/large:
 7. Fotografie sosire, start, fotografie finală și finalizare.
 8. Locație foreground: refuz, acceptare, tracking activ și oprire la finalizare.
 9. Notificări: permisiune contextuală, token refresh, logout/revoke și deep links.
-10. Push pentru job nou, Accept, sosire, start și finalizare; verificare SMS fallback în staging.
+10. Push pentru mesaje, job nou, Accept, sosire și finalizare; SMS rămâne amânat.
 11. Background/foreground: revenire în app fără listener dublu sau stare stale.
 12. Plată/status payout în mod test, fără transferuri reale.
 13. Recenzie verificată după finalizare și blocarea duplicatului.
@@ -73,3 +74,11 @@ eas build --profile development --platform android
 ```
 
 Profilele `preview` și `production` sunt pregătite în `eas.json`, dar nu se execută și nu se face `eas submit` înainte de aprobarea OWNER.
+
+## Profil de test conectat — 14 septembrie 2026
+
+Development și preview au API `https://sandbox.nitido.ro`, fără promovare în producție. Preview Android produce APK. `app.config.ts` conectează fișierul Firebase local ignorat de Git sau variabila EAS de tip fișier `GOOGLE_SERVICES_JSON`. Un build Android EAS fără acest fișier eșuează explicit. Fișierul trebuie să corespundă package-ului `ro.nitido.app`.
+
+Profilul preview folosește APNs production pentru distribuirea ad hoc; backendul trebuie să aibă `APNS_USE_SANDBOX=false` pentru acest build, chiar dacă datele aplicației sunt în sandbox. Nu am schimbat încă această configurație pe server. Buildurile development trebuie corelate cu entitlementul efectiv de semnare înaintea probei.
+
+Firebase Admin și cheia APNs rămân doar pe backend. GitHub App Expo nu era instalată/conectată în contul verificat. Nu există încă builduri sau credențiale iOS/Android în proiect.

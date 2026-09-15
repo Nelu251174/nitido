@@ -1,3 +1,5 @@
+import { publicPageMetadata } from "@/lib/publicSeo";
+export const metadata = publicPageMetadata("/pentru-firme");
 import { InformationPage } from "@/components/InformationPage";
 export default function Page(){return <InformationPage eyebrow="PENTRU FIRME" title="Lucrări relevante, alocare clară și reputație construită în timp." intro="NITIDO.RO conectează firmele de curățenie cu lucrări din zonele declarate, prin reguli egale și confirmate de server." cta={{label:"Înregistrează-ți firma",href:"/signup?role=firma"}} sections={[
   {title:"De ce să intri în NITIDO.RO",paragraphs:["Primești acces la lucrări relevante pentru aria ta. La lucrările Standard trimiți o ofertă, iar clientul alege pe calitate (rating, lucrări finalizate, dovezi). La Nitido Express (urgențe) preiei direct, după regula primei acceptări valide confirmate de server. Fără licitație de preț — prețul rămâne fix."]},

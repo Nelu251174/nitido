@@ -1,3 +1,5 @@
+import { publicPageMetadata } from "@/lib/publicSeo";
+export const metadata = publicPageMetadata("/urmarire-live");
 import { InformationPage } from "@/components/InformationPage";
 export default function Page(){return <InformationPage eyebrow="URMĂRIRE STATUS" title="Fiecare etapă confirmată rămâne vizibilă în cont." intro="Urmărirea în NITIDO.RO înseamnă stări operaționale ale lucrării, nu monitorizare GPS permanentă." sections={[
   {title:"Stările disponibile",items:["În așteptare","Acceptată","Sosită","Finalizată","Anulată","No-show"]},

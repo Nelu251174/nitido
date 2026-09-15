@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { firmCoversCity } from "@/lib/text";
 import { acceptJobAtomic, type AcceptResult } from "@/lib/acceptJob";
 import { computeQualityScore } from "@/lib/qualityIndex";
+import { firmAvailabilityError, type JobTiming } from "@/lib/firmAvailability";
 
 /**
  * Motorul „selecției pe calitate" (repoziționare Etapa 2) — pandantul lui
@@ -25,7 +26,7 @@ type FirmRow = {
   coverage_cities_extra: string | null;
 };
 
-type JobRow = {
+type JobRow = JobTiming & {
   id: string;
   client_id: string;
   city: string;
@@ -57,6 +58,14 @@ export function createOffer(
   firmId: string,
   message?: string | null
 ): OfferResult {
+  try {
+    return db.transaction(() => createOfferLocked(db, jobId, firmId, message)).immediate();
+  } catch {
+    return { ok: false, error: "Oferta nu a putut fi salvată. Reîncarcă lucrarea și reîncearcă.", status: 503 };
+  }
+}
+
+function createOfferLocked(db: Database, jobId: string, firmId: string, message?: string | null): OfferResult {
   const firm = db
     .prepare(
       "SELECT id, suspended_until, verified, coverage_city, coverage_cities_extra FROM firms WHERE id = ?"
@@ -64,12 +73,12 @@ export function createOffer(
     .get(firmId) as FirmRow | undefined;
   if (!firm) return { ok: false, error: "Firmă inexistentă", status: 404 };
   if (!firm.verified) return { ok: false, error: "Firma nu este verificată", status: 403 };
-  if (firm.suspended_until && new Date(firm.suspended_until) > new Date()) {
+  if (firm.suspended_until && (!Number.isFinite(Date.parse(firm.suspended_until)) || Date.parse(firm.suspended_until) > Date.now())) {
     return { ok: false, error: "Firma este suspendată temporar", status: 403 };
   }
 
   const job = db
-    .prepare("SELECT id, client_id, city, status, mode FROM jobs WHERE id = ?")
+    .prepare("SELECT * FROM jobs WHERE id = ?")
     .get(jobId) as JobRow | undefined;
   if (!job) return { ok: false, error: "Lucrare inexistentă", status: 404 };
   if (job.mode !== "standard") {
@@ -81,6 +90,8 @@ export function createOffer(
   if (!firmCoversCity(firm.coverage_city, firm.coverage_cities_extra, job.city)) {
     return { ok: false, error: "Lucrarea este în afara zonei firmei", status: 403 };
   }
+  const unavailable = firmAvailabilityError(db, firmId, job);
+  if (unavailable) return { ok: false, error: unavailable, status: 409 };
 
   const trimmed =
     typeof message === "string" ? message.trim().slice(0, 500) || null : null;
@@ -160,23 +171,24 @@ export async function selectOffer(
   if (!offer) return { ok: false, error: "Ofertă inexistentă", status: 404 };
   if (offer.status !== "pending") return { ok: false, error: "Oferta nu mai este validă", status: 409 };
 
-  const result = await acceptJobAtomic(db, jobId, offer.firm_id);
-  if (!result.ok) return result;
-
-  db.prepare("UPDATE offers SET status='accepted', updated_at=datetime('now') WHERE id=?").run(offer.id);
-  db.prepare(
-    "UPDATE offers SET status='rejected', updated_at=datetime('now') WHERE job_id=? AND id != ? AND status='pending'"
-  ).run(jobId, offer.id);
-  return { ok: true };
+  return acceptJobAtomic(db, jobId, offer.firm_id, { offerId: offer.id, clientId });
 }
 
 /** O firmă își retrage oferta (doar cât timp e 'pending'). */
 export function withdrawOffer(db: Database, offerId: string, firmId: string): OfferResult {
+  try {
+    return db.transaction(() => withdrawOfferLocked(db, offerId, firmId)).immediate();
+  } catch {
+    return { ok: false, error: "Retragerea nu a putut fi confirmată. Reîncarcă lucrarea.", status: 503 };
+  }
+}
+
+function withdrawOfferLocked(db: Database, offerId: string, firmId: string): OfferResult {
   const offer = db
-    .prepare("SELECT id, status FROM offers WHERE id = ? AND firm_id = ?")
-    .get(offerId, firmId) as { id: string; status: string } | undefined;
+    .prepare("SELECT o.id,o.status,j.status AS job_status FROM offers o JOIN jobs j ON j.id=o.job_id WHERE o.id=? AND o.firm_id=?")
+    .get(offerId, firmId) as { id: string; status: string; job_status: string } | undefined;
   if (!offer) return { ok: false, error: "Ofertă inexistentă", status: 404 };
-  if (offer.status !== "pending") return { ok: false, error: "Oferta nu poate fi retrasă", status: 409 };
+  if (offer.status !== "pending" || offer.job_status !== "waiting") return { ok: false, error: "Oferta nu poate fi retrasă după începerea preluării. Reîncarcă lucrarea.", status: 409 };
   db.prepare("UPDATE offers SET status='withdrawn', updated_at=datetime('now') WHERE id=?").run(offerId);
   return { ok: true, offerId };
 }

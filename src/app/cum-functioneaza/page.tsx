@@ -1,3 +1,5 @@
+import { publicPageMetadata } from "@/lib/publicSeo";
+export const metadata = publicPageMetadata("/cum-functioneaza");
 import { InformationPage } from "@/components/InformationPage";
 
 export default function Page(){return <InformationPage eyebrow="MODEL OPERAȚIONAL" title="Cum funcționează NITIDO.RO" intro="NITIDO.RO coordonează publicarea, eligibilitatea, alocarea, statusurile și plata unei lucrări prin reguli controlate de server." cta={{label:"Postează o lucrare",href:"/signup?role=client"}} sections={[

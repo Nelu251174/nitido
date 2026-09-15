@@ -13,8 +13,8 @@ describe("calcGrossPrice — trepte apartament (spec secțiunea 6)", () => {
     expect(calcGrossPrice("apartament", 35)).toBe(350);
     expect(calcGrossPrice("apartament", 40)).toBe(350);
   });
-  it("2 camere (40-60 mp) = 400 lei", () => {
-    expect(calcGrossPrice("apartament", 60)).toBe(400);
+  it("2 camere (40-60 mp) = 450 lei", () => {
+    expect(calcGrossPrice("apartament", 60)).toBe(450);
   });
   it("3 camere (60-80 mp) = 550 lei", () => {
     expect(calcGrossPrice("apartament", 75)).toBe(550);
@@ -28,14 +28,14 @@ describe("calcGrossPrice — trepte apartament (spec secțiunea 6)", () => {
 });
 
 describe("calcGrossPrice — preț/mp casă, birou, altul", () => {
-  it("casă: 5.5 lei/mp", () => {
-    expect(calcGrossPrice("casa", 100)).toBe(550);
+  it("casă: 7 lei/mp", () => {
+    expect(calcGrossPrice("casa", 100)).toBe(700);
   });
-  it("birou: 4.5 lei/mp", () => {
-    expect(calcGrossPrice("birou", 100)).toBe(450);
+  it("birou: 5 lei/mp", () => {
+    expect(calcGrossPrice("birou", 100)).toBe(500);
   });
-  it("altul: 5 lei/mp", () => {
-    expect(calcGrossPrice("altul", 100)).toBe(500);
+  it("altul: 6 lei/mp", () => {
+    expect(calcGrossPrice("altul", 100)).toBe(600);
   });
 });
 

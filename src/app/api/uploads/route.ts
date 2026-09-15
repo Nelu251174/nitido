@@ -1,10 +1,15 @@
+import {readVisitCare} from "@/lib/visitCare";
+import {WorkspaceError} from "@/lib/workspace";
+import { prepareUploadImage } from "@/lib/uploadImage";
+import { hasTrustedMutationOrigin } from "@/lib/security";
+import { executionAccess } from "@/lib/collaborationAccess";
 import { NextRequest, NextResponse } from "next/server";
-import { db, getFirmByUserId, newId } from "@/lib/db";
+import { db, newId } from "@/lib/db";
 import path from "path";
 import fs from "fs";
 import { getCurrentUser } from "@/lib/auth";
 import { consumeRateLimit, requestIp } from "@/lib/security";
-import { auditWorkflow, WorkProofType } from "@/lib/proofOfWork";
+import { auditWorkflow } from "@/lib/proofOfWork";
 import { normalizeScanRoom } from "@/lib/nitidoScan";
 
 // Upload real de poze la postarea lucrării — spec secțiunea 3, punct 2:
@@ -27,6 +32,7 @@ function detectedImageType(buffer: Buffer): { mime: string; ext: string } | null
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req);
   if (!user) return NextResponse.json({ error: "Autentificare necesară" }, { status: 401 });
+  if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:"Origine invalidă"},{status:403});
   if (!consumeRateLimit(`upload:${user.id}:${requestIp(req)}`, 20, 60 * 60 * 1000)) {
     return NextResponse.json({ error: "Prea multe încărcări" }, { status: 429 });
   }
@@ -50,7 +56,7 @@ export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const file = formData.get("file");
   const jobId = String(formData.get("jobId") ?? "");
-  const proofType = String(formData.get("proofType") ?? "").toUpperCase() as WorkProofType;
+  const proofType = String(formData.get("proofType") ?? "").toUpperCase();
   // Nitido Scan: eticheta încăperii pentru pozele de context ale clientului.
   const contextLabel = normalizeScanRoom(formData.get("room"));
 
@@ -69,13 +75,31 @@ export async function POST(req: NextRequest) {
   if (!detected || detected.mime !== file.type) {
     return NextResponse.json({ error: "Conținutul fișierului nu corespunde unui format permis" }, { status: 400 });
   }
+  let stored:Buffer;
+  try { stored=await prepareUploadImage(buffer); }
+  catch { return NextResponse.json({error:"Imaginea este deteriorată sau depășește limita de 40 megapixeli. Alege o fotografie validă."},{status:400}); }
+  if(stored.length>MAX_SIZE_BYTES)return NextResponse.json({error:"Imaginea procesată depășește 8 MB. Redu dimensiunea fotografiei."},{status:400});
   const ext = detected.ext;
   const id = newId("photo");
   const filename = `${id}.${ext}`;
 
-  if (user.role === "firma") {
-    const firm = getFirmByUserId(user.id);
-    if (!firm) return NextResponse.json({ error: "Profilul firmei nu a fost găsit" }, { status: 403 });
+  if(proofType==='CASE'){
+    try{
+      db.transaction(()=>{
+        if(!jobId||!readVisitCare(db,jobId,user).canReport)throw new WorkspaceError('Nu poți adăuga o dovadă acestei lucrări.',403);
+        const count=db.prepare('SELECT COUNT(*) n FROM job_photos WHERE job_id=?').get(jobId) as {n:number};
+        if(count.n>=20)throw new WorkspaceError('Maximum 20 de fotografii per lucrare.',409);
+        fs.writeFileSync(path.join(UPLOAD_DIR,filename),stored);
+        db.prepare("INSERT INTO job_photos(id,job_id,owner_user_id,proof_type,filename,mime_type,file_size,status,validated_at) VALUES(?,?,?,?,?,?,?,'VALID',datetime('now'))").run(id,jobId,user.id,'CASE',filename,detected.mime,stored.length);
+      }).immediate();
+      return NextResponse.json({id,url:`/api/uploads/${id}`,proofType},{status:201});
+    }catch(e){fs.rmSync(path.join(UPLOAD_DIR,filename),{force:true});return NextResponse.json({error:e instanceof WorkspaceError?e.message:'Încărcarea nu a fost confirmată.'},{status:e instanceof WorkspaceError?e.status:503});}
+  }
+
+  if (user.role === "firma" || (jobId && ["ARRIVAL", "COMPLETION"].includes(proofType))) {
+    const access = executionAccess(db,user.id,jobId);
+    if (!access) return NextResponse.json({ error: "Nu ai acces la această lucrare" }, { status: 403 });
+    const firm = {id:access.firm_id};
     if (!jobId || !["ARRIVAL", "COMPLETION"].includes(proofType)) {
       return NextResponse.json({ error: "Lucrarea și tipul dovezii sunt obligatorii" }, { status: 400 });
     }
@@ -84,15 +108,15 @@ export async function POST(req: NextRequest) {
     if (!job || job.accepted_firm_id !== firm.id || !validState) {
       return NextResponse.json({ error: "Nu poți atașa această dovadă lucrării" }, { status: 403 });
     }
-    fs.writeFileSync(path.join(UPLOAD_DIR, filename), buffer);
+    fs.writeFileSync(path.join(UPLOAD_DIR, filename), stored);
     db.prepare(`INSERT INTO job_photos
       (id,job_id,owner_user_id,uploaded_by_firm_id,proof_type,filename,mime_type,file_size,status,validated_at)
-      VALUES (?,?,?,?,?,?,?,?, 'VALID',datetime('now'))`).run(id, jobId, user.id, firm.id, proofType, filename, detected.mime, file.size);
-    auditWorkflow(db, `${proofType}_PROOF_UPLOADED`, jobId, firm.id, user.id, { proofId: id, mimeType: detected.mime, fileSize: file.size });
+      VALUES (?,?,?,?,?,?,?,?, 'VALID',datetime('now'))`).run(id, jobId, user.id, firm.id, proofType, filename, detected.mime, stored.length);
+    auditWorkflow(db, `${proofType}_PROOF_UPLOADED`, jobId, firm.id, user.id, { proofId: id, mimeType: detected.mime, fileSize: stored.length });
     return NextResponse.json({ id, url: `/api/uploads/${id}`, proofType }, { status: 201 });
   }
 
-  fs.writeFileSync(path.join(UPLOAD_DIR, filename), buffer);
+  fs.writeFileSync(path.join(UPLOAD_DIR, filename), stored);
 
   // job_id rămâne NULL până la crearea lucrării (POST /api/jobs îl leagă apoi).
   db.prepare("INSERT INTO job_photos (id, job_id, owner_user_id, proof_type, context_label, filename, mime_type, file_size, status, validated_at) VALUES (?, NULL, ?, 'CLIENT_CONTEXT', ?, ?, ?, ?, 'VALID', datetime('now'))").run(
@@ -101,7 +125,7 @@ export async function POST(req: NextRequest) {
     contextLabel,
     filename,
     detected.mime,
-    file.size
+    stored.length
   );
 
   return NextResponse.json({ id, url: `/api/uploads/${id}`, room: contextLabel }, { status: 201 });

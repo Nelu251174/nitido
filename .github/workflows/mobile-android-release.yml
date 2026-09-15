@@ -59,8 +59,12 @@ jobs:
       - name: Decodează cheia de semnare
         run: echo "${{ secrets.NITIDO_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/nitido-upload.keystore"
 
-      - name: Sync Capacitor
-        run: npx cap sync android
+      - name: Sync Capacitor — producție
+        env:
+          NITIDO_NATIVE_SERVER_URL: https://nitido.ro
+        run: |
+          npx cap sync android
+          node -e 'const c=require("./android/app/src/main/assets/capacitor.config.json");if(c.appId!=="ro.nitido.app"||c.server.url!=="https://nitido.ro")throw Error("Invalid production target");'
 
       - name: Build .aab semnat
         env:

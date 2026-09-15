@@ -1,7 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import "./approved-design.css";
+import "./mobile-layout.css";
 import "@fontsource-variable/instrument-sans";
+import { WebAlerts } from "@/components/WebAlerts";
 import { PwaProvider } from "@/components/PwaProvider";
 
 const sora = localFont({
@@ -58,7 +61,7 @@ export const metadata: Metadata = {
     template: "%s — NITIDO.RO",
   },
   description:
-    "Postezi o lucrare de curățenie, primești oferte de la firme verificate din zona ta și alegi pe calitate. Pentru urgențe, Nitido Express preia instant. Preț fix afișat de la început, plată securizată.",
+    "Configurezi curățenia, verifici prețul și urmărești rezervarea în cont. Standard îți permite să alegi firma; Express depinde de disponibilitatea firmelor eligibile.",
   keywords: [
     "curățenie apartament",
     "firme de curățenie",
@@ -69,7 +72,6 @@ export const metadata: Metadata = {
     "marketplace curățenie",
     "curățenie la cerere",
   ],
-  alternates: { canonical: "/" },
   robots: {
     index: true,
     follow: true,
@@ -77,13 +79,11 @@ export const metadata: Metadata = {
   },
   // Verificarea Google Search Console se activează setând variabila de mediu
   // GOOGLE_SITE_VERIFICATION (codul „HTML tag" din GSC) — fără schimbare de cod.
-  verification: process.env.GOOGLE_SITE_VERIFICATION
-    ? { google: process.env.GOOGLE_SITE_VERIFICATION }
-    : undefined,
+  verification: { google: process.env.GOOGLE_SITE_VERIFICATION || "XxNx5futiiSwAO_b8yrGXtVThkI7ixVwpziOFhW9uT8" },
   openGraph: {
     title: "NITIDO.RO — Marketplace de curățenie în România",
     description:
-      "Postezi o lucrare de curățenie, firmele verificate din zona ta sunt notificate instant. Preț fix, plată securizată.",
+      "Postezi o lucrare de curățenie, firmele eligibile din zona ta pot vedea cererea. Preț fix, plată securizată.",
     url: SITE_URL,
     siteName: "NITIDO.RO",
     locale: "ro_RO",
@@ -93,7 +93,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "NITIDO.RO — Marketplace de curățenie în România",
     description:
-      "Postezi o lucrare de curățenie, firmele din zonă sunt notificate instant. Preț fix, plată securizată.",
+      "Postezi o lucrare de curățenie, firmele eligibile din zonă pot vedea cererea. Preț fix, plată securizată.",
   },
 };
 
@@ -103,6 +103,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         {children}
         <PwaProvider />
+        <WebAlerts />
       </body>
     </html>
   );

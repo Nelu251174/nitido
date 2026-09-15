@@ -1,6 +1,7 @@
+import {claimNotification,startNotificationDispatch,finishNotification,recoverNotificationClaims,retryableNotificationSql} from "./notificationClaims";
 import type { Database } from "better-sqlite3";
 import { newId } from "@/lib/db";
-import { sendSmsViaTwilio, toE164Romania } from "@/lib/sms";
+import { sendSmsViaTwilio, toE164Romania, SmsProviderError } from "@/lib/sms";
 import { firmCoversCity } from "@/lib/text";
 
 export type SmsEventType = "JOB_CREATED_FIRM_ALERT" | "JOB_ACCEPTED_CLIENT_CONFIRMATION" | "JOB_ARRIVED_CLIENT_NOTIFICATION";
@@ -20,10 +21,13 @@ function enqueue(db: Database, eventType: SmsEventType, jobId: string, recipient
   const recipient = toE164Romania(recipientRaw);
   if (!recipient) return null;
   const idempotencyKey = `${eventType}:${jobId}:${suffix === "recipient" ? recipient : suffix}`;
+  const users=db.prepare("SELECT id,phone FROM users WHERE phone IS NOT NULL").all() as {id:string;phone:string}[];
+  const matches=users.filter(user=>toE164Romania(user.phone)===recipient);
+  const recipientUserId=matches.length===1?matches[0].id:null;
   const id = newId("sms");
   db.prepare(`INSERT OR IGNORE INTO notification_outbox
-    (id,idempotency_key,event_type,job_id,recipient,message_body) VALUES (?,?,?,?,?,?)`)
-    .run(id,idempotencyKey,eventType,jobId,recipient,body);
+    (id,idempotency_key,event_type,job_id,recipient,message_body,recipient_user_id) VALUES (?,?,?,?,?,?,?)`)
+    .run(id,idempotencyKey,eventType,jobId,recipient,body,recipientUserId);
   const row = db.prepare("SELECT id FROM notification_outbox WHERE idempotency_key = ?").get(idempotencyKey) as {id:string};
   return row.id;
 }
@@ -52,13 +56,42 @@ export function queueJobArrivedClientSms(db: Database, jobId:string): string[] {
   return id?[id]:[];
 }
 
+function smsDeliveryBlock(db:Database,row:{job_id:string;event_type:SmsEventType;recipient:string;recipient_user_id:string|null}):string|null{
+  if(!row.recipient_user_id)return "SUPPRESSED_RECIPIENT_UNBOUND";
+  const user=db.prepare("SELECT phone FROM users WHERE id=?").get(row.recipient_user_id) as {phone:string|null}|undefined;
+  if(!user?.phone||toE164Romania(user.phone)!==row.recipient)return "SUPPRESSED_RECIPIENT";
+  const field=row.event_type==="JOB_CREATED_FIRM_ALERT"?"new_job_alerts":row.event_type==="JOB_ACCEPTED_CLIENT_CONFIRMATION"?"job_status_notifications":"arrival_notifications";
+  const preference=db.prepare(`SELECT ${field} enabled FROM notification_preferences WHERE user_id=?`).get(row.recipient_user_id) as {enabled:number}|undefined;
+  if(preference?.enabled===0)return "SUPPRESSED_PREFERENCE";
+  const job=db.prepare("SELECT client_id,city,status,accepted_firm_id FROM jobs WHERE id=?").get(row.job_id) as {client_id:string;city:string;status:string;accepted_firm_id:string|null}|undefined;
+  if(!job)return "SUPPRESSED_JOB_UNAVAILABLE";
+  if(row.event_type==="JOB_CREATED_FIRM_ALERT"){
+    if(job.status!=="waiting"||job.accepted_firm_id)return "SUPPRESSED_JOB_UNAVAILABLE";
+    const firm=db.prepare("SELECT verified,coverage_city,coverage_cities_extra,suspended_until FROM firms WHERE user_id=?").get(row.recipient_user_id) as {verified:number;coverage_city:string;coverage_cities_extra:string|null;suspended_until:string|null}|undefined;
+    if(!firm||firm.verified!==1||!firmCoversCity(firm.coverage_city,firm.coverage_cities_extra,job.city)||(firm.suspended_until&&(!Number.isFinite(Date.parse(firm.suspended_until))||Date.parse(firm.suspended_until)>Date.now())))return "SUPPRESSED_FIRM_INELIGIBLE";
+  }else{
+    if(job.client_id!==row.recipient_user_id)return "SUPPRESSED_RECIPIENT";
+    if(job.status!==(row.event_type==="JOB_ACCEPTED_CLIENT_CONFIRMATION"?"accepted":"arrived"))return "SUPPRESSED_JOB_UNAVAILABLE";
+    if(row.event_type==="JOB_ACCEPTED_CLIENT_CONFIRMATION"&&!db.prepare("SELECT 1 FROM payments WHERE job_id=? AND status='authorized'").get(row.job_id))return "SUPPRESSED_PAYMENT_UNCONFIRMED";
+    if(row.event_type==="JOB_ARRIVED_CLIENT_NOTIFICATION"&&!db.prepare("SELECT 1 FROM job_photos WHERE job_id=? AND uploaded_by_firm_id=? AND proof_type='ARRIVAL' AND status='VALID' AND validated_at IS NOT NULL").get(row.job_id,job.accepted_firm_id))return "SUPPRESSED_PROOF_UNCONFIRMED";
+  }
+  return null;
+}
+
+export const SMS_RETRYABLE_SQL=retryableNotificationSql(5);
+
 export async function processSmsOutbox(db: Database, ids?:string[], sender:Sender=sendSmsViaTwilio): Promise<void> {
-  const rows = (ids?.length ? db.prepare(`SELECT * FROM notification_outbox WHERE id IN (${ids.map(()=>"?").join(",")})`).all(...ids) : db.prepare("SELECT * FROM notification_outbox WHERE status IN ('pending','failed') AND attempt_count < 5 ORDER BY created_at LIMIT 50").all()) as {id:string;recipient:string;message_body:string;status:string;attempt_count:number}[];
+  if(ids&&ids.length===0)return;
+  recoverNotificationClaims(db);
+  const rows = (ids ? db.prepare(`SELECT * FROM notification_outbox WHERE ${SMS_RETRYABLE_SQL} AND id IN (${ids.map(()=>"?").join(",")})`).all(...ids) : db.prepare(`SELECT * FROM notification_outbox WHERE ${SMS_RETRYABLE_SQL} ORDER BY created_at LIMIT 50`).all()) as {id:string;recipient:string;recipient_user_id:string|null;job_id:string;event_type:SmsEventType;message_body:string}[];
   for(const row of rows){
-    const claimed=db.prepare("UPDATE notification_outbox SET status='sending', attempt_count=attempt_count+1, last_error=NULL WHERE id=? AND status IN ('pending','failed') AND attempt_count < 5").run(row.id);
-    if(claimed.changes===0) continue;
-    try{const result=await sender(row.recipient,row.message_body);db.prepare("UPDATE notification_outbox SET status='sent',provider_message_id=?,sent_at=datetime('now'),last_error=NULL WHERE id=?").run(result.providerMessageId,row.id);}
-    catch(error){const code=error instanceof Error&&error.message==="SMS_PROVIDER_NOT_CONFIGURED"?"SMS_PROVIDER_NOT_CONFIGURED":"SMS_PROVIDER_ERROR";db.prepare("UPDATE notification_outbox SET status='failed',last_error=? WHERE id=?").run(code,row.id);}
+    const claim=claimNotification(db,"sms",row.id);
+    if(!claim)continue;
+    const block=smsDeliveryBlock(db,row);
+    if(block){finishNotification(db,"sms",row.id,claim,{error:block});continue;}
+    if(!startNotificationDispatch(db,"sms",row.id,claim))continue;
+    try{const result=await sender(row.recipient,row.message_body);finishNotification(db,"sms",row.id,claim,result);}
+    catch(error){const code=error instanceof SmsProviderError?(error.message==="SMS_PROVIDER_NOT_CONFIGURED"?"SMS_PROVIDER_NOT_CONFIGURED":"SMS_PROVIDER_ERROR"):"DELIVERY_UNKNOWN";finishNotification(db,"sms",row.id,claim,{error:code});}
   }
 }
 

@@ -1,3 +1,5 @@
+import { publicPageMetadata } from "@/lib/publicSeo";
+export const metadata = publicPageMetadata("/cookie-uri");
 import { InformationPage } from "@/components/InformationPage";
 export default function Page(){return <InformationPage eyebrow="COOKIE-URI" title="Cookie-uri folosite de NITIDO.RO" intro="Auditul reflectă codul aplicației din această versiune. Orice instrument nou de analiză, marketing sau integrare terță trebuie adăugat aici și, când este necesar, în mecanismul de consimțământ." sections={[
   {title:"Strict necesare: nitido_session",paragraphs:["Cookie httpOnly folosit pentru autentificarea clientului sau firmei în browser. Are SameSite=Lax, Secure în producție, cale / și expirare la aproximativ 30 de zile. Este șters la logout."]},

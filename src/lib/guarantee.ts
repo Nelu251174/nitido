@@ -1,6 +1,6 @@
 import type { Database } from "better-sqlite3";
 import { randomUUID } from "node:crypto";
-import { calcDurationMinutes, BUFFER_MINUTES } from "@/lib/pricing";
+import { calcServiceDuration, BUFFER_MINUTES } from "@/lib/pricing";
 
 /**
  * Nitido Guaranteed (Etapa 3) — re-curățare gratuită.
@@ -29,6 +29,8 @@ interface OrigJob {
   sqm: number;
   space_type: string;
   guarantee_of: string | null;
+  windows_sqm?: number;
+  duration_minutes?: number;
 }
 
 /** Este lucrarea încă în fereastra de garanție (≤ 48h de la finalizare)? */
@@ -58,7 +60,7 @@ export function requestReclean(
   if (existing) return { ok: false, error: "Ai cerut deja o re-curățare pentru această lucrare", status: 409 };
 
   const newId = `job_${randomUUID()}`;
-  const duration = calcDurationMinutes(job.sqm);
+  const duration = job.duration_minutes ?? calcServiceDuration(job.sqm, job.windows_sqm ?? 0);
   const assignFirm = job.accepted_firm_id;
   db.prepare(
     `INSERT INTO jobs
@@ -83,5 +85,6 @@ export function requestReclean(
     assignFirm,
     assignFirm ? now.toISOString() : null
   );
+  if (job.windows_sqm) db.prepare("UPDATE jobs SET windows_sqm = ? WHERE id = ?").run(job.windows_sqm, newId);
   return { ok: true, jobId: newId };
 }

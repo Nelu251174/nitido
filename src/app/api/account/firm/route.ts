@@ -1,3 +1,5 @@
+import {profileInputError} from "@/lib/profileInput";
+import {hasTrustedMutationOrigin,consumeRateLimit} from "@/lib/security";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { db, getFirmByUserId } from "@/lib/db";
@@ -35,7 +37,13 @@ export async function POST(req: NextRequest) {
   if (!user || user.role !== "firma") {
     return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
   }
-  const body = (await req.json().catch(() => ({}))) as {
+  if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:"Origine invalidă"},{status:403});
+  if(!consumeRateLimit(`profile:${user.id}`,20,60000))return NextResponse.json({error:"Prea multe modificări. Reîncearcă într-un minut."},{status:429});
+  const raw=await req.text();if(Buffer.byteLength(raw)>12000)return NextResponse.json({error:"Cerere prea mare"},{status:413});
+  let parsed;try{parsed=JSON.parse(raw)}catch{return NextResponse.json({error:"Date invalide"},{status:400})}
+  const inputError=profileInputError(parsed,true);
+  if(inputError)return NextResponse.json({error:inputError},{status:400});
+  const body=parsed as {
     name?: string;
     phone?: string;
     coverageCity?: string;
@@ -68,10 +76,14 @@ export async function POST(req: NextRequest) {
   if (website && !/^https?:\/\//i.test(website)) website = `https://${website}`;
   const websiteValue = website || null;
 
+  const exists=getFirmByUserId(user.id);
+  if(!exists)return NextResponse.json({error:"Profil de firmă inexistent"},{status:404});
+  db.transaction(()=>{
   db.prepare("UPDATE users SET name = ?, phone = ? WHERE id = ?").run(name, normalizedPhone, user.id);
   db.prepare(
     "UPDATE firms SET coverage_city = ?, coverage_cities_extra = ?, description = ?, working_hours = ?, services = ?, website = ? WHERE user_id = ?"
   ).run(coverageCity, citiesExtra || null, description, workingHours, services, websiteValue, user.id);
+  })();
 
   return NextResponse.json({
     ok: true,

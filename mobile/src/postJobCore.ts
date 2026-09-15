@@ -20,6 +20,9 @@ export type JobQuote = {
 export type SchedulingConfig = { slotHours: number[]; minLeadHours: number };
 
 export type PostJobDraft = {
+  cardId?:string;
+  propertyId?: string;
+  approvalId?: string;
   spaceType: SpaceType | null;
   sqm: string;
   city: string;
@@ -44,6 +47,15 @@ export const EMPTY_DRAFT: PostJobDraft = {
   details: "",
   photoIds: [],
 };
+
+export function draftFromProperty(property: {
+  id: string; city: string; street: string; sqm: number; space_type: SpaceType; notes?: string | null;
+}, approvalId?: string, scheduledDate = ""): PostJobDraft {
+  return { ...EMPTY_DRAFT, photoIds: [], propertyId: property.id, approvalId,
+    city: property.city, street: property.street, sqm: String(property.sqm),
+    spaceType: property.space_type, details: property.notes ?? "",
+    scheduledDate: isDateAllowed(scheduledDate) ? scheduledDate : "" };
+}
 
 export function validateSqm(value: string): string | null {
   if (!/^\d+$/.test(value.trim()) || Number(value) <= 0) return "Introdu o suprafață întreagă, mai mare decât 0 m².";
@@ -84,6 +96,7 @@ export function buildCreatePayload(draft: PostJobDraft) {
     throw new Error("Datele lucrării nu sunt complete.");
   }
   return {
+    ...(draft.cardId?{cardId:draft.cardId}:{}),
     street: draft.street.trim(),
     postalCode: draft.postalCode.trim() || undefined,
     city: draft.city.trim(),

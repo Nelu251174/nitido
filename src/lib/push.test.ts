@@ -1,3 +1,6 @@
+import {sendNotifiedJobMessage as sendJobMessage} from "./messageNotifications";
+import {WORKSPACE_SCHEMA,readJobMessages} from "./workspace";
+import {initializeNotificationClaims} from "./notificationClaims";
 import {afterEach,beforeEach,describe,expect,it} from "vitest";
 import DatabaseCtor from "better-sqlite3";
 import type {Database} from "better-sqlite3";
@@ -16,4 +19,24 @@ describe("push primary with SMS fallback",()=>{let db:Database;beforeEach(()=>{d
   it("permanent invalid token is revoked safely",async()=>{device(db,"d1","ua");const ids=queueNewJobFirmPushes(db,{id:"job",city:"București",spaceType:"apartament",sqm:120});await processPushOutbox(db,ids,async()=>{throw new PushProviderError("PUSH_TOKEN_INVALID",true)});expect((db.prepare("SELECT push_enabled,revoked_at FROM push_devices WHERE id='d1'").get() as {push_enabled:number;revoked_at:string|null}).push_enabled).toBe(0);});
   it("queues client events only after authoritative payment, proof, and job states",()=>{expect(queueAcceptedClientPush(db,"job")).toEqual([]);db.prepare("UPDATE jobs SET status='accepted',accepted_firm_id='fa' WHERE id='job'").run();expect(queueAcceptedClientPush(db,"job")).toEqual([]);db.prepare("INSERT INTO payments(id,job_id,amount_gross,commission_amount,amount_net,status) VALUES('pay','job',780,140,640,'authorized')").run();expect(queueAcceptedClientPush(db,"job")).toHaveLength(1);db.prepare("UPDATE jobs SET status='arrived' WHERE id='job'").run();expect(queueArrivedClientPush(db,"job")).toEqual([]);db.prepare("INSERT INTO job_photos(id,job_id,owner_user_id,uploaded_by_firm_id,proof_type,filename,mime_type,file_size,status,validated_at) VALUES('a','job','ua','fa','ARRIVAL','a.jpg','image/jpeg',10,'VALID',datetime('now'))").run();expect(queueArrivedClientPush(db,"job")).toHaveLength(1);db.prepare("UPDATE jobs SET status='completed' WHERE id='job'").run();expect(queueCompletedClientPush(db,"job")).toEqual([]);db.prepare("INSERT INTO job_photos(id,job_id,owner_user_id,uploaded_by_firm_id,proof_type,filename,mime_type,file_size,status,validated_at) VALUES('c','job','ua','fa','COMPLETION','c.jpg','image/jpeg',10,'VALID',datetime('now'))").run();db.prepare("UPDATE payments SET status='captured' WHERE id='pay'").run();expect(queueCompletedClientPush(db,"job")).toHaveLength(1);});
   it("registration API derives identity and never accepts a user id",()=>{const source=fs.readFileSync("src/app/api/push/register/route.ts","utf8");expect(source).toContain("getCurrentUser(req)");expect(source).not.toMatch(/body\.userId|body\.user_id/);});
+});
+
+it("queues each message once, targets the other participant, and suppresses read messages",async()=>{
+ const db=setup();db.exec(WORKSPACE_SCHEMA);initializeNotificationClaims(db);
+ db.exec("UPDATE jobs SET accepted_firm_id='fa',status='accepted' WHERE id='job'");device(db,'da','ua');device(db,'dc','client');
+ const first=sendJobMessage(db,'client','job','Hello','request-1');
+ expect(sendJobMessage(db,'client','job','Hello','request-1')).toBe(first);
+ sendJobMessage(db,'client','job','Second','request-2');sendJobMessage(db,'ua','job','Reply','request-3');
+ expect(db.prepare('SELECT recipient_user_id FROM push_notification_outbox ORDER BY rowid').all()).toEqual([{recipient_user_id:'ua'},{recipient_user_id:'ua'},{recipient_user_id:'client'}]);
+ readJobMessages(db,'ua','job',[first]);process.env.PUSH_ENABLED='true';const delivered:string[]=[];
+ await processPushOutbox(db,undefined,async(_p,_t,payload)=>{delivered.push(payload.data.message_id);return {providerMessageId:'ok'};});
+ expect(delivered).toHaveLength(2);expect(delivered).not.toContain(first);delete process.env.PUSH_ENABLED;db.close();
+});
+it("migrates existing push rows without changing their totals or delivery claims",()=>{
+ const db=new DatabaseCtor(':memory:');db.exec(SCHEMA_SQL.replace(",'MESSAGE_RECEIVED_PUSH'",''));
+ db.exec("INSERT INTO users(id,role,name) VALUES('c','client','Test'); INSERT INTO jobs(id,client_id,street,city,sqm,space_type,when_type,price_gross,duration_minutes) VALUES('j','c','Test','Test',10,'apartament','asap',100,60); INSERT INTO push_notification_outbox(id,idempotency_key,event_type,job_id,recipient_user_id,title,message_body,status,attempt_count) VALUES('p','key','JOB_ACCEPTED_CLIENT_PUSH','j','c','Test','Test','sent',2)");
+ initializeNotificationClaims(db);initializeNotificationClaims(db);
+ expect(db.prepare('SELECT id,idempotency_key,status,attempt_count FROM push_notification_outbox').get()).toEqual({id:'p',idempotency_key:'key',status:'sent',attempt_count:2});
+ expect((db.prepare("SELECT sql FROM sqlite_master WHERE name='push_notification_outbox'").get() as {sql:string}).sql).toContain('MESSAGE_RECEIVED_PUSH');
+ expect(db.pragma('integrity_check',{simple:true})).toBe('ok');db.close();
 });

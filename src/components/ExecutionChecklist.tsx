@@ -1,0 +1,14 @@
+'use client';
+import {useCallback,useEffect,useState} from 'react';
+import {CHECKLIST} from '@/lib/workspaceShared';
+import {DesignIcon} from './DesignIcon';
+type Entry={job_id:string;item_key:string;done:number};
+export function ExecutionChecklist({jobId,editable=false}:{jobId:string;editable?:boolean}){
+ const [entries,setEntries]=useState<Entry[]>([]),[pending,setPending]=useState(true),[error,setError]=useState(''),[busy,setBusy]=useState('');
+ const load=useCallback(async(signal?:AbortSignal)=>{try{const r=await fetch('/api/workspace',{signal});if(!r.ok)throw new Error('Verificările nu au putut fi încărcate.');const d=await r.json();if(!signal?.aborted){setEntries((d.checklist as Entry[]).filter(e=>e.job_id===jobId));setError('');setPending(false)}}catch(e){if(!signal?.aborted){setError(e instanceof Error?e.message:'Eroare de conexiune.');setPending(false)}}},[jobId]);
+ // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronize checklist from authenticated remote request
+ useEffect(()=>{const controller=new AbortController();void load(controller.signal);const timer=setInterval(()=>void load(controller.signal),15000);return()=>{controller.abort();clearInterval(timer)}},[load]);
+ async function toggle(key:string,done:boolean){if(busy)return;setBusy(key);setError('');try{const r=await fetch('/api/workspace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'checklist.set',jobId,key,done})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Verificarea nu a putut fi salvată.');await load()}catch(e){setError(e instanceof Error?e.message:'Eroare de conexiune.')}finally{setBusy('')}}
+ const done=CHECKLIST.filter(item=>entries.some(e=>e.item_key===item.key&&e.done===1)).length;
+ return <section className="design-panel execution-checklist"><div className="board-card-heading"><h2>Progresul lucrării</h2>{!pending&&!error&&<span>{done} din {CHECKLIST.length}</span>}</div>{pending?<p role="status">Se încarcă verificările…</p>:<><progress aria-label="Sarcini bifate" max={CHECKLIST.length} value={done}/><p className="execution-progress-label">{Math.round(done/CHECKLIST.length*100)}% din verificări bifate</p>{CHECKLIST.map(item=>{const checked=entries.some(e=>e.item_key===item.key&&e.done===1);return <div className={`execution-check-row ${checked?'is-done':''}`} key={item.key}>{editable?<label><input type="checkbox" checked={checked} disabled={Boolean(busy)||Boolean(error)} onChange={e=>void toggle(item.key,e.target.checked)}/><span>{item.label}</span></label>:<><DesignIcon name={checked?'check':'clock'} size={20}/><span>{item.label}</span><small>{checked?'Bifat':'În așteptare'}</small></>}</div>})}<p className="booking-muted">Bifările sunt raportate de echipă. Raportul foto și starea finalizării sunt afișate separat.</p></>}{error&&<p role="alert" className="workspace-error">{error} <button onClick={()=>void load()}>Reîncearcă</button></p>}</section>;
+}
