@@ -87,3 +87,10 @@ header.sticky, aside.sticky, .board-sidebar { top: var(--app-safe-top); }
 .romanian-date-picker input::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
 .romanian-date-picker:focus-within { outline: 2px solid var(--nitido-brand); outline-offset: 2px; }
 .romanian-date-field [role=alert] { color: #991b1b; max-width: 180px; }
+
+/* Home search always displays day/month/year, regardless of browser locale. */
+.design-search-date .romanian-date-field { flex:1; min-width:0; gap:2px; }
+.design-search-date .romanian-date-field > label { font-size:12px; color:#536585; }
+.design-search-date .romanian-date-controls > input { min-width:0; flex:1; width:100%; }
+.design-search-date .romanian-date-picker { flex:0 0 30px; width:30px; height:30px; border:0; }
+.design-search-date .romanian-date-picker input { position:absolute; inset:0; width:100%; height:100%; min-height:0; padding:0; margin:0; opacity:0; cursor:pointer; }
