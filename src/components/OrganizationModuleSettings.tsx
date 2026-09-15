@@ -10,6 +10,6 @@ export function OrganizationModuleSettings({id,modules,owner,busy,onSave}:{id:st
  {owner&&<button className="v2-btn v2-btn-primary mt-4" disabled={busy}>Salvează modulele</button>}
  </form>
  <p className="text-sm text-muted my-4">La dezactivare, istoricul rămâne accesibil, iar lucrările confirmate pot fi finalizate din Rezervări. Noile rezervări și solicitări pentru proprietățile modulului sunt oprite. iCal necesită Curățenie între rezervări.</p>
- <div className="workspace-toolbar">{owner&&modules.business&&<Link className="v2-btn v2-btn-secondary" href={`/client/business?organizationId=${encodeURIComponent(id)}`}>Deschide Birouri și firme</Link>}{owner&&modules.host&&<Link className="v2-btn v2-btn-secondary" href={`/client/host?organizationId=${encodeURIComponent(id)}`}>Deschide Curățenie între rezervări</Link>}<Link className="v2-btn v2-btn-secondary" href="/colaborari">Solicitări și aprobări</Link></div>
+ <div className="workspace-toolbar">{owner&&<Link className="v2-btn v2-btn-secondary" href="/client/rapoarte">Rapoarte și arhivă</Link>}{owner&&modules.business&&<Link className="v2-btn v2-btn-secondary" href={`/client/business?organizationId=${encodeURIComponent(id)}`}>Deschide Birouri și firme</Link>}{owner&&modules.host&&<Link className="v2-btn v2-btn-secondary" href={`/client/host?organizationId=${encodeURIComponent(id)}`}>Deschide Curățenie între rezervări</Link>}<Link className="v2-btn v2-btn-secondary" href="/colaborari">Solicitări și aprobări</Link></div>
  </section>;
 }

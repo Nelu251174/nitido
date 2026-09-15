@@ -6,6 +6,8 @@ import { COLLABORATION_SCHEMA, executionAccess } from "@/lib/collaborationAccess
 import type { Database } from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 
+import {REPORT_ARCHIVE_SCHEMA} from './reportArchive';
+
 export const WORKSPACE_SCHEMA = `
 CREATE TABLE IF NOT EXISTS workspace_properties (
  id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id), name TEXT NOT NULL,
@@ -106,7 +108,7 @@ CREATE TABLE IF NOT EXISTS workspace_host_checks (
  updated_by TEXT NOT NULL REFERENCES users(id), updated_at TEXT NOT NULL,
  PRIMARY KEY(event_id,turnover_at,item_key)
 );
-` + COLLABORATION_SCHEMA + ORGANIZATION_SCHEMA;
+` + COLLABORATION_SCHEMA + ORGANIZATION_SCHEMA + REPORT_ARCHIVE_SCHEMA;
 import { CHECKLIST, HOST_CHECKLIST } from "@/lib/workspaceShared";
 export class WorkspaceError extends Error { constructor(message:string,public status=400){super(message)} }
 export function requireText(value:unknown,label:string,max=250) {

@@ -331,3 +331,8 @@ html{scrollbar-gutter:stable}
 .desktop-alert-settings{display:none}@media(min-width:761px) and (hover:hover) and (pointer:fine){.desktop-alert-settings{display:inline-flex}}
 
 .btn-aurora{background:var(--nitido-action-color);background-image:none}.btn-aurora:hover{background:var(--nitido-action-hover);background-image:none}
+
+.organization-create-form{align-items:flex-end;flex-wrap:wrap}.organization-create-form>label{display:flex;flex-direction:column;gap:0}.organization-create-form>button{min-height:44px;margin-bottom:0}
+.report-filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;margin:24px 0}.report-filters label{display:flex;flex-direction:column;gap:6px;min-width:160px;flex:1}.report-filters input,.report-filters select{width:100%;min-height:44px}.report-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:20px 0}
+
+.organization-create-form input,.organization-create-form>button{height:44px}
