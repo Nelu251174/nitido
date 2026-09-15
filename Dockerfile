@@ -15,6 +15,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# Public values are compiled by Next.js; production must receive its own values.
+# Secret keys must never be passed as build arguments.
+ARG NEXT_PUBLIC_SITE_URL
+ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 RUN npm run build
 
 FROM node:22-bookworm-slim AS runner
