@@ -133,7 +133,6 @@ export default function ClientPage() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({ name: "", email: "", phone: "" });
-  const [menuOpen, setMenuOpen] = useState(false);
   const [ratingDone, setRatingDone] = useState(false);
   const [myJobs, setMyJobs] = useState<JobRow[]>([]);
   const [offers, setOffers] = useState<OfferView[]>([]);
@@ -513,32 +512,14 @@ export default function ClientPage() {
   }
 
   const scrollToId = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  const navItems: { label: string; onSelect: () => void }[] = [
-    { label: "Acasă", onSelect: () => { setShowBooking(false); resetToForm(); window.scrollTo({ top: 0, behavior: "smooth" }); } },
-    { label: "Lucrările mele", onSelect: () => scrollToId("sec-lucrari") },
-    { label: "Mesaje", onSelect: () => router.push("/client/mesaje") },
-    { label: "Plăți", onSelect: () => scrollToId("sec-plata") },
-    { label: "Încredere & Siguranță", onSelect: () => scrollToId("sec-incredere") },
-    { label: "Cont", onSelect: () => scrollToId("sec-cont") },
-  ];
 
   return (
     <div className="approved-client min-h-screen bg-[#f7f9fc] flex max-[760px]:block">
       <aside className="w-[236px] shrink-0 bg-white border-r border-[#e2e8f0] p-5 flex flex-col sticky top-0 h-screen max-[760px]:w-full max-[760px]:h-auto max-[760px]:relative max-[760px]:border-r-0 max-[760px]:border-b max-[760px]:p-4">
         <div className="flex items-center justify-between">
           <Logo href="/client" onClick={()=>{setJob(null);setShowBooking(false);window.scrollTo(0,0)}} />
-          <button type="button" onClick={()=>setMenuOpen(o=>!o)} aria-expanded={menuOpen} aria-label="Meniu" className="hidden max-[760px]:inline-flex items-center gap-2 rounded-full border border-[#e2e8f0] bg-white px-4 py-2 text-sm font-semibold text-[#3e4842]">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">{menuOpen?<path d="M6 6l12 12M18 6 6 18"/>:<><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></>}</svg>
-            Meniu
-          </button>
         </div>
         <WorkspaceNav role="client" onNavigate={href=>{if(href==='/client'||href.startsWith('/client#')){setJob(null);setShowBooking(false)}}}/>
-        {menuOpen && (
-          <nav className="hidden max-[760px]:flex flex-col mt-3 rounded-2xl border border-[#e2e8f0] bg-white overflow-hidden text-sm font-semibold">
-            {navItems.map((it,i)=><button key={it.label} type="button" onClick={()=>{it.onSelect();setMenuOpen(false);}} className={`text-left px-4 py-3.5 text-[#3e4842] active:bg-[var(--nitido-brand-soft)] ${i>0?"border-t border-[#ecebe4]":""}`}>{it.label}</button>)}
-            <button type="button" onClick={()=>{setMenuOpen(false);logout();}} className="text-left px-4 py-3.5 text-[#c0392b] border-t border-[#ecebe4]">Ieși din cont</button>
-          </nav>
-        )}
         <div className="mt-auto max-[760px]:hidden"><div className="text-sm font-semibold">{user.name}</div><div className="text-xs text-[#6b756f] mt-1">{user.email}</div><button onClick={logout} className="text-xs text-[#64748b] mt-4">Ieși din cont</button></div>
       </aside>
       <main className="flex-1 min-w-0 px-8 py-8 max-[760px]:px-[22px] max-[760px]:pb-28">
