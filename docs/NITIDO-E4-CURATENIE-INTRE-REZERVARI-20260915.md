@@ -22,7 +22,7 @@ Trei tabele aditive în WORKSPACE_SCHEMA: workspace_host_settings, workspace_hos
 
 ## Limite și pași următori E4
 
-Sincronizarea automată prin URL iCal, programarea sincronizărilor și tratarea absențelor din export complet sunt etapa următoare. Importul curent este manual; un eveniment lipsă dintr-un import parțial nu este anulat implicit. Integrarea PMS bidirecțională nu este implementată. Activarea independentă și raportarea istorică extinsă rămân separate. Fără publicare nouă App Store/Google Play.
+Sincronizarea automată prin URL iCal este documentată în NITIDO-E4-ICAL-AUTOMAT-20260915.md. Importul manual rămâne disponibil separat; un eveniment lipsă dintr-un import parțial nu este anulat implicit. Integrarea PMS bidirecțională nu este implementată. Activarea independentă și raportarea istorică extinsă rămân separate. Fără publicare nouă App Store/Google Play.
 
 ## Validare
 

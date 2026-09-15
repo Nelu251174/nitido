@@ -53,6 +53,21 @@ CREATE TABLE IF NOT EXISTS workspace_calendar_events (
  status TEXT NOT NULL DEFAULT 'active', imported_at TEXT NOT NULL,
  UNIQUE(property_id,source,uid)
 );
+CREATE TABLE IF NOT EXISTS workspace_ical_connections (
+ id TEXT PRIMARY KEY, property_id TEXT NOT NULL UNIQUE REFERENCES workspace_properties(id),
+ owner_id TEXT NOT NULL REFERENCES users(id), name TEXT NOT NULL, hostname TEXT NOT NULL,
+ secret TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, full_export INTEGER NOT NULL DEFAULT 0,
+ version INTEGER NOT NULL DEFAULT 1, last_attempt TEXT, last_success TEXT, next_run TEXT NOT NULL,
+ error TEXT NOT NULL DEFAULT '', warning TEXT NOT NULL DEFAULT '', failures INTEGER NOT NULL DEFAULT 0,
+ event_count INTEGER NOT NULL DEFAULT 0, lease_token TEXT, lease_until TEXT,
+ created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS workspace_ical_due ON workspace_ical_connections(enabled,next_run);
+CREATE TABLE IF NOT EXISTS workspace_ical_missing (
+ connection_id TEXT NOT NULL REFERENCES workspace_ical_connections(id),
+ event_id TEXT NOT NULL REFERENCES workspace_calendar_events(id), misses INTEGER NOT NULL DEFAULT 0,
+ PRIMARY KEY(connection_id,event_id)
+);
 CREATE TABLE IF NOT EXISTS workspace_host_settings (
  property_id TEXT PRIMARY KEY REFERENCES workspace_properties(id),
  arrival_hour INTEGER NOT NULL DEFAULT 15 CHECK(arrival_hour BETWEEN 0 AND 23),
@@ -260,38 +275,52 @@ export function setChecklist(db:Database,userId:string,jobId:string,key:string,d
  }).immediate();
 }
 
-// Manual iCal import: no server-side URL fetch and no guest data copied into titles.
+// Shared strict iCal parser; no guest data copied into titles.
 export function parseCalendar(input:string) {
  if(Buffer.byteLength(input)>1_000_000)throw new WorkspaceError("Fișierul depășește 1 MB.");
- if(!input.includes("BEGIN:VCALENDAR")||!input.includes("END:VCALENDAR"))throw new WorkspaceError("Fișier iCal invalid.");
- const blocks=input.replace(/\r?\n[ \t]/g,"").split("BEGIN:VEVENT").slice(1);
+ if(!input.toUpperCase().includes("BEGIN:VCALENDAR")||!input.toUpperCase().includes("END:VCALENDAR"))throw new WorkspaceError("Fișier iCal invalid.");
+ const lines=input.replace(/^\uFEFF/,'').replace(/\r?\n[ \t]/g,'').split(/\r?\n/).filter(l=>l.trim());
+ if(lines[0]?.toUpperCase()!=='BEGIN:VCALENDAR'||lines.at(-1)?.toUpperCase()!=='END:VCALENDAR')throw new WorkspaceError('Export iCal incomplet.');
+ const stack:string[]=[],blocks:string[][]=[];let event:string[]|null=null;
+ for(const line of lines){
+  const marker=line.match(/^(BEGIN|END):([A-Z]+)$/i);
+  if(marker){const type=marker[2].toUpperCase();if(marker[1].toUpperCase()==='BEGIN'){
+   if(type==='VCALENDAR'&&stack.length)throw new WorkspaceError('Un singur calendar este acceptat.');
+   if(type==='VEVENT'){if(stack.join('/')!=='VCALENDAR')throw new WorkspaceError('Structură iCal invalidă.');event=[];}
+   stack.push(type);
+  }else{if(stack.pop()!==type)throw new WorkspaceError('Export iCal incomplet.');if(type==='VEVENT'&&event){blocks.push(event);event=null;}}continue;}
+  if(stack.join('/')==='VCALENDAR/VEVENT'&&event)event.push(line);
+ }
+ if(stack.length)throw new WorkspaceError('Export iCal incomplet.');
  if(blocks.length>1000)throw new WorkspaceError("Maximum 1.000 de evenimente per import.");
- return blocks.map(block=>{
-  const lines=block.split(/\r?\n/);const get=(name:string)=>lines.find(l=>l.startsWith(`${name}:`)||l.startsWith(`${name};`));
+ const events=blocks.map(lines=>{
+  const get=(name:string)=>{const found=lines.filter(l=>l.split(/[;:]/,1)[0].toUpperCase()===name);if(found.length>1)throw new WorkspaceError('Proprietăți iCal duplicate.');return found[0];};
   const val=(name:string)=>{const l=get(name);return l?.slice(l.indexOf(":")+1).trim()??""};
-  function date(name:string){const raw=val(name);if(!/^\d{8}(T\d{6}Z)?$/.test(raw))throw new WorkspaceError("Calendarul trebuie să folosească date întregi sau ore UTC (Z).");const iso=`${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`+(raw.length===8?"T00:00:00Z":`T${raw.slice(9,11)}:${raw.slice(11,13)}:${raw.slice(13,15)}Z`);const d=new Date(iso);if(!Number.isFinite(d.getTime())||d.toISOString().slice(0,10)!==iso.slice(0,10))throw new WorkspaceError("Dată invalidă în calendar.");return d.toISOString()}
-  const uid=requireText(val("UID"),"UID",500),status=val("STATUS")==="CANCELLED"?"cancelled":"active";
+  if(val('RRULE')||val('RDATE')||val('EXDATE')||val('RECURRENCE-ID'))throw new WorkspaceError('Exportă evenimente individuale; recurențele iCal nu sunt acceptate.');
+  function date(name:string){const raw=val(name);if(!/^\d{8}(T\d{6}Z)?$/.test(raw))throw new WorkspaceError("Calendarul trebuie să folosească date întregi sau ore UTC (Z).");const iso=`${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`+(raw.length===8?"T00:00:00Z":`T${raw.slice(9,11)}:${raw.slice(11,13)}:${raw.slice(13,15)}Z`);const d=new Date(iso);if(!Number.isFinite(d.getTime())||d.toISOString().replace(".000Z","Z")!==iso)throw new WorkspaceError("Dată invalidă în calendar.");return d.toISOString()}
+  const uid=requireText(val("UID"),"UID",500),status=val("STATUS").toUpperCase()==="CANCELLED"||val("TRANSP").toUpperCase()==="TRANSPARENT"?"cancelled":"active";
   if(status==="cancelled"&&!val("DTSTART"))return {uid,status,starts_at:"",ends_at:""};
   if((val("DTSTART").length===8)!==(val("DTEND").length===8))throw new WorkspaceError("Folosește același tip de dată pentru sosire și plecare.");
   const starts_at=date("DTSTART"),ends_at=date("DTEND");
   if(ends_at<=starts_at)throw new WorkspaceError("Interval calendaristic invalid.");
-  if(val("RRULE")||val("RECURRENCE-ID"))throw new WorkspaceError("Exportă evenimente individuale; recurențele iCal nu sunt acceptate la import.");
   return {uid,status,starts_at,ends_at,dateOnly:val("DTSTART").length===8&&val("DTEND").length===8};
  });
+ if(new Set(events.map(e=>e.uid)).size!==events.length)throw new WorkspaceError("Calendarul conține identificatori dubli.");
+ return events;
 }
-export function importCalendar(db:Database,userId:string,propertyId:string,source:string,input:string){
+export function importCalendar(db:Database,userId:string,propertyId:string,source:string,input:string,automatic=false){
  const key=requireText(source,"Sursă",80),events=parseCalendar(input),now=new Date().toISOString();
- if(key==='Manual NITIDO')throw new WorkspaceError('Alege alt nume pentru sursa importată.');
+ if(key==='Manual NITIDO'||(!automatic&&key.startsWith('iCal:')))throw new WorkspaceError('Alege alt nume pentru sursa importată.');
  if(new Set(events.map(e=>e.uid)).size!==events.length)throw new WorkspaceError('Calendarul conține identificatori dubli. Exportă evenimente individuale.');
  return db.transaction(()=>{
   const property=ownProperty(db,userId,propertyId);
   const settings=(db.prepare('SELECT * FROM workspace_host_settings WHERE property_id=?').get(propertyId)??HOST_DEFAULTS) as HostSettings;
   for(const e of events){
-   if(!e.starts_at){db.prepare("UPDATE workspace_calendar_events SET status='cancelled',imported_at=? WHERE property_id=? AND source=? AND uid=?").run(now,propertyId,key,e.uid);continue;}
+   if(!e.starts_at){db.prepare("UPDATE workspace_calendar_events SET status='cancelled',imported_at=? WHERE property_id=? AND source=? AND uid=? AND status<>'cancelled'").run(now,propertyId,key,e.uid);continue;}
    let starts=e.starts_at,ends=e.ends_at;
    if(property.kind==='host'&&e.dateOnly){try{starts=hostLocalInstant(e.starts_at.slice(0,10),settings.arrival_hour);ends=hostLocalInstant(e.ends_at.slice(0,10),settings.departure_hour);}catch(err){throw new WorkspaceError(err instanceof Error?err.message:'Dată invalidă.');}}
    if(ends<=starts)throw new WorkspaceError('Orele proprietății produc un interval invalid.');
-   db.prepare("INSERT INTO workspace_calendar_events VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(property_id,source,uid) DO UPDATE SET starts_at=excluded.starts_at,ends_at=excluded.ends_at,status=excluded.status,imported_at=excluded.imported_at").run(randomUUID(),propertyId,key,e.uid,starts,ends,"Perioadă ocupată",e.status,now);
+   db.prepare("INSERT INTO workspace_calendar_events VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(property_id,source,uid) DO UPDATE SET starts_at=excluded.starts_at,ends_at=excluded.ends_at,status=excluded.status,imported_at=CASE WHEN starts_at<>excluded.starts_at OR ends_at<>excluded.ends_at OR status<>excluded.status THEN excluded.imported_at ELSE imported_at END").run(randomUUID(),propertyId,key,e.uid,starts,ends,"Perioadă ocupată",e.status,now);
    const saved=db.prepare('SELECT id FROM workspace_calendar_events WHERE property_id=? AND source=? AND uid=?').get(propertyId,key,e.uid) as {id:string};
    if(property.kind==='host'&&e.dateOnly)db.prepare('INSERT INTO workspace_host_event_dates VALUES(?,?,?) ON CONFLICT(event_id) DO UPDATE SET arrival_date=excluded.arrival_date,departure_date=excluded.departure_date').run(saved.id,e.starts_at.slice(0,10),e.ends_at.slice(0,10));
    else db.prepare('DELETE FROM workspace_host_event_dates WHERE event_id=?').run(saved.id);
