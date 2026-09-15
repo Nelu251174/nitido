@@ -8,12 +8,12 @@ test('checks the local database endpoint and rejects failures without following 
  let mode='ok',redirectReached=false;
  const server=createServer((req,res)=>{
   if(req.url==='/redirect-target'){redirectReached=true;res.end('{}');return;}
-  assert.equal(req.url,'/api/stats/public');
+  assert.equal(req.url,'/api/health');
   assert.equal(req.headers.authorization,undefined);
   if(mode==='redirect'){res.writeHead(302,{location:'/redirect-target'});res.end();return;}
   if(mode==='failure'){res.writeHead(500);res.end('private database error');return;}
   res.setHeader('content-type','application/json');
-  res.end(mode==='ok'?JSON.stringify({completedJobs:0,verifiedFirms:1,ratingCount:0}):mode==='malformed'?'not json':JSON.stringify({completedJobs:0,verifiedFirms:-1,ratingCount:0}));
+  res.end(mode==='ok'?JSON.stringify({status:'ok'}):mode==='malformed'?'not json':JSON.stringify({status:'unavailable'}));
  });
  server.listen(0,'127.0.0.1');await once(server,'listening');
  const env={PORT:String(server.address().port)};

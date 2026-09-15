@@ -1,9 +1,12 @@
+import {siteIndexingEnabled} from '@/lib/siteIndexing';
+export const dynamic='force-dynamic';
 import type { MetadataRoute } from "next";
 import { CITIES } from "@/lib/cities";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://nitido.ro";
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  if(!siteIndexingEnabled())return [];
   const now = new Date();
 
   const staticRoutes: { path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }[] = [
