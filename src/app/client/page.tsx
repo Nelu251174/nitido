@@ -1,4 +1,6 @@
 "use client";
+import {EntrancePicker} from "@/components/EntrancePicker";
+import {validEntrance,type Entrance} from "@/lib/entrance";
 import {VisitCare} from "@/components/VisitCare";
 import {SeriesChanges} from "@/components/SeriesChanges";
 import {RescheduleVisit} from '@/components/RescheduleVisit';
@@ -115,6 +117,7 @@ export default function ClientPage() {
   const [showBooking,setShowBooking]=useState(false);
   const [historyFilter,setHistoryFilter]=useState("");
   const [cardConfigured,setCardConfigured]=useState(false);
+  const [entrance,setEntrance]=useState<Entrance|null>(null);
   const [street, setStreet] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [city, setCity] = useState("");
@@ -166,7 +169,7 @@ export default function ClientPage() {
       try{draft=takeBookingDraft(window.sessionStorage,user.id);}catch{/* Browser storage may be unavailable. */}
       if(draft){
         // eslint-disable-next-line react-hooks/set-state-in-effect -- restore external tab storage only after the authenticated account is known
-        setStreet(draft.street);setPostalCode(draft.postalCode);setCity(draft.city);setFloor(draft.floor);setDetails(draft.details);
+        setEntrance(draft.entrance??null);setStreet(draft.street);setPostalCode(draft.postalCode);setCity(draft.city);setFloor(draft.floor);setDetails(draft.details);
         setWindowsSqm(draft.windowsSqm??0);setSqm(draft.sqm);setSpaceType(draft.spaceType);setWhenType(draft.whenType);setMode(draft.mode);setExpress60(draft.express60);
         setScheduledDate(draft.scheduledDate);setScheduledHour(draft.scheduledHour);
         restoredCardId.current=draft.cardId??null;
@@ -282,7 +285,7 @@ export default function ClientPage() {
       }
       if(showBooking){
         let saved=false;
-        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{street,postalCode,city,floor,details,sqm,windowsSqm,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,hostEventId,hostRevision,photos,cardId:selectedCardId}));}catch{/* Storage can be blocked by the browser. */}
+        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{street,postalCode,city,floor,details,sqm,windowsSqm,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,hostEventId,hostRevision,photos,cardId:selectedCardId,entrance:entrance&&validEntrance(entrance,{street,city,postalCode})?entrance:undefined}));}catch{/* Storage can be blocked by the browser. */}
         if(!saved){setCardError('Rezervarea nu poate fi păstrată în această filă. Permite stocarea pentru site și încearcă din nou.');setCardBusy(false);return;}
       }else{try{clearBookingDraft(window.sessionStorage);}catch{/* No draft to preserve. */}}
       window.location.href = d.url; // redirect către pagina de card găzduită de Stripe
@@ -347,6 +350,7 @@ export default function ClientPage() {
     setSubmitting(true);
     try {
       const body: Record<string, unknown> = {
+        entrance:entrance&&validEntrance(entrance,{street,city,postalCode})?entrance:undefined,
         street,
         postalCode,
         city,
@@ -608,6 +612,7 @@ export default function ClientPage() {
                 <input className={inputClass} value={city} onChange={(e) => setCity(e.target.value)} />
               </Field>
             </div>
+            <EntrancePicker key={JSON.stringify([street,city,postalCode])} address={{street,city,postalCode}} value={entrance} onChange={setEntrance}/>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Etaj">
                 <input className={inputClass} value={floor} onChange={(e) => setFloor(e.target.value)} />

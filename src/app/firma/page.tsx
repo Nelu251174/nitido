@@ -13,7 +13,7 @@ import {bucharestDay} from "@/lib/monthlyFirmEarnings";
 import {FirmSummary} from "@/components/FirmSummary";
 import { Logo, Card, Button, inputClass } from "@/components/ui";
 
-import { mapsDirectionsUrl } from "@/lib/maps";
+import {JobNavigation} from "@/components/JobNavigation";
 import { JobRow } from "@/lib/types";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { authSwitchHref } from "@/lib/authRedirect";
@@ -410,19 +410,7 @@ export default function FirmaPage() {
               <Card key={job.id}>
                 {(() => { const hasArrival=job.proofs?.some(p=>p.type==="ARRIVAL")??false; const hasCompletion=job.proofs?.some(p=>p.type==="COMPLETION")??false; return <>
                 {job.guarantee_of && <span className="inline-block bg-[#a9781f] text-white text-[10px] font-display font-bold px-2.5 py-1 rounded-full mb-2">♻ RE-CURĂȚARE ÎN GARANȚIE · gratuită</span>}
-                <a
-                  href={mapsDirectionsUrl(job)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-display font-bold text-sm text-ink mb-1 flex items-center gap-1.5 hover:text-aqua-deep transition-colors"
-                >
-                  <span className="underline decoration-dotted underline-offset-2">
-                    {job.street}, {job.city}
-                  </span>
-                  <span className="text-aqua-deep text-[11px] font-semibold whitespace-nowrap">
-                    📍 vezi traseul →
-                  </span>
-                </a>
+                <JobNavigation jobId={job.id} address={`${job.street}, ${job.city}`}/>
                 <div className="text-[11px] text-muted mb-3">
                   Se deschide în Google Maps — durată și distanță până la locație
                 </div>
