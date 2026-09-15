@@ -4,13 +4,14 @@ type Connection={id:string;name:string;hostname:string;enabled:number;connected:
 const time=(value:string|null)=>value?new Date(value).toLocaleString('ro-RO',{timeZone:'Europe/Bucharest',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'Încă nesincronizat';
 export function HostCalendarSync({propertyId,onChanged}:{propertyId:string;onChanged:()=>Promise<void>}){
  const [connection,setConnection]=useState<Connection|null>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[editing,setEditing]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ const [moduleEnabled,setModuleEnabled]=useState(true);
  const [sources,setSources]=useState<{source:string}[]>([]),[importSource,setImportSource]=useState('');
  const [name,setName]=useState('Calendar proprietate'),[url,setUrl]=useState(''),[authorized,setAuthorized]=useState(false),[full,setFull]=useState(false);
  const lastSuccess=useRef<string|null|undefined>(undefined),onChangedRef=useRef(onChanged);
  useEffect(()=>{onChangedRef.current=onChanged;},[onChanged]);
  const load=useCallback(async(signal?:AbortSignal)=>{
   try{const r=await fetch(`/api/host-calendar?propertyId=${encodeURIComponent(propertyId)}`,{signal});const d=await r.json();if(!r.ok)throw new Error(d.error);if(signal?.aborted)return;
-   setConnection(d.connection);setSources(d.sources??[]);setLoading(false);
+   setConnection(d.connection);setSources(d.sources??[]);setModuleEnabled(d.moduleEnabled!==false);setLoading(false);
    const success=d.connection?.last_success??null;if(success!==lastSuccess.current){const previous=lastSuccess.current;lastSuccess.current=success;if(previous!==undefined&&success)await onChangedRef.current();}
   }catch(e){if(!signal?.aborted){setError(e instanceof Error?e.message:'Calendar indisponibil.');setLoading(false);}}
  },[propertyId]);
@@ -20,6 +21,7 @@ export function HostCalendarSync({propertyId,onChanged}:{propertyId:string;onCha
   setBusy(true);setError('');setNotice('');
   try{const r=await fetch('/api/host-calendar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,propertyId,version:connection?.version,...(action==='connect'?{name,url,authorized,fullExport:full,importSource}:{})})});const d=await r.json();if(!r.ok)throw new Error(d.error);setConnection(d.connection);setEditing(false);setUrl('');setAuthorized(false);await onChangedRef.current();setNotice(action==='connect'?'Calendar conectat. Prima sincronizare pornește automat în aproximativ un minut.':action==='sync'?'Calendar actualizat.':'Setările calendarului au fost salvate.');}catch(e){setError(e instanceof Error?e.message:'Modificarea nu a reușit.');await load();}finally{setBusy(false);}
  }
+ if(!moduleEnabled)return <section className="host-hours"><h3 className="font-bold text-lg">Sincronizare iCal dezactivată</h3><p>Modulul nu este activ în organizația acestei proprietăți. Titularul îl poate activa din Organizații, apoi poate relua conexiunea calendarului.</p><a className="v2-btn v2-btn-secondary mt-3" href="/client/organizatii">Modulele organizației</a></section>;
  return <section className="host-hours" id="calendar-automat" aria-label="Sincronizare automată iCal">
   <h3 className="font-bold text-lg">Calendar conectat · sincronizare automată</h3>
   <p className="booking-muted">Conectează linkul de export iCal al acestei proprietăți. Verificăm modificările la fiecare 15 minute, inclusiv când pagina este închisă. Perioadele ocupate se actualizează; tu confirmi separat curățenia.</p>

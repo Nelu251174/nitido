@@ -1,5 +1,5 @@
 import {HOST_DEFAULTS,hostLocalInstant,type HostSettings} from './hostScheduleShared';
-import {propertyOrganization,ORGANIZATION_SCHEMA} from "./organizations";
+import {requirePropertyModule,propertyOrganization,ORGANIZATION_SCHEMA} from "./organizations";
 import {firmAvailabilityError} from "./firmAvailability";
 import {notice} from "./visitCare";
 import { COLLABORATION_SCHEMA, executionAccess } from "@/lib/collaborationAccess";
@@ -186,7 +186,7 @@ export function saveProperty(db:Database,userId:string,b:Record<string,unknown>)
  const notes=String(b.notes??"").trim(),center=String(b.cost_center??"").trim();
  if(notes.length>2000||center.length>100)throw new WorkspaceError("Detaliile sunt prea lungi.");
  const existing=typeof b.id==="string"?ownProperty(db,userId,b.id):null;
- if(existing&&propertyOrganization(db,existing.id)&&b.kind!=="business")throw new WorkspaceError("Elimină locația din organizație înainte de schimbarea utilizării.",409);
+ if(existing&&propertyOrganization(db,existing.id)&&b.kind!==existing.kind)throw new WorkspaceError("Elimină locația din organizație înainte de schimbarea utilizării.",409);
  const postal=String(b.postal_code??existing?.postal_code??"" ).trim(),floor=String(b.floor??existing?.floor??"" ).trim();
  if(postal.length>20||floor.length>40)throw new WorkspaceError("Codul poștal sau etajul este prea lung.");
  const roomValue=b.rooms===undefined?existing?.rooms:b.rooms;
@@ -314,6 +314,7 @@ export function importCalendar(db:Database,userId:string,propertyId:string,sourc
  if(new Set(events.map(e=>e.uid)).size!==events.length)throw new WorkspaceError('Calendarul conține identificatori dubli. Exportă evenimente individuale.');
  return db.transaction(()=>{
   const property=ownProperty(db,userId,propertyId);
+  requirePropertyModule(db,propertyId,automatic?'ical':undefined);
   const settings=(db.prepare('SELECT * FROM workspace_host_settings WHERE property_id=?').get(propertyId)??HOST_DEFAULTS) as HostSettings;
   for(const e of events){
    if(!e.starts_at){db.prepare("UPDATE workspace_calendar_events SET status='cancelled',imported_at=? WHERE property_id=? AND source=? AND uid=? AND status<>'cancelled'").run(now,propertyId,key,e.uid);continue;}

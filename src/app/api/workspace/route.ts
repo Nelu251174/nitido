@@ -1,4 +1,4 @@
-import {enforceOrganizationBooking,OrganizationError} from "@/lib/organizations";
+import {organizationModules,propertyModuleEnabled,requirePropertyModule,enforceOrganizationBooking,OrganizationError} from "@/lib/organizations";
 import {enforcePropertyBudget,AccessError} from "@/lib/collaborationAccess";
 import {manageTeam,configureTeamTiming} from "@/lib/workspace";
 import {previewPropertyImport,commitPropertyImport} from "@/lib/propertyImport";
@@ -30,7 +30,7 @@ export async function GET(req:NextRequest){
  EXISTS(SELECT 1 FROM visit_cases c WHERE c.job_id=j.id AND c.status NOT IN ('resolved','closed')) issue,
  EXISTS(SELECT 1 FROM job_reschedule_requests r WHERE r.job_id=j.id AND r.status='pending') reschedule
  FROM jobs j WHERE j.accepted_firm_id=? AND (EXISTS(SELECT 1 FROM visit_cases c WHERE c.job_id=j.id AND c.status NOT IN ('resolved','closed')) OR EXISTS(SELECT 1 FROM job_reschedule_requests r WHERE r.job_id=j.id AND r.status='pending'))`).all(firm.id):[];
- return response({dailyActions,preferredFirms,firms,inventoryHistory:user.role==="client"?inventoryHistory(db,user.id):[],inventory:user.role==="client"?hostInventory(db,user.id):[],blocks:firm?teamBlocks(db,user.id):[],properties,teams,assignments,checklist,events,propertyJobs,hostChecks:user.role==="client"?hostChecks(db,user.id):[]});
+ return response({organizations:user.role==='client'?(db.prepare('SELECT id,name FROM workspace_organizations WHERE owner_id=? ORDER BY name').all(user.id) as {id:string;name:string}[]).map(o=>({...o,modules:organizationModules(db,o.id)})):[],dailyActions,preferredFirms,firms,inventoryHistory:user.role==="client"?inventoryHistory(db,user.id):[],inventory:user.role==="client"?hostInventory(db,user.id):[],blocks:firm?teamBlocks(db,user.id):[],properties:(properties as {id:string;kind:string}[]).map(p=>({...p,module_enabled:p.kind==='host'?propertyModuleEnabled(db,p.id,'host'):p.kind==='business'?propertyModuleEnabled(db,p.id,'business'):true})),teams,assignments,checklist,events,propertyJobs,hostChecks:user.role==="client"?hostChecks(db,user.id):[]});
 }
 export async function POST(req:NextRequest){
  const user=await getCurrentUser(req);if(!user)return response({error:"Autentificare nécessaire"},401);
@@ -42,6 +42,11 @@ export async function POST(req:NextRequest){
   const raw=await req.text();if(Buffer.byteLength(raw)>1_100_000)throw new WorkspaceError("Cerere prea mare",413);
   const b=JSON.parse(raw) as Record<string,unknown>;
   if(!b||typeof b!=="object")throw new WorkspaceError("Cerere invalidă");
+  return db.transaction(()=>{
+  if(user.role==='client'&&b.action!=='property.link'){
+   const candidate=typeof b.propertyId==='string'?b.propertyId:b.action==='property.save'&&typeof b.id==='string'?b.id:typeof b.itemId==='string'?(db.prepare('SELECT property_id FROM workspace_host_inventory WHERE id=?').get(b.itemId) as {property_id:string}|undefined)?.property_id:typeof b.eventId==='string'?(db.prepare('SELECT property_id FROM workspace_calendar_events WHERE id=?').get(b.eventId) as {property_id:string}|undefined)?.property_id:null;
+   if(candidate&&db.prepare('SELECT 1 FROM workspace_properties WHERE id=? AND owner_id=? AND archived=0').get(candidate,user.id))requirePropertyModule(db,candidate);
+  }
   switch(b.action){
    case "inventory.create":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);return response({id:createInventoryItem(db,user.id,requireText(b.propertyId,"Proprietate"),requireText(b.name,"Articol",100),requireText(b.unit,"Unitate",30),Number(b.threshold))});
    case "inventory.threshold":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);setInventoryThreshold(db,user.id,requireText(b.itemId,"Articol"),Number(b.threshold));break;
@@ -65,5 +70,6 @@ export async function POST(req:NextRequest){
    default:throw new WorkspaceError("Acțiune invalidă");
   }
   return response({ok:true});
+  }).immediate();
  }catch(e){if(e instanceof WorkspaceError||e instanceof OrganizationError||e instanceof AccessError)return response({error:e.message},e.status);if(e instanceof SyntaxError)return response({error:"Cerere invalidă"},400);console.error("[workspace] operation_failed");return response({error:"Operația nu a putut fi salvată. Reîncearcă."},500)}
 }

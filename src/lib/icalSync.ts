@@ -1,3 +1,4 @@
+import {propertyModuleEnabled,requirePropertyModule} from './organizations';
 import type {Database} from 'better-sqlite3';
 import {randomUUID} from 'node:crypto';
 import {WorkspaceError,ownProperty,requireText,parseCalendar,importCalendar} from './workspace';
@@ -17,11 +18,11 @@ export function manualCalendarSources(db:Database,userId:string,propertyId:strin
  return db.prepare("SELECT DISTINCT source FROM workspace_calendar_events WHERE property_id=? AND source<>'Manual NITIDO' AND source NOT LIKE 'iCal:%' ORDER BY source").all(propertyId) as {source:string}[];
 }
 export function saveConnection(db:Database,userId:string,propertyId:string,b:Record<string,unknown>){
- property(db,userId,propertyId);
+ property(db,userId,propertyId);requirePropertyModule(db,propertyId,'ical');
  const url=calendarUrl(requireText(b.url,'Link iCal',4096)),name=requireText(b.name,'Numele calendarului',60);
  if(b.authorized!==true)throw new WorkspaceError('Confirmă că poți conecta acest calendar.');
  return db.transaction(()=>{
-  property(db,userId,propertyId);
+  property(db,userId,propertyId);requirePropertyModule(db,propertyId,'ical');
   const old=db.prepare('SELECT * FROM workspace_ical_connections WHERE property_id=? AND owner_id=?').get(propertyId,userId) as Connection|undefined;
   if(old&&b.version!==old.version)throw new WorkspaceError('Conexiunea s-a schimbat. Reîncarcă pagina.',409);
   const id=old?.id??randomUUID(),secret=sealCalendarUrl(url.toString(),id);
@@ -43,6 +44,7 @@ export function controlConnection(db:Database,userId:string,propertyId:string,b:
   property(db,userId,propertyId);const c=db.prepare('SELECT * FROM workspace_ical_connections WHERE property_id=? AND owner_id=?').get(propertyId,userId) as Connection|undefined;
   if(!c)throw new WorkspaceError('Calendar neconectat.',404);
   if(c.version!==b.version)throw new WorkspaceError('Conexiunea s-a schimbat. Reîncarcă pagina.',409);
+  if(b.action==='resume')requirePropertyModule(db,propertyId,'ical');
   if(b.action==='pause'||b.action==='resume'){
    if(!c.secret)throw new WorkspaceError('Introdu din nou linkul calendarului.');
    db.prepare('UPDATE workspace_ical_connections SET enabled=?,version=version+1,next_run=?,lease_token=NULL,lease_until=NULL WHERE id=?').run(b.action==='resume'?1:0,after(0),c.id);
@@ -58,6 +60,7 @@ export async function syncConnection(db:Database,id:string,manualOwner?:string){
   const row=db.prepare(`SELECT c.* FROM workspace_ical_connections c JOIN workspace_properties p ON p.id=c.property_id
    JOIN users u ON u.id=c.owner_id WHERE c.id=? AND p.owner_id=c.owner_id AND p.archived=0 AND p.kind='host' AND u.role='client'`).get(id) as Connection|undefined;
   if(!row||(manualOwner&&row.owner_id!==manualOwner))throw new WorkspaceError('Calendar inexistent.',404);
+  requirePropertyModule(db,row.property_id,'ical');
   if(!row.enabled)throw new WorkspaceError('Reia sincronizarea calendarului înainte de actualizare.',409);
   if(row.lease_until&&row.lease_until>now)throw new WorkspaceError('Sincronizare în curs. Revino în câteva secunde.',409);
   if(manualOwner&&row.last_attempt&&Date.parse(row.last_attempt)>Date.now()-60000)throw new WorkspaceError('Poți actualiza calendarul o dată pe minut.',429);
@@ -69,7 +72,7 @@ export async function syncConnection(db:Database,id:string,manualOwner?:string){
   const input=await downloadCalendar(openCalendarUrl(c.secret,c.id));const events=parseCalendar(input);
   db.transaction(()=>{
    const current=db.prepare('SELECT * FROM workspace_ical_connections WHERE id=? AND version=? AND lease_token=? AND enabled=1').get(id,c.version,token) as Connection|undefined;
-   if(!current)return;property(db,c.owner_id,c.property_id);
+   if(!current||!propertyModuleEnabled(db,c.property_id,'ical'))return;property(db,c.owner_id,c.property_id);
    importCalendar(db,c.owner_id,c.property_id,`iCal:${id}`,input,true);
    let pending=0,cancelled=0;
    const present=new Set(events.map(e=>e.uid));
@@ -103,10 +106,10 @@ export function startIcalScheduler(db:Database){
  const tick=async()=>{
   if(global.__nitidoIcalRunning)return;global.__nitidoIcalRunning=true;
   try{
-   const due=db.prepare(`SELECT c.id FROM workspace_ical_connections c JOIN workspace_properties p ON p.id=c.property_id JOIN users u ON u.id=c.owner_id
+   const due=db.prepare(`SELECT c.id,c.property_id FROM workspace_ical_connections c JOIN workspace_properties p ON p.id=c.property_id JOIN users u ON u.id=c.owner_id
     WHERE c.enabled=1 AND c.next_run<=? AND (c.lease_until IS NULL OR c.lease_until<=?) AND p.owner_id=c.owner_id AND p.archived=0 AND p.kind='host' AND u.role='client'
-    ORDER BY c.next_run LIMIT 20`).all(after(0),after(0)) as {id:string}[];
-   for(const c of due){try{await syncConnection(db,c.id);}catch{/* No secret URL or provider error is logged. */}}
+    ORDER BY c.next_run LIMIT 20`).all(after(0),after(0)) as {id:string;property_id:string}[];
+   for(const c of due){if(!propertyModuleEnabled(db,c.property_id,'ical'))continue;try{await syncConnection(db,c.id);}catch{/* No secret URL or provider error is logged. */}}
   }catch{console.error('[ical] scheduler_failed');}finally{global.__nitidoIcalRunning=false;}
  };
  global.__nitidoIcalTimer=setInterval(()=>void tick(),60000);global.__nitidoIcalTimer.unref();

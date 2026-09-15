@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import {DesignIcon,type DesignIconName} from './DesignIcon';
-export function OperationsSectionNav({screen}:{screen:'host'|'business'}){
+export function OperationsSectionNav({screen,disabled=false}:{screen:'host'|'business';disabled?:boolean}){
  const items:{label:string;href:string;icon:DesignIconName}[]=screen==='host'?[
  {label:'Proprietăți',href:'#locatii',icon:'home'},
  {label:'Curățenie între rezervări',href:'#plan-curatenie',icon:'calendar'},
@@ -16,5 +16,5 @@ export function OperationsSectionNav({screen}:{screen:'host'|'business'}){
  {label:'Documente',href:'#rapoarte',icon:'briefcase'},
  {label:'Membri',href:'/colaborari',icon:'users'},
  ];
- return <nav className="operations-section-nav" aria-label={screen==='host'?'Meniu gazdă':'Meniu business'}>{items.map(i=><Link href={i.href} key={i.label}><DesignIcon name={i.icon} size={20}/>{i.label}</Link>)}<Link href="/client"><DesignIcon name="arrow" size={20}/>Înapoi în cont</Link></nav>;
+ return <nav className="operations-section-nav" aria-label={screen==='host'?'Meniu gazdă':'Meniu business'}>{disabled?<Link href="/client/organizatii"><DesignIcon name="settings" size={20}/>Modulele organizației</Link>:items.map(i=><Link href={i.href} key={i.label}><DesignIcon name={i.icon} size={20}/>{i.label}</Link>)}<Link href="/client"><DesignIcon name="arrow" size={20}/>Înapoi în cont</Link></nav>;
 }

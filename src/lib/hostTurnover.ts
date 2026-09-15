@@ -1,3 +1,4 @@
+import {requirePropertyModule} from './organizations';
 import type {Database} from 'better-sqlite3';
 import {createHash,randomUUID} from 'node:crypto';
 import {ownProperty,requireText,WorkspaceError} from './workspace';
@@ -83,6 +84,7 @@ export function turnoverReplay(db:Database,userId:string,eventId:string){
  return db.prepare("SELECT j.* FROM workspace_host_jobs h JOIN jobs j ON j.id=h.job_id JOIN workspace_calendar_events e ON e.id=h.event_id JOIN workspace_properties p ON p.id=e.property_id WHERE h.event_id=? AND p.owner_id=? AND j.client_id=? AND j.status NOT IN ('cancelled','no_show') ORDER BY h.created_at DESC LIMIT 1").get(eventId,userId,userId) as JobRow|undefined;
 }
 export function validateTurnoverBooking(db:Database,userId:string,body:Record<string,unknown>,date:string,duration:number,buffer:number){
+ requirePropertyModule(db,String(body.propertyId),'host');
  const eventId=requireText(body.hostEventId,'Perioadă',100),propertyId=requireText(body.propertyId,'Proprietate',100),ctx=context(db,userId,propertyId),w=windowFor(ctx,eventId);
  if(w.revision!==body.hostRevision)throw new WorkspaceError('Calendarul sau proprietatea s-a modificat. Revino la Curățenie între rezervări și alege propunerea actualizată.',409);
  if(w.problem)throw new WorkspaceError(w.problem,409);

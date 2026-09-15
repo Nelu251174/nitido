@@ -1,4 +1,4 @@
-import {acceptOrganizationInvite,propertyOrganization,organizationRole,organizationAudit} from "./organizations";
+import {requirePropertyModule,acceptOrganizationInvite,propertyOrganization,organizationRole,organizationAudit} from "./organizations";
 import {notice} from "./visitCare";
 import type { Database } from "better-sqlite3";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
@@ -112,6 +112,7 @@ export function createApproval(db:Database,userId:string,b:{propertyId:string;da
  return db.transaction(()=>{
   const role=resourceRole(db,userId,"property",b.propertyId);
   if(!["owner","manager"].includes(role??""))throw new AccessError("Nu poți solicita lucrări pentru această locație.",403);
+  requirePropertyModule(db,b.propertyId);
   const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Bucharest"}).format(new Date());
   if(!/^\d{4}-\d{2}-\d{2}$/.test(b.date)||b.date<today||!Number.isFinite(new Date(b.date).getTime())||new Date(b.date).toISOString().slice(0,10)!==b.date)throw new AccessError("Alege o dată validă, astăzi sau în viitor.");
   if(!b.requestKey||b.requestKey.length>100||b.note.length>2000)throw new AccessError("Cerere invalidă.");
@@ -140,6 +141,7 @@ export function decideApproval(db:Database,userId:string,id:string,approve:boole
    if(a.organization_id!==org.id||a.policy_revision!==org.revision)throw new AccessError('Politica s-a modificat. Creează o solicitare nouă.',409);
    if(approve&&org.separate_approver&&a.requested_by===userId)throw new AccessError('Solicitantul nu poate aproba propria cerere. Este necesar alt aprobator.',403);
   }else if(a.owner_id!==userId)throw new AccessError("Numai titularul locației poate decide.",403);
+  if(approve)requirePropertyModule(db,a.property_id);
   if(a.status!=="pending"&&!(a.status==="approved"&&!approve))throw new AccessError("Solicitarea a fost deja decisă.",409);
   if(approve&&a.date<new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Bucharest"}).format(new Date()))throw new AccessError("Data solicitată a trecut. Creează o solicitare nouă.",409);
   if(approve&&a.budget_enforced&&propertyMonthTotal(db,a.property_id,a.date.slice(0,7))+a.price_bani>a.budget_bani)throw new AccessError("Bugetul lunar nu acoperă această solicitare. Actualizează bugetul înainte de aprobare.",409);

@@ -1,4 +1,4 @@
-import {enforceOrganizationBooking,OrganizationError} from "./organizations";
+import {requirePropertyModule,enforceOrganizationBooking,OrganizationError} from "./organizations";
 import {snapshotInstructions,notice} from "./visitCare";
 import { bucharestScheduledAt } from "@/lib/scheduling";
 export { bucharestScheduledAt } from "@/lib/scheduling";
@@ -101,6 +101,7 @@ export function createRecurringPlan(db: Database, input: RecurringPlanInput): Pl
   const payloadHash=createHash("sha256").update(JSON.stringify([input.preferredFirmId??null,input.frequency,input.street.trim(),input.postalCode??null,input.city.trim(),input.floor??null,input.sqm,input.spaceType,input.hour,input.details?.trim()||null,input.startDate,input.endDate??null,input.propertyId??null])).digest("hex");
   return db.transaction(():PlanResult=>{
   if(input.propertyId!=null&&(typeof input.propertyId!=='string'||!db.prepare('SELECT 1 FROM workspace_properties WHERE id=? AND owner_id=? AND archived=0').get(input.propertyId,input.clientId)))return {ok:false,status:404,error:'Proprietate indisponibilă.'};
+  if(input.propertyId){try{requirePropertyModule(db,input.propertyId);}catch(e){if(e instanceof OrganizationError)return {ok:false,status:e.status,error:e.message};throw e;}}
   if(input.requestId){
     const prior=db.prepare("SELECT plan_id,payload_hash FROM recurring_creation_requests WHERE client_id=? AND request_id=?").get(input.clientId,input.requestId) as {plan_id:string;payload_hash:string}|undefined;
     if(prior)return prior.payload_hash===payloadHash?{ok:true,planId:prior.plan_id}:{ok:false,status:409,error:"Cererea a fost deja folosită cu alte date. Verifică abonamentele înainte de a crea unul nou."};

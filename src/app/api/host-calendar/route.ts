@@ -1,3 +1,4 @@
+import {OrganizationError,propertyModuleEnabled} from '@/lib/organizations';
 import {NextRequest,NextResponse} from 'next/server';
 import {db} from '@/lib/db';
 import {getCurrentUser} from '@/lib/auth';
@@ -8,9 +9,9 @@ export const runtime='nodejs';
 const response=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:{'Cache-Control':'private, no-store'}});
 export async function GET(req:NextRequest){
  const user=await getCurrentUser(req);if(!user)return response({error:'Autentificare necesară.'},401);if(user.role!=='client')return response({error:'Acces interzis.'},403);
- try{const propertyId=requireText(req.nextUrl.searchParams.get('propertyId'),'Proprietate',100);return response({connection:connectionStatus(db,user.id,propertyId),sources:manualCalendarSources(db,user.id,propertyId)});}catch(e){return failure(e);}
+ try{const propertyId=requireText(req.nextUrl.searchParams.get('propertyId'),'Proprietate',100);return response({connection:connectionStatus(db,user.id,propertyId),moduleEnabled:propertyModuleEnabled(db,propertyId,'ical'),sources:manualCalendarSources(db,user.id,propertyId)});}catch(e){return failure(e);}
 }
-function failure(e:unknown){if(e instanceof WorkspaceError)return response({error:e.message},e.status);if(e instanceof SyntaxError)return response({error:'Cerere invalidă.'},400);return response({error:'Calendarul nu poate fi actualizat momentan.'},500);}
+function failure(e:unknown){if(e instanceof WorkspaceError||e instanceof OrganizationError)return response({error:e.message},e.status);if(e instanceof SyntaxError)return response({error:'Cerere invalidă.'},400);return response({error:'Calendarul nu poate fi actualizat momentan.'},500);}
 export async function POST(req:NextRequest){
  const user=await getCurrentUser(req);if(!user)return response({error:'Autentificare necesară.'},401);if(user.role!=='client'||!hasTrustedMutationOrigin(req))return response({error:'Acces interzis.'},403);
  if(!consumeRateLimit(`ical:${user.id}`,12,60000))return response({error:'Prea multe cereri. Revino într-un minut.'},429);

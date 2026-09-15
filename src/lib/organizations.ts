@@ -1,3 +1,4 @@
+import {ORGANIZATION_MODULES,type OrganizationModule,type OrganizationModules} from './organizationModulesShared';
 import type {Database} from 'better-sqlite3';
 import {createHash,randomBytes,randomUUID} from 'node:crypto';
 
@@ -12,6 +13,14 @@ CREATE TABLE IF NOT EXISTS workspace_organizations (
  revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS workspace_organizations_owner ON workspace_organizations(owner_id);
+CREATE TABLE IF NOT EXISTS workspace_organization_modules (
+ organization_id TEXT PRIMARY KEY REFERENCES workspace_organizations(id),
+ business INTEGER NOT NULL DEFAULT 1 CHECK(business IN (0,1)),
+ host INTEGER NOT NULL DEFAULT 0 CHECK(host IN (0,1)),
+ ical INTEGER NOT NULL DEFAULT 0 CHECK(ical IN (0,1)),
+ revision INTEGER NOT NULL DEFAULT 1,
+ CHECK(ical=0 OR host=1)
+);
 CREATE TABLE IF NOT EXISTS workspace_organization_properties (
  property_id TEXT PRIMARY KEY REFERENCES workspace_properties(id),
  organization_id TEXT NOT NULL REFERENCES workspace_organizations(id)
@@ -48,6 +57,35 @@ export function propertyOrganization(db:Database,propertyId:string){
  return db.prepare(`SELECT o.* FROM workspace_organizations o JOIN workspace_organization_properties op ON op.organization_id=o.id
  JOIN workspace_properties p ON p.id=op.property_id AND p.owner_id=o.owner_id WHERE op.property_id=?`).get(propertyId) as Organization|undefined;
 }
+export function organizationModules(db:Database,id:string):OrganizationModules{
+ const row=db.prepare('SELECT business,host,ical,revision FROM workspace_organization_modules WHERE organization_id=?').get(id) as {business:number;host:number;ical:number;revision:number}|undefined;
+ return row?{business:!!row.business,host:!!row.host,ical:!!row.ical,revision:row.revision}:{business:true,host:false,ical:false,revision:0};
+}
+export function propertyModuleEnabled(db:Database,propertyId:string,module:OrganizationModule){
+ const org=propertyOrganization(db,propertyId);if(!org)return true;
+ const modules=organizationModules(db,org.id);return modules[module]&&(module!=='ical'||modules.host);
+}
+export function requirePropertyModule(db:Database,propertyId:string,module?:OrganizationModule){
+ const kind=(db.prepare('SELECT kind FROM workspace_properties WHERE id=?').get(propertyId) as {kind:string}|undefined)?.kind;
+ const target=module??(kind==='host'?'host':kind==='business'?'business':null);
+ if(target&&!propertyModuleEnabled(db,propertyId,target))throw new OrganizationError(`Modulul ${ORGANIZATION_MODULES.find(m=>m.key===target)!.label} este dezactivat pentru această organizație. Titularul îl poate activa din Organizații.`,409);
+}
+export function saveOrganizationModules(db:Database,userId:string,id:string,b:Record<string,unknown>){
+ return db.transaction(()=>{
+  owner(db,userId,id);const before=organizationModules(db,id);
+  if(b.revision!==before.revision)throw new OrganizationError('Modulele s-au modificat. Reîncarcă organizația.',409);
+  for(const m of ORGANIZATION_MODULES)if(typeof b[m.key]!=='boolean')throw new OrganizationError('Alege starea fiecărui modul.');
+  if(b.ical&&!b.host)throw new OrganizationError('Activează Curățenie între rezervări înainte de sincronizarea iCal.');
+  if(ORGANIZATION_MODULES.every(m=>before[m.key]===b[m.key]))return;
+  db.prepare(`INSERT INTO workspace_organization_modules VALUES(?,?,?,?,?) ON CONFLICT(organization_id) DO UPDATE SET business=excluded.business,host=excluded.host,ical=excluded.ical,revision=excluded.revision`).run(id,b.business?1:0,b.host?1:0,b.ical?1:0,before.revision+1);
+  // Invalidate in-flight downloads. Re-enabling a module never silently resumes private feeds.
+  if(!b.ical||!b.host){
+   db.prepare(`UPDATE workspace_ical_connections SET enabled=0,version=version+1,lease_token=NULL,lease_until=NULL,warning='Sincronizare oprită din modulele organizației. Reia explicit după reactivare.' WHERE property_id IN (SELECT property_id FROM workspace_organization_properties WHERE organization_id=?)`).run(id);
+   db.prepare('DELETE FROM workspace_ical_missing WHERE connection_id IN (SELECT c.id FROM workspace_ical_connections c JOIN workspace_organization_properties op ON op.property_id=c.property_id WHERE op.organization_id=?)').run(id);
+  }
+  organizationAudit(db,userId,id,'modules.save',id,{before,after:{business:b.business,host:b.host,ical:b.ical,revision:before.revision+1}});
+ }).immediate();
+}
 function owner(db:Database,userId:string,id:string){
  if(organizationRole(db,userId,id)!=='owner')throw new OrganizationError('Numai titularul organizației poate modifica aceste setări.',403);
 }
@@ -74,14 +112,18 @@ export function assignOrganizationProperty(db:Database,userId:string,id:string,p
  return db.transaction(()=>{
   owner(db,userId,id);
   const p=db.prepare("SELECT owner_id,kind FROM workspace_properties WHERE id=? AND archived=0").get(propertyId) as {owner_id:string;kind:string}|undefined;
-  if(!p||p.owner_id!==userId||p.kind!=='business')throw new OrganizationError('Alege o locație Business proprie.',403);
+  if(!p||p.owner_id!==userId||!['business','host'].includes(p.kind))throw new OrganizationError('Alege o proprietate proprie de tip Business sau Curățenie între rezervări.',403);
+  if(attach&&!organizationModules(db,id)[p.kind as 'business'|'host'])throw new OrganizationError('Activează mai întâi modulul corespunzător proprietății.',409);
   const current=propertyOrganization(db,propertyId);
   if(attach&&current?.id===id||!attach&&!current)return;
   if(current&&current.id!==id)throw new OrganizationError('Locația aparține altei organizații.',409);
   if(db.prepare("SELECT 1 FROM workspace_approvals WHERE property_id=? AND status IN ('pending','approved')").get(propertyId))throw new OrganizationError('Decide sau retrage solicitările neutilizate înainte de mutarea locației.',409);
   if(!attach&&(db.prepare("SELECT 1 FROM workspace_property_jobs pj JOIN jobs j ON j.id=pj.job_id WHERE pj.property_id=? AND j.status NOT IN ('completed','cancelled','no_show')").get(propertyId)||db.prepare("SELECT 1 FROM recurring_plans WHERE property_id=? AND status!='cancelled'").get(propertyId)))throw new OrganizationError('Locația are lucrări sau serii în curs. Închide-le înainte de eliminarea din organizație.',409);
-  if(attach)db.prepare('INSERT INTO workspace_organization_properties VALUES(?,?)').run(propertyId,id);
+  if(attach){db.prepare('INSERT INTO workspace_organization_properties VALUES(?,?)').run(propertyId,id);
+   if(!organizationModules(db,id).ical)db.prepare("UPDATE workspace_ical_connections SET enabled=0,version=version+1,lease_token=NULL,lease_until=NULL,warning='Sincronizare oprită: modulul iCal nu este activ în organizație.' WHERE property_id=?").run(propertyId);
+  }
   else db.prepare('DELETE FROM workspace_organization_properties WHERE property_id=? AND organization_id=?').run(propertyId,id);
+  db.prepare('DELETE FROM workspace_ical_missing WHERE connection_id IN (SELECT id FROM workspace_ical_connections WHERE property_id=?)').run(propertyId);
   organizationAudit(db,userId,id,attach?'property.attach':'property.detach',propertyId,{});
  }).immediate();
 }
@@ -128,8 +170,8 @@ export function revokeOrganizationAccess(db:Database,userId:string,organizationI
 }
 export function organizationSnapshot(db:Database,userId:string){
  const organizations=db.prepare(`SELECT o.*,CASE WHEN o.owner_id=? THEN 'owner' ELSE m.role END role FROM workspace_organizations o LEFT JOIN workspace_organization_members m ON m.organization_id=o.id AND m.user_id=? AND m.active=1 WHERE o.owner_id=? OR m.id IS NOT NULL ORDER BY o.name`).all(userId,userId,userId) as (Organization&{role:OrganizationRole})[];
- return organizations.map(o=>({...o,
-  properties:db.prepare('SELECT p.id,p.name,p.city,p.cost_center FROM workspace_properties p JOIN workspace_organization_properties op ON op.property_id=p.id WHERE op.organization_id=? AND p.archived=0 AND p.owner_id=? ORDER BY p.name').all(o.id,o.owner_id),
+ return organizations.map(o=>({...o,modules:organizationModules(db,o.id),
+  properties:db.prepare('SELECT p.id,p.name,p.city,p.cost_center,p.kind FROM workspace_properties p JOIN workspace_organization_properties op ON op.property_id=p.id WHERE op.organization_id=? AND p.archived=0 AND p.owner_id=? ORDER BY p.name').all(o.id,o.owner_id),
   members:o.role==='owner'?db.prepare('SELECT m.id,m.role,u.name,u.email FROM workspace_organization_members m JOIN users u ON u.id=m.user_id WHERE m.organization_id=? AND m.active=1').all(o.id):[],
   invites:o.role==='owner'?db.prepare('SELECT id,email,role,expires_at FROM workspace_organization_invites WHERE organization_id=? AND accepted_by IS NULL AND revoked=0 AND expires_at>?').all(o.id,new Date().toISOString()):[],
   history:o.role==='owner'?db.prepare('SELECT a.action,a.resource_id,a.details,a.created_at,u.name actor FROM workspace_organization_audit a JOIN users u ON u.id=a.actor_id WHERE organization_id=? ORDER BY a.created_at DESC,a.id DESC LIMIT 30').all(o.id):[],
@@ -138,6 +180,7 @@ export function organizationSnapshot(db:Database,userId:string){
 /** Inside the booking transaction, after consuming any approval. No payment is performed here. */
 export function enforceOrganizationBooking(db:Database,propertyId:string,jobId:string){
  const org=propertyOrganization(db,propertyId);if(!org)return;
+ requirePropertyModule(db,propertyId);
  const job=db.prepare('SELECT client_id,price_gross FROM jobs WHERE id=?').get(jobId) as {client_id:string;price_gross:number};
  if(job.client_id!==org.owner_id)throw new OrganizationError('Titularul organizației finalizează rezervarea.',403);
  const amount=Math.round(job.price_gross*100);
