@@ -1,0 +1,13 @@
+import {beforeEach,it,expect,vi} from 'vitest';
+import {NextRequest} from 'next/server';
+const m=vi.hoisted(()=>({user:vi.fn(),rate:vi.fn()}));
+vi.mock('@/lib/auth',()=>({getCurrentUser:m.user}));
+vi.mock('@/lib/security',()=>({consumeRateLimit:m.rate,requestIp:()=> 'test'}));
+import {GET,POST} from './route';
+const request=(origin='https://www.nitido.ro',body:unknown={latitude:44,longitude:26,accuracy:15})=>new NextRequest('https://www.nitido.ro/api/booking-address',{method:'POST',headers:{origin,'Content-Type':'application/json'},body:JSON.stringify(body)});
+beforeEach(()=>{vi.restoreAllMocks();m.user.mockResolvedValue({id:'client'});m.rate.mockReturnValue(true);vi.stubEnv('GOOGLE_GEOCODING_API_KEY','test-secret')});
+it('requires authentication before revealing configuration or calling provider',async()=>{m.user.mockResolvedValue(null);expect((await GET(request())).status).toBe(401);expect((await POST(request())).status).toBe(401)});
+it('rejects foreign origins and coarse coordinates before provider calls',async()=>{const f=vi.spyOn(globalThis,'fetch');expect((await POST(request('https://evil.example'))).status).toBe(403);expect((await POST(request(undefined,{latitude:44,longitude:26,accuracy:2000}))).status).toBe(400);expect(f).not.toHaveBeenCalled()});
+it('handles unconfigured service without leaking secrets',async()=>{vi.stubEnv('GOOGLE_GEOCODING_API_KEY','');expect(await (await GET(request())).json()).toEqual({configured:false});expect((await POST(request())).status).toBe(503)});
+it('enforces rate limits',async()=>{m.rate.mockReturnValue(false);expect((await POST(request())).status).toBe(429)});
+it('does not expose provider credentials in error responses',async()=>{vi.spyOn(globalThis,'fetch').mockRejectedValue(new Error('url?key=test-secret'));const r=await POST(request());expect(r.status).toBe(502);expect(await r.text()).not.toContain('test-secret')});
