@@ -26,6 +26,6 @@ export function LivePriceEstimator({options,inline=false}:{options?:EstimatorOpt
     <div className="mt-3 flex items-end justify-between gap-4"><span className="text-sm text-[#c2ccd7]">{activeLabel} · <output htmlFor="hero-sqm" className="font-semibold text-white">{sqm} m²</output></span><b className="shrink-0 text-3xl tabular-nums" aria-live="polite">{price} lei</b></div>
     <input id="hero-sqm" type="range" min={ESTIMATOR_MIN_SQM} max={ESTIMATOR_MAX_SQM} step={ESTIMATOR_STEP_SQM} value={sqm} onChange={event=>setSqm(Number(event.target.value))} aria-label="Suprafața estimată în metri pătrați" aria-valuetext={`${sqm} metri pătrați, estimare ${price} lei`} className="nitido-price-range mt-3 w-full touch-none" style={{background:`linear-gradient(to right,var(--nitido-action-color) 0%,var(--nitido-action-color) ${progress}%,#263647 ${progress}%,#263647 100%)`}}/>
     <div className="flex justify-between text-[11px] text-[#b8c5d2]"><span>{ESTIMATOR_MIN_SQM} m²</span><span>{ESTIMATOR_MAX_SQM} m²</span></div>
-    <p className="mt-3 text-[10px] leading-4 text-[#b8c5d2]">Estimare orientativă. Prețul final este calculat la postarea lucrării.</p>
+    <p className="mt-3 text-[10px] leading-4 text-[#b8c5d2]">Curățenie fără spălare de geamuri. Geamurile se adaugă separat la rezervare. Prețul final se confirmă înainte de publicare.</p>
   </div>;
 }

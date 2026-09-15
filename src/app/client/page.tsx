@@ -4,6 +4,8 @@ import {SeriesChanges} from "@/components/SeriesChanges";
 import {RescheduleVisit} from '@/components/RescheduleVisit';
 import { logoutWithNativePush } from "@/lib/nativePushClient";
 import {bookingCalendarDays,bookingDateKey,bucharestDateKey,isBookableRomanianSlot,nextBucharestSlot} from "@/lib/scheduling";
+import {BookingLocation} from "@/components/BookingLocation";
+import {WindowsExtra} from "@/components/WindowsExtra";
 import {saveBookingDraft,takeBookingDraft,clearBookingDraft} from "@/lib/bookingDraft";
 import {ClientCards,type ClientCardView} from "@/components/ClientCards";
 import {EmailVerificationNotice} from "@/components/EmailVerificationNotice";
@@ -21,9 +23,12 @@ import { Logo, Card, Field, inputClass, Button, StatusTrack, StarRating } from "
 import {
   AUTOMATIC_MAX_SQM,
   calcGrossPrice,
+  calcWindowsPrice,
+  validWindowsSqm,
+  priceExplanation,
+  PRICING_VERSION,
   SLOT_HOURS,
   formatInterval,
-  calcBlockedMinutes,
   SpaceType,
 } from "@/lib/pricing";
 import { JobRow } from "@/lib/types";
@@ -115,6 +120,7 @@ export default function ClientPage() {
   const [city, setCity] = useState("");
   const [floor, setFloor] = useState("");
   const [details,setDetails]=useState("");
+  const [windowsSqm,setWindowsSqm]=useState(0);
   const [sqm, setSqm] = useState(75);
   const [spaceType, setSpaceType] = useState<SpaceType>("apartament");
   const [whenType, setWhenType] = useState<"asap" | "scheduled">("asap");
@@ -161,7 +167,7 @@ export default function ClientPage() {
       if(draft){
         // eslint-disable-next-line react-hooks/set-state-in-effect -- restore external tab storage only after the authenticated account is known
         setStreet(draft.street);setPostalCode(draft.postalCode);setCity(draft.city);setFloor(draft.floor);setDetails(draft.details);
-        setSqm(draft.sqm);setSpaceType(draft.spaceType);setWhenType(draft.whenType);setMode(draft.mode);setExpress60(draft.express60);
+        setWindowsSqm(draft.windowsSqm??0);setSqm(draft.sqm);setSpaceType(draft.spaceType);setWhenType(draft.whenType);setMode(draft.mode);setExpress60(draft.express60);
         setScheduledDate(draft.scheduledDate);setScheduledHour(draft.scheduledHour);
         restoredCardId.current=draft.cardId??null;
         setHostEventId(draft.hostEventId??null);setHostRevision(draft.hostRevision??null);setPropertyId(draft.propertyId);setApprovalId(draft.approvalId);setPhotos(draft.photos);setShowBooking(true);
@@ -172,6 +178,7 @@ export default function ClientPage() {
     const type=params.get("spaceType");if(type&&["apartament","casa","birou","altul"].includes(type))setSpaceType(type as SpaceType);
     const area=Number(params.get("sqm"));if(Number.isInteger(area)&&area>0&&area<=1000)setSqm(area);
     if(params.get("mode")==="express")setMode("express");
+    if(params.has("windowsSqm")&&validWindowsSqm(Number(params.get("windowsSqm"))))setWindowsSqm(Number(params.get("windowsSqm")));
     const requestedCity=params.get("city");if(requestedCity)setCity(requestedCity.slice(0,100));
     const requestedDate=params.get("date"),requestedHour=Number(params.get("hour"));
     if(requestedDate&&bookingDateKey(requestedDate)===requestedDate){setWhenType("scheduled");setScheduledDate(requestedDate);if(params.has("hour")&&(SLOT_HOURS as readonly number[]).includes(requestedHour))setScheduledHour(requestedHour)}
@@ -275,7 +282,7 @@ export default function ClientPage() {
       }
       if(showBooking){
         let saved=false;
-        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{street,postalCode,city,floor,details,sqm,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,hostEventId,hostRevision,photos,cardId:selectedCardId}));}catch{/* Storage can be blocked by the browser. */}
+        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{street,postalCode,city,floor,details,sqm,windowsSqm,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,hostEventId,hostRevision,photos,cardId:selectedCardId}));}catch{/* Storage can be blocked by the browser. */}
         if(!saved){setCardError('Rezervarea nu poate fi păstrată în această filă. Permite stocarea pentru site și încearcă din nou.');setCardBusy(false);return;}
       }else{try{clearBookingDraft(window.sessionStorage);}catch{/* No draft to preserve. */}}
       window.location.href = d.url; // redirect către pagina de card găzduită de Stripe
@@ -318,7 +325,9 @@ export default function ClientPage() {
   // Express 60 adaugă suplimentul premium la prețul brut (doar pentru „asap").
   const express60Active = express60 && whenType === "asap";
   const express60Fee = express60Active ? EXPRESS_60_FEE_LEI : 0;
-  const price = basePrice + express60Fee;
+  const windowsValid=validWindowsSqm(windowsSqm);
+  const windowsPrice=windowsValid?calcWindowsPrice(windowsSqm):0;
+  const price = basePrice + windowsPrice + express60Fee;
 
   const creditBalance = user?.credit_balance ?? 0;
   const { finalPrice, creditUsed } = applyCredit(price, creditBalance);
@@ -341,6 +350,9 @@ export default function ClientPage() {
         street,
         postalCode,
         city,
+        windowsSqm,
+        pricingVersion:PRICING_VERSION,
+        expectedPriceGross:price,
         floor,
         sqm,
         spaceType,
@@ -585,7 +597,7 @@ export default function ClientPage() {
             </p>
 
             <Field label="Instrucțiuni speciale (opțional)"><textarea className={inputClass} rows={3} maxLength={500} value={details} onChange={e=>setDetails(e.target.value)} placeholder="Materiale sensibile, animale de companie, preferințe de curățenie…"/><small>{details.length}/500 · Vizibile firmei după alocare. Nu introduce coduri de acces sau parole.</small></Field>
-            <Field label="Stradă și număr">
+            <BookingLocation city={city} onDetected={value=>setCity(current=>current.trim()?current:value)} enabled={!propertyId&&!hostEventId&&!new URLSearchParams(typeof window!=="undefined"?window.location.search:"").has("propertyId")}/><Field label="Stradă și număr">
               <input className={inputClass} value={street} onChange={(e) => setStreet(e.target.value)} />
             </Field>
             <div className="grid grid-cols-2 gap-3">
@@ -623,6 +635,7 @@ export default function ClientPage() {
               </select>
             </Field>
 
+            <WindowsExtra value={windowsSqm} onChange={setWindowsSqm}/>
             <span className="block text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1">
               Cum vrei să alegi firma?
             </span>
@@ -817,6 +830,7 @@ export default function ClientPage() {
             </div>
 
             {needsAssessment?<section className="design-panel"><h2>Este necesară o evaluare</h2><p>Suprafața depășește limita calculatorului automat.</p><Link className="design-button" href={`/client/evaluari?${new URLSearchParams({city,sqm:String(sqm)})}`}>Trimite spre evaluare</Link></section>:<div className="bg-mist border border-aqua rounded-xl p-3.5 my-4">
+              <p className="text-sm mb-2">{priceExplanation(spaceType,sqm)}. Camerele nu se taxează separat.</p><p className="text-sm mb-2">Curățenie: {basePrice} lei · Geamuri: {windowsSqm} m² × 8 lei = {windowsPrice} lei</p>
               {express60Active && (
                 <div className="flex justify-between items-center text-[11.5px] text-muted mb-1.5 pb-1.5 border-b border-line/60">
                   <span>Curățenie {basePrice} lei · 🔥 Express 60 +{express60Fee} lei</span>
@@ -848,7 +862,7 @@ export default function ClientPage() {
               busy={cardBusy||uploading||submitting} onSelect={setSelectedCardId} onDefault={id=>void manageCard(id,"PATCH")}
               onRemove={id=>void manageCard(id,"DELETE")} onAdd={addCard}/></div>}
 
-            <Button className="w-full" onClick={postJob} disabled={needsAssessment || submitting || cardBusy || (cardConfigured && (hasCard !== true || !selectedCardId)) || !street.trim() || !city.trim()}>
+            <Button className="w-full" onClick={postJob} disabled={!windowsValid || needsAssessment || submitting || cardBusy || (cardConfigured && (hasCard !== true || !selectedCardId)) || !street.trim() || !city.trim()}>
               {submitting ? "Se postează..." : "Postează lucrarea"}
             </Button>
           </Card>
@@ -917,7 +931,7 @@ export default function ClientPage() {
                 </p>
                 {job.scheduled_at && (
                   <p className="text-xs text-muted">
-                    Interval rezervat: {formatInterval(new Date(job.scheduled_at), calcBlockedMinutes(job.sqm))}
+                    Interval rezervat: {formatInterval(new Date(job.scheduled_at), job.duration_minutes + job.buffer_minutes)}
                   </p>
                 )}
                 <StatusTrack

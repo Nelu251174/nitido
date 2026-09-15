@@ -332,7 +332,7 @@ export default function FirmaPage() {
                 </div>
                 <div className="text-xs text-muted mb-2">Adresa exactă devine vizibilă după acceptare.</div>
                 <div className="flex gap-2 flex-wrap mb-2">
-                  <span className="text-[11px] bg-mist px-2 py-1 rounded-md">{job.sqm} mp</span>
+                  <span className="text-[11px] bg-mist px-2 py-1 rounded-md">{job.sqm} mp</span>{(job.windows_sqm??0)>0&&<span className="text-[11px] bg-mist px-2 py-1 rounded-md">Spălare geamuri: {job.windows_sqm} m², ambele fețe accesibile</span>}
                   <span className="text-[11px] bg-mist px-2 py-1 rounded-md">{job.space_type}</span>
                   {job.scheduled_at && (
                     <span className="text-[11px] bg-mist px-2 py-1 rounded-md">
@@ -427,7 +427,7 @@ export default function FirmaPage() {
                   Se deschide în Google Maps — durată și distanță până la locație
                 </div>
                 <div className="text-xs text-muted mb-3">
-                  {job.sqm} mp · {job.firm_payout ?? job.financial?.firmPayout ?? "—"} lei · status: {job.status}
+                  {job.sqm} mp{(job.windows_sqm??0)>0?` + geamuri ${job.windows_sqm} m²`:""} · {job.firm_payout ?? job.financial?.firmPayout ?? "—"} lei · status: {job.status}
                 </div>
                 <VisitCare jobId={job.id}/>
                 {job.status==='accepted'&&!job.express_60&&<RescheduleVisit jobId={job.id} scheduledAt={job.scheduled_at} status={job.status} role="firma" onChanged={refresh}/>}

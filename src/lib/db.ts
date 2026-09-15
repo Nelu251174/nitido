@@ -506,6 +506,7 @@ ensureColumn("users", "company_address", "TEXT");
 ensureColumn("jobs", "credit_applied", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("jobs", "details", "TEXT");
 ensureColumn("jobs", "pricing_snapshot", "TEXT");
+ensureColumn("jobs", "windows_sqm", "INTEGER NOT NULL DEFAULT 0");
 // Published pricing is an audit record, separate from later refunds/adjustments.
 db.exec(PRICING_SNAPSHOT_LOCK_SQL);
 ensureColumn("jobs", "client_request_id", "TEXT");

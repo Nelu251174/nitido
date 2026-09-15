@@ -1,7 +1,7 @@
 import {describe,it,expect} from 'vitest';
 import {saveBookingDraft,takeBookingDraft,clearBookingDraft,BOOKING_DRAFT_TTL,type BookingDraft} from './bookingDraft';
 function memory(){let value:string|null=null;return{getItem:()=>value,setItem:(_key:string,raw:string)=>{value=raw;},removeItem:()=>{value=null;}};}
-const draft:BookingDraft={street:'Strada test 1',postalCode:'123456',city:'Brașov',floor:'2',details:'Instrucțiuni test',sqm:60,spaceType:'apartament',whenType:'scheduled',mode:'express',express60:false,scheduledDate:'2026-09-20',scheduledHour:14,propertyId:'property-1',approvalId:'approval-1',photos:[{id:'photo-1',url:'/api/uploads/photo-1',room:'kitchen'}]};
+const draft:BookingDraft={street:'Strada test 1',postalCode:'123456',city:'Brașov',floor:'2',details:'Instrucțiuni test',sqm:60,windowsSqm:0,spaceType:'apartament',whenType:'scheduled',mode:'express',express60:false,scheduledDate:'2026-09-20',scheduledHour:14,propertyId:'property-1',approvalId:'approval-1',photos:[{id:'photo-1',url:'/api/uploads/photo-1',room:'kitchen'}]};
 describe('booking continuity across external card setup',()=>{
  it('restores all booking inputs once, including photos and references',()=>{const s=memory();expect(saveBookingDraft(s,'client-1',draft,1000)).toBe(true);expect(takeBookingDraft(s,'client-1',2000)).toEqual(draft);expect(takeBookingDraft(s,'client-1',2000)).toBeNull();});
  it('does not expose a previous client draft to another account',()=>{const s=memory();saveBookingDraft(s,'client-1',draft,1000);expect(takeBookingDraft(s,'client-2',2000)).toBeNull();expect(s.getItem()).toBeNull();});

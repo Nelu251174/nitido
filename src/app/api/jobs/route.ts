@@ -13,8 +13,10 @@ import { db, newId, getFirmByUserId } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import {
   AUTOMATIC_MAX_SQM,
-  calcGrossPrice,
-  calcDurationMinutes,
+  calcServicePrice,
+  calcServiceDuration,
+  validWindowsSqm,
+  PRICING_VERSION,
   calcNetForFirm,
   BUFFER_MINUTES,
   MIN_LEAD_HOURS,
@@ -115,6 +117,7 @@ export async function GET(req: NextRequest) {
       id: j.id,
       city: j.city,
       sqm: j.sqm,
+      windows_sqm: j.windows_sqm??0,
       space_type: j.space_type,
       when_type: j.when_type,
       mode: j.mode,
@@ -273,9 +276,12 @@ export async function POST(req: NextRequest) {
   // abia la acceptare, deci se percepe DOAR dacă o firmă chiar preia; dacă
   // garanția nu e respectată, suplimentul se scoate din nou (vezi express60.ts).
   const express60Fee = isExpress60 ? EXPRESS_60_FEE_LEI : 0;
-  const priceGross = calcGrossPrice(spaceType, sqm) + express60Fee;
+  const windowsSqm=body.windowsSqm??0;
+  if(!validWindowsSqm(windowsSqm))return NextResponse.json({error:"Suprafața geamurilor trebuie să fie între 0 și 200 m², fără zecimale"},{status:400});
+  const priceGross = calcServicePrice(spaceType, sqm,windowsSqm) + express60Fee;
+  if((body.pricingVersion!==undefined&&body.pricingVersion!==PRICING_VERSION)||(body.expectedPriceGross!==undefined&&body.expectedPriceGross!==priceGross))return NextResponse.json({error:"Tariful s-a actualizat. Reîncarcă pagina și verifică noul preț înainte de publicare."},{status:409});
   if(!Number.isSafeInteger(priceGross*100))return NextResponse.json({error:"Suprafața depășește limita de calcul"},{status:400});
-  const durationMinutes = calcDurationMinutes(sqm);
+  const durationMinutes = calcServiceDuration(sqm,windowsSqm);
 
   // Aplicare automată a creditului disponibil (program de recomandare — vezi
   // src/lib/referral.ts). Firma tot primește pe baza prețului INTEGRAL — vezi
@@ -310,7 +316,7 @@ export async function POST(req: NextRequest) {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting')`
     ).run(id,user.id,street,postalCode ?? null,city,floor ?? null,typeof details === "string" ? details.trim() || null : null,requestId,sqm,spaceType,whenType,scheduledAt.toISOString(),priceGross,creditUsed,durationMinutes,BUFFER_MINUTES,ownedPhotoIds.length,jobMode,isExpress60?1:0,express60Fee,isExpress60?express60Deadline(new Date().toISOString()).toISOString():null,isExpress60?"pending":null);
     if (card.stripeConfigured) saveJobCard(db,user.id,id,body.cardId);
-    db.prepare("UPDATE jobs SET pricing_snapshot=? WHERE id=?").run(JSON.stringify(pricingSnapshot({spaceType,sqm,expressFeeLei:express60Fee,creditLei:creditUsed})),id);
+    db.prepare("UPDATE jobs SET pricing_snapshot=?, windows_sqm=? WHERE id=?").run(JSON.stringify(pricingSnapshot({spaceType,sqm,windowsSqm,expressFeeLei:express60Fee,creditLei:creditUsed})),windowsSqm,id);
     if (ownedPhotoIds.length > 0) {
       const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL");
       for (const photoId of ownedPhotoIds) linkPhoto.run(id, photoId, user.id);

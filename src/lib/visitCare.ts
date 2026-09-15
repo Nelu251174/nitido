@@ -26,7 +26,7 @@ export function snapshotInstructions(db:Database,jobId:string,propertyId:string,
 }
 type Actor={id:string;role:string};
 function access(db:Database,jobId:string,user:Actor){
- const j=db.prepare('SELECT j.*,f.user_id firm_user_id FROM jobs j LEFT JOIN firms f ON f.id=j.accepted_firm_id WHERE j.id=?').get(jobId) as {id:string;client_id:string;firm_user_id:string|null;status:string;accepted_firm_id:string|null;guarantee_of:string|null;completed_at:string|null;duration_minutes:number;buffer_minutes:number}|undefined;
+ const j=db.prepare('SELECT j.*,f.user_id firm_user_id FROM jobs j LEFT JOIN firms f ON f.id=j.accepted_firm_id WHERE j.id=?').get(jobId) as {id:string;client_id:string;firm_user_id:string|null;status:string;accepted_firm_id:string|null;guarantee_of:string|null;completed_at:string|null;duration_minutes:number;buffer_minutes:number;windows_sqm?:number}|undefined;
  if(!j)throw new WorkspaceError('Lucrare inexistentă.',404);
  const owner=j.client_id===user.id,firm=j.firm_user_id===user.id,admin=user.role==='admin';
  const worker=!owner&&!firm&&!admin&&['accepted','arrived'].includes(j.status)&&!!executionAccess(db,user.id,jobId);
@@ -94,6 +94,7 @@ export function changeVisitCare(db:Database,jobId:string,user:Actor,b:Record<str
     SELECT ?,client_id,street,postal_code,city,floor,?,sqm,space_type,'scheduled',?,0,0,duration_minutes,buffer_minutes,0,'standard',id,'accepted',accepted_firm_id,? FROM jobs WHERE id=?`).run(newId,'Vizită de remediere. Verificați instrucțiunile și accesul cu clientul.',c.proposed_at,new Date().toISOString(),jobId);
    db.prepare('UPDATE jobs SET pricing_snapshot=? WHERE id=? AND pricing_snapshot IS NULL').run(JSON.stringify({version:'nitido-remediation-v1',currency:'RON',recordedAt:new Date().toISOString(),grossBani:0,creditBani:0,clientTotalBani:0,lines:[{code:'cleaning',amountBani:0},{code:'express60',amountBani:0},{code:'platform_credit',amountBani:0}]}),newId);
    const property=db.prepare('SELECT property_id FROM workspace_property_jobs WHERE job_id=?').get(jobId) as {property_id:string}|undefined;
+   if((j.windows_sqm??0)>0)db.prepare('UPDATE jobs SET windows_sqm=? WHERE id=?').run(j.windows_sqm,newId);
    if(property)db.prepare('INSERT INTO workspace_property_jobs(job_id,property_id) VALUES(?,?)').run(newId,property.property_id);
    db.prepare("UPDATE visit_cases SET status='scheduled',reclean_job_id=? WHERE id=?").run(newId,id);event(db,id,user.id,'accept',note);return {ok:true,jobId:newId};
   }

@@ -28,7 +28,7 @@ export function PriceCalculator() {
       <div className="text-xs font-display font-bold text-aqua-deep uppercase tracking-wide mb-1">
         Calculează prețul
       </div>
-      <p className="text-sm text-muted mb-6">Fără cont, fără angajament — doar o estimare rapidă.</p>
+      <p className="text-sm text-muted mb-6">Fără cont, fără angajament — estimare pentru curățenie, fără spălare de geamuri. Geamurile se adaugă separat.</p>
 
       <div className="flex gap-2 flex-wrap mb-5">
         {(Object.keys(SPACE_LABELS) as SpaceType[]).map((k) => (
@@ -66,10 +66,10 @@ export function PriceCalculator() {
       </div>
 
       <Link
-        href="/signup?role=client"
+        href={`/rezervare?spaceType=${spaceType}&sqm=${sqm}`}
         className="mt-5 block text-center px-6 py-3 rounded-xl bg-ink text-white font-display font-bold hover:opacity-90 transition"
       >
-        Postează lucrarea la acest preț
+        Continuă cu rezervarea
       </Link>
     </div>
   );
