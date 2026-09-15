@@ -1,3 +1,4 @@
+import {JOB_NAVIGATION_SCHEMA} from "./entrance";
 import {VISIT_CARE_SCHEMA} from "./visitCare";
 import {SAVED_CARDS_SCHEMA,initializeSavedCards} from "./savedCards";
 import {NOTIFICATION_CLAIM_SCHEMA,initializeNotificationClaims} from "./notificationClaims";
@@ -455,6 +456,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS reschedule_authorizations (
 );
 CREATE INDEX IF NOT EXISTS reschedule_authorization_cleanup ON reschedule_authorizations(cleanup_status,retry_after_ms);`);
 db.exec(VISIT_CARE_SCHEMA);
+db.exec(JOB_NAVIGATION_SCHEMA);
 initializeCatalog(db);
 db.exec(CATALOG_CAPACITY_SCHEMA);
 db.exec(ASSESSMENT_SCHEMA);

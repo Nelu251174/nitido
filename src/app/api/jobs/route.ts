@@ -1,3 +1,4 @@
+import {validEntrance} from "@/lib/entrance";
 import {turnoverReplay,validateTurnoverBooking} from '@/lib/hostTurnover';
 import {enforceOrganizationBooking,OrganizationError} from "@/lib/organizations";
 import {snapshotInstructions} from "@/lib/visitCare";
@@ -212,6 +213,7 @@ export async function POST(req: NextRequest) {
   if (!street || !city || !sqm || !spaceType || !whenType) {
     return NextResponse.json({ error: "Câmpuri obligatorii lipsă" }, { status: 400 });
   }
+  if(body.entrance!=null&&!validEntrance(body.entrance,{street,city,postalCode})){return NextResponse.json({error:"Confirmă din nou intrarea pentru adresa aleasă."},{status:400});}
   if (sqm <= 0) {
     return NextResponse.json({ error: "Suprafața trebuie să fie pozitivă" }, { status: 400 });
   }
@@ -315,6 +317,7 @@ export async function POST(req: NextRequest) {
          express_60, express_60_fee, express_60_deadline, express_60_status, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting')`
     ).run(id,user.id,street,postalCode ?? null,city,floor ?? null,typeof details === "string" ? details.trim() || null : null,requestId,sqm,spaceType,whenType,scheduledAt.toISOString(),priceGross,creditUsed,durationMinutes,BUFFER_MINUTES,ownedPhotoIds.length,jobMode,isExpress60?1:0,express60Fee,isExpress60?express60Deadline(new Date().toISOString()).toISOString():null,isExpress60?"pending":null);
+    if(body.entrance)db.prepare("INSERT INTO job_navigation(job_id,latitude,longitude,confirmed_at) VALUES(?,?,?,?)").run(id,body.entrance.lat,body.entrance.lng,new Date().toISOString());
     if (card.stripeConfigured) saveJobCard(db,user.id,id,body.cardId);
     db.prepare("UPDATE jobs SET pricing_snapshot=?, windows_sqm=? WHERE id=?").run(JSON.stringify(pricingSnapshot({spaceType,sqm,windowsSqm,expressFeeLei:express60Fee,creditLei:creditUsed})),windowsSqm,id);
     if (ownedPhotoIds.length > 0) {

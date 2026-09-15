@@ -14,3 +14,5 @@ describe('booking continuity across external card setup',()=>{
 });
 
 it('preserves only the local card choice across Checkout and revalidates it on publication',()=>{const storage=memory();expect(saveBookingDraft(storage,'client-1',{...draft,cardId:'card_choice'},1000)).toBe(true);expect(takeBookingDraft(storage,'client-1',2000)?.cardId).toBe('card_choice');expect(saveBookingDraft(storage,'client-1',{...draft,cardId:'../bad'},1000)).toBe(false);});
+
+it('preserves a confirmed entrance across card setup, but drops it for a different address',()=>{const s=memory();const entrance={lat:45.65,lng:25.6,confirmed:true as const,addressKey:JSON.stringify([draft.street,draft.city,draft.postalCode].map(v=>v.trim().toLocaleLowerCase('ro-RO')))};saveBookingDraft(s,'client-1',{...draft,entrance},1000);expect(takeBookingDraft(s,'client-1',2000)?.entrance).toEqual(entrance);saveBookingDraft(s,'client-1',{...draft,street:'Alta stradă',entrance},1000);expect(takeBookingDraft(s,'client-1',2000)?.entrance).toBeUndefined();});

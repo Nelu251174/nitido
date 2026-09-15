@@ -13,7 +13,7 @@ export function fullAddress(job: Pick<JobRow, "street" | "city" | "postal_code">
  * durata estimată (ETA) și distanța în km imediat ce se deschide linkul,
  * fie în aplicația Google Maps (mobil), fie în browser.
  */
-export function mapsDirectionsUrl(job: Pick<JobRow, "street" | "city" | "postal_code">): string {
-  const destination = encodeURIComponent(fullAddress(job));
-  return `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`;
+export function mapsDirectionsUrl(job: Pick<JobRow, "street" | "city" | "postal_code">, pin?: {lat:number;lng:number}): string {
+  const destination = encodeURIComponent(pin ? `${pin.lat},${pin.lng}` : fullAddress(job));
+  return `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving&dir_action=navigate`;
 }
