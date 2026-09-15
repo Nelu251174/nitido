@@ -11,7 +11,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/admin", "/api/", "/client", "/firma", "/login", "/mobile", "/colaborari", "/echipa", "/invitatie", "/remedieri", "/signup"],
+        disallow: ["/admin", "/api/", "/client", "/firma", "/login", "/mobile", "/colaborari", "/echipa", "/invitatie", "/remedieri", "/signup", "/reset-parola", "/confirma-email", "/card-finalizat", "/cont$", "/uploads/"],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,

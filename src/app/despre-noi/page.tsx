@@ -1,13 +1,11 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/publicSeo";
+export const metadata = publicPageMetadata("/despre-noi");
 import Image from "next/image";
 import Link from "next/link";
 import {HomeLogoLink} from "@/components/HomeLogoLink";
 import {PhoneAppPromo} from "@/components/StoreBadges";
 
-export const metadata: Metadata = {
-  title: "Despre noi | NITIDO.RO",
-  description: "NITIDO.RO conectează clienții cu firme eligibile de curățenie printr-un proces rapid, transparent și protejat.",
-};
+
 
 const services = [
   ["link", "Conectăm rapid", "Punem în legătură clienții cu firme eligibile din zona potrivită, fără timp pierdut cu zeci de apeluri."],

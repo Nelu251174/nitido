@@ -1,3 +1,5 @@
+import { publicPageMetadata } from "@/lib/publicSeo";
+export const metadata = publicPageMetadata("/preturi");
 import { InformationPage } from "@/components/InformationPage";
 export default function Page(){return <InformationPage eyebrow="PREȚURI" title="Prețuri calculate transparent din datele lucrării." intro="Această pagină descrie numai regulile confirmate de codul actual. Nu publicăm planuri comerciale sau taxe care nu au o sursă autoritară în produs." sections={[
   {title:"Pentru client",paragraphs:["Prețul brut al lucrării este calculat automat din tipul spațiului și suprafață și este afișat înainte de publicare. Formula activă folosește regulile din aplicație, nu o ofertă introdusă de firmă."]},

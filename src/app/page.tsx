@@ -1,3 +1,6 @@
+import { publicPageMetadata } from "@/lib/publicSeo";
+export const metadata = publicPageMetadata("/");
+import {PublicSiteStructuredData} from "@/components/PublicSiteStructuredData";
 import {LivePriceEstimator} from "@/components/LivePriceEstimator";
 import {SupportCenter} from "@/components/SupportCenter";
 import {PaymentBenefits} from "@/components/PaymentBenefits";
@@ -22,7 +25,7 @@ export default function Home(){
  const average=reviewCount?trust.firms.reduce((sum,f)=>sum+(f.average_rating??0)*f.review_count,0)/reviewCount:null;
  const reviewLabel=average===null?"Fără evaluări încă":`${average.toLocaleString("ro-RO",{minimumFractionDigits:1,maximumFractionDigits:1})} / 5`;
  const reviewDetail=reviewCount?`${reviewCount.toLocaleString("ro-RO")} ${reviewCount===1?"recenzie verificată":"recenzii verificate"}`:"După lucrări finalizate";
- return <div className="approved-home"><SiteHeader home/><main id="main-content">
+ return <div className="approved-home"><SiteHeader home/><main id="main-content"><PublicSiteStructuredData/>
  <section className="design-hero">
   <div className="design-hero-image"><Image src="/design-v2/approved-living-room.webp" alt="Living luminos cu canapea crem, plante și o masă rotundă din lemn" fill priority sizes="(max-width:760px) 50vw, 65vw"/><span className="design-photo-badge">Case mai curate.<br/>Oameni mai fericiți.<i>—</i></span></div>
   <div className="design-container design-hero-content"><div className="design-hero-copy"><p className="design-kicker">CURĂȚENIE PROFESIONALĂ, LA UN CLICK DISTANȚĂ</p><h1><span className="desktop-label">Postezi lucrarea.<br/>Alegi firma pe <em className="brand-keyword">calitate.</em></span><span className="mobile-label">Curățenie fără complicații.</span></h1><p className="design-hero-description">Compari firme verificate, vezi prețuri clare și programezi rapid serviciul potrivit pentru casa ta.</p><Link href="/rezervare" className="design-button design-hero-cta"><DesignIcon name="calendar"/>Configurează curățenia<DesignIcon name="arrow"/></Link></div>

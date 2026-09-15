@@ -1,13 +1,9 @@
+import { publicPageMetadata } from "@/lib/publicSeo";
+export const metadata = publicPageMetadata("/inscrie-firma");
 import Link from "next/link";
-import type { Metadata } from "next";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
-export const metadata: Metadata = {
-  title: "Înscrie-ți firma de curățenie — București & Constanța | NITIDO.RO",
-  description:
-    "Firme de curățenie din București și Constanța: primiți lucrări plătite, fără abonament și fără licitație de preț. Înregistrare gratuită, verificare ANAF, plată securizată prin Stripe.",
-  alternates: { canonical: "/inscrie-firma" },
-};
+
 
 const VALUE_PROPS: { title: string; text: string }[] = [
   { title: "0 lei la start", text: "Fără abonament, fără taxă de înscriere. Plătești doar comisionul pe lucrările pe care le execuți." },

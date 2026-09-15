@@ -72,7 +72,6 @@ export const metadata: Metadata = {
     "marketplace curățenie",
     "curățenie la cerere",
   ],
-  alternates: { canonical: "/" },
   robots: {
     index: true,
     follow: true,
@@ -80,9 +79,7 @@ export const metadata: Metadata = {
   },
   // Verificarea Google Search Console se activează setând variabila de mediu
   // GOOGLE_SITE_VERIFICATION (codul „HTML tag" din GSC) — fără schimbare de cod.
-  verification: process.env.GOOGLE_SITE_VERIFICATION
-    ? { google: process.env.GOOGLE_SITE_VERIFICATION }
-    : undefined,
+  verification: { google: process.env.GOOGLE_SITE_VERIFICATION || "XxNx5futiiSwAO_b8yrGXtVThkI7ixVwpziOFhW9uT8" },
   openGraph: {
     title: "NITIDO.RO — Marketplace de curățenie în România",
     description:

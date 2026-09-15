@@ -1,3 +1,5 @@
+import { publicPageMetadata } from "@/lib/publicSeo";
+export const metadata = publicPageMetadata("/confidentialitate");
 import { InformationPage, type InfoSection } from "@/components/InformationPage";
 import { legalIdentityStatus } from "@/lib/legalConfig";
 export default function Page(){const legal=legalIdentityStatus();const sections:InfoSection[]=[

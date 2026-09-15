@@ -1,3 +1,5 @@
+import { publicPageMetadata } from "@/lib/publicSeo";
+export const metadata = publicPageMetadata("/incredere");
 import { db } from "@/lib/db";
 import { getPublicTrustSnapshot } from "@/lib/reviews";
 import { SiteFooter,SiteHeader } from "@/components/SiteChrome";
