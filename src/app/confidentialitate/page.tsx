@@ -51,6 +51,12 @@ export default function ConfidentialitatePage() {
           partajată cu Firma care acceptă acea lucrare — este necesar pentru executarea
           serviciului. Nu vindem și nu închiriem datele tale către terți în scopuri de marketing.
         </p>
+        <p>
+          Numărăm paginile deschise cu un contor propriu, găzduit pe serverul nostru de
+          administrare (nexus.nexuscompany.ro). Acesta primește doar pagina vizitată, de unde ai
+          venit și numele site-ului — fără cookie-uri, fără nume sau e-mail; adresa IP nu se
+          păstrează, din ea se face o amprentă care se schimbă zilnic.
+        </p>
       </section>
 
       <section>

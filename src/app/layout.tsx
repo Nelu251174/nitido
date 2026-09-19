@@ -79,6 +79,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ro" className={`${sora.variable} ${inter.variable} h-full antialiased`}>
+      <head>
+        {/* Contorul de vizite al panoului nostru de administrare (NEXUS), pe
+            serverul nostru. Trimite doar pagina deschisă, de unde a venit omul
+            și numele site-ului. Fără cookie-uri, fără nume, fără e-mail; adresa
+            IP nu se păstrează. `defer`: se încarcă după pagină; dacă panoul e
+            oprit, site-ul merge exact la fel. Declarat în /confidentialitate. */}
+        <script defer src="https://nexus.nexuscompany.ro/b.js" data-site="nitido.ro" />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
