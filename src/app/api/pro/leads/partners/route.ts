@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import "@/lib/pro/schema";
 import { createLead, rateLimitLead } from "@/lib/pro/leads";
+import { notifyProLead } from "@/lib/pro/notify";
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
@@ -40,6 +41,14 @@ export async function POST(req: NextRequest) {
         noGuarantee: true,
         dataConsent: true,
       },
+    });
+    void notifyProLead({
+      id,
+      kind: "partner",
+      name: String(body.company ?? body.name ?? ""),
+      email: body.email ? String(body.email) : null,
+      phone: body.phone ? String(body.phone) : null,
+      city: zones.join(", "),
     });
     return NextResponse.json({ ok: true, id });
   } catch (e) {
