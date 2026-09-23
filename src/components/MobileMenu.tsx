@@ -5,8 +5,8 @@ import { useState, useEffect } from "react";
 
 import { HeaderAuthButtons } from "./HeaderAuthButtons";
 
-/** Public mobile navigation shares the same account entry as the desktop header. */
 const LINKS: Array<[string, string]> = [
+  ["/nitido-pro", "NITIDO Pro"],
   ["/cum-functioneaza", "Cum funcționează"],
   ["/pentru-clienti", "Pentru clienți"],
   ["/pentru-firme", "Pentru firme"],
@@ -17,7 +17,6 @@ const LINKS: Array<[string, string]> = [
 
 export function MobileMenu() {
   const [open, setOpen] = useState(false);
-  // Blochează scroll-ul paginii cât timp meniul e deschis.
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => {
@@ -43,12 +42,7 @@ export function MobileMenu() {
         <div className="public-mobile-menu" aria-label="Meniu principal">
           <nav className="public-mobile-menu-links">
             {LINKS.map(([href, label]) => (
-              <Link
-                key={href}
-                href={href}
-                onClick={() => setOpen(false)}
-                className="public-mobile-menu-link"
-              >
+              <Link key={href} href={href} onClick={() => setOpen(false)} className="public-mobile-menu-link">
                 {label}
               </Link>
             ))}
