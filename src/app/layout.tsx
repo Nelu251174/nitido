@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import "./approved-design.css";
+import "./pro-home.css";
 import "./mobile-layout.css";
 import "@fontsource-variable/instrument-sans";
 import { WebAlerts } from "@/components/WebAlerts";
@@ -28,9 +29,6 @@ const inter = localFont({
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://nitido.ro";
 
-// viewport-fit=cover expune zonele „safe area" (notch / bară de stare) prin
-// env(safe-area-inset-*), folosite în globals.css ca bara de sus a aplicației
-// native (Capacitor) să nu mai stea sub ceas/baterie.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -77,8 +75,6 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true, "max-image-preview": "large" },
   },
-  // Verificarea Google Search Console se activează setând variabila de mediu
-  // GOOGLE_SITE_VERIFICATION (codul „HTML tag" din GSC) — fără schimbare de cod.
   verification: { google: process.env.GOOGLE_SITE_VERIFICATION || "XxNx5futiiSwAO_b8yrGXtVThkI7ixVwpziOFhW9uT8" },
   openGraph: {
     title: "NITIDO.RO — Marketplace de curățenie în România",
