@@ -26,7 +26,7 @@ export const PUBLIC_SEO_PAGES = {
     "description": "Află cum se calculează prețul curățeniei în funcție de spațiu și suprafață. Verifică estimarea și suma afișată înainte de rezervare."
   },
   "/incredere": {
-    "title": "Încredere și verificarea firmelor",
+    "title": "Înceedere și verificarea firmelor",
     "description": "Cum funcționează verificarea firmelor, recenziile asociate lucrărilor și măsurile de încredere din platforma NITIDO."
   },
   "/siguranta": {
@@ -60,6 +60,14 @@ export const PUBLIC_SEO_PAGES = {
   "/cookie-uri": {
     "title": "Politica de cookie-uri",
     "description": "Consultă informațiile despre cookie-urile folosite pentru autentificare și funcționarea platformei NITIDO."
+  },
+  "/nitido-pro": {
+    "title": "NITIDO Pro pentru proprietăți",
+    "description": "Program pilot pentru operațiuni recurente pe portofolii de proprietăți în Constanța, Mamaia și Mamaia-Sat."
+  },
+  "/parteneri-pro": {
+    "title": "Partener NITIDO Pro",
+    "description": "Aplică pentru rețeaua de echipe care livrează lucrări recurente documentate în programul pilot NITIDO Pro."
   }
 } as const;
 
