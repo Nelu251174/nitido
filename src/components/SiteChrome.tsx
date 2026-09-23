@@ -6,14 +6,14 @@ import {MobileMenu} from "@/components/MobileMenu";
 import {CITIES} from "@/lib/cities";
 
 export const FOOTER_LINK_GROUPS = [
-  { title: "Produs", links: [["NITIDO Pro", "/nitido-pro"], ["Parteneri Pro", "/parteneri-pro"], ["Cum funcționează", "/cum-functioneaza"], ["Înceedere & Siguranță", "/incredere"], ["Pentru clienți", "/pentru-clienti"], ["Pentru firme", "/pentru-firme"], ["Înscrie-ți firma", "/inscrie-firma"], ["Prețuri", "/preturi"]] },
+  { title: "Produs", links: [["Cum funcționează", "/cum-functioneaza"], ["Înceedere & Siguranță", "/incredere"], ["Pentru clienți", "/pentru-clienti"], ["Pentru firme", "/pentru-firme"], ["Program Pro pentru proprietăți", "/nitido-pro"], ["Program Pro pentru echipe", "/parteneri-pro"], ["Înscrie-ți firma", "/inscrie-firma"], ["Prețuri", "/preturi"]] },
   { title: "Clienți", links: [["Postează o lucrare", "/signup?role=client"], ["Urmărire live", "/urmarire-live"], ["Siguranță", "/siguranta"]] },
   { title: "Companie", links: [["Despre noi", "/despre-noi"], ["Contact", "/contact"], ["Cariere", "/cariere"]] },
   { title: "Legal", links: [["Termeni", "/termeni"], ["Confidențialitate", "/confidentialitate"], ["Cookie-uri", "/cookie-uri"]] },
 ] as const;
 
 export function SiteHeader({home=false}:{home?:boolean}) {
-  return <header className={`design-header ${home?'design-header-home':''}`}><div className="design-container design-header-inner"><div><HomeLogoLink/><span className="design-logo-caption">O casă mai curată. O viață mai bună.</span></div><nav className="design-desktop-nav" aria-label="Navigare principală"><Link href="/#servicii">Servicii</Link><Link href="/cum-functioneaza">Cum funcționează</Link><Link href="/nitido-pro">NITIDO Pro</Link><Link href="/parteneri-pro">Parteneri Pro</Link><Link href="/pentru-firme">Pentru firme</Link><Link href="/despre-noi">Despre noi</Link></nav><div className="design-header-actions"><HeaderAuthButtons/><MobileMenu/></div></div></header>;
+  return <header className={`design-header ${home?'design-header-home':''}`}><div className="design-container design-header-inner"><div><HomeLogoLink/><span className="design-logo-caption">O casă mai curată. O viață mai bună.</span></div><nav className="design-desktop-nav" aria-label="Navigare principală"><Link href="/#servicii">Servicii</Link><Link href="/cum-functioneaza">Cum funcționează</Link><Link href="/pentru-firme">Pentru firme</Link><Link href="/despre-noi">Despre noi</Link><Link href="/contact#asistent-ai">Asistent AI</Link></nav><div className="design-header-actions"><HeaderAuthButtons/><MobileMenu/></div></div></header>;
 }
 
 export function SiteFooter() {
