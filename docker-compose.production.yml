@@ -6,6 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
+        NEXT_PUBLIC_NITIDO_PRO_PUBLIC: ${NEXT_PUBLIC_NITIDO_PRO_PUBLIC:-false}
         NEXT_PUBLIC_SITE_URL: https://nitido.ro
         NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:?Configure the production Stripe publishable key}
     restart: unless-stopped
@@ -15,6 +16,7 @@ services:
       - .env
     environment:
       NODE_ENV: production
+      NITIDO_PRO_ENABLED: ${NITIDO_PRO_ENABLED:-false}
       PORT: "3000"
       HOSTNAME: 0.0.0.0
       NEXT_PUBLIC_SITE_URL: https://nitido.ro

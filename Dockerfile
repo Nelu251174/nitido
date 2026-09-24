@@ -19,7 +19,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Secret keys must never be passed as build arguments.
 ARG NEXT_PUBLIC_SITE_URL
 ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+ARG NEXT_PUBLIC_NITIDO_PRO_PUBLIC=false
+ENV NEXT_PUBLIC_NITIDO_PRO_PUBLIC=$NEXT_PUBLIC_NITIDO_PRO_PUBLIC
 RUN npm run build
+RUN node scripts/pro-build-migration.mjs
 
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
@@ -37,6 +40,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/scripts/recurring-runner.mjs ./sc
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/financial-recovery-runner.mjs ./scripts/financial-recovery-runner.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/notification-recovery-runner.mjs ./scripts/notification-recovery-runner.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/healthcheck.mjs ./scripts/healthcheck.mjs
+
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/pro-migrate.mjs ./scripts/pro-migrate.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/pro-runner.mjs ./scripts/pro-runner.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/src/lib/pro/schema.mjs ./src/lib/pro/schema.mjs
 
 # Directoare persistente — legate ca volume în docker-compose.yml, ca baza de
 # date SQLite și pozele încărcate să supraviețuiască la redeploy.
