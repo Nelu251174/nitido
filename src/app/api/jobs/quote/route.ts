@@ -1,3 +1,7 @@
+import {db} from "@/lib/db";
+import {managedBookingEnabled,bookingPriceContext,issueBookingQuote} from "@/lib/bookingQuotes";
+import {ManagedPricingError} from "@/lib/managedPricing";
+import {hasTrustedMutationOrigin} from "@/lib/security";
 import { pricingSnapshot } from "@/lib/pricingSnapshot";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
@@ -20,7 +24,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Trebuie să fii autentificat ca client" }, { status: 401 });
   }
 
-  const body = (await req.json().catch(() => null)) as { spaceType?: unknown; sqm?: unknown; windowsSqm?:unknown } | null;
+  const body = (await req.json().catch(() => null)) as { spaceType?: unknown; sqm?: unknown; windowsSqm?:unknown; [key:string]:unknown } | null;
+  if(managedBookingEnabled()){
+    if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:"Origine invalidă"},{status:403});
+    try{
+      const context=bookingPriceContext(body??{});
+      const quote=issueBookingQuote(db,user.id,context);
+      return NextResponse.json({managed:true,quote,scheduling:{slotHours:SLOT_HOURS,minLeadHours:MIN_LEAD_HOURS}},{headers:{"Cache-Control":"no-store"}});
+    }catch(e){if(e instanceof ManagedPricingError)return NextResponse.json({error:e.message},{status:e.status});throw e;}
+  }
   const spaceType = body?.spaceType;
   const sqm = Number(body?.sqm);
 

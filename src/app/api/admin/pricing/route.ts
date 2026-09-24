@@ -1,3 +1,4 @@
+import {managedBookingEnabled} from "@/lib/bookingQuotes";
 import {NextRequest,NextResponse} from 'next/server';
 import {isAdmin,auditAdminAction} from '@/lib/adminAuth';
 import {db} from '@/lib/db';
@@ -7,7 +8,7 @@ import {listTariffs,createTariff,saveTariff,simulateTariff,publishTariff,withdra
 
 export async function GET(){
   if(!await isAdmin())return NextResponse.json({error:'Neautorizat'},{status:401});
-  return NextResponse.json({tariffs:listTariffs(db),bookingActivation:false},{headers:{'Cache-Control':'no-store'}});
+  return NextResponse.json({tariffs:listTariffs(db),bookingActivation:managedBookingEnabled()},{headers:{'Cache-Control':'no-store'}});
 }
 export async function POST(req:NextRequest){
   if(!await isAdmin())return NextResponse.json({error:'Neautorizat'},{status:401});
@@ -28,7 +29,7 @@ export async function POST(req:NextRequest){
       auditAdminAction(`pricing.${body.action}`,body.action==='create'&&'id' in result?result.id:body.id,{revision:'revision' in result?result.revision:null});
       return result;
     }).immediate();
-    return NextResponse.json({result,tariffs:listTariffs(db),bookingActivation:false});
+    return NextResponse.json({result,tariffs:listTariffs(db),bookingActivation:managedBookingEnabled()});
   }catch(e){
     if(e instanceof ManagedPricingError)return NextResponse.json({error:e.message},{status:e.status});
     return NextResponse.json({error:'Operațiunea nu a fost confirmată. Reîncarcă lista înainte de reîncercare.'},{status:500});

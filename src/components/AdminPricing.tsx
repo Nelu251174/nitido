@@ -13,19 +13,20 @@ const formOf=(t:Tariff):Form=>({label:t.label,scope:t.scope,definition:t.definit
 const displayedDate=(value:string|null)=>value?new Intl.DateTimeFormat('ro-RO',{timeZone:'Europe/Bucharest',dateStyle:'short',timeStyle:'short'}).format(new Date(value)):'fără termen';
 export function AdminPricing(){
   const [tariffs,setTariffs]=useState<Tariff[]>([]),[selected,setSelected]=useState(''),[form,setForm]=useState<Form|null>(null);
+  const [bookingActivation,setBookingActivation]=useState(false);
   const [busy,setBusy]=useState(false),[loaded,setLoaded]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
   const [simulation,setSimulation]=useState<Simulation|null>(null),[reviewed,setReviewed]=useState(false);
   const [from,setFrom]=useState(''),[until,setUntil]=useState(''),[reason,setReason]=useState('');
   const current=tariffs.find(t=>t.id===selected),dirty=!!current&&JSON.stringify(form)!==JSON.stringify(formOf(current));
   function select(t:Tariff){setSelected(t.id);setForm(formOf(t));setSimulation(null);setReviewed(false);setError('');setMessage('');setFrom('');setUntil('');setReason('');}
-  useEffect(()=>{let active=true;fetch('/api/admin/pricing',{cache:'no-store'}).then(async r=>{const data=await r.json();if(!r.ok)throw Error(data.error);return data;}).then(data=>{if(active){setTariffs(data.tariffs);if(data.tariffs[0])select(data.tariffs[0]);setLoaded(true);}}).catch(e=>{if(active){setError(e.message);setLoaded(true);}});return()=>{active=false;};},[]);
+  useEffect(()=>{let active=true;fetch('/api/admin/pricing',{cache:'no-store'}).then(async r=>{const data=await r.json();if(!r.ok)throw Error(data.error);return data;}).then(data=>{if(active){setTariffs(data.tariffs);setBookingActivation(data.bookingActivation===true);if(data.tariffs[0])select(data.tariffs[0]);setLoaded(true);}}).catch(e=>{if(active){setError(e.message);setLoaded(true);}});return()=>{active=false;};},[]);
   async function action(payload:Record<string,unknown>){
     if(busy)return;setBusy(true);setError('');setMessage('');
     try{
       const r=await fetch('/api/admin/pricing',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-      const data=await r.json();if(!r.ok)throw Error(data.error||'Operațiune nereușită.');setTariffs(data.tariffs);
+      const data=await r.json();if(!r.ok)throw Error(data.error||'Operațiune nereușită.');setTariffs(data.tariffs);setBookingActivation(data.bookingActivation===true);
       if(payload.action==='simulate'){setSimulation(data.result);setReviewed(false);setMessage('Comparația folosește versiunea salvată. Verifică diferențele înainte de publicare.');}
-      else{select(data.result);setMessage(payload.action==='publish'?'Versiunea este publicată în registru. Activarea pentru rezervări rămâne separată.':payload.action==='withdraw'?'Versiunea a fost retrasă din calculele viitoare ale motorului. Istoricul este păstrat.':'Versiunea a fost salvată.');}
+      else{select(data.result);setMessage(payload.action==='publish'?(data.bookingActivation?'Versiunea este publicată pentru ofertele de test din sandbox.':'Versiunea este publicată în registru. Activarea pentru rezervări rămâne separată.'):payload.action==='withdraw'?'Versiunea a fost retrasă din calculele viitoare ale motorului. Istoricul este păstrat.':'Versiunea a fost salvată.');}
     }catch(e){setError(e instanceof Error?e.message:'Operațiune nereușită.');}finally{setBusy(false);}
   }
   function patch(value:Partial<Form>){setForm(f=>f?{...f,...value}:f);setSimulation(null);setReviewed(false);setMessage('');}
@@ -35,7 +36,7 @@ export function AdminPricing(){
   return <section className="design-panel admin-service-catalog" aria-labelledby="pricing-admin-title">
     <h2 id="pricing-admin-title">Tarife administrabile și simulator</h2>
     <p>Pregătește tarifele, compară rezultatele cu prețurile actuale și publică o versiune cu perioadă clară. Versiunile publicate sunt păstrate în istoric și se modifică printr-o copie nouă.</p>
-    <p className="booking-muted"><strong>Mod de pregătire:</strong> acest registru nu modifică încă prețurile din rezervări, estimator sau plăți. Activarea pentru clienți se face după validarea sandboxului.</p>
+    <p className="booking-muted">{bookingActivation?<><strong>Testare în sandbox:</strong> tarifele publicate sunt folosite pentru oferte și rezervări de test. Estimatorul public rămâne orientativ.</>:<><strong>Mod de pregătire:</strong> acest registru nu modifică încă prețurile din rezervări, estimator sau plăți. Activarea pentru clienți se face după validarea sandboxului.</>}</p>
     {error&&<p role="alert">{error} Dacă alt administrator a modificat versiunea, reîncarcă pagina pentru datele actuale.</p>}{message&&<p role="status">{message}</p>}
     {!loaded&&<p>Se încarcă versiunile…</p>}
     <div className="catalog-actions"><button type="button" disabled={busy||dirty||!loaded} onClick={()=>void action({action:'create',label:'Tarif nou — baza actuală'})}>Creează din tariful actual</button>{current&&<button type="button" disabled={busy||dirty} onClick={()=>void action({action:'create',sourceId:current.id,label:`Copie ${current.label}`.slice(0,120)})}>Copiază versiunea selectată</button>}</div>

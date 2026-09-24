@@ -1,0 +1,26 @@
+import {afterEach,beforeEach,describe,it,expect,vi} from 'vitest';
+import Database from 'better-sqlite3';
+import {NextRequest} from 'next/server';
+const state=vi.hoisted(()=>({db:null as Database.Database|null,user:'c'}));
+vi.mock('@/lib/db',async original=>{const actual=await original<typeof import('@/lib/db')>();return {...actual,get db(){return state.db!;}};});
+vi.mock('@/lib/auth',()=>({getCurrentUser:async()=>state.db!.prepare('SELECT * FROM users WHERE id=?').get(state.user)}));
+vi.mock('@/lib/clientPayments',()=>({getClientCardInfo:()=>({stripeConfigured:false,hasCard:false})}));
+vi.mock('@/lib/push',()=>({queueNewJobFirmPushes:()=>[],processPushOutbox:vi.fn()}));
+import {initializeDatabase} from '@/lib/db';
+import {createTariff,simulateTariff,publishTariff} from '@/lib/managedPricingStore';
+import {POST as quote} from './quote/route';
+import {POST as book} from './route';
+const now=new Date('2026-10-01T06:00:00Z');
+const body={street:'Test 1',city:'București',spaceType:'apartament',sqm:80,windowsSqm:10,mode:'standard',whenType:'asap',photoIds:[]};
+const req=(path:string,data:unknown,key?:string)=>new NextRequest(`https://sandbox.nitido.ro/api/jobs${path}`,{method:'POST',headers:{'Content-Type':'application/json',...(key?{'Idempotency-Key':key}:{})},body:JSON.stringify(data)});
+async function offer(data=body){const r=await quote(req('/quote',data));expect(r.status).toBe(200);return (await r.json()).quote;}
+beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime(now);vi.stubEnv('NITIDO_MANAGED_PRICING_SANDBOX','true');vi.stubEnv('NEXT_PUBLIC_SITE_URL','https://sandbox.nitido.ro');vi.stubEnv('STRIPE_SECRET_KEY','');state.user='c';state.db=new Database(':memory:');state.db.pragma('foreign_keys=ON');initializeDatabase(state.db);state.db.exec("INSERT INTO users(id,role,name,credit_balance) VALUES('c','client','Test',20),('other','client','Other',0)");const t=createTariff(state.db,'Test'),sim=simulateTariff(state.db,t.id,0);publishTariff(state.db,t.id,0,sim.simulationId,now.toISOString(),null,now);});
+afterEach(()=>{state.db?.close();vi.useRealTimers();vi.unstubAllEnvs();});
+describe('managed quotes through real booking route',()=>{
+ it.each(['standard','express'])('creates %s once and freezes the accepted snapshot',async mode=>{const data={...body,mode},q=await offer(data);const first=await book(req('',{...data,quoteId:q.id},'same-request'));expect(first.status).toBe(201);const job=(await first.json()).job;expect(job.price_gross).toBe(630);expect(job.credit_applied).toBe(20);expect(JSON.parse(job.pricing_snapshot)).toEqual(q.pricing);vi.setSystemTime(new Date('2026-10-01T08:00:00Z'));const replay=await book(req('',{...data,quoteId:q.id},'same-request'));expect(replay.status).toBe(200);expect((await replay.json()).job.id).toBe(job.id);const secondKey=await book(req('',{...data,quoteId:q.id},'different-request'));expect((await secondKey.json()).job.id).toBe(job.id);expect(state.db!.prepare('SELECT count(*) n FROM jobs').get()).toEqual({n:1});expect(state.db!.prepare("SELECT credit_balance FROM users WHERE id='c'").get()).toEqual({credit_balance:0});});
+ it('blocks missing, foreign, expired and changed quotes without creating jobs',async()=>{const q=await offer();expect((await book(req('',body))).status).toBe(409);state.user='other';expect((await book(req('',{...body,quoteId:q.id}))).status).toBe(409);state.user='c';expect((await book(req('',{...body,sqm:81,quoteId:q.id}))).status).toBe(409);vi.setSystemTime(new Date(q.expiresAt));expect((await book(req('',{...body,quoteId:q.id}))).status).toBe(409);expect(state.db!.prepare('SELECT count(*) n FROM jobs').get()).toEqual({n:0});});
+ it('requires reconfirmation after another booking consumes credit',async()=>{const a=await offer(),b=await offer();expect((await book(req('',{...body,quoteId:a.id}))).status).toBe(201);expect((await book(req('',{...body,quoteId:b.id}))).status).toBe(409);expect(state.db!.prepare('SELECT count(*) n FROM jobs').get()).toEqual({n:1});});
+ it('rolls back job and credit when quote linking fails',async()=>{const q=await offer();state.db!.exec("CREATE TRIGGER test_failure BEFORE UPDATE OF job_id ON booking_price_quotes BEGIN SELECT RAISE(ABORT,'injected failure'); END;");await expect(book(req('',{...body,quoteId:q.id}))).rejects.toThrow('injected failure');expect(state.db!.prepare('SELECT count(*) n FROM jobs').get()).toEqual({n:0});expect(state.db!.prepare("SELECT credit_balance FROM users WHERE id='c'").get()).toEqual({credit_balance:20});});
+ it('keeps legacy creation available when the sandbox flag is off',async()=>{vi.stubEnv('NITIDO_MANAGED_PRICING_SANDBOX','false');expect((await book(req('',body,'legacy'))).status).toBe(201);expect(state.db!.prepare('SELECT count(*) n FROM booking_price_quotes').get()).toEqual({n:0});});
+ it('includes Express 60 once and rejects a scheduled premium booking',async()=>{const data={...body,express60:true},q=await offer(data);expect(q.pricing.lines.filter((l:{code:string})=>l.code==='express60')).toHaveLength(1);const r=await book(req('',{...data,quoteId:q.id}));expect(r.status).toBe(201);expect((await r.json()).job.price_gross*100).toBe(q.pricing.grossBani);expect((await book(req('',{...data,quoteId:q.id,whenType:'scheduled'}))).status).toBe(400);});
+});

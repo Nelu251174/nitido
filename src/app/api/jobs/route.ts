@@ -1,3 +1,5 @@
+import {managedBookingEnabled,bookingPriceContext,acceptedBookingQuote,linkBookingQuote,type BookingPriceSnapshot} from "@/lib/bookingQuotes";
+import {ManagedPricingError} from "@/lib/managedPricing";
 import {validEntrance} from "@/lib/entrance";
 import {turnoverReplay,validateTurnoverBooking} from '@/lib/hostTurnover';
 import {enforceOrganizationBooking,OrganizationError} from "@/lib/organizations";
@@ -232,6 +234,13 @@ export async function POST(req: NextRequest) {
 
   if(sqm>AUTOMATIC_MAX_SQM)return NextResponse.json({error:"Suprafața necesită evaluare asistată înainte de rezervare.",assessmentRequired:true,assessmentUrl:"/client/evaluari"},{status:422});
 
+  if(managedBookingEnabled()&&body.quoteId){
+    try{
+      const quote=acceptedBookingQuote(db,user.id,body.quoteId,bookingPriceContext(body));
+      if(quote.jobId){const existing=db.prepare("SELECT * FROM jobs WHERE id=? AND client_id=?").get(quote.jobId,user.id) as JobRow|undefined;if(existing)return NextResponse.json({job:existing,replayed:true});}
+    }catch(e){if(e instanceof ManagedPricingError)return NextResponse.json({error:e.message},{status:e.status});throw e;}
+  }
+
   // Card obligatoriu înainte de postare — la acceptare se pune HOLD pe acest
   // card, deci trebuie salvat dinainte. Dacă Stripe nu e activat, se sare peste.
   const card = getClientCardInfo(db, user.id);
@@ -280,15 +289,17 @@ export async function POST(req: NextRequest) {
   const express60Fee = isExpress60 ? EXPRESS_60_FEE_LEI : 0;
   const windowsSqm=body.windowsSqm??0;
   if(!validWindowsSqm(windowsSqm))return NextResponse.json({error:"Suprafața geamurilor trebuie să fie între 0 și 200 m², fără zecimale"},{status:400});
-  const priceGross = calcServicePrice(spaceType, sqm,windowsSqm) + express60Fee;
-  if((body.pricingVersion!==undefined&&body.pricingVersion!==PRICING_VERSION)||(body.expectedPriceGross!==undefined&&body.expectedPriceGross!==priceGross))return NextResponse.json({error:"Tariful s-a actualizat. Reîncarcă pagina și verifică noul preț înainte de publicare."},{status:409});
+  const managedPricing=managedBookingEnabled();
+  if(!managedPricing&&body.quoteId)return NextResponse.json({error:"Configurarea tarifelor s-a schimbat. Solicită o ofertă nouă."},{status:409});
+  let priceGross = calcServicePrice(spaceType, sqm,windowsSqm) + express60Fee;
+  if(!managedPricing&&((body.pricingVersion!==undefined&&body.pricingVersion!==PRICING_VERSION)||(body.expectedPriceGross!==undefined&&body.expectedPriceGross!==priceGross)))return NextResponse.json({error:"Tariful s-a actualizat. Reîncarcă pagina și verifică noul preț înainte de publicare."},{status:409});
   if(!Number.isSafeInteger(priceGross*100))return NextResponse.json({error:"Suprafața depășește limita de calcul"},{status:400});
   const durationMinutes = calcServiceDuration(sqm,windowsSqm);
 
   // Aplicare automată a creditului disponibil (program de recomandare — vezi
   // src/lib/referral.ts). Firma tot primește pe baza prețului INTEGRAL — vezi
   // src/lib/payments.ts, discount-ul e absorbit din comisionul platformei.
-  const { creditUsed } = applyCredit(priceGross, user.credit_balance);
+  let { creditUsed } = applyCredit(priceGross, user.credit_balance);
   const requestedPhotoIds = Array.from(new Set(photoIds ?? [])).slice(0, 5);
   const ownedPhotoIds = requestedPhotoIds.filter((photoId) =>
     db.prepare("SELECT 1 FROM job_photos WHERE id = ? AND owner_user_id = ? AND job_id IS NULL")
@@ -303,6 +314,17 @@ export async function POST(req: NextRequest) {
     if (requestId) {
       const existing = db.prepare("SELECT * FROM jobs WHERE client_id = ? AND client_request_id = ?").get(user.id, requestId) as JobRow | undefined;
       if (existing) return { job: existing, replayed: true };
+    }
+    let acceptedPrice:BookingPriceSnapshot|null=null;
+    if(managedPricing){
+      const accepted=acceptedBookingQuote(db,user.id,body.quoteId,bookingPriceContext(body));
+      if(accepted.jobId){
+        const existing=db.prepare("SELECT * FROM jobs WHERE id=? AND client_id=?").get(accepted.jobId,user.id) as JobRow|undefined;
+        if(!existing)throw new ManagedPricingError("Rezervarea ofertei nu poate fi verificată.",409);
+        return {job:existing,replayed:true};
+      }
+      acceptedPrice=accepted.snapshot;
+      priceGross=acceptedPrice.grossBani/100;creditUsed=acceptedPrice.creditBani/100;
     }
     let hostLink:{eventId:string;revision:string}|null=null;
     if(body.hostEventId){
@@ -319,7 +341,8 @@ export async function POST(req: NextRequest) {
     ).run(id,user.id,street,postalCode ?? null,city,floor ?? null,typeof details === "string" ? details.trim() || null : null,requestId,sqm,spaceType,whenType,scheduledAt.toISOString(),priceGross,creditUsed,durationMinutes,BUFFER_MINUTES,ownedPhotoIds.length,jobMode,isExpress60?1:0,express60Fee,isExpress60?express60Deadline(new Date().toISOString()).toISOString():null,isExpress60?"pending":null);
     if(body.entrance)db.prepare("INSERT INTO job_navigation(job_id,latitude,longitude,confirmed_at) VALUES(?,?,?,?)").run(id,body.entrance.lat,body.entrance.lng,new Date().toISOString());
     if (card.stripeConfigured) saveJobCard(db,user.id,id,body.cardId);
-    db.prepare("UPDATE jobs SET pricing_snapshot=?, windows_sqm=? WHERE id=?").run(JSON.stringify(pricingSnapshot({spaceType,sqm,windowsSqm,expressFeeLei:express60Fee,creditLei:creditUsed})),windowsSqm,id);
+    db.prepare("UPDATE jobs SET pricing_snapshot=?, windows_sqm=? WHERE id=?").run(JSON.stringify(acceptedPrice??pricingSnapshot({spaceType,sqm,windowsSqm,expressFeeLei:express60Fee,creditLei:creditUsed})),windowsSqm,id);
+    if(acceptedPrice)linkBookingQuote(db,user.id,acceptedPrice.quoteId,id);
     if (ownedPhotoIds.length > 0) {
       const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL");
       for (const photoId of ownedPhotoIds) linkPhoto.run(id, photoId, user.id);
@@ -331,7 +354,7 @@ export async function POST(req: NextRequest) {
     if(linked){enforceOrganizationBooking(db,linked.property_id,id);enforcePropertyBudget(db,linked.property_id,id);snapshotInstructions(db,id,linked.property_id,user.id);}
     return { job: db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow, replayed: false };
   }).immediate();
-  } catch(e) { if(e instanceof AccessError || e instanceof OrganizationError || e instanceof WorkspaceError || e instanceof CardSetupError)return NextResponse.json({error:e.message},{status:e.status}); throw e; }
+  } catch(e) { if(e instanceof ManagedPricingError || e instanceof AccessError || e instanceof OrganizationError || e instanceof WorkspaceError || e instanceof CardSetupError)return NextResponse.json({error:e.message},{status:e.status}); throw e; }
   if (created.replayed) return NextResponse.json({ job: created.job, replayed: true });
   const job = created.job;
 
