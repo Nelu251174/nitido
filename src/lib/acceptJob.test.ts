@@ -1,12 +1,13 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import DatabaseCtor from "better-sqlite3";
 import type { Database } from "better-sqlite3";
-import { SCHEMA_SQL } from "./db";
+import { initializeDatabase } from "./db";
 import { acceptJobAtomic } from "./acceptJob";
 
 function makeTestDb(): Database {
   const db = new DatabaseCtor(":memory:");
-  db.exec(SCHEMA_SQL);
+  db.pragma("foreign_keys = ON");
+  initializeDatabase(db);
   return db;
 }
 
@@ -38,6 +39,7 @@ describe("acceptJobAtomic — mecanismul 'primul care apasă câștigă' (spec s
   beforeEach(() => {
     db = makeTestDb();
   });
+  afterEach(() => db.close());
 
   it("un singur accept reușește pe un job în așteptare", async () => {
     const [firmId] = seedClientAndFirms(db, 1);

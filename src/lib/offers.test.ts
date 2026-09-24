@@ -1,12 +1,13 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import DatabaseCtor from "better-sqlite3";
 import type { Database } from "better-sqlite3";
-import { SCHEMA_SQL } from "./db";
+import { initializeDatabase } from "./db";
 import { createOffer, listOffersForJob, selectOffer, withdrawOffer } from "./offers";
 
 function makeTestDb(): Database {
   const db = new DatabaseCtor(":memory:");
-  db.exec(SCHEMA_SQL);
+  db.pragma("foreign_keys = ON");
+  initializeDatabase(db);
   return db;
 }
 
@@ -40,6 +41,7 @@ describe("offers — selecția pe calitate (Etapa 2, mod 'standard')", () => {
   beforeEach(() => {
     db = makeTestDb();
   });
+  afterEach(() => db.close());
 
   it("o firmă verificată din zonă poate trimite o ofertă la o lucrare standard", () => {
     const [firmId] = seedClientAndFirms(db, 1);

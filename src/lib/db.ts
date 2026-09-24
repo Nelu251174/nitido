@@ -432,155 +432,161 @@ CREATE TABLE IF NOT EXISTS estimator_options (
 );
 `;
 
-db.exec(SCHEMA_SQL);
-initializeNotificationClaims(db);
-db.exec(WORKSPACE_SCHEMA);
-db.exec(`CREATE TABLE IF NOT EXISTS job_reschedule_requests (
- id TEXT PRIMARY KEY, job_id TEXT NOT NULL REFERENCES jobs(id), client_id TEXT NOT NULL,
- firm_id TEXT, original_at TEXT NOT NULL, proposed_at TEXT NOT NULL,
- status TEXT NOT NULL CHECK(status IN ('pending','accepted','rejected','withdrawn')),
- created_at TEXT NOT NULL, resolved_at TEXT
-);
-CREATE UNIQUE INDEX IF NOT EXISTS one_pending_reschedule ON job_reschedule_requests(job_id) WHERE status='pending';`);
-db.exec(`CREATE TABLE IF NOT EXISTS reschedule_authorizations (
- request_id TEXT PRIMARY KEY REFERENCES job_reschedule_requests(id),
- job_id TEXT NOT NULL REFERENCES jobs(id), payment_id TEXT NOT NULL,
- old_intent_id TEXT NOT NULL, new_intent_id TEXT UNIQUE,
- old_payment_json TEXT NOT NULL, old_attempt_json TEXT NOT NULL,
- params_json TEXT NOT NULL, provider_key_hash TEXT NOT NULL,
- created_ms INTEGER NOT NULL, expires_ms INTEGER NOT NULL,
- state TEXT NOT NULL DEFAULT 'open' CHECK(state IN ('open','applied','aborting','aborted')),
- cleanup_status TEXT NOT NULL DEFAULT 'pending' CHECK(cleanup_status IN ('pending','done')),
- cleanup_attempts INTEGER NOT NULL DEFAULT 0, retry_after_ms INTEGER NOT NULL DEFAULT 0,
- last_error TEXT, applied_at TEXT
-);
-CREATE INDEX IF NOT EXISTS reschedule_authorization_cleanup ON reschedule_authorizations(cleanup_status,retry_after_ms);`);
-db.exec(VISIT_CARE_SCHEMA);
-db.exec(JOB_NAVIGATION_SCHEMA);
-initializeCatalog(db);
-db.exec(CATALOG_CAPACITY_SCHEMA);
-db.exec(ASSESSMENT_SCHEMA);
-db.exec(EMAIL_VERIFICATION_SCHEMA);
-
-// Migrare simplă pentru coloane noi adăugate DUPĂ ce baza de date există deja
-// în producție — `CREATE TABLE IF NOT EXISTS` de mai sus nu face nimic pe un
-// fișier existent, deci orice coloană nouă trebuie adăugată explicit aici,
-// o singură dată (verificăm întâi dacă lipsește).
-function ensureColumn(table: string, column: string, definition: string) {
-  // Next.js build workers can initialize the same database concurrently.
-  // Acquire the write lock before checking, so only one worker adds a column.
-  db.transaction(() => {
-    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-    if (!cols.some((c) => c.name === column)) {
-      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-    }
-  }).immediate();
-}
-ensureColumn("workspace_approvals", "organization_id", "TEXT REFERENCES workspace_organizations(id)");
-ensureColumn("workspace_approvals", "policy_revision", "INTEGER");
-ensureColumn("workspace_approvals", "approval_mode", "TEXT NOT NULL DEFAULT 'manual'");
-ensureColumn("job_reschedule_requests", "firm_confirmed_at", "TEXT");
-ensureColumn("job_reschedule_requests", "confirmed_snapshot", "TEXT");
-ensureColumn("workspace_properties", "postal_code", "TEXT NOT NULL DEFAULT ''");
-ensureColumn("workspace_properties", "floor", "TEXT NOT NULL DEFAULT ''");
-ensureColumn("workspace_properties", "rooms", "INTEGER");
-ensureColumn("workspace_properties", "sensitive_materials", "TEXT NOT NULL DEFAULT ''");
-ensureColumn("workspace_properties", "usual_tasks", "TEXT NOT NULL DEFAULT ''");
-ensureColumn("workspace_properties", "access_notes", "TEXT NOT NULL DEFAULT ''");
-ensureColumn("firms", "coverage_cities_extra", "TEXT");
-ensureColumn("firms", "stripe_account_status", "TEXT NOT NULL DEFAULT 'not_started'");
-ensureColumn("firms", "stripe_transfers_capability", "TEXT NOT NULL DEFAULT 'inactive'");
-ensureColumn("firms", "description", "TEXT");
-ensureColumn("firms", "working_hours", "TEXT");
-ensureColumn("firms", "services", "TEXT");
-ensureColumn("firms", "website", "TEXT");
-ensureColumn("users", "referral_code", "TEXT");
-ensureColumn("users", "referred_by_code", "TEXT");
-ensureColumn("users", "credit_balance", "INTEGER NOT NULL DEFAULT 0");
-ensureColumn("users", "stripe_customer_id", "TEXT");
-ensureColumn("users", "stripe_payment_method_id", "TEXT");
-initializeSavedCards(db);
-// Etapa 3 — Nitido Office (cont business + date firmă pentru facturare/raport).
-ensureColumn("users", "is_business", "INTEGER NOT NULL DEFAULT 0");
-ensureColumn("users", "company_name", "TEXT");
-ensureColumn("users", "company_cui", "TEXT");
-ensureColumn("users", "company_address", "TEXT");
-ensureColumn("jobs", "credit_applied", "INTEGER NOT NULL DEFAULT 0");
-ensureColumn("jobs", "details", "TEXT");
-ensureColumn("jobs", "pricing_snapshot", "TEXT");
-ensureColumn("jobs", "windows_sqm", "INTEGER NOT NULL DEFAULT 0");
-// Published pricing is an audit record, separate from later refunds/adjustments.
-db.exec(PRICING_SNAPSHOT_LOCK_SQL);
-ensureColumn("jobs", "client_request_id", "TEXT");
-// Etapa 2 — modul de preluare (implicit 'express' pentru lucrările existente,
-// ca să nu se schimbe comportamentul actual). CHECK-ul e aplicat doar pe baze
-// noi (via SCHEMA_SQL); pe cele existente rămâne o coloană TEXT simplă cu default.
-ensureColumn("jobs", "mode", "TEXT NOT NULL DEFAULT 'express'");
-// Etapa 3 — legătura de garanție (re-curățare gratuită).
-ensureColumn("jobs", "guarantee_of", "TEXT REFERENCES jobs(id)");
-// Express 60 (Pachet C) — tier premium cu preluare garantată în 60 min.
-ensureColumn("jobs", "express_60", "INTEGER NOT NULL DEFAULT 0");
-ensureColumn("jobs", "express_60_fee", "INTEGER NOT NULL DEFAULT 0");
-ensureColumn("jobs", "express_60_deadline", "TEXT");
-ensureColumn("jobs", "express_60_status", "TEXT");
-ensureColumn("job_photos", "owner_user_id", "TEXT REFERENCES users(id)");
-ensureColumn("job_photos", "uploaded_by_firm_id", "TEXT REFERENCES firms(id)");
-ensureColumn("job_photos", "proof_type", "TEXT NOT NULL DEFAULT 'CLIENT_CONTEXT'");
-ensureColumn("job_photos", "mime_type", "TEXT");
-ensureColumn("job_photos", "file_size", "INTEGER");
-ensureColumn("job_photos", "status", "TEXT NOT NULL DEFAULT 'VALID'");
-ensureColumn("job_photos", "validated_at", "TEXT");
-// Nitido Scan (Pachet C) — eticheta încăperii pentru pozele de context.
-ensureColumn("job_photos", "context_label", "TEXT");
-ensureColumn("ratings", "status", "TEXT NOT NULL DEFAULT 'active'");
-ensureColumn("ratings", "moderation_status", "TEXT NOT NULL DEFAULT 'published'");
-ensureColumn("ratings", "updated_at", "TEXT");
-ensureColumn("payments", "stripe_charge_id", "TEXT");
-ensureColumn("payments", "stripe_fee_amount", "INTEGER");
-ensureColumn("payments", "transfer_status", "TEXT NOT NULL DEFAULT 'not_started'");
-ensureColumn("payments", "stripe_transfer_id", "TEXT");
-ensureColumn("payments", "payout_status", "TEXT NOT NULL DEFAULT 'unknown'");
-ensureColumn("payments", "refund_status", "TEXT NOT NULL DEFAULT 'none'");
-ensureColumn("workspace_teams", "minimum_duration_minutes", "INTEGER NOT NULL DEFAULT 0");
-ensureColumn("workspace_teams", "travel_minutes", "INTEGER NOT NULL DEFAULT 0");
-ensureColumn("recurring_plans", "schedule_generation", "INTEGER NOT NULL DEFAULT 0");
-// Preserve each visit identity across frequency changes, including dates reused by a new schedule.
-db.transaction(() => {
-  const occurrenceColumns = db.prepare('PRAGMA table_info(recurring_occurrences)').all() as {name:string;pk:number}[];
-  if (occurrenceColumns.some(c => c.name === 'schedule_generation')) return;
-  db.exec(`CREATE TABLE recurring_occurrences_next (
-    plan_id TEXT NOT NULL REFERENCES recurring_plans(id),
-    schedule_generation INTEGER NOT NULL DEFAULT 0,
-    occurrence_date TEXT NOT NULL,
-    job_id TEXT NOT NULL UNIQUE REFERENCES jobs(id),
-    scheduled_at TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY(plan_id,schedule_generation,occurrence_date)
+/** Apply the same schema and migrations to production and isolated test databases. */
+export function initializeDatabase(db: Database.Database): void {
+  db.exec(SCHEMA_SQL);
+  initializeNotificationClaims(db);
+  db.exec(WORKSPACE_SCHEMA);
+  db.exec(`CREATE TABLE IF NOT EXISTS job_reschedule_requests (
+   id TEXT PRIMARY KEY, job_id TEXT NOT NULL REFERENCES jobs(id), client_id TEXT NOT NULL,
+   firm_id TEXT, original_at TEXT NOT NULL, proposed_at TEXT NOT NULL,
+   status TEXT NOT NULL CHECK(status IN ('pending','accepted','rejected','withdrawn')),
+   created_at TEXT NOT NULL, resolved_at TEXT
   );
-  INSERT INTO recurring_occurrences_next(plan_id,occurrence_date,job_id,scheduled_at,created_at)
-    SELECT plan_id,occurrence_date,job_id,scheduled_at,created_at FROM recurring_occurrences;
-  DROP TABLE recurring_occurrences;
-  ALTER TABLE recurring_occurrences_next RENAME TO recurring_occurrences;
-  CREATE INDEX idx_recurring_occurrence_date ON recurring_occurrences(occurrence_date DESC);`);
-}).immediate();
-ensureColumn("recurring_plans", "anchor_day", "INTEGER");
-ensureColumn("recurring_plans", "end_date", "TEXT");
-ensureColumn("recurring_plans", "property_id", "TEXT REFERENCES workspace_properties(id)");
-ensureColumn("workspace_properties", "budget_enforced", "INTEGER NOT NULL DEFAULT 0");
-ensureColumn("workspace_approvals", "snapshot_street", "TEXT NOT NULL DEFAULT ''");
-ensureColumn("workspace_approvals", "snapshot_city", "TEXT NOT NULL DEFAULT ''");
-db.exec("UPDATE recurring_plans SET anchor_day=CAST(substr(next_run_date,9,2) AS INTEGER) WHERE anchor_day IS NULL");
-ensureColumn("payments", "dispute_status", "TEXT NOT NULL DEFAULT 'none'");
-db.exec("CREATE INDEX IF NOT EXISTS idx_job_photos_proof ON job_photos(job_id, uploaded_by_firm_id, proof_type, status)");
-db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_ratings_one_per_job ON ratings(job_id)");
+  CREATE UNIQUE INDEX IF NOT EXISTS one_pending_reschedule ON job_reschedule_requests(job_id) WHERE status='pending';`);
+  db.exec(`CREATE TABLE IF NOT EXISTS reschedule_authorizations (
+   request_id TEXT PRIMARY KEY REFERENCES job_reschedule_requests(id),
+   job_id TEXT NOT NULL REFERENCES jobs(id), payment_id TEXT NOT NULL,
+   old_intent_id TEXT NOT NULL, new_intent_id TEXT UNIQUE,
+   old_payment_json TEXT NOT NULL, old_attempt_json TEXT NOT NULL,
+   params_json TEXT NOT NULL, provider_key_hash TEXT NOT NULL,
+   created_ms INTEGER NOT NULL, expires_ms INTEGER NOT NULL,
+   state TEXT NOT NULL DEFAULT 'open' CHECK(state IN ('open','applied','aborting','aborted')),
+   cleanup_status TEXT NOT NULL DEFAULT 'pending' CHECK(cleanup_status IN ('pending','done')),
+   cleanup_attempts INTEGER NOT NULL DEFAULT 0, retry_after_ms INTEGER NOT NULL DEFAULT 0,
+   last_error TEXT, applied_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS reschedule_authorization_cleanup ON reschedule_authorizations(cleanup_status,retry_after_ms);`);
+  db.exec(VISIT_CARE_SCHEMA);
+  db.exec(JOB_NAVIGATION_SCHEMA);
+  initializeCatalog(db);
+  db.exec(CATALOG_CAPACITY_SCHEMA);
+  db.exec(ASSESSMENT_SCHEMA);
+  db.exec(EMAIL_VERIFICATION_SCHEMA);
 
-// Seed ESTIMATOR LIVE (opțiunile implicite) — doar dacă tabelul e gol.
-if ((db.prepare("SELECT COUNT(*) c FROM estimator_options").get() as { c: number }).c === 0) {
-  const seedEstimator = db.prepare("INSERT INTO estimator_options (key, label, enabled, sort_order) VALUES (?, ?, 1, ?)");
-  ([["apartament", "Apartament"], ["casa", "Casă / Vilă"], ["birou", "Birou"], ["altul", "Altul"]] as const)
-    .forEach(([key, label], i) => seedEstimator.run(key, label, i));
+  // Migrare simplă pentru coloane noi adăugate DUPĂ ce baza de date există deja
+  // în producție — `CREATE TABLE IF NOT EXISTS` de mai sus nu face nimic pe un
+  // fișier existent, deci orice coloană nouă trebuie adăugată explicit aici,
+  // o singură dată (verificăm întâi dacă lipsește).
+  function ensureColumn(table: string, column: string, definition: string) {
+    // Next.js build workers can initialize the same database concurrently.
+    // Acquire the write lock before checking, so only one worker adds a column.
+    db.transaction(() => {
+      const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+      if (!cols.some((c) => c.name === column)) {
+        db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+      }
+    }).immediate();
+  }
+  ensureColumn("workspace_approvals", "organization_id", "TEXT REFERENCES workspace_organizations(id)");
+  ensureColumn("workspace_approvals", "policy_revision", "INTEGER");
+  ensureColumn("workspace_approvals", "approval_mode", "TEXT NOT NULL DEFAULT 'manual'");
+  ensureColumn("job_reschedule_requests", "firm_confirmed_at", "TEXT");
+  ensureColumn("job_reschedule_requests", "confirmed_snapshot", "TEXT");
+  ensureColumn("workspace_properties", "postal_code", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn("workspace_properties", "floor", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn("workspace_properties", "rooms", "INTEGER");
+  ensureColumn("workspace_properties", "sensitive_materials", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn("workspace_properties", "usual_tasks", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn("workspace_properties", "access_notes", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn("firms", "coverage_cities_extra", "TEXT");
+  ensureColumn("firms", "stripe_account_status", "TEXT NOT NULL DEFAULT 'not_started'");
+  ensureColumn("firms", "stripe_transfers_capability", "TEXT NOT NULL DEFAULT 'inactive'");
+  ensureColumn("firms", "description", "TEXT");
+  ensureColumn("firms", "working_hours", "TEXT");
+  ensureColumn("firms", "services", "TEXT");
+  ensureColumn("firms", "website", "TEXT");
+  ensureColumn("users", "referral_code", "TEXT");
+  ensureColumn("users", "referred_by_code", "TEXT");
+  ensureColumn("users", "credit_balance", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("users", "stripe_customer_id", "TEXT");
+  ensureColumn("users", "stripe_payment_method_id", "TEXT");
+  initializeSavedCards(db);
+  // Etapa 3 — Nitido Office (cont business + date firmă pentru facturare/raport).
+  ensureColumn("users", "is_business", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("users", "company_name", "TEXT");
+  ensureColumn("users", "company_cui", "TEXT");
+  ensureColumn("users", "company_address", "TEXT");
+  ensureColumn("jobs", "credit_applied", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("jobs", "details", "TEXT");
+  ensureColumn("jobs", "pricing_snapshot", "TEXT");
+  ensureColumn("jobs", "windows_sqm", "INTEGER NOT NULL DEFAULT 0");
+  // Published pricing is an audit record, separate from later refunds/adjustments.
+  db.exec(PRICING_SNAPSHOT_LOCK_SQL);
+  ensureColumn("jobs", "client_request_id", "TEXT");
+  // Etapa 2 — modul de preluare (implicit 'express' pentru lucrările existente,
+  // ca să nu se schimbe comportamentul actual). CHECK-ul e aplicat doar pe baze
+  // noi (via SCHEMA_SQL); pe cele existente rămâne o coloană TEXT simplă cu default.
+  ensureColumn("jobs", "mode", "TEXT NOT NULL DEFAULT 'express'");
+  // Etapa 3 — legătura de garanție (re-curățare gratuită).
+  ensureColumn("jobs", "guarantee_of", "TEXT REFERENCES jobs(id)");
+  // Express 60 (Pachet C) — tier premium cu preluare garantată în 60 min.
+  ensureColumn("jobs", "express_60", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("jobs", "express_60_fee", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("jobs", "express_60_deadline", "TEXT");
+  ensureColumn("jobs", "express_60_status", "TEXT");
+  ensureColumn("job_photos", "owner_user_id", "TEXT REFERENCES users(id)");
+  ensureColumn("job_photos", "uploaded_by_firm_id", "TEXT REFERENCES firms(id)");
+  ensureColumn("job_photos", "proof_type", "TEXT NOT NULL DEFAULT 'CLIENT_CONTEXT'");
+  ensureColumn("job_photos", "mime_type", "TEXT");
+  ensureColumn("job_photos", "file_size", "INTEGER");
+  ensureColumn("job_photos", "status", "TEXT NOT NULL DEFAULT 'VALID'");
+  ensureColumn("job_photos", "validated_at", "TEXT");
+  // Nitido Scan (Pachet C) — eticheta încăperii pentru pozele de context.
+  ensureColumn("job_photos", "context_label", "TEXT");
+  ensureColumn("ratings", "status", "TEXT NOT NULL DEFAULT 'active'");
+  ensureColumn("ratings", "moderation_status", "TEXT NOT NULL DEFAULT 'published'");
+  ensureColumn("ratings", "updated_at", "TEXT");
+  ensureColumn("payments", "stripe_charge_id", "TEXT");
+  ensureColumn("payments", "stripe_fee_amount", "INTEGER");
+  ensureColumn("payments", "transfer_status", "TEXT NOT NULL DEFAULT 'not_started'");
+  ensureColumn("payments", "stripe_transfer_id", "TEXT");
+  ensureColumn("payments", "payout_status", "TEXT NOT NULL DEFAULT 'unknown'");
+  ensureColumn("payments", "refund_status", "TEXT NOT NULL DEFAULT 'none'");
+  ensureColumn("workspace_teams", "minimum_duration_minutes", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("workspace_teams", "travel_minutes", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("recurring_plans", "schedule_generation", "INTEGER NOT NULL DEFAULT 0");
+  // Preserve each visit identity across frequency changes, including dates reused by a new schedule.
+  db.transaction(() => {
+    const occurrenceColumns = db.prepare('PRAGMA table_info(recurring_occurrences)').all() as {name:string;pk:number}[];
+    if (occurrenceColumns.some(c => c.name === 'schedule_generation')) return;
+    db.exec(`CREATE TABLE recurring_occurrences_next (
+      plan_id TEXT NOT NULL REFERENCES recurring_plans(id),
+      schedule_generation INTEGER NOT NULL DEFAULT 0,
+      occurrence_date TEXT NOT NULL,
+      job_id TEXT NOT NULL UNIQUE REFERENCES jobs(id),
+      scheduled_at TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY(plan_id,schedule_generation,occurrence_date)
+    );
+    INSERT INTO recurring_occurrences_next(plan_id,occurrence_date,job_id,scheduled_at,created_at)
+      SELECT plan_id,occurrence_date,job_id,scheduled_at,created_at FROM recurring_occurrences;
+    DROP TABLE recurring_occurrences;
+    ALTER TABLE recurring_occurrences_next RENAME TO recurring_occurrences;
+    CREATE INDEX idx_recurring_occurrence_date ON recurring_occurrences(occurrence_date DESC);`);
+  }).immediate();
+  ensureColumn("recurring_plans", "anchor_day", "INTEGER");
+  ensureColumn("recurring_plans", "end_date", "TEXT");
+  ensureColumn("recurring_plans", "property_id", "TEXT REFERENCES workspace_properties(id)");
+  ensureColumn("workspace_properties", "budget_enforced", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("workspace_approvals", "snapshot_street", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn("workspace_approvals", "snapshot_city", "TEXT NOT NULL DEFAULT ''");
+  db.exec("UPDATE recurring_plans SET anchor_day=CAST(substr(next_run_date,9,2) AS INTEGER) WHERE anchor_day IS NULL");
+  ensureColumn("payments", "dispute_status", "TEXT NOT NULL DEFAULT 'none'");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_job_photos_proof ON job_photos(job_id, uploaded_by_firm_id, proof_type, status)");
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_ratings_one_per_job ON ratings(job_id)");
+
+  // Seed ESTIMATOR LIVE (opțiunile implicite) — doar dacă tabelul e gol.
+  if ((db.prepare("SELECT COUNT(*) c FROM estimator_options").get() as { c: number }).c === 0) {
+    const seedEstimator = db.prepare("INSERT INTO estimator_options (key, label, enabled, sort_order) VALUES (?, ?, 1, ?)");
+    ([["apartament", "Apartament"], ["casa", "Casă / Vilă"], ["birou", "Birou"], ["altul", "Altul"]] as const)
+      .forEach(([key, label], i) => seedEstimator.run(key, label, i));
+  }
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_client_request ON jobs(client_id, client_request_id) WHERE client_request_id IS NOT NULL");
+
 }
-db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_client_request ON jobs(client_id, client_request_id) WHERE client_request_id IS NOT NULL");
+
+initializeDatabase(db);
 
 export function newId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
