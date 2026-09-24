@@ -1,0 +1,16 @@
+name: Inspect TestFlight distribution
+on:
+  push:
+    branches: [ops/testflight-check-20260924]
+  workflow_dispatch:
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pyjwt cryptography
+      - run: python scripts/inspect-testflight.py
+        env:
+          ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
