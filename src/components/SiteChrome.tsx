@@ -6,7 +6,7 @@ import {MobileMenu} from "@/components/MobileMenu";
 import {CITIES} from "@/lib/cities";
 
 export const FOOTER_LINK_GROUPS = [
-  { title: "Produs", links: [["Cum funcționează", "/cum-functioneaza"], ["Încredere & Siguranță", "/incredere"], ["Pentru clienți", "/pentru-clienti"], ["Pentru firme", "/pentru-firme"], ["Înscrie-ți firma", "/inscrie-firma"], ["Prețuri", "/preturi"]] },
+  { title: "Produs", links: [...(process.env.NEXT_PUBLIC_NITIDO_PRO_PUBLIC==='true'?[["NITIDO Pro", "/nitido-pro"]]:[]),["Cum funcționează", "/cum-functioneaza"], ["Încredere & Siguranță", "/incredere"], ["Pentru clienți", "/pentru-clienti"], ["Pentru firme", "/pentru-firme"], ["Înscrie-ți firma", "/inscrie-firma"], ["Prețuri", "/preturi"]] },
   { title: "Clienți", links: [["Postează o lucrare", "/signup?role=client"], ["Urmărire live", "/urmarire-live"], ["Siguranță", "/siguranta"]] },
   { title: "Companie", links: [["Despre noi", "/despre-noi"], ["Contact", "/contact"], ["Cariere", "/cariere"]] },
   { title: "Legal", links: [["Termeni", "/termeni"], ["Confidențialitate", "/confidentialitate"], ["Cookie-uri", "/cookie-uri"]] },
