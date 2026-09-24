@@ -104,3 +104,14 @@ header.sticky, aside.sticky, .board-sidebar { top: var(--app-safe-top); }
 .design-search-date .romanian-date-controls > input { min-width:0; flex:1; width:100%; }
 .design-search-date .romanian-date-picker { flex:0 0 30px; width:30px; height:30px; border:0; }
 .design-search-date .romanian-date-picker input { position:absolute; inset:0; width:100%; height:100%; min-height:0; padding:0; margin:0; opacity:0; cursor:pointer; }
+
+/* Keep Pro accessible without opening the mobile menu. */
+.design-mobile-pro-entry { display: none; }
+@media (max-width: 760px) {
+  .design-header:has(.design-mobile-pro-entry) { height: auto; background: #F7F3EC; }
+  .design-header-inner { height: 68px; }
+  .design-mobile-pro-entry { display: flex; padding: 0 18px 12px; }
+  .design-mobile-pro-entry .pro-header-link { width: 100%; justify-content: center; }
+  .design-header:has(.public-mobile-menu) { z-index: 100; }
+  .public-mobile-menu { display: block; overscroll-behavior: contain; }
+}

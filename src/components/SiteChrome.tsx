@@ -2,6 +2,7 @@ import Link from "next/link";
 import {HomeLogoLink} from "@/components/HomeLogoLink";
 import {PhoneAppPromo} from "@/components/StoreBadges";
 import {HeaderAuthButtons} from "@/components/HeaderAuthButtons";
+import {ProLink} from "@/components/pro/ProLink";
 import {MobileMenu} from "@/components/MobileMenu";
 import {CITIES} from "@/lib/cities";
 
@@ -13,7 +14,7 @@ export const FOOTER_LINK_GROUPS = [
 ] as const;
 
 export function SiteHeader({home=false}:{home?:boolean}) {
-  return <header className={`design-header ${home?'design-header-home':''}`}><div className="design-container design-header-inner"><div><HomeLogoLink/><span className="design-logo-caption">O casă mai curată. O viață mai bună.</span></div><nav className="design-desktop-nav" aria-label="Navigare principală"><Link href="/#servicii">Servicii</Link><Link href="/cum-functioneaza">Cum funcționează</Link><Link href="/pentru-firme">Pentru firme</Link><Link href="/despre-noi">Despre noi</Link><Link href="/contact#asistent-ai">Asistent AI</Link></nav><div className="design-header-actions"><HeaderAuthButtons/><MobileMenu/></div></div></header>;
+  return <header className={`design-header ${home?'design-header-home':''}`}><div className="design-container design-header-inner"><div><HomeLogoLink/><span className="design-logo-caption">O casă mai curată. O viață mai bună.</span></div><nav className="design-desktop-nav" aria-label="Navigare principală"><Link href="/#servicii">Servicii</Link><Link href="/cum-functioneaza">Cum funcționează</Link><Link href="/pentru-firme">Pentru firme</Link><Link href="/despre-noi">Despre noi</Link><Link href="/contact#asistent-ai">Asistent AI</Link></nav><div className="design-header-actions"><HeaderAuthButtons/><MobileMenu/></div></div>{process.env.NEXT_PUBLIC_NITIDO_PRO_PUBLIC === "true" && <div className="design-mobile-pro-entry"><ProLink/></div>}</header>;
 }
 
 export function SiteFooter() {
