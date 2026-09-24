@@ -1,11 +1,11 @@
 import {beforeEach,afterEach,describe,it,expect,vi} from 'vitest';
 import Sqlite from 'better-sqlite3';
-import {SCHEMA_SQL} from './db';
+import {initializeDatabase} from './db';
 const provider=vi.hoisted(()=>({authorize:vi.fn()}));
 vi.mock('@/lib/payments',()=>({authorizePayment:provider.authorize,connectTransfersEnabled:()=>false}));
 import {acceptJobAtomic} from './acceptJob';
 let db:Sqlite.Database;
-beforeEach(()=>{vi.resetAllMocks();db=new Sqlite(':memory:');db.exec(SCHEMA_SQL);db.exec("INSERT INTO users(id,role,name) VALUES('c','client','Client'),('u','firma','Firm'),('v','firma','Other');INSERT INTO firms(id,user_id,coverage_city,verified) VALUES('f','u','București',1),('g','v','București',1);INSERT INTO jobs(id,client_id,street,city,sqm,space_type,when_type,price_gross,duration_minutes,status) VALUES('j','c','Test','București',75,'apartament','asap',550,150,'waiting')");});
+beforeEach(()=>{vi.resetAllMocks();db=new Sqlite(':memory:');db.pragma('foreign_keys = ON');initializeDatabase(db);db.exec("INSERT INTO users(id,role,name) VALUES('c','client','Client'),('u','firma','Firm'),('v','firma','Other');INSERT INTO firms(id,user_id,coverage_city,verified) VALUES('f','u','București',1),('g','v','București',1);INSERT INTO jobs(id,client_id,street,city,sqm,space_type,when_type,price_gross,duration_minutes,status) VALUES('j','c','Test','București',75,'apartament','asap',550,150,'waiting')");});
 afterEach(()=>db.close());
 function failingAuthorization(){let fail!:(error:Error)=>void;provider.authorize.mockImplementation(()=>new Promise((_,reject)=>{fail=reject}));return ()=>fail(Error('private-provider-detail'));}
 const state=()=>db.prepare('SELECT status,accepted_firm_id FROM jobs').get();

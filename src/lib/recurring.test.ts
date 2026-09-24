@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import DatabaseCtor from "better-sqlite3";
 import type { Database } from "better-sqlite3";
-import { SCHEMA_SQL } from "./db";
+import { initializeDatabase } from "./db";
 import {
   createRecurringPlan,
   computeNextDate,
@@ -17,7 +17,8 @@ import {
 
 function makeTestDb(): Database {
   const db = new DatabaseCtor(":memory:");
-  db.exec(SCHEMA_SQL);
+  db.pragma("foreign_keys = ON");
+  initializeDatabase(db);
   return db;
 }
 
@@ -26,6 +27,13 @@ function seedClientAndFirm(db: Database): string {
   db.prepare("INSERT INTO users (id, role, name) VALUES ('firm_user','firma','Firma Pref')").run();
   db.prepare("INSERT INTO firms (id, user_id, coverage_city, verified) VALUES ('firm_pref','firm_user','Constanța',1)").run();
   return "firm_pref";
+}
+
+function seedPreferredFirm(db: Database): string {
+  const firmId = seedClientAndFirm(db);
+  db.prepare(`INSERT INTO jobs(id,client_id,street,city,sqm,space_type,when_type,price_gross,duration_minutes,status,accepted_firm_id)
+    VALUES('history','client_1','Test','Constanța',75,'apartament','asap',550,150,'completed',?)`).run(firmId);
+  return firmId;
 }
 
 const basePlan = {
@@ -41,17 +49,23 @@ const basePlan = {
 describe("recurring — Nitido Repeat (Etapa 3)", () => {
   let db: Database;
   beforeEach(() => {
+    // These cases exercise individual occurrences; the rolling horizon is tested separately.
+    vi.stubEnv("NITIDO_RECURRING_HORIZON_DAYS", "1");
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
     db = makeTestDb();
   });
 
+  afterEach(() => { db.close(); vi.useRealTimers(); vi.unstubAllEnvs(); });
+
   it("computeNextDate adaugă corect intervalul", () => {
-    expect(computeNextDate("weekly", new Date("2026-01-01T00:00:00"))).toBe("2026-01-08");
-    expect(computeNextDate("biweekly", new Date("2026-01-01T00:00:00"))).toBe("2026-01-15");
-    expect(computeNextDate("monthly", new Date("2026-01-15T00:00:00"))).toBe("2026-02-15");
+    expect(computeNextDate("weekly", new Date("2026-01-01T00:00:00+02:00"))).toBe("2026-01-08");
+    expect(computeNextDate("biweekly", new Date("2026-01-01T00:00:00+02:00"))).toBe("2026-01-15");
+    expect(computeNextDate("monthly", new Date("2026-01-15T00:00:00+02:00"))).toBe("2026-02-15");
   });
 
   it("creează un plan și îl listează pentru client", () => {
-    seedClientAndFirm(db);
+    seedPreferredFirm(db);
     const r = createRecurringPlan(db, { ...basePlan, preferredFirmId: "firm_pref", startDate: "2026-01-05" });
     expect(r.ok).toBe(true);
     expect(listPlansForClient(db, "client_1")).toHaveLength(1);
@@ -63,17 +77,18 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     expect(createRecurringPlan(db, { ...basePlan, frequency: "yearly" as never, startDate: "2026-01-05" }).ok).toBe(false);
   });
 
-  it("generează lucrarea scadentă, o alocă firmei preferate și avansează next_run_date", async () => {
-    const firmId = seedClientAndFirm(db);
+  it("generează vizita Standard fără alocare sau plată automată și avansează next_run_date", async () => {
+    const firmId = seedPreferredFirm(db);
     createRecurringPlan(db, { ...basePlan, preferredFirmId: firmId, startDate: "2026-01-05" });
 
     const { created } = await generateDueRecurringJobs(db, new Date("2026-01-05T06:00:00Z"));
     expect(created).toHaveLength(1);
 
     const job = db.prepare("SELECT status, accepted_firm_id, mode FROM jobs WHERE id = ?").get(created[0]) as { status: string; accepted_firm_id: string; mode: string };
-    expect(job.mode).toBe("express");
-    expect(job.status).toBe("accepted");
-    expect(job.accepted_firm_id).toBe(firmId);
+    expect(job.mode).toBe("standard");
+    expect(job.status).toBe("waiting");
+    expect(job.accepted_firm_id).toBeNull();
+    expect(db.prepare("SELECT * FROM payments").all()).toEqual([]);
 
     const plan = db.prepare("SELECT next_run_date, last_job_id FROM recurring_plans WHERE client_id='client_1'").get() as { next_run_date: string; last_job_id: string };
     expect(plan.next_run_date).toBe("2026-01-12"); // +7 zile
@@ -81,17 +96,17 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
   });
 
   it("nu generează nimic dacă nu e scadent încă", async () => {
-    seedClientAndFirm(db);
+    seedPreferredFirm(db);
     createRecurringPlan(db, { ...basePlan, preferredFirmId: "firm_pref", startDate: "2026-02-01" });
     const { created } = await generateDueRecurringJobs(db, new Date("2026-01-05T06:00:00Z"));
     expect(created).toHaveLength(0);
   });
 
   it("generarea filtrată pe client afectează doar planurile clientului dat", async () => {
-    seedClientAndFirm(db);
+    seedPreferredFirm(db);
     db.prepare("INSERT INTO users (id, role, name) VALUES ('client_2','client','Alt Client')").run();
     createRecurringPlan(db, { ...basePlan, preferredFirmId: "firm_pref", startDate: "2026-01-05" });
-    createRecurringPlan(db, { ...basePlan, clientId: "client_2", preferredFirmId: "firm_pref", startDate: "2026-01-05" });
+    createRecurringPlan(db, { ...basePlan, clientId: "client_2", startDate: "2026-01-05" });
 
     const { created } = await generateDueRecurringJobs(db, new Date("2026-01-05T06:00:00Z"), "client_1");
     expect(created).toHaveLength(1);
@@ -100,7 +115,7 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
   });
 
   it("un plan pe pauză nu generează lucrări", async () => {
-    seedClientAndFirm(db);
+    seedPreferredFirm(db);
     const r = createRecurringPlan(db, { ...basePlan, preferredFirmId: "firm_pref", startDate: "2026-01-05" });
     const planId = r.ok ? r.planId : "";
     expect(setPlanStatus(db, planId, "client_1", "paused").ok).toBe(true);
@@ -109,7 +124,7 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
   });
 
   it("dacă firma preferată nu acoperă zona, lucrarea rămâne waiting (nu blochează abonamentul)", async () => {
-    seedClientAndFirm(db);
+    seedPreferredFirm(db);
     db.prepare("UPDATE firms SET coverage_city='Brașov' WHERE id='firm_pref'").run();
     createRecurringPlan(db, { ...basePlan, preferredFirmId: "firm_pref", startDate: "2026-01-05" });
     const { created } = await generateDueRecurringJobs(db, new Date("2026-01-05T06:00:00Z"));
@@ -131,7 +146,7 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     expect((db.prepare("SELECT next_run_date FROM recurring_plans").get() as {next_run_date:string}).next_run_date).toBe("2026-01-12");
   });
   it("does not create duplicates when schedulers run concurrently",async()=>{
-    const firmId=seedClientAndFirm(db);createRecurringPlan(db,{...basePlan,preferredFirmId:firmId,startDate:"2026-01-05"});
+    const firmId=seedPreferredFirm(db);createRecurringPlan(db,{...basePlan,preferredFirmId:firmId,startDate:"2026-01-05"});
     const results=await Promise.all([generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z")),generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"))]);
     expect(results.flatMap(r=>r.created)).toHaveLength(1);
   });
@@ -243,6 +258,7 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     seedClientAndFirm(db);const plan=createRecurringPlan(db,{...basePlan,startDate:"2026-01-05"});if(!plan.ok)throw new Error("fixture");
     expect(schedulePlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12",new Date("2026-01-01T00:00:00Z")).ok).toBe(true);
     expect((await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"))).created).toEqual([]);
+    expect((await generateDueRecurringJobs(db,new Date("2026-01-12T06:00:00Z"))).created).toEqual([]);
     expect(db.prepare("SELECT next_run_date FROM recurring_plans").get()).toEqual({next_run_date:"2026-01-19"});
     expect((await generateDueRecurringJobs(db,new Date("2026-01-19T06:00:00Z"))).created).toHaveLength(1);
     expect(listRecurringOccurrences(db,"client_1")).toMatchObject([{occurrence_date:"2026-01-19"}]);
@@ -272,6 +288,7 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     expect(db.prepare("SELECT COUNT(*) n FROM recurring_pauses").get()).toEqual({n:1});
     expect(listPlansForClient(db,"client_1")).toMatchObject([{pause_start:"2026-01-31",pause_end:"2026-02-28"}]);
     await generateDueRecurringJobs(db,new Date("2026-01-31T06:00:00Z"));
+    expect((await generateDueRecurringJobs(db,new Date("2026-02-28T06:00:00Z"))).created).toEqual([]);
     expect(db.prepare("SELECT next_run_date FROM recurring_plans").get()).toEqual({next_run_date:"2026-03-31"});
   });
 
@@ -342,6 +359,7 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     await generateDueRecurringJobs(db,new Date("2026-01-05T06:00:00Z"));
     schedulePlanPause(db,plan.planId,"client_1","2026-01-12","2026-01-19",new Date("2026-01-06"));
     await generateDueRecurringJobs(db,new Date("2026-01-12T06:00:00Z"));
+    await generateDueRecurringJobs(db,new Date("2026-01-19T06:00:00Z"));
     const jobs=db.prepare("SELECT * FROM jobs").all();
     const before=db.prepare("SELECT * FROM recurring_plans WHERE id=?").get(plan.planId);
     expect(removePlanPause(db,plan.planId,"client_1","2026-01-12","2026-01-19").ok).toBe(true);
@@ -382,6 +400,27 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     expect(previewPlanPause(db,plan.planId,"client_1","2026-02-30","2026-03-01",now)).toMatchObject({ok:false,status:400});
     setPlanStatus(db,plan.planId,"client_1","paused");
     expect(previewPlanPause(db,plan.planId,"client_1","2026-01-05","2026-01-12",now)).toMatchObject({ok:false,status:409});
+  });
+
+  it("generates the default 30-day horizon without charging or assigning and is retry safe", async () => {
+    vi.stubEnv("NITIDO_RECURRING_HORIZON_DAYS", undefined);
+    seedClientAndFirm(db);
+    expect(createRecurringPlan(db, {...basePlan,startDate:"2026-01-05"}).ok).toBe(true);
+    const now = new Date("2026-01-05T06:00:00Z");
+    const first = await generateDueRecurringJobs(db, now);
+    expect(first.created).toHaveLength(5);
+    expect(db.prepare("SELECT occurrence_date FROM recurring_occurrences ORDER BY occurrence_date").all()).toEqual(
+      ["2026-01-05","2026-01-12","2026-01-19","2026-01-26","2026-02-02"].map(occurrence_date=>({occurrence_date}))
+    );
+    expect(db.prepare("SELECT DISTINCT mode,status,accepted_firm_id FROM jobs").all()).toEqual([{mode:"standard",status:"waiting",accepted_firm_id:null}]);
+    expect(db.prepare("SELECT * FROM payments").all()).toEqual([]);
+    expect((await generateDueRecurringJobs(db, now)).created).toEqual([]);
+  });
+
+  it("requires the client's own completed booking before accepting a preferred firm", () => {
+    seedClientAndFirm(db);
+    expect(createRecurringPlan(db,{...basePlan,preferredFirmId:"firm_pref",startDate:"2026-01-05"})).toMatchObject({ok:false,status:400});
+    expect(db.prepare("SELECT * FROM recurring_plans").all()).toEqual([]);
   });
 
 });
