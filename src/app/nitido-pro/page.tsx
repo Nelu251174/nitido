@@ -7,31 +7,31 @@ export const metadata: Metadata = {
 const features = [
   [
     "Lucrări recurente",
-    "Programezi și urmărești curățenia, verificările și activitățile periodice pe fiecare proprietate.",
+    "Pentru fiecare proprietate stabilești activitățile recurente și intervalele de lucru, apoi urmărești lucrările create și persoanele responsabile. Istoricul îți permite să vezi ce a fost planificat, ce s-a executat și unde sunt necesare clarificări. În pilot, turnover-ul este programat manual; nu presupune o sincronizare automată cu platformele de rezervări.",
   ],
   [
     "Mentenanță controlată",
-    "Problemele sunt înregistrate, triate, estimate și urmărite până la rezolvare.",
+    "O problemă este înregistrată cu proprietatea, descrierea și prioritatea ei, pentru a putea fi analizată înainte de alocare. Serviciul, costul și responsabilul trebuie clarificate. Catalogul pilot include mentenanță ușoară aprobată, nu orice reparație. Intervențiile majore sau reglementate necesită un parcurs separat și nu sunt promise prin simpla creare a unui tichet.",
   ],
   [
     "Verificări",
-    "Confirmi calitatea lucrării și starea proprietății prin checklist și observații.",
+    "Checklistul, observațiile și fotografiile documentează activitatea efectuată. Revizuirea documentară ajută la identificarea lipsurilor și la solicitarea clarificărilor. Ea nu înseamnă că un inspector a vizitat fizic proprietatea. O verificare la locație trebuie stabilită ca serviciu distinct, cu scop, programare și responsabil.",
   ],
   [
     "Aprobări de cost",
-    "Costurile peste pragul stabilit nu se execută fără decizia persoanei autorizate.",
+    "Regulile portofoliului stabilesc cine poate decide asupra costurilor și ce solicitări necesită aprobare. Persoana autorizată verifică motivul, suma și lucrarea asociată înainte de a decide. Istoricul păstrează contextul aprobării. O propunere de cost nu este același lucru cu o plată efectuată sau cu o factură emisă.",
   ],
   [
     "Dovezi foto",
-    "Fotografii înainte, după și la remediere, asociate clar cu lucrarea.",
+    "Imaginile sunt asociate lucrării pentru a putea compara situația inițială, rezultatul și eventualele remedieri. Partenerul trebuie să încarce dovezi relevante, fără persoane, documente sau coduri de acces inutile în cadru. Dacă imaginile nu explică suficient rezultatul, se pot solicita clarificări în parcursul de verificare.",
   ],
   [
     "Costuri centralizate",
-    "Vezi cheltuieli pe proprietate, serviciu și perioadă.",
+    "Înregistrările de cost sunt legate de proprietăți și lucrări, astfel încât să urmărești ce serviciu a generat o sumă și în ce perioadă. Aceste evidențe ajută analiza operațională. În pilot, condițiile de facturare și plată sunt convenite contractual; afișarea unui cost nu înseamnă debitare automată și nu înlocuiește documentele fiscale.",
   ],
   [
     "Parteneri verificați",
-    "Lucrările sunt coordonate prin parteneri eligibili și evaluați operațional.",
+    "Partenerii sunt analizați în raport cu serviciile, zonele și capacitatea declarată înainte de activare. Lucrările au responsabili și un istoric care ajută evaluarea colaborării. Eligibilitatea nu reprezintă promisiunea unui număr nelimitat de echipe sau a unei intervenții garantate la orice oră; disponibilitatea se confirmă pentru serviciul concret.",
   ],
 ];
 export default function Page() {
@@ -145,23 +145,23 @@ export default function Page() {
           {[
             [
               "Evaluăm portofoliul",
-              "Confirmăm zona, proprietățile și volumul de lucru.",
+              "Completezi zona, numărul de proprietăți, utilizarea lor și volumul estimat de lucrări. Echipa analizează compatibilitatea cu serviciile și acoperirea pilotului. Trimiterea formularului nu activează automat un cont operațional și nu confirmă prețul; aceste elemente se clarifică înainte de colaborare.",
             ],
             [
               "Configurăm proprietățile și regulile",
-              "Stabilim serviciile, responsabilii și pragurile de aprobare.",
+              "După acceptarea portofoliului, sunt stabilite proprietățile, serviciile recurente, persoanele autorizate și regulile de aprobare. Instrucțiunile de lucru trebuie să descrie concret ce este necesar la fiecare spațiu. Condițiile de acces și informațiile sensibile sunt comunicate numai prin fluxul autorizat.",
             ],
             [
               "Confirmăm bugetul și alocăm lucrările",
-              "Partenerul primește informațiile necesare după acceptare.",
+              "Lucrarea este analizată în raport cu serviciul solicitat, bugetul și disponibilitatea partenerilor. Costurile care necesită decizie sunt trimise persoanei autorizate. După acceptarea alocării, partenerul primește detaliile necesare execuției, în limitele de acces aplicabile lucrării.",
             ],
             [
               "Verificăm și documentăm execuția",
-              "Checklist, fotografii și verificare documentară.",
+              "Execuția este însoțită de checklist, observații și fotografii relevante. Documentele sunt revizuite pentru a vedea dacă răspund cerinței. Când lipsesc dovezi sau apar neconcordanțe, sunt cerute clarificări ori remedieri. O revizuire a documentelor nu echivalează cu o inspecție fizică.",
             ],
             [
               "Verifici costurile finale și primești raportul",
-              "Cheltuielile și istoricul rămân asociate proprietății.",
+              "La încheiere, poți consulta rezultatul, costurile înregistrate și istoricul lucrării. Acest context ajută la identificarea problemelor care se repetă și la planificarea intervențiilor viitoare. Facturarea urmează condițiile convenite; pilotul nu activează plăți automate Pro.",
             ],
           ].map(([t, d], i) => (
             <article className="pro-card" key={t}>
@@ -181,16 +181,32 @@ export default function Page() {
         </p>
         <div className="pro-grid">
           {[
-            "Administratori de apartamente în regim hotelier",
-            "Operatori de short-term rental",
-            "Agenții de administrare proprietăți",
-            "Investitori cu minimum 5 proprietăți",
-            "Aparthoteluri și unități de cazare",
-            "Proprietari care gestionează de la distanță",
-          ].map((t) => (
-            <div className="pro-card" key={t}>
-              <h3>{t}</h3>
-            </div>
+  [
+    "Administratori de apartamente în regim hotelier",
+    "Organizezi intervențiile dintre sejururi, verificările și consumabilele pe fiecare apartament. Programările din pilot se gestionează manual, cu responsabil și istoric pentru fiecare lucrare."
+  ],
+  [
+    "Operatori de short-term rental",
+    "Urmărești serviciile recurente și problemele raportate într-un singur portofoliu. Confirmi separat disponibilitatea și programarea; pilotul nu include sincronizare cu Airbnb sau Booking."
+  ],
+  [
+    "Agenții de administrare proprietăți",
+    "Separi evidențele proprietăților și distribui responsabilitățile între persoanele autorizate. Poți urmări lucrările, dovezile și costurile fără să pierzi legătura cu spațiul la care se referă."
+  ],
+  [
+    "Investitori cu minimum 5 proprietăți",
+    "Centralizezi informațiile operaționale pentru a înțelege unde apar intervenții și costuri. Activarea depinde și de acoperire și servicii, nu doar de numărul de proprietăți."
+  ],
+  [
+    "Aparthoteluri și unități de cazare",
+    "Definești cerințe recurente și verificări pe spațiile gestionate. Serviciile și intervalele se stabilesc înainte de activare, în funcție de capacitatea disponibilă și de nevoile locației."
+  ],
+  [
+    "Proprietari care gestionează de la distanță",
+    "Primești contextul lucrărilor prin observații, dovezi și istoric. Controlul documentar ajută urmărirea activității, dar nu înlocuiește o vizită fizică atunci când aceasta este necesară."
+  ]
+].map(([t, description]) => (
+            <div className="pro-card" key={t}><h3>{t}</h3><p>{description}</p></div>
           ))}
         </div>
         <p className="mt-6">
@@ -268,19 +284,19 @@ export default function Page() {
         {[
           [
             "Câte proprietăți sunt necesare?",
-            "Pilotul este destinat portofoliilor de minimum 5 proprietăți din zone eligibile.",
+            "Pilotul este destinat portofoliilor de minimum 5 proprietăți din zone eligibile. Numărul de proprietăți este doar un criteriu: se analizează și zona, tipul spațiilor, serviciile necesare și volumul estimat. Completează formularul cu date realiste. Pentru o singură proprietate sau o intervenție ocazională, poți folosi rezervarea standard de curățenie.",
           ],
           [
             "Cum se plătesc serviciile?",
-            "Condițiile și circuitul de facturare se stabilesc contractual înainte de activare. Nu sunt disponibile plăți automate Pro în pilot.",
+            "Condițiile și circuitul de facturare se stabilesc contractual înainte de activare. Nu sunt disponibile plăți automate Pro în pilot. Sumele din evidența operațională ajută la urmărirea lucrărilor, dar nu reprezintă confirmări de debitare sau documente fiscale. Clarificăm serviciile, regulile de aprobare și responsabilitățile înainte de începerea colaborării.",
           ],
           [
             "Pot folosi platforma de pe telefon?",
-            "Da, interfața web este adaptată telefonului.",
+            "Da, interfața web este adaptată telefonului și poate fi accesată din browser. Funcțiile afișate depind de rolul și portofoliul activat. Ai nevoie de conexiune pentru a trimite modificări și dovezi; nu considera o acțiune înregistrată până când primești confirmarea. Nu este necesar să aștepți publicarea unei aplicații într-un magazin pentru a folosi interfața web.",
           ],
           [
             "Ce înseamnă verificare?",
-            "Checklistul și fotografiile sunt revizuite documentar. Verificarea la proprietate este un serviciu stabilit separat.",
+            "Checklistul și fotografiile sunt revizuite documentar. Verificarea la proprietate este un serviciu stabilit separat. Revizuirea urmărește dacă informațiile trimise documentează lucrarea și dacă există neconcordanțe. Când dovezile sunt insuficiente, pot fi necesare clarificări; o fotografie nu dovedește automat toate aspectele calității sau stării unui spațiu.",
           ],
         ].map(([t, d]) => (
           <details className="pro-card mb-3" key={t}>

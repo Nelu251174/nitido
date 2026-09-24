@@ -1,13 +1,57 @@
 import { publicPageMetadata } from "@/lib/publicSeo";
-export const metadata = publicPageMetadata("/pentru-clienti");
 import { InformationPage } from "@/components/InformationPage";
-export default function Page(){return <InformationPage eyebrow="PENTRU CLIENȚI" title="Curățenie organizată clar, de la postare la evaluare." intro="NITIDO.RO te ajută să publici o nevoie de curățenie și să lucrezi cu o firmă eligibilă printr-un flux transparent și controlat." cta={{label:"Postează o lucrare",href:"/signup?role=client"}} sections={[
-  {title:"Ce este NITIDO.RO pentru client",paragraphs:["O platformă de intermediere tehnică între client și firme de curățenie. NITIDO.RO nu execută serviciul, ci facilitează publicarea, alocarea, comunicarea, statusurile și plata."]},
-  {title:"Cum postezi",items:["Creează contul de client.","Completează tipul spațiului, suprafața, localitatea, adresa și programarea.","Adaugă observații și maximum 5 fotografii relevante, dacă sunt necesare.","Verifică prețul și publică lucrarea."]},
-  {title:"Cum este aleasă firma",paragraphs:["Firmele verificate și eligibile pentru zonă sunt notificate. La lucrările Standard primești mai multe oferte și alegi tu firma, pe calitate (rating, lucrări finalizate, dovezi foto). Pentru urgențe, cu Nitido Express, prima firmă disponibilă preia lucrarea instant, confirmat atomic de server."]},
-  {title:"Ce vede firma",paragraphs:["Înainte de Accept: localitatea/zona, tipul serviciului, suprafața, programarea și date neconfidențiale. După Accept: numai firma câștigătoare primește adresa exactă, fotografiile și detaliile necesare executării."]},
-  {title:"Status și fotografii",paragraphs:["În cont vezi propriile lucrări și stările disponibile. Fotografiile sunt accesibile clientului proprietar și firmei alocate, nu firmelor care doar consultă lucrarea."]},
-  {title:"Plata",paragraphs:["Prețul este afișat înainte de publicare. Autorizarea și capturarea sunt controlate de server și providerul de plată; AI-ul nu poate modifica, rambursa sau captura sume."]},
-  {title:"Rating și no-show",paragraphs:["După finalizare poți evalua firma. Dacă firma nu se prezintă, incidentul poate fi înregistrat ca no-show și tratat conform stării lucrării și regulilor active."]},
-  {title:"Siguranță și suport",paragraphs:["Nu transmite parole, coduri sau date complete de card. Asistentul AI oferă explicații și context autorizat, fără drept de modificare."],items:["Telefon: 0341.402.403","Email: contact@nitido.ro","Pentru o problemă reală, folosește și contextul lucrării din cont."]},
-]}/>}
+export const metadata = publicPageMetadata("/pentru-clienti");
+const content = {
+  "eyebrow": "GHID NITIDO",
+  "title": "Ghidul clientului: de la prima rezervare la o lucrare finalizată",
+  "intro": "Aici găsești informațiile de care ai nevoie înainte să rezervi, în timpul intervenției și după finalizare. Scopul este să alegi un serviciu potrivit spațiului tău și să știi unde verifici fiecare confirmare, fără să te bazezi pe presupuneri.",
+  "sections": [
+    {
+      "title": "Ce pregătești înainte de rezervare",
+      "paragraphs": [
+        "Notează localitatea, adresa completă, tipul spațiului și suprafața de curățat. Alege o programare la care accesul poate fi asigurat. Dacă ai animale, obiecte fragile, restricții de acces sau cerințe speciale, descrie-le clar. O echipă poate pregăti mai bine intervenția atunci când informațiile sunt complete.",
+        "Curățenia după renovare, murdăria dificilă sau solicitările care presupun echipamente speciale necesită clarificări suplimentare. Nu le include implicit într-o rezervare de curățenie obișnuită. Pentru o estimare adecvată, folosește opțiunea de evaluare disponibilă în cont sau contactează echipa."
+      ]
+    },
+    {
+      "title": "Cum citești prețul",
+      "paragraphs": [
+        "Verifică separat serviciul de bază, geamurile și orice opțiune suplimentară aleasă. Numărul camerelor nu adaugă singur un cost distinct; configurația și suprafața sunt cele care contează pentru grila standard. Suprafața geamurilor se măsoară separat și nu trebuie confundată cu suprafața apartamentului.",
+        "Înainte de publicare, compară totalul cu opțiunile selectate. Dacă observi o diferență, corectează formularul înainte să confirmi. Solicitările ulterioare care schimbă volumul lucrării trebuie clarificate, nu presupuse ca fiind incluse în suma inițială."
+      ]
+    },
+    {
+      "title": "Cum alegi firma pentru o lucrare Standard",
+      "paragraphs": [
+        "Așteaptă candidaturile firmelor eligibile și citește informațiile disponibile despre fiecare. Ratingul este mai util împreună cu numărul și conținutul recenziilor, nu izolat. Un profil nou poate avea puține evaluări; acest lucru trebuie privit ca lipsă de istoric, nu ca o garanție pozitivă sau negativă.",
+        "După selecție, verifică alocarea în cont. Express funcționează diferit: firma este atribuită prin prima acceptare eligibilă confirmată, atunci când această opțiune este disponibilă. Alege varianta potrivită nevoii tale înainte de publicare."
+      ]
+    },
+    {
+      "title": "Ce date vede firma și cum pregătești accesul",
+      "paragraphs": [
+        "Adresa exactă este protejată înainte de alocare. După confirmare, firma responsabilă primește detaliile necesare pentru deplasare și executare. Verifică strada, numărul, scara și informațiile de acces, dar evită introducerea datelor sensibile în câmpuri publice.",
+        "La data rezervată, asigură accesul și explică suprafețele care necesită tratament atent. Păstrează separat documentele, banii și obiectele de valoare. Fotografiile utile pentru lucrare trebuie să surprindă spațiul sau problema, fără a expune inutil persoane sau documente."
+      ]
+    },
+    {
+      "title": "Ce verifici în timpul lucrării",
+      "paragraphs": [
+        "În cont poți urmări starea rezervării și confirmările disponibile. Dacă ai primit un SMS, deschide direct platforma pentru a verifica detaliile. O notificare întârziată nu schimbă de la sine programarea, iar absența unui mesaj nu dovedește anularea lucrării.",
+        "Dacă echipa nu ajunge, accesul nu poate fi asigurat sau apar neînțelegeri privind serviciul, solicită ajutor. Trimite identificatorul lucrării, ora programată și o descriere exactă. Suportul poate analiza mai ușor situația dacă informațiile sunt legate de rezervarea corectă."
+      ]
+    },
+    {
+      "title": "Finalizare, feedback și ajutor după intervenție",
+      "paragraphs": [
+        "Verifică rezultatul în raport cu serviciul rezervat și cu particularitățile comunicate. O evaluare utilă menționează punctualitatea, comunicarea și calitatea observată. Nu include adrese, telefoane sau informații despre angajați care nu sunt necesare descrierii experienței.",
+        "Pentru probleme de plată sau calitate, contactează 0341.402.403 ori contact@nitido.ro. Menționează numărul lucrării și rezultatul dorit. Nu transmite parola, coduri bancare sau numărul complet al cardului. O reclamație este analizată în contextul lucrării; simpla trimitere a mesajului nu reprezintă confirmarea unei rambursări."
+      ]
+    }
+  ],
+  "cta": {
+    "label": "Începe o rezervare",
+    "href": "/rezervare"
+  }
+};
+export default function Page() { return <InformationPage {...content} />; }

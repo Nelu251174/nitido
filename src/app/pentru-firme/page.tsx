@@ -1,15 +1,57 @@
 import { publicPageMetadata } from "@/lib/publicSeo";
-export const metadata = publicPageMetadata("/pentru-firme");
 import { InformationPage } from "@/components/InformationPage";
-export default function Page(){return <InformationPage eyebrow="PENTRU FIRME" title="Lucrări relevante, alocare clară și reputație construită în timp." intro="NITIDO.RO conectează firmele de curățenie cu lucrări din zonele declarate, prin reguli egale și confirmate de server." cta={{label:"Înregistrează-ți firma",href:"/signup?role=firma"}} sections={[
-  {title:"De ce să intri în NITIDO.RO",paragraphs:["Primești acces la lucrări relevante pentru aria ta. La lucrările Standard trimiți o ofertă, iar clientul alege pe calitate (rating, lucrări finalizate, dovezi). La Nitido Express (urgențe) preiei direct, după regula primei acceptări valide confirmate de server. Fără licitație de preț — prețul rămâne fix."]},
-  {title:"Înregistrare și verificare",items:["Selectează cont Firmă.","Completează numele, emailul, telefonul și parola.","Introdu CUI-ul și zonele de acoperire.","NITIDO verifică formatul și încearcă validarea firmei active prin ANAF."]},
-  {title:"Statusul verificării",paragraphs:["Firma este verificată numai când sursa ANAF confirmă o entitate activă. Dacă serviciul este indisponibil, profilul poate rămâne neverificat până la reverificarea administrativă autorizată."]},
-  {title:"Zone și alerte",paragraphs:["Orașul principal și localitățile suplimentare stabilesc eligibilitatea geografică. Alertele pot veni prin platformă și SMS. Notificări push native nu sunt confirmate ca active în versiunea curentă."]},
-  {title:"Înainte și după alocare",paragraphs:["Înainte vezi numai informațiile neconfidențiale necesare deciziei (ofertă sau accept). După alocare, firma câștigătoare primește adresa exactă, fotografiile autorizate și detaliile de executare."]},
-  {title:"Alocare confirmată de server",paragraphs:["Interfața nu decide singură câștigătorul. Serverul verifică firma, zona, suspendarea, starea lucrării și plata. La Express, o singură acceptare atomică poate câștiga; la Standard, clientul alege dintre ofertele valide, iar blocarea lucrării pe firma aleasă rămâne atomică."]},
-  {title:"Locație, status și istoric",paragraphs:["Adresa poate fi folosită după alocare într-o aplicație de hartă. Nu este confirmat un provider de hartă integrat în producție. Panoul arată lucrările alocate, statusurile și istoricul disponibil."]},
-  {title:"Rating și responsabilitate",paragraphs:["Evaluările provin din lucrări reale. No-show-urile pot genera strike-uri, istoric și suspendare conform regulilor active."]},
-  {title:"Câștiguri și plăți",paragraphs:["Datele lucrării pot arăta suma netă. Momentul exact al payout-ului nu este definit public în interfața actuală; AI-ul nu poate iniția sau confirma transferuri."]},
-  {title:"Securitate și suport",items:["Accesul este separat pe roluri.","Adresa și fotografiile sunt protejate înainte de alocare.","Telefon: 0341.402.403","Email: contact@nitido.ro"]},
-]}/>}
+export const metadata = publicPageMetadata("/pentru-firme");
+const content = {
+  "eyebrow": "GHID NITIDO",
+  "title": "Cum lucrează o firmă de curățenie prin NITIDO",
+  "intro": "De la înscriere până la finalizarea unei lucrări, ai nevoie de un profil corect, acoperire realistă și confirmări făcute la timp. Ghidul explică selecția la Standard, preluarea Express, dovezile de execuție și diferența dintre finalizarea serviciului și încasarea banilor.",
+  "sections": [
+    {
+      "title": "Profilul firmei și verificarea datelor",
+      "paragraphs": [
+        "Creează un cont de firmă cu datele reale ale reprezentantului, CUI-ul și localitățile pe care le poți acoperi. Verifică emailul și telefonul folosite pentru contact. Validarea disponibilă prin ANAF se referă la datele firmei; nu este o certificare a fiecărei echipe sau o garanție a calității viitoare.",
+        "Dacă verificarea nu se încheie, citește mesajul din cont și cere suport pentru clarificare. Declară numai zone în care poți ajunge în condițiile programărilor acceptate. Un profil complet ajută clienții să înțeleagă serviciile și experiența ta."
+      ]
+    },
+    {
+      "title": "Disponibilitate și lucrări din aria acoperită",
+      "paragraphs": [
+        "Consultă lucrările disponibile în cont și verifică suprafața, serviciul, zona și programarea înainte să îți exprimi interesul. Ia în calcul echipa, deplasarea, echipamentele și timpul necesar. Primirea unei notificări nu rezervă automat lucrarea pentru firma ta.",
+        "Alertele depind de canalele active și de configurarea dispozitivului. Verifică periodic platforma, chiar dacă folosești emailul sau SMS-ul. Înscrierea și declararea unei zone nu garantează un număr minim de lucrări sau un anumit venit."
+      ]
+    },
+    {
+      "title": "Candidatură Standard sau preluare Express",
+      "paragraphs": [
+        "La Standard, trimiți candidatura pentru lucrare, iar clientul alege dintre firmele interesate. Prezintă corect experiența și urmărește confirmarea din cont. Prețul rezervării este calculat de platformă; candidatura nu înseamnă că trebuie să licitezi un tarif mai mic.",
+        "La Express, prima acceptare eligibilă confirmată poate aloca lucrarea direct. Acționează numai dacă ai disponibilitatea necesară. Dacă altă firmă a preluat deja lucrarea, nu porni către client pe baza unei alerte vechi; starea actuală a rezervării este cea relevantă."
+      ]
+    },
+    {
+      "title": "După alocare: adresă, acces și pregătire",
+      "paragraphs": [
+        "După confirmare primești detaliile autorizate necesare execuției. Citește observațiile clientului, verifică programarea și pregătește echipamentele potrivite. Datele adresei sunt oferite pentru realizarea serviciului și nu trebuie reutilizate pentru promovare sau distribuite persoanelor fără legătură cu lucrarea.",
+        "Dacă identifici o cerință care depășește serviciul rezervat, cere clarificări înainte de executare. Nu promite intervenții pentru care nu ai resursele sau competențele necesare. Pentru impedimente de acces ori programare, documentează situația și contactează suportul."
+      ]
+    },
+    {
+      "title": "Sosire, dovezi și finalizarea intervenției",
+      "paragraphs": [
+        "Actualizează starea lucrării în momentul corespunzător și încarcă fotografiile cerute de flux. Dovezile trebuie să fie relevante pentru spațiu și serviciu, lizibile și asociate lucrării corecte. Evită fețele persoanelor, documentele și datele sensibile aflate în locuință.",
+        "Finalizarea se confirmă numai după executare și după îndeplinirea cerințelor afișate. Nu încărca imagini de la alte lucrări și nu marca serviciul ca realizat pentru a grăbi plata. Dacă apare o eroare, păstrează contextul și cere ajutor înainte de repetarea unor operațiuni sensibile."
+      ]
+    },
+    {
+      "title": "Încasări, comision și reputație",
+      "paragraphs": [
+        "Verifică suma aferentă firmei în detaliile lucrării și starea contului de plăți conectat. Diferența dintre preț și comision nu reprezintă profit: firma își suportă propriile costuri și obligații fiscale. Finalizarea unei lucrări nu înseamnă că transferul bancar este deja vizibil în aceeași clipă.",
+        "Recenziile clienților și incidentele contribuie la istoricul operațional. Respectă programările și comunică problemele înainte să se transforme în neprezentări. Pentru o diferență de plată, trimite suportului identificatorul lucrării și starea afișată, fără parole sau date bancare complete."
+      ]
+    }
+  ],
+  "cta": {
+    "label": "Înregistrează firma",
+    "href": "/signup?role=firma"
+  }
+};
+export default function Page() { return <InformationPage {...content} />; }

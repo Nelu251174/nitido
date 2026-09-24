@@ -54,7 +54,7 @@ export default function LeadForm({ partner = false }: { partner?: boolean }) {
             {partner
               ? "solicitarea de parteneriat"
               : "eligibilitatea portofoliului"}
-            .
+            . Cererea nu activează automat accesul la portofoliu. Dacă trebuie să corectezi informațiile trimise, contactează echipa la contact@nitido.ro și menționează adresa de email folosită în formular.
           </p>
         </div>
         <Link href="/nitido-pro" className="v2-btn v2-btn-primary">
@@ -74,11 +74,11 @@ export default function LeadForm({ partner = false }: { partner?: boolean }) {
       </h1>
       <p className="pro-muted">
         {partner
-          ? "Analizăm serviciile, zona și capacitatea firmei înainte de activare."
-          : "Analizăm tipul proprietăților, zona de operare, volumul lucrărilor și nevoile recurente înainte de activare."}
+          ? "Prezintă serviciile pe care le poți executa, zonele acoperite și capacitatea reală a firmei. Analizăm potrivirea cu lucrările din pilot înainte de activare; trimiterea cererii nu garantează acceptarea sau un volum de comenzi. La pasul următor ne lași datele pentru clarificarea solicitării."
+          : "Descrie zona, numărul de proprietăți, utilizarea lor și serviciile recurente de care ai nevoie. Pilotul se adresează portofoliilor de minimum 5 proprietăți din zone eligibile. Analizăm cererea înainte de activare și stabilim separat condițiile colaborării; acest formular nu generează o rezervare sau o plată."}
       </p>
       <p className="my-6 text-sm">
-        Pasul {step} din 2 · {step === 1 ? "Nevoile tale" : "Date de contact"}
+        Pasul {step} din 2 · {step === 1 ? "Descrie serviciile și zona" : "Completează datele pentru contact"}
       </p>
       <form onSubmit={submit} className="pro-card">
         <div hidden={step !== 1}>

@@ -73,7 +73,7 @@ export function PhoneAppPromo() {
     <div className="border-b border-[#2a332c]">
       <div className="v2-container py-10">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-bold text-white">la NITIDO pe telefon</h2>
+          <h2 className="text-lg font-bold text-white">Folosește NITIDO pe telefon</h2>
           {!links.live && (
             <span className="rounded-full border border-[#f5a623] px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-[#f5a623]">
               ÎN CURÂND
@@ -82,8 +82,8 @@ export function PhoneAppPromo() {
         </div>
         <p className="mt-3 max-w-xl text-sm leading-6 text-[#8b958f]">
           {links.live
-            ? "Descarcă aplicația NITIDO din App Store și Google Play — postezi lucrări și urmărești firmele direct de pe telefon."
-            : "Se pregătește pentru App Store și Google Play. Până atunci, folosește NITIDO la fel de bine direct din browserul telefonului."}
+            ? "Folosește linkul disponibil pentru magazinul dispozitivului tău. Poți configura rezervări, consulta lucrările și urmări actualizările din cont. Pentru operațiunile trimise, verifică întotdeauna confirmarea din aplicație."
+            : "Poți folosi NITIDO direct din browserul telefonului: configurezi curățenia, intri în cont și urmărești starea lucrărilor. Insignele magazinelor fără link sunt informative și nu descarcă o aplicație. Linkurile de instalare vor fi disponibile aici când publicarea este confirmată."}
         </p>
         <div className="mt-5 flex flex-wrap items-center gap-3">
           {links.appStore ? (

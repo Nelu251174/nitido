@@ -27,13 +27,15 @@ După ce publici lucrarea, NITIDO identifică firmele eligibile din zona respect
 
 La Standard, firmele trimit candidaturi, iar clientul alege firma. La Express, prima firmă eligibilă care acceptă prin sistemul NITIDO poate primi lucrarea, după validările serverului și ale fluxului de plată aplicabil.
 
-După confirmarea alocării vei vedea firma care a preluat lucrarea și vei putea urmări statusul din contul tău. NITIDO îți poate trimite și notificarea/SMS-ul de confirmare atunci când acest serviciu este activ.`
+După confirmarea alocării vei vedea firma care a preluat lucrarea și vei putea urmări statusul din contul tău. NITIDO îți poate trimite și notificarea/SMS-ul de confirmare atunci când acest serviciu este activ.
+
+După publicare, deschide lista lucrărilor și verifică dacă solicitarea apare o singură dată. Dacă ai întâmpinat o eroare, nu repeta imediat publicarea fără această verificare. Pentru o cerință specială, cum ar fi curățenia după constructor, solicită o evaluare în loc să presupui că intră în tariful obișnuit.`
   },
   {
     id: "accept-job", title: "Cum acceptă o firmă o lucrare?", aliases: ["accept o lucrare", "firma acceptă", "preiau o lucrare"], audience: "firma",
     answer: `Firmele eligibile primesc alerte pentru lucrările disponibile în zonele lor de acoperire.
 
-Firma deschide NITIDO, verifică informațiile disponibile înainte de alocare și apasă Accept dacă dorește lucrarea.
+Firma deschide NITIDO și verifică serviciul, zona și programarea. La Standard trimite candidatura, iar la Express apasă Accept dacă poate executa lucrarea în condițiile afișate.
 
 Acceptarea nu este decisă de telefon sau de interfață, ci de serverul NITIDO. Sistemul verifică autentificarea firmei, eligibilitatea, statusul lucrării și faptul că lucrarea nu a fost deja preluată.
 
@@ -41,7 +43,9 @@ La Express, regula principală este primul Accept valid confirmat de server. La 
 
 După alocarea confirmată, firma câștigătoare primește acces la informațiile necesare executării, inclusiv detaliile de locație permise după alocare.
 
-Celelalte firme primesc informația că lucrarea nu mai este disponibilă.`
+Celelalte firme primesc informația că lucrarea nu mai este disponibilă.
+
+Înainte de candidatură sau acceptare, verifică echipa disponibilă, deplasarea și echipamentele necesare. Nu porni către client până când alocarea nu apare confirmată în cont. Dacă nu mai poți respecta programarea, semnalează situația cât mai repede prin suport, cu identificatorul lucrării.`
   },
   {
     id: "exact-address", title: "Când vede firma adresa exactă?", aliases: ["adresa exactă", "când vede adresa", "locația clientului", "de ce nu văd strada", "nu văd strada", "de ce nu văd adresa"], audience: "all",
@@ -49,9 +53,11 @@ Celelalte firme primesc informația că lucrarea nu mai este disponibilă.`
 
 Înainte de alocarea lucrării, firmele trebuie să vadă doar informațiile necesare pentru a decide dacă lucrarea este potrivită: zona/localitatea, tipul serviciului, suprafața, programarea și alte informații neconfidențiale relevante.
 
-Adresa exactă este disponibilă numai firmei care a câștigat lucrarea după ce Accept-ul a fost confirmat de server și lucrarea a fost alocată corect.
+Adresa exactă este disponibilă numai firmei care a câștigat lucrarea după confirmarea alocării: prin alegerea clientului la Standard sau acceptarea eligibilă la Express.
 
-O firmă care nu a câștigat lucrarea nu trebuie să poată obține adresa exactă prin interfață, API sau Asistentul AI.`
+O firmă care nu a câștigat lucrarea nu trebuie să poată obține adresa exactă prin interfață, API sau Asistentul AI.
+
+Clientul trebuie să verifice strada, numărul și instrucțiunile de acces înainte de programare. Nu introduce coduri de acces în descrieri generale. Firma folosește datele pentru intervenția alocată și nu trebuie să le distribuie persoanelor fără legătură cu executarea serviciului.`
   },
   {
     id: "payment", title: "Cum funcționează plata?", aliases: ["cum plătesc", "plata", "card"], audience: "all",
@@ -63,7 +69,9 @@ Atunci când o lucrare necesită autorizarea plății, serverul NITIDO inițiaz�
 
 Dacă autorizarea necesară eșuează, lucrarea nu trebuie să rămână fals confirmată doar pentru că o firmă a apăsat Accept.
 
-Datele complete ale cardului nu sunt gestionate de Asistentul AI, iar AI-ul nu poate modifica, captura, rambursa sau transfera bani.`
+Datele complete ale cardului nu sunt gestionate de Asistentul AI, iar AI-ul nu poate modifica, captura, rambursa sau transfera bani.
+
+Practic, verifică în cont totalul și starea operațiunii înainte de a repeta plata. O sumă rezervată temporar pe card poate apărea diferit față de o încasare finală în aplicația băncii. Pentru o diferență, contactează suportul cu numărul lucrării și mesajul afișat. Nu trimite numărul complet al cardului, codul de securitate sau codurile de confirmare bancară.`
   },
   {
     id: "after-accept", title: "Ce se întâmplă după ce firma preia comanda?", aliases: ["după acceptare", "după ce preia", "firma a preluat"], audience: "all",
@@ -93,7 +101,7 @@ SMS-ul este un canal de notificare. Starea oficială a lucrării rămâne cea di
     id: "simultaneous-accept", title: "Ce se întâmplă dacă două firme apasă Accept?", aliases: ["două firme", "simultan accept", "cine câștigă", "două firme apasă accept simultan", "dacă două firme apasă accept"], audience: "all",
     answer: `Sistemul NITIDO este construit astfel încât o lucrare să nu poată fi atribuită simultan la două firme.
 
-Serverul face acceptarea în mod atomic. Prima acceptare validă care schimbă lucrarea din disponibilă în acceptată câștigă.
+Serverul face acceptarea în mod atomic. La Express, prima acceptare validă care schimbă lucrarea din disponibilă în acceptată câștigă. La Standard, candidaturile nu alocă lucrarea: clientul alege firma, iar sistemul confirmă o singură alocare.
 
 Dacă o a doua firmă încearcă după ce prima acceptare a fost confirmată, serverul refuză operațiunea și informează firma că lucrarea a fost deja preluată.
 
@@ -117,7 +125,9 @@ NITIDO poate înregistra incidentul și îl poate folosi în mecanismele de resp
 
 Impactul exact depinde de starea lucrării și de regulile active ale platformei.
 
-Dacă ai o situație reală de no-show, folosește suportul asociat lucrării sau contactează echipa NITIDO la 0341.402.403.`
+Dacă ai o situație reală de no-show, folosește suportul asociat lucrării sau contactează echipa NITIDO la 0341.402.403.
+
+Deschide lucrarea și verifică firma alocată, ziua și ora programată. Notează când ai observat neprezentarea și păstrează mesajele relevante. Transmite suportului numărul lucrării și situația de la locație. Verifică separat starea plății; raportarea incidentului nu înseamnă că o rambursare sau o eliberare de sumă este deja vizibilă la bancă.`
   },
   {
     id: "track-status", title: "Cum urmăresc statusul unei lucrări?", aliases: ["urmăresc statusul", "status lucrare", "unde este lucrarea"], audience: "all",
@@ -138,7 +148,9 @@ Pentru situații care necesită intervenție umană poți contacta NITIDO la:
 Telefon: 0341.402.403
 Email: contact@nitido.ro
 
-Pentru o problemă legată de o lucrare existentă, este recomandat să folosești și zona de mesaje/suport asociată lucrării, astfel încât contextul să poată fi identificat corect.`
+Pentru o problemă legată de o lucrare existentă, este recomandat să folosești și zona de mesaje/suport asociată lucrării, astfel încât contextul să poată fi identificat corect.
+
+În mesaj, menționează identificatorul lucrării, data programată, problema observată și ce clarificare dorești. Include capturi numai dacă sunt utile și ascunde datele sensibile. Trimiterea solicitării nu anulează singură lucrarea și nu confirmă o rambursare. Pagina de contact nu reprezintă o promisiune de disponibilitate permanentă a unui operator uman.`
   },
   {
     id: "ai-capabilities", title: "Ce poate și ce nu poate face Asistentul AI?", aliases: ["ce poate ai", "asistentul ai", "poți accepta"], audience: "all",
@@ -165,7 +177,9 @@ Dacă alegi alt rol decât cel asociat contului, NITIDO îți va indica tipul co
 Deschide linkul primit, valabil o oră, și introdu de două ori parola nouă: minimum 10 caractere, cu litere și cifre. După confirmarea schimbării, revino la Autentificare. Nu trimite parola sau linkul de resetare în conversație. Dacă emailul nu ajunge, contactează suportul.` },
   { id: "edit-profile", title: "Cum îmi modific profilul?", aliases: ["modific profilul", "editez profil", "schimb numele"], audience: "all", answer: `Autentifică-te și deschide Contul meu în panoul clientului sau profilul din panoul firmei. Apasă Editează profilul, modifică datele și apasă Salvează. Verifică mesajul de confirmare înainte de a părăsi formularul.
 
-Clientul poate modifica numele, emailul și telefonul. Firma poate modifica numele, telefonul, zonele de acoperire, descrierea, serviciile, programul și website-ul. CUI-ul nu se modifică din acest formular. Parola se schimbă prin Am uitat parola.` },
+Clientul poate modifica numele, emailul și telefonul. Firma poate modifica numele, telefonul, zonele de acoperire, descrierea, serviciile, programul și website-ul. CUI-ul nu se modifică din acest formular. Parola se schimbă prin Am uitat parola.
+
+Modifică doar datele pe care le poți confirma și verifică după salvare că informațiile sunt afișate corect. O schimbare de profil nu rescrie automat detaliile unei rezervări deja publicate. Dacă problema privește o adresă sau o programare existentă, deschide lucrarea și cere clarificarea separată a modificării necesare.` },
   { id: "change-phone", title: "Cum îmi schimb numărul de telefon?", aliases: ["schimb telefonul", "număr de telefon nou", "modific telefon"], audience: "all", answer: `Autentifică-te în cont, deschide Editează profilul și modifică câmpul Telefon. Apasă Salvează și verifică rezultatul. Dacă numărul este refuzat, corectează formatul indicat de formular.
 
 Schimbarea numărului nu confirmă automat livrarea notificărilor SMS. Pentru probleme de livrare, contactează suportul NITIDO.` },
@@ -271,7 +285,9 @@ Etichete precum hotel, vilă, hală sau curățenie după constructor nu trebuie
 
 Deschide linkul din cel mai recent mesaj și apasă Confirmă emailul. Linkul este valabil 24 de ore. Dacă este expirat sau deja folosit, verifică starea contului și solicită un link nou numai dacă adresa nu este confirmată.
 
-Dacă mesajul ajunge în Spam, marchează-l ca Nu este spam. Nu trimite linkul de confirmare altor persoane. După trei retrimiteri într-o oră, așteaptă înainte de o nouă cerere.` },
+Dacă mesajul ajunge în Spam, marchează-l ca Nu este spam. Nu trimite linkul de confirmare altor persoane. După trei retrimiteri într-o oră, așteaptă înainte de o nouă cerere.
+
+Verifică și dacă adresa contului este scrisă corect. Dacă mesajul nu sosește după verificarea folderelor și a eventualelor filtre, contactează suportul și menționează ora solicitării. Nu atașa linkul personal de confirmare într-o captură publică și nu crea conturi duplicate doar pentru a încerca o nouă livrare.` },
 ] as const;
 
 function normalize(value: string): string {
