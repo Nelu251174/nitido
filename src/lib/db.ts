@@ -1,3 +1,4 @@
+import {BOOKING_QUOTES_SCHEMA} from "./bookingQuotes";
 import {MANAGED_PRICING_SCHEMA} from "./managedPricingStore";
 import {JOB_NAVIGATION_SCHEMA} from "./entrance";
 import {VISIT_CARE_SCHEMA} from "./visitCare";
@@ -437,6 +438,7 @@ CREATE TABLE IF NOT EXISTS estimator_options (
 export function initializeDatabase(db: Database.Database): void {
   db.exec(SCHEMA_SQL);
   db.exec(MANAGED_PRICING_SCHEMA);
+  db.exec(BOOKING_QUOTES_SCHEMA);
   initializeNotificationClaims(db);
   db.exec(WORKSPACE_SCHEMA);
   db.exec(`CREATE TABLE IF NOT EXISTS job_reschedule_requests (

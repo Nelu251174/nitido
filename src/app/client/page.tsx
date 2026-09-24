@@ -113,7 +113,7 @@ export default function ClientPage() {
   const [approvalId,setApprovalId]=useState<string|null>(null);
   const [hostEventId,setHostEventId]=useState<string|null>(null),[hostRevision,setHostRevision]=useState<string|null>(null);
   const [propertyId,setPropertyId]=useState<string|null>(null);
-  const requestRef=useRef<{payload:string;id:string}|null>(null);
+  const requestRef=useRef<{payload:string;id:string;quoteId?:string}|null>(null);
   const [showBooking,setShowBooking]=useState(false);
   const [historyFilter,setHistoryFilter]=useState("");
   const [cardConfigured,setCardConfigured]=useState(false);
@@ -139,6 +139,7 @@ export default function ClientPage() {
   const [firmName, setFirmName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmedOffer,setConfirmedOffer]=useState<{payload:string;id:string;expiresAt:string;pricing:{grossBani:number;creditBani:number;clientTotalBani:number;lines:{code:string;amountBani:number}[]}}|null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({ name: "", email: "", phone: "" });
@@ -384,8 +385,23 @@ export default function ClientPage() {
         body.scheduledDate = scheduledDate;
         body.scheduledHour = scheduledHour;
       }
-      const payload=JSON.stringify(body);
-      if(requestRef.current?.payload!==payload)requestRef.current={payload,id:crypto.randomUUID()};
+      const offerPayload=JSON.stringify(body);
+      const retry=requestRef.current?.payload===offerPayload?requestRef.current:null;
+      if(!retry&&(!confirmedOffer||confirmedOffer.payload!==offerPayload||Date.parse(confirmedOffer.expiresAt)<=Date.now())){
+        const quoteResponse=await fetch('/api/jobs/quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        const quoteData=await quoteResponse.json();
+        if(!quoteResponse.ok){setConfirmedOffer(null);throw new Error(quoteData.error??'Oferta nu poate fi calculată.');}
+        if(quoteData.managed){
+          setConfirmedOffer({payload:offerPayload,id:quoteData.quote.id,expiresAt:quoteData.quote.expiresAt,pricing:quoteData.quote.pricing});
+          setError('Verifică oferta de mai jos și apasă Confirmă oferta și postează.');
+          return;
+        }
+        setConfirmedOffer(null);
+      }
+      if(confirmedOffer&&confirmedOffer.payload===offerPayload&&Date.parse(confirmedOffer.expiresAt)>Date.now())body.quoteId=confirmedOffer.id;
+      if(retry?.quoteId)body.quoteId=retry.quoteId;
+      const payload=offerPayload;
+      if(requestRef.current?.payload!==payload)requestRef.current={payload,id:crypto.randomUUID(),quoteId:typeof body.quoteId==='string'?body.quoteId:undefined};
       body.clientRequestId=requestRef.current.id;
       const res = await fetch("/api/jobs", {
         method: "POST",
@@ -394,7 +410,8 @@ export default function ClientPage() {
       });
       const data = await res.json();
       if (res.status === 402) setHasCard(false); // lipsă card — arată butonul de adăugare
-      if (!res.ok) throw new Error(data.error ?? "Eroare la postare");
+      if (!res.ok) {if(res.status>=400&&res.status<500)requestRef.current=null;if(res.status===409)setConfirmedOffer(null);throw new Error(data.error ?? "Eroare la postare");}
+      setConfirmedOffer(null);
       setJob(data.job);
       setDraftNotice(null);
       try{clearBookingDraft(window.sessionStorage);}catch{/* Storage can be unavailable. */}
@@ -834,7 +851,7 @@ export default function ClientPage() {
               )}
             </div>
 
-            {needsAssessment?<section className="design-panel"><h2>Este necesară o evaluare</h2><p>Suprafața depășește limita calculatorului automat.</p><Link className="design-button" href={`/client/evaluari?${new URLSearchParams({city,sqm:String(sqm)})}`}>Trimite spre evaluare</Link></section>:<div className="bg-mist border border-aqua rounded-xl p-3.5 my-4">
+            {needsAssessment?<section className="design-panel"><h2>Este necesară o evaluare</h2><p>Suprafața depășește limita calculatorului automat.</p><Link className="design-button" href={`/client/evaluari?${new URLSearchParams({city,sqm:String(sqm)})}`}>Trimite spre evaluare</Link></section>:confirmedOffer?null:<div className="bg-mist border border-aqua rounded-xl p-3.5 my-4">
               <p className="text-sm mb-2">{priceExplanation(spaceType,sqm)}. Camerele nu se taxează separat.</p><p className="text-sm mb-2">Curățenie: {basePrice} lei · Geamuri: {windowsSqm} m² × 8 lei = {windowsPrice} lei</p>
               {express60Active && (
                 <div className="flex justify-between items-center text-[11.5px] text-muted mb-1.5 pb-1.5 border-b border-line/60">
@@ -861,14 +878,15 @@ export default function ClientPage() {
               )}
             </div>}
 
-            {error && <p className="text-coral text-xs mb-3">{error}</p>}
+            {confirmedOffer&&<section className="design-panel" aria-label="Oferta pentru confirmare"><h2>Confirmă prețul rezervării</h2><ul>{confirmedOffer.pricing.lines.filter(line=>line.amountBani!==0).map(line=><li key={line.code}>{{cleaning:'Curățenie',windows:'Geamuri',express60:'Express 60',platform_credit:'Credit aplicat'}[line.code]??line.code}: {(line.amountBani/100).toFixed(2)} lei</li>)}</ul><p>Servicii și suplimente: {(confirmedOffer.pricing.grossBani/100).toFixed(2)} lei. Credit aplicat: {(confirmedOffer.pricing.creditBani/100).toFixed(2)} lei.</p><p><strong>Total de plată: {(confirmedOffer.pricing.clientTotalBani/100).toFixed(2)} lei.</strong></p><p>Oferta este valabilă până la {new Date(confirmedOffer.expiresAt).toLocaleTimeString('ro-RO',{timeZone:'Europe/Bucharest'})}, ora României. Dacă modifici datele lucrării sau oferta expiră, vei primi o ofertă nouă pentru confirmare.</p></section>}
+            {error && <p role="alert" className="text-coral text-xs mb-3">{error}</p>}
 
             {!needsAssessment && cardConfigured && <div className="mb-4"><ClientCards booking cards={cards} selected={selectedCardId} loading={hasCard===null}
               busy={cardBusy||uploading||submitting} onSelect={setSelectedCardId} onDefault={id=>void manageCard(id,"PATCH")}
               onRemove={id=>void manageCard(id,"DELETE")} onAdd={addCard}/></div>}
 
             <Button className="w-full" onClick={postJob} disabled={!windowsValid || needsAssessment || submitting || cardBusy || (cardConfigured && (hasCard !== true || !selectedCardId)) || !street.trim() || !city.trim()}>
-              {submitting ? "Se postează..." : "Postează lucrarea"}
+              {submitting ? "Se verifică..." : confirmedOffer ? "Confirmă oferta și postează" : "Postează lucrarea"}
             </Button>
           </Card>
         )}
@@ -1081,7 +1099,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const creationRequest=useRef<{payload:string;id:string}|null>(null);
+  const creationRequest=useRef<{payload:string;id:string;quoteId?:string}|null>(null);
   const statusLock = useRef(false);
   const [statusBusy,setStatusBusy]=useState(false);
 
