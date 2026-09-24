@@ -9,4 +9,3 @@ for version in ["11","12"]:
  for b in data["data"]:
   print(json.dumps({"version":version,"id":b["id"],"attributes":b["attributes"]}))
   print(json.dumps(get("builds/"+b["id"]+"/buildBetaDetail")["data"]))
-  print(json.dumps([{"id":g["id"],"attributes":g["attributes"]} for g in get("builds/"+b["id"]+"/betaGroups")["data"]]))
