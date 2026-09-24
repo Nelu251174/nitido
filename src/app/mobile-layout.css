@@ -9,8 +9,18 @@ header.sticky, aside.sticky, .board-sidebar { top: var(--app-safe-top); }
 .notification-settings p { line-height: 1.6; margin-block: 12px; }
 .notification-settings .web-alert-toggle { font-size: 15px; padding: 12px 18px; border-radius: 10px; }
 @media (max-width: 760px) {
-  html { -webkit-text-size-adjust: 100%; scroll-padding-top: calc(var(--app-safe-top) + 16px); }
-  body { min-width: 0; }
+  html { width: 100%; overflow-x: clip; scrollbar-gutter: auto; -webkit-text-size-adjust: 100%; scroll-padding-top: calc(var(--app-safe-top) + 16px); }
+  /* The document must never pan sideways; calendars keep their own scrollers. */
+  body { width: 100%; min-width: 0; margin: 0; box-sizing: border-box; overflow-x: clip; }
+  .approved-home { width: 100%; min-width: 0; max-width: 100%; overflow-x: clip; padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
+  .design-container { box-sizing: border-box; width: 100%; max-width: 100%; padding-inline: 18px; margin-inline: auto; }
+  .design-header-inner > *, .design-hero-copy, .design-trust-row > div,
+  .design-services-modes > *, .design-modes > *, .estimator-home > * { min-width: 0; }
+  .design-hero-copy, .design-trust-row { overflow-wrap: anywhere; }
+  .design-search { grid-template-columns: minmax(0, 1fr); }
+  .design-search-wrap, .design-services-modes, .estimator-home { min-width: 0; }
+  .approved-home img { max-width: 100%; }
+  .design-home-bottom { padding-inline: max(10px, env(safe-area-inset-left, 0px)) max(10px, env(safe-area-inset-right, 0px)); }
   .board-page, .operations-layout, .approved-client { width: 100%; min-width: 0; }
   .board-page > main, .operations-main, .approved-client > main,
   .firm-work-grid, .firm-summary, .firm-summary > *, .workspace-metrics > *,

@@ -28,6 +28,8 @@
 	<string>NITIDO folosește locația numai când configurezi o rezervare, pentru a completa localitatea.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>NITIDO folosește camera doar când alegi să fotografiezi lucrarea, pentru a documenta sosirea și finalizarea acesteia.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
