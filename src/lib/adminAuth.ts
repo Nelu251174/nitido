@@ -77,3 +77,11 @@ export async function destroyAdminSession():Promise<void>{
 export function auditAdminAction(action:string,targetId:string|null,details:object={}):void{
   db.prepare('INSERT INTO admin_audit_log(id,action,target_id,details) VALUES(?,?,?,?)').run(newId('audit'),action,targetId,JSON.stringify(details));
 }
+
+/** Identifies the verified administrative session in immutable operational history. */
+export async function getAdminActorId():Promise<string|null>{
+  if(!await isAdmin())return null;
+  const token=(await cookies()).get(ADMIN_COOKIE)?.value;if(!token)return null;
+  const row=db.prepare('SELECT id FROM admin_sessions WHERE token_hash=?').get(tokenHash(token)) as {id:string}|undefined;
+  return row?.id??null;
+}

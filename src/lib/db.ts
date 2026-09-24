@@ -1,3 +1,4 @@
+import {MANUAL_ESTIMATE_SCHEMA} from "./manualEstimates";
 import {BOOKING_QUOTES_SCHEMA} from "./bookingQuotes";
 import {MANAGED_PRICING_SCHEMA} from "./managedPricingStore";
 import {JOB_NAVIGATION_SCHEMA} from "./entrance";
@@ -466,6 +467,7 @@ export function initializeDatabase(db: Database.Database): void {
   initializeCatalog(db);
   db.exec(CATALOG_CAPACITY_SCHEMA);
   db.exec(ASSESSMENT_SCHEMA);
+  db.exec(MANUAL_ESTIMATE_SCHEMA);
   db.exec(EMAIL_VERIFICATION_SCHEMA);
 
   // Migrare simplă pentru coloane noi adăugate DUPĂ ce baza de date există deja
