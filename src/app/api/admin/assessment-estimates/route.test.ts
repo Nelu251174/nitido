@@ -1,0 +1,22 @@
+import {afterEach,beforeEach,describe,it,expect,vi} from 'vitest';
+import Database from 'better-sqlite3';
+import {NextRequest} from 'next/server';
+const state=vi.hoisted(()=>({db:null as Database.Database|null,actor:null as string|null,origin:true,audit:vi.fn()}));
+vi.mock('@/lib/db',()=>({get db(){return state.db!;}}));
+vi.mock('@/lib/adminAuth',()=>({getAdminActorId:async()=>state.actor,auditAdminAction:state.audit}));
+vi.mock('@/lib/security',()=>({hasTrustedMutationOrigin:()=>state.origin}));
+import {MANUAL_ESTIMATE_SCHEMA} from '@/lib/manualEstimates';
+import {emptyManualEstimate} from '@/lib/operationalMargin';
+import {GET,POST} from './route';
+const req=(body?:unknown)=>new NextRequest('https://sandbox.nitido.ro/api/admin/assessment-estimates?id=a',{method:body===undefined?'GET':'POST',...(body===undefined?{}:{body:JSON.stringify(body)})});
+const payload=()=>({id:'a',revision:0,assessmentVersion:1,definition:{...emptyManualEstimate(),lines:[{label:'Test',amountBani:10000}],reason:'Analiză internă'}});
+beforeEach(()=>{state.db=new Database(':memory:');state.db.exec("CREATE TABLE service_assessments(id TEXT PRIMARY KEY,status TEXT,version INTEGER);INSERT INTO service_assessments VALUES('a','submitted',1);"+MANUAL_ESTIMATE_SCHEMA);state.actor=null;state.origin=true;state.audit.mockReset();});
+afterEach(()=>state.db!.close());
+describe('private admin assessment estimates API',()=>{
+ it('does not expose internal costs without verified administrative access',async()=>{expect((await GET(req())).status).toBe(401);expect((await POST(req(payload()))).status).toBe(401);expect(state.audit).not.toHaveBeenCalled();});
+ it('rejects foreign origins before writing',async()=>{state.actor='verified';state.origin=false;expect((await POST(req(payload()))).status).toBe(403);});
+ it('derives the operator from the verified session, never the request body',async()=>{state.actor='verified-session';const r=await POST(req({...payload(),actorId:'forged'}));expect(r.status).toBe(200);expect(await r.json()).toMatchObject({clientVisible:false,estimate:{actor_id:'verified-session',margin:{marginBani:null,status:'incomplete'}}});expect(state.audit).toHaveBeenCalledWith('assessment.estimate_saved','a',{actorId:'verified-session',revision:1,assessmentVersion:1});const read=await GET(req());expect(read.headers.get('Cache-Control')).toBe('private, no-store');expect((await read.json()).estimates).toHaveLength(1);});
+ it('returns conflict rather than overwriting another operator',async()=>{state.actor='verified';expect((await POST(req(payload()))).status).toBe(200);expect((await POST(req(payload()))).status).toBe(409);});
+ it('rolls back the complete write if administrative audit fails',async()=>{state.actor='verified';state.audit.mockImplementation(()=>{throw Error('sensitive internal error');});const r=await POST(req(payload()));expect(r.status).toBe(500);expect(await r.text()).not.toContain('sensitive');expect(state.db!.prepare('SELECT * FROM assessment_estimates').all()).toEqual([]);});
+ it('rejects malformed, oversized and invalid definitions',async()=>{state.actor='verified';expect((await POST(new NextRequest('https://sandbox.nitido.ro',{method:'POST',body:'bad'}))).status).toBe(400);expect((await POST(req('x'.repeat(30001)))).status).toBe(413);expect((await POST(req({...payload(),definition:{}}))).status).toBe(400);});
+});
