@@ -1,3 +1,4 @@
+import {MANAGED_PRICING_SCHEMA} from "./managedPricingStore";
 import {JOB_NAVIGATION_SCHEMA} from "./entrance";
 import {VISIT_CARE_SCHEMA} from "./visitCare";
 import {SAVED_CARDS_SCHEMA,initializeSavedCards} from "./savedCards";
@@ -435,6 +436,7 @@ CREATE TABLE IF NOT EXISTS estimator_options (
 /** Apply the same schema and migrations to production and isolated test databases. */
 export function initializeDatabase(db: Database.Database): void {
   db.exec(SCHEMA_SQL);
+  db.exec(MANAGED_PRICING_SCHEMA);
   initializeNotificationClaims(db);
   db.exec(WORKSPACE_SCHEMA);
   db.exec(`CREATE TABLE IF NOT EXISTS job_reschedule_requests (
