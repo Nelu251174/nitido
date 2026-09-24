@@ -45,8 +45,9 @@ describe("footer and information pages", () => {
   it("keeps support details consistent", () => {
     const sources = ["pentru-clienti", "pentru-firme", "preturi", "cariere", "urmarire-live", "siguranta", "termeni", "confidentialitate", "cookie-uri"]
       .map(route => read(`src/app/${route}/page.tsx`)).join("\n");
-    expect(sources).toContain("0341.402.403");
-    expect(sources).toContain("contact@nitido.ro");
+    expect(sources).not.toContain("0341.402.403");
+    expect(sources).toContain("support@nitido.ro");
+    expect(sources).not.toContain("contact@nitido.ro");
     expect(sources).not.toMatch(/cariere@nitido\.ro/);
   });
 

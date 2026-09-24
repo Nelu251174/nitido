@@ -54,7 +54,7 @@ export default function LeadForm({ partner = false }: { partner?: boolean }) {
             {partner
               ? "solicitarea de parteneriat"
               : "eligibilitatea portofoliului"}
-            . Cererea nu activează automat accesul la portofoliu. Dacă trebuie să corectezi informațiile trimise, contactează echipa la contact@nitido.ro și menționează adresa de email folosită în formular.
+            . Cererea nu activează automat accesul la portofoliu. Dacă trebuie să corectezi informațiile trimise, contactează echipa la support@nitido.ro și menționează adresa de email folosită în formular.
           </p>
         </div>
         <Link href="/nitido-pro" className="v2-btn v2-btn-primary">

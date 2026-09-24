@@ -4,7 +4,7 @@ import { consumeRateLimit, requestIp, tokenHash } from "@/lib/security";
 import { buildAuthorizedSupportContext, finalizeSupportAnswer, SUPPORT_INSTRUCTIONS, validateSupportMessages } from "@/lib/supportAi";
 import { findSupportTopic } from "@/lib/supportKnowledge";
 
-const UNAVAILABLE = "Asistentul AI este temporar indisponibil. Poți contacta echipa NITIDO la 0341.402.403 sau contact@nitido.ro.";
+const UNAVAILABLE = "Asistentul AI este temporar indisponibil. Poți contacta echipa NITIDO la support@nitido.ro.";
 const RESPONSE_HEADERS = { "Cache-Control": "no-store" };
 const aiConfig = () => ({
   enabled: process.env.NITIDO_AI_ENABLED?.trim().toLowerCase() === "true",
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   const canonicalTopic = findSupportTopic(messages.at(-1)?.content ?? "");
   if (canonicalTopic) return NextResponse.json({ answer: canonicalTopic.answer, topic: canonicalTopic.id, source: "guide" }, { headers: RESPONSE_HEADERS });
 
-  if (!aiConfigured()) return NextResponse.json({answer: "Pot răspunde din ghidul NITIDO despre rezervări, plăți, conturi, recenzii și execuția lucrărilor. Reformulează întrebarea pe unul dintre aceste subiecte. Pentru analiza unei situații particulare, contactează contact@nitido.ro sau 0341.402.403. AI-ul este momentan indisponibil.", source: "guide"}, {headers: RESPONSE_HEADERS});
+  if (!aiConfigured()) return NextResponse.json({answer: "Pot răspunde din ghidul NITIDO despre rezervări, plăți, conturi, recenzii și execuția lucrărilor. Reformulează întrebarea pe unul dintre aceste subiecte. Pentru analiza unei situații particulare, contactează support@nitido.ro. AI-ul este momentan indisponibil.", source: "guide"}, {headers: RESPONSE_HEADERS});
 
   const config = aiConfig();
   const controller = new AbortController();

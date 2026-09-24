@@ -37,7 +37,7 @@ const content = {
     {
       "title": "Ce incluzi în prezentarea ta",
       "paragraphs": [
-        "Trimite la contact@nitido.ro o prezentare cu domeniul de interes, experiența relevantă și tipul de contribuție propus. Adaugă CV-ul sau portofoliul numai dacă sunt utile. Menționează disponibilitatea și modul de colaborare dorit, pentru a putea discuta pe o bază concretă.",
+        "Trimite la support@nitido.ro o prezentare cu domeniul de interes, experiența relevantă și tipul de contribuție propus. Adaugă CV-ul sau portofoliul numai dacă sunt utile. Menționează disponibilitatea și modul de colaborare dorit, pentru a putea discuta pe o bază concretă.",
         "Nu sunt necesare copii de acte, date bancare sau informații personale sensibile în această etapă. Asigură-te că linkurile pot fi deschise și că documentele nu conțin date confidențiale ale altor persoane."
       ]
     },
@@ -51,7 +51,7 @@ const content = {
   ],
   "cta": {
     "label": "Trimite prezentarea ta",
-    "href": "mailto:contact@nitido.ro"
+    "href": "mailto:support@nitido.ro"
   }
 };
 export default function Page() { return <InformationPage {...content} />; }

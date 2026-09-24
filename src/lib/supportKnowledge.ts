@@ -11,7 +11,7 @@ export type SupportTopic = {
   escalationCondition?: string;
 };
 
-const humanSupport = "Dacă vrei ajutor din partea echipei NITIDO, ne poți contacta la 0341.402.403 sau contact@nitido.ro.";
+const humanSupport = "Dacă vrei ajutor din partea echipei NITIDO, ne poți contacta la support@nitido.ro.";
 const authenticate = "Autentifică-te pentru a verifica informațiile specifice contului tău.";
 
 export const SUPPORT_TOPICS: readonly SupportTopic[] = [
@@ -125,7 +125,7 @@ NITIDO poate înregistra incidentul și îl poate folosi în mecanismele de resp
 
 Impactul exact depinde de starea lucrării și de regulile active ale platformei.
 
-Dacă ai o situație reală de no-show, folosește suportul asociat lucrării sau contactează echipa NITIDO la 0341.402.403.
+Dacă ai o situație reală de no-show, folosește suportul asociat lucrării sau contactează echipa NITIDO la support@nitido.ro.
 
 Deschide lucrarea și verifică firma alocată, ziua și ora programată. Notează când ai observat neprezentarea și păstrează mesajele relevante. Transmite suportului numărul lucrării și situația de la locație. Verifică separat starea plății; raportarea incidentului nu înseamnă că o rambursare sau o eliberare de sumă este deja vizibilă la bancă.`
   },
@@ -145,8 +145,7 @@ Dacă statusul afișat pare incorect sau nu se actualizează, folosește suportu
 
 Pentru situații care necesită intervenție umană poți contacta NITIDO la:
 
-Telefon: 0341.402.403
-Email: contact@nitido.ro
+Email: support@nitido.ro
 
 Pentru o problemă legată de o lucrare existentă, este recomandat să folosești și zona de mesaje/suport asociată lucrării, astfel încât contextul să poată fi identificat corect.
 
@@ -183,7 +182,7 @@ Modifică doar datele pe care le poți confirma și verifică după salvare că 
   { id: "change-phone", title: "Cum îmi schimb numărul de telefon?", aliases: ["schimb telefonul", "număr de telefon nou", "modific telefon"], audience: "all", answer: `Autentifică-te în cont, deschide Editează profilul și modifică câmpul Telefon. Apasă Salvează și verifică rezultatul. Dacă numărul este refuzat, corectează formatul indicat de formular.
 
 Schimbarea numărului nu confirmă automat livrarea notificărilor SMS. Pentru probleme de livrare, contactează suportul NITIDO.` },
-  { id: "delete-account", title: "Cum îmi șterg contul?", aliases: ["șterg contul", "închid contul", "ștergere date", "cum îmi șterg contul"], audience: "all", answer: `Interfața actuală nu include o comandă de ștergere a contului. Trimite solicitarea de pe adresa asociată contului la contact@nitido.ro. Echipa va verifica identitatea și îți va comunica ce date pot fi șterse și ce date trebuie păstrate pentru obligații legale sau tranzacționale.
+  { id: "delete-account", title: "Cum îmi șterg contul?", aliases: ["șterg contul", "închid contul", "ștergere date", "cum îmi șterg contul"], audience: "all", answer: `Interfața actuală nu include o comandă de ștergere a contului. Trimite solicitarea de pe adresa asociată contului la support@nitido.ro. Echipa va verifica identitatea și îți va comunica ce date pot fi șterse și ce date trebuie păstrate pentru obligații legale sau tranzacționale.
 
 ${humanSupport}` },
   { id: "register-firm", title: "Cum înregistrez o firmă?", aliases: ["înregistrez firmă", "cont firmă", "adaug firmă"], audience: "firma", answer: `1. Deschide Creează cont și selectează Firmă de curățenie.
@@ -220,7 +219,7 @@ Regulile și eventualele consecințe pentru fiecare moment al anulării nu sunt 
   { id: "photo-visibility", title: "Cine poate vedea pozele?", aliases: ["vede pozele", "fotografii private", "acces imagini", "cine vede pozele"], audience: "all", answer: `Fotografiile unei lucrări sunt informații protejate. Clientul proprietar și firma căreia i-a fost alocată lucrarea le pot accesa prin verificările serverului. O firmă care doar vede o lucrare disponibilă nu trebuie să primească fotografiile private înainte de alocare, iar alți utilizatori nu au acces.` },
   { id: "messages", title: "Cum funcționează mesajele?", aliases: ["mesajele", "chat lucrare", "vorbesc cu firma"], audience: "all", answer: `Deschide Mesaje în contul clientului sau al firmei și selectează lucrarea. Conversația este disponibilă după alocarea unei firme; fără lucrări alocate, lista poate fi goală.
 
-Scrie în câmpul Mesaj și apasă Trimite mesajul. Mesajele sunt vizibile clientului și firmei alocate. Dacă apare o eroare de încărcare, apasă Reîncearcă. Pentru ajutor înainte de alocare, folosește asistentul sau contact@nitido.ro.` },
+Scrie în câmpul Mesaj și apasă Trimite mesajul. Mesajele sunt vizibile clientului și firmei alocate. Dacă apare o eroare de încărcare, apasă Reîncearcă. Pentru ajutor înainte de alocare, folosește asistentul sau support@nitido.ro.` },
   { id: "map", title: "Cum deschid locația în hartă?", aliases: ["deschid harta", "locația în hartă", "navigație"], audience: "firma", answer: `După alocare, firma câștigătoare poate folosi adresa exactă afișată în detaliile lucrării. Versiunea actuală nu documentează un buton garantat de deschidere directă într-o aplicație de hărți. Dacă nu există un astfel de buton, copiază adresa din lucrarea alocată într-o aplicație de navigație. Adresa nu este disponibilă firmelor înainte de alocare.` },
   { id: "push", title: "Cum funcționează notificările push?", aliases: ["notificări push", "push", "alertă aplicație"], audience: "all", answer: `Interfața actuală nu include o implementare verificată de notificări push pe dispozitiv. Evenimentele importante pot apărea în panoul NITIDO și, când serviciul este activ, prin SMS. Nu te baza pe o notificare push pentru starea oficială; verifică lucrarea în cont.` },
   { id: "sms-missing", title: "De ce nu am primit SMS?", aliases: ["nu am primit sms", "sms lipsă"], audience: "all", answer: `Un SMS poate lipsi dacă serviciul nu este activ/configurat, numărul din cont este invalid, firma nu era eligibilă pentru alertă sau providerul a refuzat ori nu a finalizat livrarea. Starea oficială rămâne cea din NITIDO.
@@ -231,10 +230,10 @@ Verifică lucrarea în cont și numărul asociat contului. Pentru investigarea l
 
 Dacă firma nu se prezintă în condițiile stabilite sau nu poți lua legătura cu ea, contactează imediat suportul NITIDO și menționează identificatorul lucrării.` },
   { id: "unsatisfactory", title: "Ce fac dacă serviciul nu este satisfăcător?", aliases: ["serviciu nesatisfăcător", "calitate slabă", "nemulțumit"], audience: "client", answer: `Documentează problema relevantă și păstrează comunicarea în contextul lucrării. După finalizare, folosește evaluarea disponibilă pentru a descrie sincer experiența. Pentru o contestație, daună sau situație care cere analiză, contactează suportul asociat lucrării. Asistentul AI nu poate modifica plata, acorda rambursări sau șterge evaluări.` },
-  { id: "report-problem", title: "Cum raportez o problemă?", aliases: ["raportez problemă", "sesizare", "reclamație"], audience: "all", answer: `Pentru o problemă legată de o lucrare, folosește zona de suport asociată și include identificatorul lucrării, descrierea clară și numai dovezile relevante. Pentru probleme generale, contactează NITIDO la 0341.402.403 sau contact@nitido.ro. Nu trimite parole, coduri de autentificare sau date complete ale cardului.` },
+  { id: "report-problem", title: "Cum raportez o problemă?", aliases: ["raportez problemă", "sesizare", "reclamație"], audience: "all", answer: `Pentru o problemă legată de o lucrare, folosește zona de suport asociată și include identificatorul lucrării, descrierea clară și numai dovezile relevante. Pentru probleme generale, contactează NITIDO la support@nitido.ro. Nu trimite parole, coduri de autentificare sau date complete ale cardului.` },
   { id: "referral", title: "Cum funcționează programul de recomandare?", aliases: ["program recomandare", "cod recomandare", "referral"], audience: "all", answer: `Fiecare cont are un cod de recomandare. Un utilizator nou îl poate introduce opțional la înregistrare. Dacă acel cod există, utilizatorul nou și persoana care l-a recomandat primesc fiecare câte 20 lei credit în cont. Un cod invalid nu blochează înregistrarea, dar nu acordă bonusul. Creditul disponibil se aplică la prețul unei lucrări, până la valoarea acesteia.` },
   { id: "firm-personal-data", title: "Ce date personale vede firma?", aliases: ["date vede firma", "date personale firmă", "confidențialitate adresă"], audience: "client", answer: `Înainte de alocare, firmele văd numai date neconfidențiale necesare deciziei: localitatea/zona, tipul spațiului, suprafața, programarea și prețul relevant. După alocare, numai firma câștigătoare primește datele necesare executării, inclusiv adresa exactă. Fotografii și alte date private sunt protejate de verificările serverului.` },
-  { id: "data-protection", title: "Cum îmi sunt protejate datele?", aliases: ["protejate datele", "securitatea datelor", "gdpr"], audience: "all", answer: `NITIDO limitează accesul la date în funcție de cont și rol. Parolele sunt stocate sub formă de hash, comunicarea de producție trebuie protejată prin HTTPS, iar datele complete ale cardului sunt procesate de providerul de plată și nu sunt stocate de NITIDO. Adresa și fotografiile unei lucrări sunt furnizate numai participanților autorizați. Pentru exercitarea drepturilor privind datele, scrie la contact@nitido.ro.` },
+  { id: "data-protection", title: "Cum îmi sunt protejate datele?", aliases: ["protejate datele", "securitatea datelor", "gdpr"], audience: "all", answer: `NITIDO limitează accesul la date în funcție de cont și rol. Parolele sunt stocate sub formă de hash, comunicarea de producție trebuie protejată prin HTTPS, iar datele complete ale cardului sunt procesate de providerul de plată și nu sunt stocate de NITIDO. Adresa și fotografiile unei lucrări sunt furnizate numai participanților autorizați. Pentru exercitarea drepturilor privind datele, scrie la support@nitido.ro.` },
   { id: "admin-data", title: "Ce informații poate vedea Admin?", aliases: ["vede admin", "administrator date", "acces admin"], audience: "all", answer: `Personalul administrativ autorizat poate accesa informațiile necesare operării și suportului: lucrări, firme, stări de plată, incidente și notificări. Accesul administrativ este protejat și acțiunile sensibile sunt auditate; destinatarii SMS sunt mascați în prezentarea de administrare. Asistentul AI nu are drepturi de Admin și nu poate modifica date administrative.` },
   { id: "pricing", title: "Cum funcționează prețurile?", aliases: ["prețurile", "calcul preț", "cât costă"], audience: "all", answer: `Prețul unei lucrări se calculează din tipul spațiului și suprafață: apartamente pe trepte de m², case 7 lei/m² (minimum 350 lei), birouri 5 lei/m² (minimum 250 lei), alte spații obișnuite 6 lei/m² (minimum 300 lei). Camerele nu se taxează separat. Spălarea geamurilor este un extra de 8 lei/m², pentru ambele fețe accesibile și rame; suprafața se măsoară o singură dată. Vezi grila completă la /preturi și totalul înainte de publicare. Creditul de recomandare disponibil poate reduce suma plătită de client, fără a modifica baza integrală folosită pentru suma firmei. Pentru o ofertă exactă, completează formularul de postare.` },
   { id: "hidden-fees", title: "Există taxe ascunse?", aliases: ["taxe ascunse", "comision", "costuri suplimentare", "ce procent reține nitido", "procent oprește nitido", "18 82"], audience: "all", answer: `NITIDO afișează clientului prețul calculat înainte de publicarea lucrării. Pentru firmă, suma prezentată la acceptare este valoarea netă după comisionul platformei.
@@ -271,10 +270,10 @@ Firma nu poate edita, șterge sau marca drept verificată recenzia clientului. U
 NITIDO afișează numai indicatori derivați din date reale. Nu folosește recenzii, ratinguri, numere sau certificări inventate.`},
   { id:"email-change",title:"Cum îmi schimb adresa de email?",aliases:["schimb emailul","modific email","adresă email nouă"],audience:"all",answer:`În contul de client, deschide Contul meu, apasă Editează profilul, modifică Email și apasă Salvează. Folosește o adresă la care ai acces și verifică starea confirmării după modificare.
 
-Formularul de profil al firmei nu include schimbarea emailului. Pentru acest cont, solicită ajutor la contact@nitido.ro. Nu comunica parola sau linkurile de confirmare.`},
+Formularul de profil al firmei nu include schimbarea emailului. Pentru acest cont, solicită ajutor la support@nitido.ro. Nu comunica parola sau linkurile de confirmare.`},
   { id:"legal-pages",title:"Unde găsesc termenii și politica de confidențialitate?",aliases:["termeni și condiții","politica de confidențialitate","cookie-uri","cookies","date legale"],audience:"all",answer:`Documentele informative sunt disponibile pe site în paginile Termeni și condiții, Politica de confidențialitate și Politica de cookie-uri.
 
-Cookie-urile strict necesare pot fi folosite pentru autentificare și funcționare. Aplicația nu trebuie să pretindă existența cookie-urilor de analytics sau marketing dacă acestea nu sunt active. Pentru o solicitare privind propriile date, scrie la contact@nitido.ro.`},
+Cookie-urile strict necesare pot fi folosite pentru autentificare și funcționare. Aplicația nu trebuie să pretindă existența cookie-urilor de analytics sau marketing dacă acestea nu sunt active. Pentru o solicitare privind propriile date, scrie la support@nitido.ro.`},
   { id:"native-apps",title:"Este NITIDO disponibil în App Store sau Google Play?",aliases:["app store","google play","aplicație ios","aplicație android","aplicație nativă"],audience:"all",answer:`Fluxurile NITIDO disponibile în prezent pot fi folosite în interfața web, din browser pe telefon sau calculator. Repository-ul actual nu confirmă publicarea unei aplicații native în App Store sau Google Play.
 
 Nu instala aplicații care pretind că sunt NITIDO fără confirmarea canalelor oficiale.`},

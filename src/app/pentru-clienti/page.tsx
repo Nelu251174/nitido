@@ -45,7 +45,7 @@ const content = {
       "title": "Finalizare, feedback și ajutor după intervenție",
       "paragraphs": [
         "Verifică rezultatul în raport cu serviciul rezervat și cu particularitățile comunicate. O evaluare utilă menționează punctualitatea, comunicarea și calitatea observată. Nu include adrese, telefoane sau informații despre angajați care nu sunt necesare descrierii experienței.",
-        "Pentru probleme de plată sau calitate, contactează 0341.402.403 ori contact@nitido.ro. Menționează numărul lucrării și rezultatul dorit. Nu transmite parola, coduri bancare sau numărul complet al cardului. O reclamație este analizată în contextul lucrării; simpla trimitere a mesajului nu reprezintă confirmarea unei rambursări."
+        "Pentru probleme de plată sau calitate, contactează support@nitido.ro. Menționează numărul lucrării și rezultatul dorit. Nu transmite parola, coduri bancare sau numărul complet al cardului. O reclamație este analizată în contextul lucrării; simpla trimitere a mesajului nu reprezintă confirmarea unei rambursări."
       ]
     }
   ],

@@ -44,7 +44,7 @@ const content = {
     {
       "title": "Ce faci când informațiile nu se actualizează",
       "paragraphs": [
-        "Reîncarcă pagina și verifică conexiunea. Confirmă că te afli în contul potrivit și că privești rezervarea corectă. Dacă problema persistă, notează mesajul afișat și momentul ultimei acțiuni, apoi contactează 0341.402.403 sau contact@nitido.ro.",
+        "Reîncarcă pagina și verifică conexiunea. Confirmă că te afli în contul potrivit și că privești rezervarea corectă. Dacă problema persistă, notează mesajul afișat și momentul ultimei acțiuni, apoi contactează support@nitido.ro.",
         "Trimite o captură care arată problema, dar ascunde informațiile care nu sunt necesare analizei. Suportul poate verifica situația unei lucrări concrete; Asistentul AI oferă explicații și nu poate schimba singur alocarea, statusul sau plata."
       ]
     }

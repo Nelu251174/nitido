@@ -58,7 +58,7 @@ const content = {
     {
       "title": "Întrebări și informații suplimentare",
       "paragraphs": [
-        "Dacă ai nelămuriri despre o valoare stocată sau o permisiune, scrie la contact@nitido.ro. Menționează browserul, dispozitivul și funcția utilizată, fără să trimiți tokenuri de sesiune sau parole. Aceste detalii ajută la identificarea mecanismului la care te referi.",
+        "Dacă ai nelămuriri despre o valoare stocată sau o permisiune, scrie la support@nitido.ro. Menționează browserul, dispozitivul și funcția utilizată, fără să trimiți tokenuri de sesiune sau parole. Aceste detalii ajută la identificarea mecanismului la care te referi.",
         "Politica de confidențialitate explică prelucrarea datelor din cont și din lucrări. Cadrul privind stocarea și accesarea informațiilor pe dispozitiv este descris, între altele, de Legea nr. 506/2004. Un control din browser și o cerere privind datele contului sunt acțiuni distincte."
       ]
     }

@@ -44,7 +44,7 @@ const content = {
     {
       "title": "Raportează incidentele cu informații concrete",
       "paragraphs": [
-        "Pentru o rezervare, transmite numărul lucrării, momentul incidentului, ce s-a întâmplat și dovezile relevante. Evită distribuirea publică a adresei sau a datelor personale ale altor participanți. Suportul este disponibil prin contact@nitido.ro și 0341.402.403.",
+        "Pentru o rezervare, transmite numărul lucrării, momentul incidentului, ce s-a întâmplat și dovezile relevante. Evită distribuirea publică a adresei sau a datelor personale ale altor participanți. Suportul este disponibil prin support@nitido.ro.",
         "Într-o situație de pericol imediat, apelează serviciile de urgență; chatul NITIDO nu le înlocuiește. Pentru probleme de acces, fraudă suspectată sau date expuse, menționează explicit acest lucru în solicitare, ca echipa să poată înțelege natura incidentului."
       ]
     }
