@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import "./approved-design.css";
 import "./mobile-layout.css";
+import "./pro.css";
 import "@fontsource-variable/instrument-sans";
 import { WebAlerts } from "@/components/WebAlerts";
 import { PwaProvider } from "@/components/PwaProvider";
