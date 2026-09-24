@@ -70,3 +70,15 @@ This is a reviewable implementation candidate, not a certified full P0 release. 
 ## Rollback
 
 Disable both feature flags (rebuild for the public flag) and return to the previously confirmed application image. Preserve all Pro tables and private files for investigation and forward repair. Do not use a rollback that drops new data. Migration refusal on legacy data is intentional and must not be bypassed with destructive SQL.
+
+## Docker packaging verification
+
+The Docker builder accepts NEXT_PUBLIC_NITIDO_PRO_PUBLIC as a build argument (default false).
+The final image includes pro-migrate.mjs, pro-runner.mjs and a compiled schema.mjs,
+so migration does not depend on TypeScript source execution or dev dependencies.
+Local verification exercised the compiled-schema CLI against a temporary database twice.
+A Docker engine is unavailable in the authoring environment; a real image build remains a sandbox gate.
+Keep NITIDO_PRO_ENABLED=false until the explicit migration succeeds on the backed-up sandbox DB.
+Existing private marketplace photographs use /app/data/uploads; new Pro photographs use
+/app/data/pro-uploads. The public uploads volume may therefore be empty. Archive contents
+and restoration must be verified separately from Coolify's Success status.

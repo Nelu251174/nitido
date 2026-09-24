@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
-import { migratePro } from "../src/lib/pro/schema.ts";
 import fs from "node:fs";
+const schema = new URL("../src/lib/pro/schema.mjs", import.meta.url);
+const { migratePro } = await import(fs.existsSync(schema) ? schema.href : new URL("../src/lib/pro/schema.ts", import.meta.url).href);
 const file = process.env.NITIDO_PRO_DB_PATH;
 if (!file || !fs.existsSync(file))
   throw new Error(
