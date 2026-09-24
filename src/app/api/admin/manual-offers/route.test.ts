@@ -1,0 +1,25 @@
+import {afterEach,beforeEach,describe,it,expect,vi} from 'vitest';
+import Database from 'better-sqlite3';
+import {NextRequest} from 'next/server';
+const state=vi.hoisted(()=>({db:null as Database.Database|null,actor:null as string|null,user:null as {id:string;role:string}|null,origin:true,rate:true,audit:vi.fn()}));
+vi.mock('@/lib/db',()=>({get db(){return state.db!;}}));
+vi.mock('@/lib/adminAuth',()=>({getAdminActorId:async()=>state.actor,auditAdminAction:state.audit}));
+vi.mock('@/lib/auth',()=>({getCurrentUser:async()=>state.user}));
+vi.mock('@/lib/security',()=>({hasTrustedMutationOrigin:()=>state.origin,consumeRateLimit:()=>state.rate}));
+import {MANUAL_ESTIMATE_SCHEMA,saveManualEstimate} from '@/lib/manualEstimates';
+import {MANUAL_OFFERS_SCHEMA} from '@/lib/manualOffers';
+import {COST_CODES,emptyManualEstimate} from '@/lib/operationalMargin';
+import {GET,POST} from './route';
+import {GET as clientGet,POST as clientPost} from '../../assessments/offers/route';
+const req=(body?:unknown)=>new NextRequest('https://sandbox.nitido.ro/api/offers?id=a',{method:body===undefined?'GET':'POST',...(body===undefined?{}:{body:JSON.stringify(body)})});
+const payload=()=>({action:'publish',id:'a',revision:1,scope:'Servicii convenite',reason:'Internal secret',expiresAt:'2036-09-25T12:00:00Z'});
+beforeEach(()=>{vi.stubEnv('NITIDO_MANUAL_OFFERS_SANDBOX','true');vi.stubEnv('NEXT_PUBLIC_SITE_URL','https://sandbox.nitido.ro');vi.stubEnv('STRIPE_SECRET_KEY','sk_test_example');state.db=new Database(':memory:');state.db.exec(`CREATE TABLE service_assessments(id TEXT PRIMARY KEY,client_id TEXT,status TEXT,version INTEGER,payload TEXT);INSERT INTO service_assessments VALUES('a','client','submitted',1,'{"category":"general"}');`+MANUAL_ESTIMATE_SCHEMA+MANUAL_OFFERS_SCHEMA);const d=emptyManualEstimate();d.lines=[{label:'Serviciu',amountBani:50000}];d.reason='Internal secret';d.provider={amountBani:30000,state:'confirmed',source:'Private source',recordedAt:new Date().toISOString()};for(const c of COST_CODES)d.costs[c]={...d.costs[c],amountBani:0,state:'confirmed',source:'Private source',recordedAt:new Date().toISOString()};saveManualEstimate(state.db,{id:'a',revision:0,assessmentVersion:1,definition:d},'admin');state.actor='verified';state.user={id:'client',role:'client'};state.origin=true;state.rate=true;state.audit.mockReset();});
+afterEach(()=>{state.db!.close();vi.unstubAllEnvs();});
+describe('offer API boundaries',()=>{
+ it('requires verified admin and client roles',async()=>{state.actor=null;state.user=null;expect((await GET(req())).status).toBe(401);expect((await POST(req(payload()))).status).toBe(401);expect((await clientGet(req())).status).toBe(401);expect((await clientPost(req({}))).status).toBe(401);state.user={id:'f',role:'firma'};expect((await clientGet(req())).status).toBe(401);});
+ it('blocks untrusted origins and disabled sandbox mutations',async()=>{state.origin=false;expect((await POST(req(payload()))).status).toBe(403);expect((await clientPost(req({}))).status).toBe(403);state.origin=true;vi.stubEnv('NITIDO_MANUAL_OFFERS_SANDBOX','false');expect((await POST(req(payload()))).status).toBe(403);expect((await clientPost(req({}))).status).toBe(403);});
+ it('publishes with verified actor and exposes no internal calculation to client',async()=>{const r=await POST(req({...payload(),actorId:'forged'}));expect(r.status).toBe(200);expect(state.db!.prepare('SELECT actor_id FROM assessment_offer_events').get()).toEqual({actor_id:'verified'});const read=await clientGet(req());expect(read.headers.get('Cache-Control')).toBe('private, no-store');expect(await read.text()).not.toMatch(/Internal secret|Private source|provider|margin/);state.user={id:'other',role:'client'};expect(await (await clientGet(req())).json()).toMatchObject({offers:[]});});
+ it('does not trust a client ID supplied in the body and accepts own offer idempotently',async()=>{const {offer}=await (await POST(req(payload()))).json();state.user={id:'other',role:'client'};const body={id:offer.id,action:'accept',confirmed:true,totalBani:50000,clientId:'client'};expect((await clientPost(req(body))).status).toBe(404);state.user={id:'client',role:'client'};for(let i=0;i<2;i++)expect((await clientPost(req(body))).status).toBe(200);expect(state.db!.prepare('SELECT * FROM assessment_offer_events').all()).toHaveLength(2);});
+ it('rolls back publication when admin audit fails',async()=>{state.audit.mockImplementation(()=>{throw Error('secret failure');});const r=await POST(req(payload()));expect(r.status).toBe(500);expect(await r.text()).not.toContain('secret failure');expect(state.db!.prepare('SELECT * FROM assessment_offers').all()).toEqual([]);});
+ it('bounds payloads and limits repeated client decisions',async()=>{expect((await POST(req('x'.repeat(30001)))).status).toBe(413);expect((await clientPost(req('x'.repeat(2001)))).status).toBe(413);expect((await POST(req([]))).status).toBe(400);expect((await clientPost(req([]))).status).toBe(400);state.rate=false;expect((await clientPost(req({}))).status).toBe(429);});
+});
