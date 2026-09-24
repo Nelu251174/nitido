@@ -1,19 +1,22 @@
+.design-header:has(.pro-header-link[aria-current="page"]) {
+  background: #F7F3EC;
+}
 .pro-header-link {
   background: #111827 !important;
   color: #fff !important;
-  border: 2px solid var(--nitido-brand) !important;
+  border: 2px solid #D4AF37 !important;
   white-space: nowrap;
   gap: 8px;
 }
 .pro-header-link svg {
-  color: var(--nitido-brand-on-dark);
+  color: #D4AF37;
 }
 .pro-header-link:hover,
 .pro-header-link[aria-current="page"] {
-  background: var(--nitido-brand-dark) !important;
+  background: #111827 !important;
 }
 .pro-header-link:focus-visible {
-  outline: 3px solid var(--nitido-brand);
+  outline: 3px solid #D4AF37;
   outline-offset: 3px;
 }
 .public-mobile-menu .pro-header-link {
