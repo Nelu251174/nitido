@@ -99,3 +99,13 @@ it('guards administrative access, CSRF, optimistic revision and rollback',async(
  const o=offer();s.actor=null;expect((await propose(request(proposal(o.id)))).status).toBe(401);s.actor='admin';expect((await propose(request(proposal(o.id),'/api/admin/assisted-operations','https://attacker.example'))).status).toBe(403);
  s.audit.mockImplementation(()=>{throw Error('audit');});expect((await propose(request(proposal(o.id)))).status).toBe(500);expect(s.db!.prepare('SELECT * FROM assisted_offer_plans').all()).toHaveLength(0);s.audit.mockReset();await propose(request(proposal(o.id)));expect((await propose(request(proposal(o.id)))).status).toBe(409);
 });
+it('hides targeted assisted preview from another firm and rechecks team eligibility',async()=>{
+ const {canPreviewOpportunity}=await import('@/lib/opportunityEligibility');
+ const {job}=await ready();expect(canPreviewOpportunity(s.db!,'f1',job)).toBe(true);expect(canPreviewOpportunity(s.db!,'f2',job)).toBe(false);
+ s.db!.exec("UPDATE workspace_teams SET active=0 WHERE id='t1'");expect(canPreviewOpportunity(s.db!,'f1',job)).toBe(false);
+ s.db!.exec("UPDATE workspace_teams SET active=1 WHERE id='t1';UPDATE service_catalog_firms SET enabled=0 WHERE firm_id='f1'");expect(canPreviewOpportunity(s.db!,'f1',job)).toBe(false);
+});
+it('filters suspended firms from the opportunities feed without reserving work',async()=>{
+ const {job}=await ready();s.user='u1';let response=await GET(new NextRequest('https://sandbox.nitido.ro/api/jobs'));expect(response.status).toBe(200);expect(JSON.stringify(await response.json())).toContain(job.id);
+ s.db!.exec("UPDATE firms SET suspended_until='2099-12-01' WHERE id='f1'");response=await GET(new NextRequest('https://sandbox.nitido.ro/api/jobs'));expect(response.status).toBe(200);expect(JSON.stringify(await response.json())).not.toContain(job.id);expect(s.authorize).not.toHaveBeenCalled();
+});

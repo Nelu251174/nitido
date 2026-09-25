@@ -29,7 +29,7 @@ import {
   SLOT_HOURS,
   SpaceType,
 } from "@/lib/pricing";
-import { firmCoversCity } from "@/lib/text";
+import { canPreviewOpportunity } from "@/lib/opportunityEligibility";
 import {processPushOutbox,queueNewJobFirmPushes} from "@/lib/push";
 import { applyCredit } from "@/lib/referral";
 import { getClientCardInfo } from "@/lib/clientPayments";
@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
     jobs = jobs.filter(
       (j) =>
         j.accepted_firm_id === firm.id ||
-        (Boolean(firm.verified) && (!jobAssistedOperation(db,j.id)||jobAssistedOperation(db,j.id)!.firmId===firm.id) && j.status === "waiting" && firmCoversCity(firm.coverage_city, firm.coverage_cities_extra, j.city))
+        canPreviewOpportunity(db,firm.id,j)
     );
     // Express 60 = prioritate maximă: lucrările premium urcă în capul feed-ului
     // (restul rămâne pe ordinea existentă, cele mai noi primele).
