@@ -270,3 +270,14 @@ it("reschedules once with optimistic concurrency and preserves approval snapshot
       .get(w.id),
   ).toEqual({ threshold_snapshot: 0, financial_status: "pending" });
 });
+it('exports all 1000 permitted rows and rejects a larger report instead of silently truncating',async()=>{
+ const insert=state.db.prepare("INSERT INTO pro_cost_entries(id,organization_id,property_id,category,amount,created_at) VALUES(?,?,?,'service',12345,'2027-01-01T12:00:00Z')");state.db.transaction(()=>{for(let i=0;i<1000;i++)insert.run('cost-'+String(i).padStart(4,'0'),org,prop);})();
+ const response=await read('reports/export?organization_id='+org);expect(response.status).toBe(200);expect(response.headers.get('cache-control')).toBe('private, no-store');expect((await response.text()).split('\r\n')).toHaveLength(1001);
+ insert.run('overflow',org,prop);const rejected=await read('reports/export?organization_id='+org);expect(rejected.status).toBe(422);expect((await rejected.json()).error).toContain('Restrânge');expect(state.db.prepare("SELECT COUNT(*) n FROM pro_audit_logs WHERE action='report.export'").get()).toEqual({n:1});
+});
+it('filters property permissions before counting the report limit',async()=>{
+ const otherProp=core.createProperty(state.db,{id:'owner'},{organization_id:org,name:'Hidden',city:'Constanța',address:'Hidden'}).id;
+ state.db.prepare("INSERT INTO pro_members VALUES('scoped',?,'foreign','manager',?,1)").run(org,JSON.stringify([prop]));
+ const insert=state.db.prepare("INSERT INTO pro_cost_entries(id,organization_id,property_id,category,amount,created_at) VALUES(?,?,?,?,?,?)");state.db.transaction(()=>{for(let i=0;i<1001;i++)insert.run('hidden-'+i,org,otherProp,'SECRET',100,'2027-02-01T00:00:00Z');insert.run('allowed',org,prop,'VISIBLE',250,'2027-01-01T00:00:00Z');})();
+ state.user={id:'foreign'};const response=await read('reports/export?organization_id='+org);expect(response.status).toBe(200);const csv=await response.text();expect(csv).toContain('VISIBLE');expect(csv).not.toContain('SECRET');expect(csv.split('\r\n')).toHaveLength(2);
+});
