@@ -8,6 +8,7 @@ import {
 } from "node:crypto";
 import { CHECKLISTS, SERVICES } from "./shared";
 import { hostLocalInstant } from "../hostScheduleShared";
+import {bucharestDateKey,bookingDateKey} from "../scheduling";
 export type Principal = { id: string; admin?: boolean };
 export type Role =
   "owner" | "manager" | "approver" | "viewer" | "contact" | "operator";
@@ -998,7 +999,8 @@ export function collection(
   if (kind === "costs") {
     requireRole(db, p, orgId, ["owner", "manager", "operator"]);
     for (const d of [filters.from, filters.to])
-      if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) fail("Perioadă invalidă.");
+      if (d && (!/^\d{4}-\d{2}-\d{2}$/.test(d) || bookingDateKey(d) !== d)) fail("Perioadă invalidă.");
+    if(filters.from && filters.to && filters.from > filters.to) fail("Perioadă inversată.");
     return (
       db
         .prepare(
@@ -1107,6 +1109,10 @@ export function saveCredential(
   audit(db, p, prop.organization_id, id, "credential.updated");
   return { id };
 }
+function recurringInstant(day: string, hour: number): string {
+  try { return hostLocalInstant(day, hour); }
+  catch { throw new ProError("Data sau ora programării nu există în calendarul României."); }
+}
 export function createRecurring(
   db: Database,
   p: Principal,
@@ -1122,8 +1128,8 @@ export function createRecurring(
     fail("Frecvență invalidă.");
   const day = text(b.start_date, "Data");
   const hour = int(b.hour, "Ora", 0, 23);
-  hostLocalInstant(day, hour);
-  if (day < new Date().toISOString().slice(0, 10)) fail("Data este în trecut.");
+  const firstInstant = recurringInstant(day, hour);
+  if (Date.parse(firstInstant) < Date.now()) fail("Data sau ora este în trecut.");
   const service = text(b.service, "Serviciu");
   if (!(service in SERVICES) || service === "cleaning_turnover")
     fail("Turnover se programează manual.");
@@ -1152,9 +1158,7 @@ export function runRecurring(db: Database, stamp = Date.now()) {
     .transaction(() => {
       let generated = 0,
         missed = 0;
-      const horizon = new Date(stamp + 14 * 86400000)
-        .toISOString()
-        .slice(0, 10);
+      const horizon = bucharestDateKey(new Date(stamp + 14 * 86400000));
       const rules = db
         .prepare(
           "SELECT r.* FROM pro_recurring_rules r JOIN pro_organizations o ON o.id=r.organization_id JOIN pro_properties p ON p.id=r.property_id WHERE r.active=1 AND o.status='active' AND p.status='active'",
@@ -1190,7 +1194,7 @@ export function runRecurring(db: Database, stamp = Date.now()) {
               .get(r.id, day)
           ) {
             try {
-              const starts = hostLocalInstant(day, r.hour);
+              const starts = recurringInstant(day, r.hour);
               if (+new Date(starts) < stamp) throw new ProError("Programarea este în trecut.");
               db.transaction(() => {
                 const result = createWork(
@@ -1324,6 +1328,9 @@ export function reschedule(
   ).run(start.toISOString(), end.toISOString(), id);
   audit(db, p, w.organization_id, id, "work.rescheduled", {
     previous_start: w.starts_at,
+    previous_end: w.ends_at,
+    starts_at: start.toISOString(),
+    ends_at: end.toISOString(),
   });
   return { id };
 }

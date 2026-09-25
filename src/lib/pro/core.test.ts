@@ -1,4 +1,4 @@
-import { beforeEach, afterEach, describe, it, expect } from "vitest";
+import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import Database from "better-sqlite3";
 import { migratePro } from "./schema";
 import * as p from "./core";
@@ -103,7 +103,7 @@ beforeEach(() => {
     "INSERT INTO pro_partner_members VALUES('firm','partner',1)",
   ).run();
 });
-afterEach(() => db.close());
+afterEach(() => { db.close(); vi.useRealTimers(); });
 describe("Pro v1.1 database integration", () => {
   it("preserves legacy tables and refuses destructive automatic migration", () => {
     const legacy = new Database(":memory:");
@@ -340,4 +340,19 @@ describe('Pro collection financial scope',()=>{
   for(const property_id of [prop,second])p.createRecurring(db,owner,{property_id,title:'Recurență',service:'cleaning_recurring',frequency:'weekly',start_date:new Date(Date.now()+86400000).toISOString().slice(0,10),hour:12,duration:60,estimate:500});
   expect(p.collection(db,stranger,org,'recurring')).toMatchObject([{property_id:prop}]);expect(p.collection(db,stranger,org,'properties')).toHaveLength(2);
  });
+});
+describe('Pro Romanian calendar and rescheduling',()=>{
+ const recurring=(start_date:string,hour=12,frequency='weekly')=>p.createRecurring(db,owner,{property_id:prop,title:'Calendar',service:'cleaning_recurring',frequency,start_date,hour,duration:60,estimate:500});
+ it('rejects a past hour on the current Romanian date',()=>{vi.useFakeTimers();vi.setSystemTime(new Date('2027-02-01T12:00:00Z'));expect(()=>recurring('2027-02-01',13)).toThrow('trecut');expect(()=>recurring('2027-02-01',15)).not.toThrow();});
+ it('rejects nonexistent dates and the spring DST missing hour',()=>{vi.useFakeTimers();vi.setSystemTime(new Date('2027-01-01T00:00:00Z'));expect(()=>recurring('2027-02-30')).toThrow('calendarul');expect(()=>recurring('2027-03-28',3)).toThrow('calendarul');expect(db.prepare('SELECT * FROM pro_recurring_rules').all()).toEqual([]);});
+ it('marks a generated DST gap for review while continuing the other valid visits',()=>{vi.useFakeTimers();vi.setSystemTime(new Date('2027-03-20T00:00:00Z'));recurring('2027-03-21',3);const result=p.runRecurring(db);expect(result.missed).toBe(1);expect(result.generated).toBe(1);expect(p.runRecurring(db).generated).toBe(0);});
+ it('uses the Romanian calendar day at the generation horizon',()=>{vi.useFakeTimers();vi.setSystemTime(new Date('2027-01-01T22:30:00Z'));recurring('2027-01-16',12);expect(p.runRecurring(db).generated).toBe(1);});
+ it('preserves monthly day anchor through February',()=>{vi.useFakeTimers();vi.setSystemTime(new Date('2027-01-20T00:00:00Z'));const rule=recurring('2027-01-31',12,'monthly');p.runRecurring(db);expect(db.prepare('SELECT next_date FROM pro_recurring_rules WHERE id=?').get(rule.id)).toEqual({next_date:'2027-02-28'});vi.setSystemTime(new Date('2027-02-20T00:00:00Z'));p.runRecurring(db);expect(db.prepare('SELECT next_date FROM pro_recurring_rules WHERE id=?').get(rule.id)).toEqual({next_date:'2027-03-31'});});
+ it('keeps recurrence identity and audit evidence after rescheduling without regeneration',()=>{vi.useFakeTimers();vi.setSystemTime(new Date('2027-01-01T00:00:00Z'));recurring('2027-01-02');p.runRecurring(db);const occurrence=db.prepare('SELECT * FROM pro_occurrences ORDER BY day LIMIT 1').get() as {work_order_id:string};const id=occurrence.work_order_id;const before=get(id);const b={revision:before.revision,starts_at:'2027-01-03T10:00:00Z',ends_at:'2027-01-03T11:00:00Z'};run(owner,b,()=>p.reschedule(db,owner,id,b));expect(db.prepare('SELECT * FROM pro_occurrences ORDER BY day LIMIT 1').get()).toEqual(occurrence);expect(p.runRecurring(db).generated).toBe(0);expect(()=>run(owner,b,()=>p.reschedule(db,owner,id,b))).toThrow();expect(get(id).starts_at).toBe('2027-01-03T10:00:00.000Z');});
+ it.each([{from:'2027-02-30'},{from:'2027-03-02',to:'2027-03-01'}])('rejects invalid report periods %j',filters=>{expect(()=>p.collection(db,owner,org,'costs',filters)).toThrow('Perioadă');});
+});
+describe('Pro approval and schedule rollback',()=>{
+ it('keeps approval pending when its audit cannot be saved',()=>{const {id}=order();const before=get(id);db.exec("CREATE TRIGGER reject_approval_audit BEFORE INSERT ON pro_audit_logs BEGIN SELECT RAISE(ABORT,'audit unavailable'); END;");expect(()=>approve(id)).toThrow('audit unavailable');expect(get(id)).toEqual(before);expect(db.prepare('SELECT decision FROM pro_approvals WHERE work_order_id=?').get(id)).toEqual({decision:'pending'});});
+ it('rolls back a moved interval on audit failure',()=>{const {id}=order();const before=get(id);const b={revision:before.revision,starts_at:new Date(Date.now()+3*3600000).toISOString(),ends_at:new Date(Date.now()+4*3600000).toISOString()};db.exec("CREATE TRIGGER reject_schedule_audit BEFORE INSERT ON pro_audit_logs BEGIN SELECT RAISE(ABORT,'audit unavailable'); END;");expect(()=>run(owner,b,()=>p.reschedule(db,owner,id,b))).toThrow('audit unavailable');expect(get(id)).toEqual(before);});
+ it('rejects rescheduling into an occupied property interval',()=>{const {id}=order();const starts_at=new Date(Date.now()+3*3600000).toISOString(),ends_at=new Date(Date.now()+4*3600000).toISOString();run(owner,{},()=>p.createWork(db,owner,{property_id:prop,title:'Altă vizită',service:'cleaning_recurring',starts_at,ends_at,estimate:500}));const before=get(id);const b={revision:before.revision,starts_at,ends_at};expect(()=>run(owner,b,()=>p.reschedule(db,owner,id,b))).toThrow('ocupat');expect(get(id)).toEqual(before);});
 });
