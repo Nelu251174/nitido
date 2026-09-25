@@ -1,4 +1,5 @@
 "use client";
+import {AssistedEntry} from "@/components/AssistedJourney";
 import {EntrancePicker} from "@/components/EntrancePicker";
 import {validEntrance,type Entrance} from "@/lib/entrance";
 import {VisitCare} from "@/components/VisitCare";
@@ -558,6 +559,7 @@ export default function ClientPage() {
       <main className="flex-1 min-w-0 px-8 py-8 max-[760px]:px-[22px] max-[760px]:pb-28">
         <div className="board-topbar"><span>Spațiul tău NITIDO</span><div><Link href="/client/mesaje" aria-label="Mesaje"><DesignIcon name="bell"/></Link><button type="button" className="account-profile-link" onClick={openProfileEditor} aria-label="Deschide profilul meu"><span className="board-avatar">{user.name.slice(0,1)}</span><b>{user.name}</b></button></div></div>
         <header className="board-greeting"><div><h1>Bună, {user.name.split(" ")[0]}!</h1><p>Mulțumim că faci parte din comunitatea NITIDO.RO.</p></div><span className="board-greeting-note"><DesignIcon name="sparkles"/>Un cămin curat este începutul<br/>unei zile mai bune.</span></header>
+        {!job&&!showBooking&&<AssistedEntry/>}
         {!job&&!showBooking&&<ClientOverview jobs={myJobs} onSelect={setJob} onBook={goToForm}/>}
         <EmailVerificationNotice/>
         {cardNotice && <p role="status" className="mb-4 rounded-xl border border-aqua bg-mist p-4 text-sm">{cardNotice}</p>}

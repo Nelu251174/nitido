@@ -14,7 +14,7 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
   <main id="main-content" className="operations-main min-w-0">
    <div className="operations-topbar"><span>NITIDO · CONT CLIENT</span><Link className="account-profile-link" href="/client#sec-cont">{user.name}</Link></div>
    <Link className="v2-btn v2-btn-secondary mb-6" href="/client">Înapoi în contul meu</Link>
-   <ClientAssessments initialCity={city} initialSqm={sqm}/>
+   <ClientAssessments initialCity={city} initialSqm={sqm} sandboxDemo={process.env.NEXT_PUBLIC_SITE_URL==='https://sandbox.nitido.ro'}/>
   </main>
  </div>;
 }
