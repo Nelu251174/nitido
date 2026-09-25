@@ -306,7 +306,7 @@ export async function POST(req: NextRequest) {
   let { creditUsed } = applyCredit(priceGross, user.credit_balance);
   const requestedPhotoIds = Array.from(new Set(photoIds ?? [])).slice(0, 5);
   const ownedPhotoIds = requestedPhotoIds.filter((photoId) =>
-    db.prepare("SELECT 1 FROM job_photos WHERE id = ? AND owner_user_id = ? AND job_id IS NULL")
+    db.prepare("SELECT 1 FROM job_photos WHERE id = ? AND owner_user_id = ? AND job_id IS NULL AND NOT EXISTS(SELECT 1 FROM assessment_photos a WHERE a.photo_id=job_photos.id)")
       .get(photoId, user.id)
   );
   if (ownedPhotoIds.length !== requestedPhotoIds.length) {
@@ -352,7 +352,7 @@ export async function POST(req: NextRequest) {
     if(manual)linkManualOfferJob(db,user.id,body.manualOfferId,id);
     if(acceptedPrice)linkBookingQuote(db,user.id,acceptedPrice.quoteId,id);
     if (ownedPhotoIds.length > 0) {
-      const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL");
+      const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL AND NOT EXISTS(SELECT 1 FROM assessment_photos a WHERE a.photo_id=job_photos.id)");
       for (const photoId of ownedPhotoIds) linkPhoto.run(id, photoId, user.id);
     }
     if(hostLink)db.prepare('INSERT INTO workspace_host_jobs VALUES(?,?,?,?)').run(id,hostLink.eventId,hostLink.revision,new Date().toISOString());

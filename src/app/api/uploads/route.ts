@@ -1,3 +1,6 @@
+import {attachAssessmentPhoto} from '@/lib/assessmentEvidence';
+import {manualOffersEnabled} from '@/lib/manualOffers';
+import {MarginError} from '@/lib/operationalMargin';
 import {readVisitCare} from "@/lib/visitCare";
 import {WorkspaceError} from "@/lib/workspace";
 import { prepareUploadImage } from "@/lib/uploadImage";
@@ -36,8 +39,9 @@ export async function POST(req: NextRequest) {
   if (!consumeRateLimit(`upload:${user.id}:${requestIp(req)}`, 20, 60 * 60 * 1000)) {
     return NextResponse.json({ error: "Prea multe încărcări" }, { status: 429 });
   }
+  db.transaction(()=>{
   const stale = db.prepare(
-    "SELECT id, filename FROM job_photos WHERE job_id IS NULL AND created_at < datetime('now', '-24 hours')"
+    "SELECT id, filename FROM job_photos WHERE job_id IS NULL AND NOT EXISTS(SELECT 1 FROM assessment_photos a WHERE a.photo_id=job_photos.id) AND created_at < datetime('now', '-24 hours')"
   ).all() as { id: string; filename: string }[];
   for (const photo of stale) {
     if (path.basename(photo.filename) === photo.filename) {
@@ -45,8 +49,9 @@ export async function POST(req: NextRequest) {
     }
     db.prepare("DELETE FROM job_photos WHERE id = ? AND job_id IS NULL").run(photo.id);
   }
+  }).immediate();
   const orphanCount = user.role === "client" ? db.prepare(
-    "SELECT COUNT(*) AS count FROM job_photos WHERE owner_user_id = ? AND job_id IS NULL"
+    "SELECT COUNT(*) AS count FROM job_photos WHERE owner_user_id = ? AND job_id IS NULL AND NOT EXISTS(SELECT 1 FROM assessment_photos a WHERE a.photo_id=job_photos.id)"
   ).get(user.id) as { count: number } : { count: 0 };
   if (orphanCount.count >= 10) {
     return NextResponse.json({ error: "Atașează sau elimină pozele încărcate înainte de altele noi" }, { status: 429 });
@@ -82,6 +87,17 @@ export async function POST(req: NextRequest) {
   const ext = detected.ext;
   const id = newId("photo");
   const filename = `${id}.${ext}`;
+
+  const assessmentId=String(formData.get('assessmentId')??'');
+  if(assessmentId){
+    if(user.role!=='client'||!manualOffersEnabled()||jobId||proofType)return NextResponse.json({error:'Încărcarea pentru evaluare nu este permisă.'},{status:403});
+    try{db.transaction(()=>{
+      db.prepare("INSERT INTO job_photos(id,owner_user_id,proof_type,filename,mime_type,file_size,status,validated_at) VALUES(?,?,'CLIENT_CONTEXT',?,?,?,'VALID',datetime('now'))").run(id,user.id,filename,detected.mime,stored.length);
+      attachAssessmentPhoto(db,assessmentId,user.id,id);
+      fs.writeFileSync(path.join(UPLOAD_DIR,filename),stored,{flag:'wx'});
+    }).immediate();return NextResponse.json({id,url:`/api/uploads/${id}`},{status:201});}
+    catch(e){fs.rmSync(path.join(UPLOAD_DIR,filename),{force:true});return NextResponse.json({error:e instanceof MarginError?e.message:'Încărcarea nu a fost confirmată.'},{status:e instanceof MarginError?e.status:503});}
+  }
 
   if(proofType==='CASE'){
     try{

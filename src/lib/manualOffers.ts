@@ -1,3 +1,4 @@
+import {requireVerifiedAssessmentEvidence} from './assessmentEvidence';
 import {checkOfferMargin,recordOfferMargin} from './marginPolicy';
 import type {Database} from 'better-sqlite3';
 import {randomUUID} from 'node:crypto';
@@ -38,13 +39,13 @@ export function publishManualOffer(db:Database,args:{id:unknown;revision:unknown
  const a=db.prepare('SELECT version,status,payload FROM service_assessments WHERE id=?').get(assessmentId) as {version:number;status:string;payload:string}|undefined;
  if(!a)throw new MarginError('Cerere inexistentă.',404);
  if(['cancelled','declined'].includes(a.status))throw new MarginError('Cererea este închisă.',409);
- if(JSON.parse(a.payload).category==='renovation')throw new MarginError('Ofertele după renovare necesită fotografii verificate; acest flux nu este încă activ.',422);
+ const evidence=JSON.parse(a.payload).category==='renovation'?requireVerifiedAssessmentEvidence(db,assessmentId):null;
  const estimate=db.prepare('SELECT * FROM assessment_estimates WHERE assessment_id=? ORDER BY revision DESC LIMIT 1').get(assessmentId) as {revision:number;assessment_version:number;definition_json:string}|undefined;
  if(!estimate||estimate.revision!==args.revision||estimate.assessment_version!==a.version)throw new MarginError('Calculul sau cererea s-a modificat. Salvează o revizie actualizată.',409);
  const definition=validateManualEstimate(JSON.parse(estimate.definition_json)),margin=calculateOperationalMargin(definition);
  if(margin.status==='incomplete')throw new MarginError('Completează sursele și costurile înainte de publicarea ofertei.',409);
  const request=JSON.parse(a.payload);
- const publicJson=JSON.stringify({currency:'RON',scope,context:{category:request.category,city:request.city,sqm:request.sqm},lines:definition.lines,grossBani:margin.grossBani,discountBani:margin.platformDiscountBani,totalBani:margin.clientDueBani});
+ const publicJson=JSON.stringify({currency:'RON',scope,...(evidence?{evidence}:{}),context:{category:request.category,city:request.city,sqm:request.sqm},lines:definition.lines,grossBani:margin.grossBani,discountBani:margin.platformDiscountBani,totalBani:margin.clientDueBani});
  const old=db.prepare('SELECT * FROM assessment_offers WHERE assessment_id=? AND estimate_revision=?').get(assessmentId,args.revision) as OfferRow|undefined;
  if(old){if(old.public_json!==publicJson||old.expires_at!==expires)throw new MarginError('Această revizie a fost deja publicată cu alți termeni.',409);return view(old,now);}
  const marginCheck=checkOfferMargin(db,definition,args.policyRevision,args.exceptionReason);
@@ -68,6 +69,7 @@ export function decideManualOffer(db:Database,clientId:string,args:{id:unknown;a
  if(r.status===result)return view(r,now);
  if(r.status!=='offered'||r.expires_at<=now.toISOString())throw new MarginError('Oferta a expirat sau nu mai este disponibilă. Solicită o ofertă nouă.',409);
  const a=db.prepare('SELECT version,status FROM service_assessments WHERE id=?').get(r.assessment_id) as {version:number;status:string};if(a.version!==r.assessment_version||['cancelled','declined'].includes(a.status))throw new MarginError('Cererea s-a schimbat. Este necesară o ofertă actualizată.',409);
+ const terms=JSON.parse(r.public_json);if(result==='accepted'&&terms.context.category==='renovation'){const current=requireVerifiedAssessmentEvidence(db,r.assessment_id);if(current.reviewId!==terms.evidence?.reviewId)throw new MarginError('Verificarea fotografiilor s-a schimbat. Solicită o ofertă actualizată.',409);}
  db.prepare('UPDATE assessment_offers SET status=? WHERE id=?').run(result,key);event(db,key,clientId,result,'Decizie explicită în contul clientului',now);return view({...r,status:result},now);
  }).immediate();
 }
