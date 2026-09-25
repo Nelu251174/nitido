@@ -1,3 +1,5 @@
+import {EXECUTION_TEMPLATES_SCHEMA} from './operationsSchema';
+import {jobExecutionRules} from './executionTemplates';
 import {auditWorkflow} from './proofOfWork';
 import {jobAssistedOperation} from './assistedOperations';
 import {HOST_DEFAULTS,hostLocalInstant,type HostSettings} from './hostScheduleShared';
@@ -11,6 +13,7 @@ import { randomUUID } from "node:crypto";
 import {REPORT_ARCHIVE_SCHEMA} from './reportArchive';
 
 export const WORKSPACE_SCHEMA = `
+${EXECUTION_TEMPLATES_SCHEMA}
 CREATE TABLE IF NOT EXISTS workspace_properties (
  id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id), name TEXT NOT NULL,
  city TEXT NOT NULL, street TEXT NOT NULL, sqm INTEGER NOT NULL, space_type TEXT NOT NULL,
@@ -111,7 +114,7 @@ CREATE TABLE IF NOT EXISTS workspace_host_checks (
  PRIMARY KEY(event_id,turnover_at,item_key)
 );
 ` + COLLABORATION_SCHEMA + ORGANIZATION_SCHEMA + REPORT_ARCHIVE_SCHEMA;
-import { CHECKLIST, HOST_CHECKLIST } from "@/lib/workspaceShared";
+import { HOST_CHECKLIST } from "@/lib/workspaceShared";
 export class WorkspaceError extends Error { constructor(message:string,public status=400){super(message)} }
 export function requireText(value:unknown,label:string,max=250) {
  if(typeof value!=="string"||!value.trim()||value.trim().length>max)throw new WorkspaceError(`${label}: completează între 1 și ${max} caractere.`);
@@ -275,7 +278,7 @@ export function setChecklist(db:Database,userId:string,jobId:string,key:string,d
  if(!access||!["accepted","arrived"].includes(access.status))throw new WorkspaceError("Nu poți modifica verificările acestei lucrări.",403);
  if(db.prepare("SELECT 1 FROM workspace_execution_reports WHERE job_id=?").get(jobId))throw new WorkspaceError("Raportul a fost trimis. Verificările sunt blocate pentru a păstra dovada raportată.",409);
  if(done&&db.prepare("SELECT 1 FROM visit_cases WHERE job_id=? AND item_key=? AND category='task' AND status NOT IN ('resolved','closed')").get(jobId,key))throw new WorkspaceError('Sarcina este raportată ca nerealizabilă. Soluționează dosarul înainte de a o marca realizată.',409);
- if(!CHECKLIST.some(i=>i.key===key))throw new WorkspaceError("Verificare invalidă.");
+ if(!jobExecutionRules(db,jobId).items.some(i=>i.key===key))throw new WorkspaceError("Verificare invalidă.");
  const previous=db.prepare("SELECT done FROM workspace_checklist WHERE job_id=? AND item_key=?").get(jobId,key) as {done:number}|undefined;
  if(previous?.done===(done?1:0))return;
  db.prepare("INSERT INTO workspace_checklist VALUES(?,?,?,?,?) ON CONFLICT(job_id,item_key) DO UPDATE SET done=excluded.done,updated_by=excluded.updated_by,updated_at=excluded.updated_at").run(jobId,key,done?1:0,userId,new Date().toISOString());

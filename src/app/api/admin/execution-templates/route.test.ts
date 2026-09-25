@@ -1,0 +1,16 @@
+import {beforeEach,afterEach,it,expect,vi} from 'vitest';
+import Database from 'better-sqlite3';
+import {NextRequest} from 'next/server';
+import {EXECUTION_TEMPLATES_SCHEMA} from '@/lib/operationsSchema';
+const state=vi.hoisted(()=>({db:null as Database.Database|null,actor:'verified' as string|null,origin:true,audit:vi.fn()}));
+vi.mock('@/lib/db',()=>({get db(){return state.db!;}}));
+vi.mock('@/lib/adminAuth',()=>({getAdminActorId:async()=>state.actor,auditAdminAction:state.audit}));
+vi.mock('@/lib/security',()=>({hasTrustedMutationOrigin:()=>state.origin}));
+import {GET,POST} from './route';
+const body=()=>({scope:'standard',revision:0,items:[{key:'test',label:'Verificare'}],reason:'Test',actor:'forged'});
+const req=(data:unknown)=>new NextRequest('https://sandbox.nitido.ro/api/admin/execution-templates',{method:'POST',body:JSON.stringify(data)});
+beforeEach(()=>{state.db=new Database(':memory:');state.db.exec(EXECUTION_TEMPLATES_SCHEMA);state.actor='verified';state.origin=true;state.audit.mockReset();});afterEach(()=>state.db!.close());
+it('requires verified admin and trusted origin',async()=>{state.actor=null;expect((await GET()).status).toBe(401);expect((await POST(req(body()))).status).toBe(401);state.actor='verified';state.origin=false;expect((await POST(req(body()))).status).toBe(403);});
+it('publishes with verified author and rejects stale overwrite',async()=>{expect((await POST(req(body()))).status).toBe(200);expect(state.db!.prepare('SELECT actor_id FROM execution_templates').get()).toEqual({actor_id:'verified'});expect((await POST(req(body()))).status).toBe(409);expect(state.audit).toHaveBeenCalledOnce();expect((await GET()).headers.get('Cache-Control')).toBe('private, no-store');});
+it('rolls back publication when audit cannot be written',async()=>{state.audit.mockImplementation(()=>{throw Error('secret');});const result=await POST(req(body()));expect(result.status).toBe(500);expect(await result.text()).not.toContain('secret');expect(state.db!.prepare('SELECT * FROM execution_templates').all()).toEqual([]);});
+it('validates malformed, oversized and unsupported input',async()=>{for(const data of [null,[],{}, {...body(),scope:'unknown'}])expect((await POST(req(data))).status).toBe(400);expect((await POST(req('x'.repeat(60001)))).status).toBe(413);});

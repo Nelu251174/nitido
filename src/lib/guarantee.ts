@@ -1,3 +1,4 @@
+import {freezeExecutionRules} from '@/lib/executionTemplates';
 import type { Database } from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import { calcServiceDuration, BUFFER_MINUTES } from "@/lib/pricing";
@@ -48,6 +49,7 @@ export function requestReclean(
   clientId: string,
   now: Date = new Date()
 ): RecleanResult {
+ return db.transaction(():RecleanResult=>{
   const job = db.prepare("SELECT * FROM jobs WHERE id = ?").get(jobId) as OrigJob | undefined;
   if (!job) return { ok: false, error: "Lucrare inexistentă", status: 404 };
   if (job.client_id !== clientId) return { ok: false, error: "Lucrarea nu îți aparține", status: 403 };
@@ -86,5 +88,7 @@ export function requestReclean(
     assignFirm ? now.toISOString() : null
   );
   if (job.windows_sqm) db.prepare("UPDATE jobs SET windows_sqm = ? WHERE id = ?").run(job.windows_sqm, newId);
+  freezeExecutionRules(db,newId,'standard',jobId);
   return { ok: true, jobId: newId };
+ }).immediate();
 }

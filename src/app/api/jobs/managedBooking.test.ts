@@ -1,3 +1,4 @@
+import {saveExecutionTemplate,jobExecutionRules} from '@/lib/executionTemplates';
 import {afterEach,beforeEach,describe,it,expect,vi} from 'vitest';
 import Database from 'better-sqlite3';
 import {NextRequest} from 'next/server';
@@ -7,6 +8,7 @@ vi.mock('@/lib/auth',()=>({getCurrentUser:async()=>state.db!.prepare('SELECT * F
 vi.mock('@/lib/clientPayments',()=>({getClientCardInfo:()=>({stripeConfigured:false,hasCard:false})}));
 vi.mock('@/lib/push',()=>({queueNewJobFirmPushes:()=>[],processPushOutbox:vi.fn()}));
 import {initializeDatabase} from '@/lib/db';
+import {changeCustomerOperations} from '@/lib/customerOperations';
 import {createTariff,simulateTariff,publishTariff} from '@/lib/managedPricingStore';
 import {POST as quote} from './quote/route';
 import {POST as book} from './route';
@@ -23,4 +25,21 @@ describe('managed quotes through real booking route',()=>{
  it('rolls back job and credit when quote linking fails',async()=>{const q=await offer();state.db!.exec("CREATE TRIGGER test_failure BEFORE UPDATE OF job_id ON booking_price_quotes BEGIN SELECT RAISE(ABORT,'injected failure'); END;");await expect(book(req('',{...body,quoteId:q.id}))).rejects.toThrow('injected failure');expect(state.db!.prepare('SELECT count(*) n FROM jobs').get()).toEqual({n:0});expect(state.db!.prepare("SELECT credit_balance FROM users WHERE id='c'").get()).toEqual({credit_balance:20});});
  it('keeps legacy creation available when the sandbox flag is off',async()=>{vi.stubEnv('NITIDO_MANAGED_PRICING_SANDBOX','false');expect((await book(req('',body,'legacy'))).status).toBe(201);expect(state.db!.prepare('SELECT count(*) n FROM booking_price_quotes').get()).toEqual({n:0});});
  it('includes Express 60 once and rejects a scheduled premium booking',async()=>{const data={...body,express60:true},q=await offer(data);expect(q.pricing.lines.filter((l:{code:string})=>l.code==='express60')).toHaveLength(1);const r=await book(req('',{...data,quoteId:q.id}));expect(r.status).toBe(201);expect((await r.json()).job.price_gross*100).toBe(q.pricing.grossBani);expect((await book(req('',{...data,quoteId:q.id,whenType:'scheduled'}))).status).toBe(400);});
+});
+
+it.each(['standard','express'])('blocks new %s reservations atomically without spending credit, but replays an existing reservation',async mode=>{
+ const data={...body,mode},q=await offer(data);
+ const restrict=(revision:number,blocked:boolean)=>state.db!.transaction(()=>changeCustomerOperations(state.db!,{clientId:'c',action:'restrict',revision,blockBookings:blocked,blockAssessments:false,reason:'Internal investigation'},'admin')).immediate();
+ restrict(0,true);
+ const blocked=await book(req('',{...data,quoteId:q.id},'retry'));
+ expect(blocked.status).toBe(403);expect(await blocked.text()).not.toContain('Internal investigation');
+ expect(state.db!.prepare('SELECT COUNT(*) n FROM jobs').get()).toEqual({n:0});expect(state.db!.prepare("SELECT credit_balance FROM users WHERE id='c'").get()).toEqual({credit_balance:20});
+ restrict(1,false);const success=await book(req('',{...data,quoteId:q.id},'retry'));expect(success.status).toBe(201);
+ restrict(2,true);expect((await book(req('',{...data,quoteId:q.id},'retry'))).status).toBe(200);
+});
+it('captures the configured checklist in the real booking transaction and keeps it on retries',async()=>{
+ const publish=(revision:number,label:string)=>state.db!.transaction(()=>saveExecutionTemplate(state.db!,{scope:'standard',revision,reason:'Test',items:[{key:'task',label}]},'admin')).immediate();
+ publish(0,'Original');const q=await offer();const first=await book(req('',{...body,quoteId:q.id},'rules'));const job=(await first.json()).job;
+ expect(jobExecutionRules(state.db!,job.id)).toMatchObject({revision:1,items:[{key:'task',label:'Original'}]});publish(1,'Changed');
+ expect((await book(req('',{...body,quoteId:q.id},'rules'))).status).toBe(200);expect(jobExecutionRules(state.db!,job.id).items[0].label).toBe('Original');
 });

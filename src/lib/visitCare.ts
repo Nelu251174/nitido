@@ -3,7 +3,7 @@ import {randomUUID} from 'node:crypto';
 import {auditWorkflow} from './proofOfWork';
 import {executionAccess} from './collaborationAccess';
 import {WorkspaceError,requireText} from './workspace';
-import {CHECKLIST} from './workspaceShared';
+import {jobExecutionRules,freezeExecutionRules} from './executionTemplates';
 import {bucharestScheduledAt} from './scheduling';
 import {firmAvailabilityError} from './firmAvailability';
 import {INCIDENT_REVIEW_SCHEMA,incidentReviews} from './incidentReview';
@@ -45,7 +45,7 @@ function event(db:Database,id:string,userId:string,action:string,note:string){
 export function readVisitCare(db:Database,jobId:string,user:Actor){
  const a=access(db,jobId,user);
  const cases=db.prepare('SELECT id,category,item_key,description,photo_id,status,proposed_at,reclean_job_id,created_at,updated_at FROM visit_cases WHERE job_id=? ORDER BY created_at DESC').all(jobId) as {id:string;updated_at:string}[];
- return {canConfirm:a.owner,canManage:a.firm,canResolve:a.owner||a.admin,canReport:!!a.job.accepted_firm_id,jobStatus:a.job.status,instructions:db.prepare('SELECT rooms,sensitive_materials,usual_tasks,preferences FROM visit_instructions WHERE job_id=?').get(jobId)??null,receipt:db.prepare('SELECT confirmed_at FROM visit_receipts WHERE job_id=?').get(jobId)??null,photos:db.prepare("SELECT id,proof_type FROM job_photos WHERE job_id=? AND status='VALID'").all(jobId),cases:cases.map(c=>({...c,reviews:incidentReviews(db,c.id),events:db.prepare('SELECT action,note,created_at FROM visit_case_events WHERE case_id=? ORDER BY created_at,id').all(c.id)}))};
+ return {executionItems:jobExecutionRules(db,jobId).items,canConfirm:a.owner,canManage:a.firm,canResolve:a.owner||a.admin,canReport:!!a.job.accepted_firm_id,jobStatus:a.job.status,instructions:db.prepare('SELECT rooms,sensitive_materials,usual_tasks,preferences FROM visit_instructions WHERE job_id=?').get(jobId)??null,receipt:db.prepare('SELECT confirmed_at FROM visit_receipts WHERE job_id=?').get(jobId)??null,photos:db.prepare("SELECT id,proof_type FROM job_photos WHERE job_id=? AND status='VALID'").all(jobId),cases:cases.map(c=>({...c,reviews:incidentReviews(db,c.id),events:db.prepare('SELECT action,note,created_at FROM visit_case_events WHERE case_id=? ORDER BY created_at,id').all(c.id)}))};
 }
 export function changeVisitCare(db:Database,jobId:string,user:Actor,b:Record<string,unknown>){
  return db.transaction(()=>{
@@ -61,7 +61,7 @@ export function changeVisitCare(db:Database,jobId:string,user:Actor,b:Record<str
    if(!['access','absent','scope','damage','quality','task'].includes(category))throw new WorkspaceError('Categorie invalidă.');
    const item=b.itemKey?requireText(b.itemKey,'Sarcină',40):null;
    if(category==='task'&&!item)throw new WorkspaceError('Selectează sarcina nerealizabilă.');
-   if(item&&!CHECKLIST.some(c=>c.key===item))throw new WorkspaceError('Sarcină invalidă.');
+   if(item&&!jobExecutionRules(db,jobId).items.some(c=>c.key===item))throw new WorkspaceError('Sarcină invalidă.');
    const photo=b.photoId?requireText(b.photoId,'Fotografie',100):null;
    if(photo&&!db.prepare("SELECT 1 FROM job_photos WHERE id=? AND job_id=? AND status='VALID'").get(photo,jobId))throw new WorkspaceError('Fotografia nu aparține lucrării.',403);
    const old=db.prepare('SELECT id,job_id,description,category,item_key,photo_id FROM visit_cases WHERE opened_by=? AND request_key=?').get(user.id,key) as {id:string;job_id:string;description:string;category:string;item_key:string|null;photo_id:string|null}|undefined;
@@ -101,6 +101,7 @@ export function changeVisitCare(db:Database,jobId:string,user:Actor,b:Record<str
    const newId=`job_${randomUUID()}`;
    db.prepare(`INSERT INTO jobs(id,client_id,street,postal_code,city,floor,details,sqm,space_type,when_type,scheduled_at,price_gross,credit_applied,duration_minutes,buffer_minutes,photos_count,mode,guarantee_of,status,accepted_firm_id,accepted_at)
     SELECT ?,client_id,street,postal_code,city,floor,?,sqm,space_type,'scheduled',?,0,0,duration_minutes,buffer_minutes,0,'standard',id,'accepted',accepted_firm_id,? FROM jobs WHERE id=?`).run(newId,'Vizită de remediere. Verificați instrucțiunile și accesul cu clientul.',c.proposed_at,new Date().toISOString(),jobId);
+   freezeExecutionRules(db,newId,'standard',jobId);
    db.prepare('UPDATE jobs SET pricing_snapshot=? WHERE id=? AND pricing_snapshot IS NULL').run(JSON.stringify({version:'nitido-remediation-v1',currency:'RON',recordedAt:new Date().toISOString(),grossBani:0,creditBani:0,clientTotalBani:0,lines:[{code:'cleaning',amountBani:0},{code:'express60',amountBani:0},{code:'platform_credit',amountBani:0}]}),newId);
    const property=db.prepare('SELECT property_id FROM workspace_property_jobs WHERE job_id=?').get(jobId) as {property_id:string}|undefined;
    if((j.windows_sqm??0)>0)db.prepare('UPDATE jobs SET windows_sqm=? WHERE id=?').run(j.windows_sqm,newId);

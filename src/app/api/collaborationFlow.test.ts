@@ -1,14 +1,11 @@
 import {afterAll,beforeEach,describe,it,expect,vi} from 'vitest';
 import {NextRequest} from 'next/server';
-import type Database from 'better-sqlite3';
-const state=vi.hoisted(()=>({db:null as Database.Database|null,cookie:'',files:new Map<string,Buffer>(),capture:vi.fn(),counter:0}));
+import Database from 'better-sqlite3';
+const state=vi.hoisted(()=>({db:null as Database.Database|null,cookie:'',files:new Map<string,Buffer>(),capture:vi.fn(),counter:0,initialize:null as ((db:Database.Database)=>void)|null}));
 vi.mock('@/lib/db',async importOriginal=>{
  const actual=await importOriginal<typeof import('@/lib/db')>();
- const {default:Sqlite}=await import('better-sqlite3');
- const db=new Sqlite(':memory:');
- const schema=actual.db.prepare("SELECT sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END").all() as {sql:string}[];
- db.exec(schema.map(r=>r.sql).join(';'));db.pragma('foreign_keys=ON');state.db=db;
- return {...actual,db,getUserById:(id:string)=>db.prepare('SELECT * FROM users WHERE id=?').get(id),getFirmByUserId:(id:string)=>db.prepare('SELECT * FROM firms WHERE user_id=?').get(id)};
+ state.initialize=actual.initializeDatabase;
+ return {...actual,get db(){return state.db!;},getUserById:(id:string)=>state.db!.prepare('SELECT * FROM users WHERE id=?').get(id),getFirmByUserId:(id:string)=>state.db!.prepare('SELECT * FROM firms WHERE user_id=?').get(id)};
 });
 vi.mock('next/headers',()=>({cookies:async()=>({get:(name:string)=>name==='nitido_session'&&state.cookie?{value:state.cookie}:undefined})}));
 vi.mock('@/lib/adminAuth',()=>({isAdmin:async()=>false}));
@@ -16,7 +13,8 @@ vi.mock('@/lib/payments',()=>({capturePayment:state.capture,getStripeClient:()=>
 vi.mock('@/lib/push',()=>({queueArrivedClientPush:()=>[],queueCompletedClientPush:()=>[],queueNewJobFirmPushes:()=>[],processPushOutbox:vi.fn()}));
 vi.mock('fs',async importOriginal=>{const actual=await importOriginal<typeof import('fs')>();const isUpload=(p:unknown)=>String(p).includes('/data/uploads');return {default:{...actual,existsSync:(p:unknown)=>isUpload(p)?String(p).endsWith('/uploads')||state.files.has(String(p)):actual.existsSync(p as string),writeFileSync:(p:unknown,b:Buffer)=>{if(!isUpload(p))throw Error('Unexpected filesystem write');state.files.set(String(p),b)},readFileSync:(p:unknown)=>isUpload(p)?state.files.get(String(p)):actual.readFileSync(p as string),rmSync:(p:unknown)=>{if(!isUpload(p))throw Error('Unexpected filesystem removal');state.files.delete(String(p))}}}});
 import {GET as snapshot,POST as collaborate} from './collaboration/route';
-import {POST as workspace} from './workspace/route';
+import {GET as workspaceSnapshot,POST as workspace} from './workspace/route';
+import {saveExecutionTemplate,freezeExecutionRules} from '@/lib/executionTemplates';
 import {POST as createJob} from './jobs/route';
 import {POST as upload} from './uploads/route';
 import {GET as asset} from './uploads/[id]/route';
@@ -27,7 +25,7 @@ const request=(path:string,user:string,body?:unknown,headers:Record<string,strin
 const call=(user:string,body:unknown)=>collaborate(request('collaboration',user,body));
 const context=(id:string)=>({params:Promise.resolve({id})});
 async function successful(response:Promise<Response>,status=200){const r=await response;const data=await r.json();expect(r.status,JSON.stringify(data)).toBe(status);return data;}
-beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime(new Date(`2026-09-11T08:${String(state.counter++).padStart(2,'0')}:00Z`));vi.stubEnv('TZ','UTC');vi.stubEnv('NITIDO_ENABLE_BEARER_AUTH','true');vi.stubEnv('STRIPE_SECRET_KEY','');state.cookie='';state.files.clear();state.capture.mockReset().mockResolvedValue(undefined);db().pragma('foreign_keys=OFF');for(const {name} of db().prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all() as {name:string}[])db().exec(`DELETE FROM "${name}"`);db().pragma('foreign_keys=ON');for(const [id,role] of [['owner','client'],['worker','client'],['outsider','client'],['firm-user','firma']]){db().prepare('INSERT INTO users(id,role,name,email,credit_balance) VALUES(?,?,?,?,25)').run(id,role,id,`${id}@example.test`);db().prepare('INSERT INTO sessions(id,user_id,expires_at) VALUES(?,?,?)').run(`session-${id}`,id,'2027-01-01T00:00:00Z')}db().exec("INSERT INTO firms(id,user_id,coverage_city) VALUES('firm','firm-user','București');INSERT INTO workspace_teams(id,firm_id,name) VALUES('team','firm','Team'),('other-team','firm','Other team')")});
+beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime(new Date(`2026-09-11T08:${String(state.counter++).padStart(2,'0')}:00Z`));vi.stubEnv('TZ','UTC');vi.stubEnv('NITIDO_ENABLE_BEARER_AUTH','true');vi.stubEnv('STRIPE_SECRET_KEY','');state.cookie='';state.files.clear();state.capture.mockReset().mockResolvedValue(undefined);state.db?.close();state.db=new Database(':memory:');state.initialize!(state.db);db().pragma('foreign_keys=ON');for(const [id,role] of [['owner','client'],['worker','client'],['outsider','client'],['firm-user','firma']]){db().prepare('INSERT INTO users(id,role,name,email,credit_balance) VALUES(?,?,?,?,25)').run(id,role,id,`${id}@example.test`);db().prepare('INSERT INTO sessions(id,user_id,expires_at) VALUES(?,?,?)').run(`session-${id}`,id,'2027-01-01T00:00:00Z')}db().exec("INSERT INTO firms(id,user_id,coverage_city) VALUES('firm','firm-user','București');INSERT INTO workspace_teams(id,firm_id,name) VALUES('team','firm','Team'),('other-team','firm','Other team')")});
 afterAll(()=>{db().close();vi.useRealTimers();vi.unstubAllEnvs()});
 async function seedJob(){db().exec("INSERT INTO jobs(id,client_id,street,city,sqm,space_type,when_type,scheduled_at,price_gross,duration_minutes,status,accepted_firm_id) VALUES('job','owner','Adresa test 1','București',75,'apartament','scheduled','2026-09-12T07:00:00Z',550,120,'accepted','firm')");const i=await successful(call('firm-user',{action:'invite.create',kind:'team',resourceId:'team',email:'worker@example.test',role:'worker'}));await successful(call('worker',{action:'invite.accept',token:i.token}));await successful(workspace(request('workspace','firm-user',{action:'team.assign',teamId:'team',jobId:'job'})));return i.token;}
 function photo(user:string,proofType:string,bytes=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADklEQVQImWP4DwYMEAoAU7oL9W/sIDEAAAAASUVORK5CYII=','base64')){const f=new FormData();f.append('file',new File([new Uint8Array(bytes)],'proof.png',{type:'image/png'}));f.append('jobId','job');f.append('proofType',proofType);return upload(new NextRequest('http://nitido.test/api/uploads',{method:'POST',headers:{Authorization:`Bearer session-${user}`},body:f}));}
@@ -43,4 +41,13 @@ describe('authenticated API workflow with isolated SQLite and file storage',()=>
  it('does not treat an arbitrary Authorization header as protection for a cross-origin cookie request',async()=>{state.cookie='session-owner';const p=await property();const foreign={Origin:'https://untrusted.example',Authorization:'Basic not-a-session'};expect((await collaborate(request('collaboration','',{action:'budget.configure',propertyId:p,enabled:true},foreign))).status).toBe(403);expect((await workspace(request('workspace','',{action:'property.save',name:'Unexpected'},foreign))).status).toBe(403);expect((await message(request('workspace/messages','',{jobId:'job',body:'Unexpected',requestId:'foreign'},foreign))).status).toBe(403)});
  it('accepts same-origin cookies and valid mobile bearer sessions, but rejects expired sessions and disabled bearer fallback',async()=>{const p=await property();state.cookie='session-owner';await successful(collaborate(request('collaboration','',{action:'budget.configure',propertyId:p,enabled:true},{Origin:'http://nitido.test'})));await successful(collaborate(request('collaboration','owner',{action:'budget.configure',propertyId:p,enabled:false},{Origin:'https://mobile.example'})));db().exec("UPDATE sessions SET expires_at='2020-01-01' WHERE id='session-worker'");expect((await snapshot(request('collaboration','worker'))).status).toBe(401);vi.stubEnv('NITIDO_ENABLE_BEARER_AUTH','false');expect((await collaborate(request('collaboration','owner',{action:'budget.configure',propertyId:p,enabled:true},{Origin:'https://mobile.example'}))).status).toBe(403)});
  it('does not allow altering a submitted execution report through the checklist endpoint',async()=>{await seedJob();db().prepare("INSERT INTO workspace_execution_reports VALUES('job','worker','Verified',?)").run(new Date().toISOString());expect((await call('worker',{action:'checklist.set',jobId:'job',key:'floors',done:false})).status).toBe(409)});
+});
+
+it('serves the frozen checklist only to authorized client, firm and assigned team',async()=>{
+ await seedJob();db().transaction(()=>{saveExecutionTemplate(db(),{scope:'standard',revision:0,items:[{key:'delicate',label:'Private service instructions'}],reason:'Test'},'admin');freezeExecutionRules(db(),'job','standard');}).immediate();
+ for(const user of ['owner','firm-user']){const data=await successful(workspaceSnapshot(request('workspace',user)));expect(data.executionRules.job).toEqual([{key:'delicate',label:'Private service instructions'}]);}
+ const outsider=await successful(workspaceSnapshot(request('workspace','outsider')));expect(outsider.executionRules).toEqual({});
+ const team=await successful(snapshot(request('collaboration','worker')));expect(team.jobs[0].executionItems).toEqual([{key:'delicate',label:'Private service instructions'}]);
+ await successful(workspace(request('workspace','firm-user',{action:'team.assign',teamId:'other-team',jobId:'job'})));
+ expect((await successful(snapshot(request('collaboration','worker')))).jobs).toEqual([]);
 });

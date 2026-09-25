@@ -1,3 +1,4 @@
+import {freezeExecutionRules} from '@/lib/executionTemplates';
 import type { Database } from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import {requestPaymentCancellation} from "@/lib/paymentCancellation";
@@ -51,6 +52,7 @@ export async function rescueAcceptedJob(
               scheduled_at, price_gross, 0, duration_minutes, buffer_minutes, photos_count, mode, 'waiting'
        FROM jobs WHERE id = ?`
     ).run(newJobId, jobId);
+    freezeExecutionRules(db,newJobId,'standard',jobId);
 
     return { ok: true, newJobId };
   })();

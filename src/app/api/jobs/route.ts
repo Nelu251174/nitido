@@ -1,3 +1,5 @@
+import {freezeExecutionRules} from '@/lib/executionTemplates';
+import {assertCustomerCanCreate,CustomerRestrictionError} from '@/lib/customerRestrictions';
 import {jobAssistedOperation} from '@/lib/assistedOperations';
 import {prepareManualOfferBooking,linkManualOfferJob} from '@/lib/manualOfferBooking';
 import {MarginError} from '@/lib/operationalMargin';
@@ -342,6 +344,7 @@ export async function POST(req: NextRequest) {
       const replay=turnoverReplay(db,user.id,String(body.hostEventId));if(replay)return {job:replay,replayed:true};
       hostLink=validateTurnoverBooking(db,user.id,body,scheduledAt.toISOString(),durationMinutes,BUFFER_MINUTES);
     }
+    assertCustomerCanCreate(db,user.id,'bookings');
     if (creditUsed > 0) db.prepare("UPDATE users SET credit_balance = credit_balance - ? WHERE id = ?").run(creditUsed, user.id);
     db.prepare(
       `INSERT INTO jobs
@@ -355,6 +358,9 @@ export async function POST(req: NextRequest) {
     db.prepare("UPDATE jobs SET pricing_snapshot=?, windows_sqm=? WHERE id=?").run(JSON.stringify(manualSnapshot??acceptedPrice??pricingSnapshot({spaceType,sqm,windowsSqm,expressFeeLei:express60Fee,creditLei:creditUsed})),windowsSqm,id);
     if(manual){linkManualOfferJob(db,user.id,body.manualOfferId,id);if(assisted)db.prepare('INSERT INTO assisted_job_plans VALUES(?,?,?)').run(id,body.manualOfferId,body.assistedRevision);}
     if(acceptedPrice)linkBookingQuote(db,user.id,acceptedPrice.quoteId,id);
+    let executionScope=jobMode;
+    if(manual){const category=db.prepare('SELECT a.payload FROM assessment_offer_jobs l JOIN assessment_offers o ON o.id=l.offer_id JOIN service_assessments a ON a.id=o.assessment_id WHERE l.job_id=?').get(id) as {payload:string};executionScope=JSON.parse(category.payload).category;}
+    freezeExecutionRules(db,id,executionScope);
     if (ownedPhotoIds.length > 0) {
       const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL AND NOT EXISTS(SELECT 1 FROM assessment_photos a WHERE a.photo_id=job_photos.id)");
       for (const photoId of ownedPhotoIds) linkPhoto.run(id, photoId, user.id);
@@ -366,7 +372,7 @@ export async function POST(req: NextRequest) {
     if(linked){enforceOrganizationBooking(db,linked.property_id,id);enforcePropertyBudget(db,linked.property_id,id);snapshotInstructions(db,id,linked.property_id,user.id);}
     return { job: db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow, replayed: false };
   }).immediate();
-  } catch(e) { if(e instanceof MarginError || e instanceof ManagedPricingError || e instanceof AccessError || e instanceof OrganizationError || e instanceof WorkspaceError || e instanceof CardSetupError)return NextResponse.json({error:e.message},{status:e.status}); throw e; }
+  } catch(e) { if(e instanceof CustomerRestrictionError || e instanceof MarginError || e instanceof ManagedPricingError || e instanceof AccessError || e instanceof OrganizationError || e instanceof WorkspaceError || e instanceof CardSetupError)return NextResponse.json({error:e.message},{status:e.status}); throw e; }
   if (created.replayed) return NextResponse.json({ job: created.job, replayed: true });
   const job = created.job;
 

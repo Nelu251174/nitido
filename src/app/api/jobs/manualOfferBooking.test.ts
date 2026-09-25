@@ -8,6 +8,7 @@ vi.mock('@/lib/adminAuth',()=>({getAdminActorId:async()=>state.actor,auditAdminA
 vi.mock('@/lib/clientPayments',()=>({getClientCardInfo:()=>({stripeConfigured:false,hasCard:false})}));
 vi.mock('@/lib/push',()=>({queueNewJobFirmPushes:()=>[],processPushOutbox:vi.fn()}));
 import {initializeDatabase} from '@/lib/db';
+import {saveExecutionTemplate,jobExecutionRules} from '@/lib/executionTemplates';
 import {createAssessment} from '@/lib/assessments';
 import {saveManualEstimate} from '@/lib/manualEstimates';
 import {saveMarginPolicy} from '@/lib/marginPolicy';
@@ -100,4 +101,14 @@ describe('assisted schedule through admin and booking APIs',()=>{
   const bad=offer({discount:1000});expect((await proposeSchedule(scheduleReq(scheduleInput(bad.id)))).status).toBe(422);
   const o=offer();await proposeSchedule(scheduleReq(scheduleInput(o.id)));expect(()=>state.db!.exec('DELETE FROM assessment_offer_schedules')).toThrow(/retained/);expect(()=>state.db!.exec("UPDATE assessment_offer_schedules SET scheduled_hour=12")).toThrow(/immutable/);
  });
+});
+
+it('blocks a new assisted booking without linking the offer, and freezes its actual service checklist after release',async()=>{
+ const o=offer();state.db!.exec("INSERT INTO customer_restrictions VALUES('c',1,1,0,'Test','admin','2026-10-01')");
+ expect((await POST(req({...data,manualOfferId:o.id}))).status).toBe(403);
+ expect(state.db!.prepare('SELECT * FROM assessment_offer_jobs').all()).toEqual([]);
+ state.db!.exec("INSERT INTO customer_restrictions VALUES('c',2,0,0,'Resolved','admin','2026-10-01')");
+ state.db!.transaction(()=>saveExecutionTemplate(state.db!,{scope:'general',revision:0,items:[{key:'custom',label:'Verificare serviciu general'}],reason:'Test'},'admin')).immediate();
+ const result=await POST(req({...data,manualOfferId:o.id}));expect(result.status).toBe(201);const job=(await result.json()).job;
+ expect(jobExecutionRules(state.db!,job.id)).toMatchObject({scope:'general',revision:1,items:[{key:'custom',label:'Verificare serviciu general'}]});
 });

@@ -1,3 +1,5 @@
+import {customerValue} from './customerValue';
+import {customerRestriction} from './customerRestrictions';
 import type {Database} from 'better-sqlite3';
 import {WorkspaceError,requireText} from './workspace';
 import {randomUUID} from 'node:crypto';
@@ -16,12 +18,21 @@ export function customerRecord(db:Database,id:unknown,offset=0){page(offset);ret
  const ratings=slice(db.prepare('SELECT id,job_id,stars,status,moderation_status,created_at FROM ratings WHERE client_id=? ORDER BY created_at DESC,id DESC LIMIT 51 OFFSET ?').all(key,offset));
  const notes=slice(db.prepare('SELECT id,body,actor_id,created_at FROM customer_internal_notes WHERE client_id=? ORDER BY created_at DESC,id DESC LIMIT 51 OFFSET ?').all(key,offset));
  const properties=(db.prepare('SELECT COUNT(*) total FROM workspace_properties WHERE owner_id=? AND archived=0').get(key) as {total:number}).total;
- return {user,classification:classification?{revision:classification.revision,tags:JSON.parse(classification.tags_json) as string[],reason:classification.reason,actor:classification.actor_id,createdAt:classification.created_at}:{revision:0,tags:[] as string[],reason:null,actor:null,createdAt:null},properties,jobs,assessments,payments,cases,ratings,notes,offset};
+ const restrictions=slice(db.prepare('SELECT revision,block_bookings,block_assessments,reason,actor_id,created_at FROM customer_restrictions WHERE client_id=? ORDER BY revision DESC LIMIT 51 OFFSET ?').all(key,offset));
+ return {user,value:customerValue(db,key),restriction:customerRestriction(db,key),restrictions,classification:classification?{revision:classification.revision,tags:JSON.parse(classification.tags_json) as string[],reason:classification.reason,actor:classification.actor_id,createdAt:classification.created_at}:{revision:0,tags:[] as string[],reason:null,actor:null,createdAt:null},properties,jobs,assessments,payments,cases,ratings,notes,offset};
  })();}
 export function changeCustomerOperations(db:Database,input:Record<string,unknown>,actor:string){
  if(!db.inTransaction||!actor)throw new WorkspaceError('Tranzacție administrativă obligatorie.',500);
  const user=client(db,input.clientId),now=new Date().toISOString();
  if(input.action==='note'){const body=requireText(input.note,'Notă',4000),id=randomUUID();db.prepare('INSERT INTO customer_internal_notes VALUES(?,?,?,?,?)').run(id,user.id,body,actor,now);return {clientId:user.id,id};}
+ if(input.action==='restrict'){
+  const current=customerRestriction(db,user.id);
+  if(input.revision!==current.revision)throw new WorkspaceError('Restricțiile au fost modificate. Reîncarcă.',409);
+  if(typeof input.blockBookings!=='boolean'||typeof input.blockAssessments!=='boolean')throw new WorkspaceError('Selectează explicit restricțiile.');
+  const reason=requireText(input.reason,'Motiv',2000),revision=current.revision+1;
+  db.prepare('INSERT INTO customer_restrictions VALUES(?,?,?,?,?,?,?)').run(user.id,revision,Number(input.blockBookings),Number(input.blockAssessments),reason,actor,now);
+  return {clientId:user.id,revision};
+ }
  if(input.action!=='classify')throw new WorkspaceError('Acțiune invalidă.');
  const current=db.prepare('SELECT MAX(revision) revision FROM customer_classifications WHERE client_id=?').get(user.id) as {revision:number|null};
  if(input.revision!==(current.revision??0))throw new WorkspaceError('Fișa a fost modificată. Reîncarcă.',409);

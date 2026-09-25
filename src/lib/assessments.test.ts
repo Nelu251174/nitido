@@ -16,3 +16,12 @@ describe('assisted assessment workflow',()=>{
  it('preserves the original category definition and submitted payload',()=>{const id=createAssessment(db,'a','r1',input());db.exec("UPDATE service_catalog_drafts SET version=9,definition='{}' WHERE key='renovation'");updateAssessment(db,{admin:true},id,1,'needs_details','Clarifică');const row=db.prepare('SELECT category_version,category_definition,payload FROM service_assessments WHERE id=?').get(id) as {category_version:number;category_definition:string;payload:string};expect(row.category_version).toBe(0);expect(row.category_definition).not.toBe('{}');expect(JSON.parse(row.payload)).toEqual(input())});
  it('validates quantities, text and supported categories',()=>{for(const change of [{sqm:Infinity},{rooms:1.5},{notes:''},{notes:'x'.repeat(4001)},{category:'unknown'},{difficulty:'unknown'}])expect(()=>validateAssessment({...input(),...change})).toThrow()});
 });
+
+it('restricts new assessments while preserving replay and existing correspondence',()=>{
+ const id=createAssessment(db,'a','existing',input());
+ db.prepare('INSERT INTO customer_restrictions VALUES(?,1,0,1,?,?,?)').run('a','Private investigation','admin',new Date().toISOString());
+ expect(()=>createAssessment(db,'a','new',input())).toThrow(/restricționate/);
+ expect(createAssessment(db,'a','existing',input())).toBe(id);
+ updateAssessment(db,{clientId:'a'},id,1,'reply','Clarificare');expect(listAssessments(db,'a')[0].messages).toHaveLength(1);
+ expect(createAssessment(db,'b','new',input())).toBeTruthy();
+});

@@ -1,3 +1,4 @@
+import {freezeExecutionRules} from '@/lib/executionTemplates';
 import type { Database } from "better-sqlite3";
 import { newId } from "@/lib/db";
 import {requestPaymentCancellation} from "@/lib/paymentCancellation";
@@ -80,6 +81,7 @@ export async function markNoShow(
                 NULL, price_gross, duration_minutes, buffer_minutes, photos_count, 'waiting'
          FROM jobs WHERE id = ?`
       ).run(repostedJobId, jobId);
+      freezeExecutionRules(db,repostedJobId,'standard',jobId);
     }
 
     return { ok: true, consequence, repostedJobId };

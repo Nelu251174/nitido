@@ -10,13 +10,13 @@ Nu copia secrete din producție în sandbox. Nu activa chei live, Connect sau ab
 
 ## Pregătirea sandbox-ului
 
-1. Folosește ramura `feat/nitido-upgrade-consolidation` și SHA-ul exact al PR-ului. Ea include părinții upgrade-ului; nu înlocui doar un fișier dintr-un pachet intermediar. Confirmă rezultatul CI pe același SHA.
+1. Folosește ramura `feat/nitido-crm-checklist-controls` și SHA-ul exact al PR-ului. Ea include părinții upgrade-ului; nu înlocui doar un fișier dintr-un pachet intermediar. Confirmă rezultatul CI pe același SHA.
 2. Identifică în Coolify aplicația **sandbox**, volumele ei și versiunea anterioară. Fă o copie coerentă și verifică restaurarea izolată conform `BACKUP-RESTORE.md` înainte de migrare. Backupul producției nu se deduce din cel al sandbox-ului sau invers.
 3. Păstrează separarea test/live și configurarea MFA. Activările deja existente sunt `NITIDO_MANAGED_PRICING_SANDBOX=true` și `NITIDO_MANUAL_OFFERS_SANDBOX=true`, numai împreună cu `NEXT_PUBLIC_SITE_URL=https://sandbox.nitido.ro` și fără secret Stripe live. Nu se înlocuiesc automat variabilele existente.
 4. Folosește migrarea Pro existentă numai conform stării bazei țintă. Refuzul tabelelor legacy nu se ocolește cu DROP. Inițializarea Marketplace adaugă schema acestui pachet; noile tabele nu cer copierea datelor clienților în altă bază.
 5. După deploy verifică sănătatea containerului, SHA-ul servit și scenariile din `CONSOLIDATED-QA.md`. Verde/Success la build nu închide acceptanța funcțională.
 
-Adresele funcționale după publicarea efectivă în sandbox sunt pagina principală, `/admin#performanta`, `/admin#clienti`, `/admin#incidente`, plus rutele Standard/Express/Pro existente. Aceste căi nu sunt dovada că noul commit este deja publicat.
+Adresele funcționale după publicarea efectivă în sandbox sunt pagina principală, `/admin#performanta`, `/admin#clienti`, `/admin#incidente`, `/admin#catalog` (checklisturi), plus rutele Standard/Express/Pro existente. Aceste căi nu sunt dovada că noul commit este deja publicat.
 
 ## Promovare
 
