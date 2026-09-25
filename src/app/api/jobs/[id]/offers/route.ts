@@ -1,3 +1,4 @@
+import {hasTrustedMutationOrigin} from "@/lib/security";
 import { NextRequest, NextResponse } from "next/server";
 import { db, getFirmByUserId } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
 // POST — o firmă verificată din zonă trimite o ofertă la o lucrare standard.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:"Origine nepermisă"},{status:403});
   const user = await getCurrentUser(req);
   if (!user || user.role !== "firma") {
     return NextResponse.json({ error: "Trebuie să fii autentificat ca firmă" }, { status: 401 });

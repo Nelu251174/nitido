@@ -109,3 +109,15 @@ it('filters suspended firms from the opportunities feed without reserving work',
  const {job}=await ready();s.user='u1';let response=await GET(new NextRequest('https://sandbox.nitido.ro/api/jobs'));expect(response.status).toBe(200);expect(JSON.stringify(await response.json())).toContain(job.id);
  s.db!.exec("UPDATE firms SET suspended_until='2099-12-01' WHERE id='f1'");response=await GET(new NextRequest('https://sandbox.nitido.ro/api/jobs'));expect(response.status).toBe(200);expect(JSON.stringify(await response.json())).not.toContain(job.id);expect(s.authorize).not.toHaveBeenCalled();
 });
+it('rechecks assisted target and service before creating or reactivating a Standard offer',async()=>{
+ const {createOffer}=await import('@/lib/offers');const {job}=await ready();s.db!.prepare("UPDATE jobs SET mode='standard' WHERE id=?").run(job.id);
+ expect(createOffer(s.db!,job.id,'f2')).toMatchObject({ok:false,status:403});
+ const first=createOffer(s.db!,job.id,'f1');expect(first.ok).toBe(true);
+ s.db!.exec("UPDATE offers SET status='withdrawn';UPDATE service_catalog_firms SET enabled=0 WHERE firm_id='f1'");
+ expect(createOffer(s.db!,job.id,'f1')).toMatchObject({ok:false,status:409});expect(s.db!.prepare('SELECT status FROM offers').get()).toEqual({status:'withdrawn'});
+ expect(s.authorize).not.toHaveBeenCalled();expect(s.db!.prepare('SELECT * FROM workspace_assignments').all()).toEqual([]);
+});
+it('rejects a foreign-origin offer request before writing',async()=>{
+ const {POST:submit}=await import('./[id]/offers/route');const {job}=await ready();s.user='u1';
+ const res=await submit(request({message:'Test'},'/api/jobs/'+job.id+'/offers','https://untrusted.example'),{params:Promise.resolve({id:job.id})});expect(res.status).toBe(403);expect(s.db!.prepare('SELECT * FROM offers').all()).toEqual([]);
+});
