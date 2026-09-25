@@ -187,19 +187,19 @@ export async function selectOffer(
 }
 
 /** O firmă își retrage oferta (doar cât timp e 'pending'). */
-export function withdrawOffer(db: Database, offerId: string, firmId: string): OfferResult {
+export function withdrawOffer(db: Database, offerId: string, firmId: string, jobId?: string): OfferResult {
   try {
-    return db.transaction(() => withdrawOfferLocked(db, offerId, firmId)).immediate();
+    return db.transaction(() => withdrawOfferLocked(db, offerId, firmId, jobId)).immediate();
   } catch {
     return { ok: false, error: "Retragerea nu a putut fi confirmată. Reîncarcă lucrarea.", status: 503 };
   }
 }
 
-function withdrawOfferLocked(db: Database, offerId: string, firmId: string): OfferResult {
+function withdrawOfferLocked(db: Database, offerId: string, firmId: string, jobId?: string): OfferResult {
   const offer = db
-    .prepare("SELECT o.id,o.status,j.status AS job_status FROM offers o JOIN jobs j ON j.id=o.job_id WHERE o.id=? AND o.firm_id=?")
-    .get(offerId, firmId) as { id: string; status: string; job_status: string } | undefined;
-  if (!offer) return { ok: false, error: "Ofertă inexistentă", status: 404 };
+    .prepare("SELECT o.id,o.job_id,o.status,j.status AS job_status FROM offers o JOIN jobs j ON j.id=o.job_id WHERE o.id=? AND o.firm_id=?")
+    .get(offerId, firmId) as { id: string; job_id: string; status: string; job_status: string } | undefined;
+  if (!offer || (jobId !== undefined && offer.job_id !== jobId)) return { ok: false, error: "Ofertă inexistentă", status: 404 };
   if (offer.status !== "pending" || offer.job_status !== "waiting") return { ok: false, error: "Oferta nu poate fi retrasă după începerea preluării. Reîncarcă lucrarea.", status: 409 };
   db.prepare("UPDATE offers SET status='withdrawn', updated_at=datetime('now') WHERE id=?").run(offerId);
   return { ok: true, offerId };
