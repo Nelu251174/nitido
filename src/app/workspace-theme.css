@@ -1,0 +1,90 @@
+/* Cream workspace requested for the sandbox review. Layout and brand actions stay shared. */
+:is(.operations-layout, .board-page, .approved-client, .pro-app) {
+  --workspace-cream: #f7f3ec;
+  --workspace-rail: #f1ece3;
+  --mist: var(--workspace-cream);
+  --line: #ded8ce;
+  --muted: #52616a;
+  color-scheme: light;
+  color: var(--ink);
+}
+
+:is(.operations-layout.role-client, .operations-layout.role-firma,
+    .operations-layout.screen-business, .operations-layout.screen-calendar,
+    .board-page.board-firm, .board-page.board-admin, .approved-client,
+    .operations-layout, .pro-app) {
+  background: var(--workspace-cream);
+}
+
+:is(.operations-layout.role-client, .operations-layout.role-firma,
+    .operations-layout.screen-business, .operations-layout.screen-calendar,
+    .board-page.board-firm, .board-page.board-admin, .approved-client,
+    .operations-layout, .pro-shell) > aside {
+  background: var(--workspace-rail, #f1ece3);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+:is(.operations-layout.role-client, .operations-layout.role-firma,
+    .operations-layout.screen-business, .operations-layout.screen-calendar,
+    .board-page.board-firm, .board-page.board-admin, .approved-client) > aside
+  :is(a, button, summary, .design-wordmark) {
+  color: var(--ink);
+}
+
+:is(.operations-layout.role-client, .operations-layout.role-firma,
+    .operations-layout.screen-business, .operations-layout.screen-calendar,
+    .board-page.board-firm, .board-page.board-admin, .approved-client) > aside
+  :is(.text-muted, .text-xs, .sidebar-user span, .board-role, .board-help,
+      .professional-nav p, .professional-nav small, .board-sidebar-note p) {
+  color: var(--muted);
+}
+
+:is(.operations-layout.role-client, .operations-layout.role-firma,
+    .operations-layout.screen-business, .operations-layout.screen-calendar,
+    .board-page.board-firm, .board-page.board-admin, .approved-client) > aside
+  :is(.design-wordmark span, .design-wordmark span span, a.font-display span, .text-aqua) {
+  color: var(--nitido-brand-dark);
+}
+
+:is(.operations-layout.role-client, .operations-layout.role-firma,
+    .operations-layout.screen-business, .operations-layout.screen-calendar,
+    .board-page.board-firm, .board-page.board-admin, .approved-client) > aside
+  :is(.workspace-nav, .operations-section-nav) a {
+  color: var(--ink);
+}
+
+:is(.operations-layout.role-client, .operations-layout.role-firma,
+    .operations-layout.screen-business, .operations-layout.screen-calendar,
+    .board-page.board-firm, .board-page.board-admin, .approved-client) > aside
+  :is(.workspace-nav, .operations-section-nav) a:is(:hover, [aria-current=page]) {
+  background: var(--nitido-brand-soft);
+  color: var(--nitido-brand-dark);
+  border-left-color: var(--nitido-brand-dark);
+}
+
+:is(.operations-layout.role-client, .operations-layout.role-firma,
+    .operations-layout.screen-business, .operations-layout.screen-calendar,
+    .board-page.board-firm, .board-page.board-admin, .approved-client) > aside
+  :is(.workspace-menu-toggle, .board-sidebar-note, button[aria-label=Meniu], nav.hidden) {
+  background: #fff;
+  color: var(--ink);
+  border-color: var(--line);
+}
+.approved-client > aside nav.hidden button { color: var(--ink); }
+
+:is(.operations-layout.role-client, .operations-layout.role-firma,
+    .operations-layout.screen-business, .operations-layout.screen-calendar,
+    .board-page.board-firm, .board-page.board-admin, .approved-client) > aside
+  :is(a, button, summary):focus-visible {
+  outline: 2px solid var(--nitido-brand-dark);
+  outline-offset: 3px;
+}
+
+:is(.operations-layout, .board-page, .approved-client, .pro-app)
+  :is(.board-topbar, .operations-topbar) {
+  background: #fffdf9;
+  border-color: var(--line);
+  color: var(--muted);
+}
+.board-page > header { background: #fffdf9; border-color: var(--line); }
