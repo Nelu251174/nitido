@@ -1,3 +1,4 @@
+import {hasTrustedMutationOrigin} from "@/lib/security";
 import { after, NextRequest, NextResponse } from "next/server";
 import { db, getFirmByUserId } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
@@ -15,6 +16,7 @@ export async function POST(
   if (!user || user.role !== "client") {
     return NextResponse.json({ error: "Trebuie să fii autentificat ca client" }, { status: 401 });
   }
+  if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:"Origine nepermisă"},{status:403});
   const { id, offerId } = await params;
   const result = await selectOffer(db, id, offerId, user.id);
   if (!result.ok) {
@@ -43,10 +45,11 @@ export async function DELETE(
   if (!user || user.role !== "firma") {
     return NextResponse.json({ error: "Trebuie să fii autentificat ca firmă" }, { status: 401 });
   }
+  if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:"Origine nepermisă"},{status:403});
   const firm = getFirmByUserId(user.id);
   if (!firm) return NextResponse.json({ error: "Profilul firmei nu a fost găsit" }, { status: 403 });
-  const { offerId } = await params;
-  const result = withdrawOffer(db, offerId, firm.id);
+  const { id, offerId } = await params;
+  const result = withdrawOffer(db, offerId, firm.id, id);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ ok: true });
 }

@@ -121,3 +121,12 @@ it('rejects a foreign-origin offer request before writing',async()=>{
  const {POST:submit}=await import('./[id]/offers/route');const {job}=await ready();s.user='u1';
  const res=await submit(request({message:'Test'},'/api/jobs/'+job.id+'/offers','https://untrusted.example'),{params:Promise.resolve({id:job.id})});expect(res.status).toBe(403);expect(s.db!.prepare('SELECT * FROM offers').all()).toEqual([]);
 });
+it('scopes withdrawal to both job and owner and preserves an offer on a mismatched URL',async()=>{
+ const {createOffer}=await import('@/lib/offers');const {DELETE:withdraw}=await import('./[id]/offers/[offerId]/route');const {job}=await ready();s.db!.prepare("UPDATE jobs SET mode='standard' WHERE id=?").run(job.id);const o=createOffer(s.db!,job.id,'f1');expect(o.ok).toBe(true);if(!o.ok)throw Error('fixture');s.user='u1';
+ const call=(id:string,origin='https://sandbox.nitido.ro')=>withdraw(new NextRequest('https://sandbox.nitido.ro/api/jobs/'+id+'/offers/'+o.offerId,{method:'DELETE',headers:{origin}}),{params:Promise.resolve({id,offerId:o.offerId})});
+ expect((await call('other-job')).status).toBe(404);expect((await call(job.id,'https://untrusted.example')).status).toBe(403);s.user='u2';expect((await call(job.id)).status).toBe(404);expect(s.db!.prepare('SELECT status FROM offers').get()).toEqual({status:'pending'});
+ s.user='u1';expect((await call(job.id)).status).toBe(200);expect(s.db!.prepare('SELECT status FROM offers').get()).toEqual({status:'withdrawn'});
+});
+it('rejects foreign-origin client selection before any payment or reservation',async()=>{
+ const {POST:select}=await import('./[id]/offers/[offerId]/route');const {job}=await ready();s.user='c';const r=await select(request({},'/api/jobs/'+job.id+'/offers/test','https://untrusted.example'),{params:Promise.resolve({id:job.id,offerId:'test'})});expect(r.status).toBe(403);expect(s.authorize).not.toHaveBeenCalled();expect(s.db!.prepare('SELECT status FROM jobs WHERE id=?').get(job.id)).toEqual({status:'waiting'});
+});
