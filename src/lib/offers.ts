@@ -1,3 +1,5 @@
+import {jobAssistedOperation,checkAssistedTeam} from './assistedOperations';
+import {MarginError} from './operationalMargin';
 import type { Database } from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import { firmCoversCity } from "@/lib/text";
@@ -92,6 +94,16 @@ function createOfferLocked(db: Database, jobId: string, firmId: string, message?
   }
   const unavailable = firmAvailabilityError(db, firmId, job);
   if (unavailable) return { ok: false, error: unavailable, status: 409 };
+
+  const plan = jobAssistedOperation(db, jobId);
+  if (plan) {
+    if (plan.firmId !== firmId) return {ok:false,error:'Lucrarea este propusă unei alte firme.',status:403};
+    try { checkAssistedTeam(db,plan,jobId); }
+    catch (error) {
+      if(error instanceof MarginError && error.status < 500) return {ok:false,error:error.message,status:error.status};
+      throw error;
+    }
+  }
 
   const trimmed =
     typeof message === "string" ? message.trim().slice(0, 500) || null : null;
