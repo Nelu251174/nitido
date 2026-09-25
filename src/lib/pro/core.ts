@@ -1001,12 +1001,12 @@ export function collection(
     for (const d of [filters.from, filters.to])
       if (d && (!/^\d{4}-\d{2}-\d{2}$/.test(d) || bookingDateKey(d) !== d)) fail("Perioadă invalidă.");
     if(filters.from && filters.to && filters.from > filters.to) fail("Perioadă inversată.");
-    return (
+    const rows =
       db
         .prepare(
-          "SELECT c.*,p.name property_name FROM pro_cost_entries c LEFT JOIN pro_properties p ON p.id=c.property_id WHERE c.organization_id=? AND (?='' OR substr(c.created_at,1,10)>=?) AND (?='' OR substr(c.created_at,1,10)<=?) AND (?='' OR c.property_id=?) AND (?='' OR c.category=?) ORDER BY c.created_at DESC LIMIT 1000",
+          "SELECT c.*,p.name property_name FROM pro_cost_entries c LEFT JOIN pro_properties p ON p.id=c.property_id WHERE c.organization_id=? AND (?='' OR substr(c.created_at,1,10)>=?) AND (?='' OR substr(c.created_at,1,10)<=?) AND (?='' OR c.property_id=?) AND (?='' OR c.category=?) ORDER BY c.created_at DESC,c.id DESC",
         )
-        .all(
+        .iterate(
           orgId,
           filters.from ?? "",
           filters.from ?? "",
@@ -1016,8 +1016,15 @@ export function collection(
           filters.property ?? "",
           filters.category ?? "",
           filters.category ?? "",
-        ) as { property_id: string }[]
-    ).filter((x) => roleScope(x.property_id, ["owner", "manager", "operator"]));
+        ) as Iterable<{ property_id: string | null }>;
+    const result: {property_id: string | null}[] = [];
+    for (const row of rows) {
+      if (!roleScope(row.property_id, ["owner", "manager", "operator"])) continue;
+      result.push(row);
+      if (result.length > 1000)
+        fail("Raportul depășește 1.000 de înregistrări. Restrânge perioada, proprietatea sau categoria pentru un raport complet.", 422);
+    }
+    return result;
   }
   if (kind === "team") {
     requireRole(db, p, orgId, ["owner", "operator"]);
