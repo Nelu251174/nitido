@@ -16,11 +16,12 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/lib/auth", () => ({ getCurrentUser: async () => state.user }));
 vi.mock("@/lib/adminAuth", () => ({ isAdmin: async () => state.admin }));
 vi.mock("@/lib/email", () => ({
-  emailConfigured: () => false,
+  emailConfigured: vi.fn(() => false),
   sendEmail: vi.fn(),
 }));
 vi.mock("@/lib/emailVerification", () => ({ emailIsVerified: () => true }));
 import { GET, POST } from "./[...path]/route";
+import { emailConfigured, sendEmail } from "@/lib/email";
 let org: string, prop: string;
 const read = (path: string) =>
   GET(new NextRequest("http://localhost/api/pro/" + path), {
@@ -40,6 +41,8 @@ const post = (path: string, b: object, key = crypto.randomUUID()) =>
     { params: Promise.resolve({ path: path.split("/") }) },
   );
 beforeEach(() => {
+  vi.mocked(emailConfigured).mockReset().mockReturnValue(false);
+  vi.mocked(sendEmail).mockReset().mockResolvedValue(true);
   state.db = new Database(":memory:");
   state.db.pragma("foreign_keys=ON");
   state.db.exec(
@@ -355,4 +358,106 @@ it("carries a Pro booking through approval, partner execution, review and a sing
   expect(exported.status).toBe(200);
   expect((await exported.text()).trim().split("\r\n")).toHaveLength(2);
   expect(current().status).toBe("completed");
+});
+
+function notificationWork(propertyId = prop) {
+  return core.createWork(state.db, { id: "owner" }, {
+    property_id: propertyId, title: "TEST notificări", service: "cleaning_recurring",
+    starts_at: new Date(Date.now() + 3600000).toISOString(),
+    ends_at: new Date(Date.now() + 7200000).toISOString(), estimate: 1000,
+  }).id;
+}
+function queueNotice(id: string, user: string, href: string, event = id, organizationId = org, stamp = "2026-01-01T00:00:00Z") {
+  state.db.prepare("INSERT INTO pro_notifications(id,organization_id,user_id,event_key,title,href,next_attempt,created_at) VALUES(?,?,?,?,?,?,?,?)")
+    .run(id, organizationId, user, event, "Actualizare test", href, stamp, stamp);
+}
+async function dispatchTestNotifications() {
+  vi.mocked(emailConfigured).mockReturnValue(true);
+  vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://nitido.example.test");
+  vi.stubEnv("CRON_SECRET", "test-notifications-secret");
+  return POST(new NextRequest("http://localhost/api/pro/cron", { method: "POST", headers: { "x-cron-secret": "test-notifications-secret" } }), { params: Promise.resolve({ path: ["cron"] }) });
+}
+it("revokes notification reads and queued emails even when the former member belongs to another active partner", async () => {
+  state.db.prepare("INSERT INTO pro_members VALUES('revoked-reader',?,'foreign','manager','[]',1)").run(org);
+  const id = notificationWork();
+  state.db.exec("DELETE FROM pro_notifications");
+  queueNotice("revoked-notice", "foreign", "/pro/lucrari/" + id);
+  state.user = { id: "foreign" };
+  expect(await (await read("notifications")).json()).toHaveLength(1);
+  state.db.exec("UPDATE pro_members SET active=0 WHERE id='revoked-reader'; INSERT INTO pro_partners VALUES('unrelated','Other','TEST','active','[]','[]','TEST'); INSERT INTO pro_partner_members VALUES('unrelated','foreign',1)");
+  expect(await (await read("notifications")).json()).toEqual([]);
+  expect((await post("notifications/revoked-notice", {})).status).toBe(404);
+  expect((await dispatchTestNotifications()).status).toBe(200);
+  expect(sendEmail).not.toHaveBeenCalled();
+  expect(state.db.prepare("SELECT email_status,read_at FROM pro_notifications WHERE id='revoked-notice'").get()).toEqual({ email_status: "disabled", read_at: null });
+});
+it("filters notification scope before the display limit and after membership changes", async () => {
+  const second = core.createProperty(state.db, { id: "owner" }, { organization_id: org, name: "Second", city: "Constanța", address: "Private" }).id;
+  state.db.prepare("INSERT INTO pro_members VALUES('changed-scope',?,'foreign','manager','[]',1)").run(org);
+  const visible = notificationWork();
+  const hidden = notificationWork(second);
+  state.db.exec("DELETE FROM pro_notifications");
+  queueNotice("visible-notice", "foreign", "/pro/lucrari/" + visible);
+  for (let i = 0; i < 105; i++) queueNotice("hidden-" + i, "foreign", "/pro/lucrari/" + hidden, "hidden-" + i, org, "2026-02-01T00:00:00Z");
+  state.db.prepare("UPDATE pro_members SET scope_json=? WHERE id='changed-scope'").run(JSON.stringify([prop]));
+  state.user = { id: "foreign" };
+  const rows = await (await read("notifications")).json();
+  expect(rows).toMatchObject([{ id: "visible-notice" }]);
+  expect(rows[0]).not.toHaveProperty("user_id");
+  expect((await post("notifications/hidden-0", {})).status).toBe(404);
+  expect((await post("notifications/visible-notice", {})).status).toBe(200);
+});
+it("dispatches only currently authorized notification targets, with mock email delivery", async () => {
+  const second = core.createProperty(state.db, { id: "owner" }, { organization_id: org, name: "Second", city: "Constanța", address: "Private" }).id;
+  state.db.prepare("INSERT INTO pro_members VALUES('mail-scope',?,'foreign','manager',?,1)").run(org, JSON.stringify([prop]));
+  const visible = notificationWork();
+  const hidden = notificationWork(second);
+  state.db.exec("DELETE FROM pro_notifications");
+  queueNotice("visible", "foreign", "/pro/lucrari/" + visible);
+  queueNotice("scope-denied", "foreign", "/pro/lucrari/" + hidden);
+  queueNotice("external-target", "foreign", "https://untrusted.example.test/collect");
+  queueNotice("wrong-org", "foreign", "/pro/lucrari/" + visible, "wrong-org", "different-org");
+  const response = await dispatchTestNotifications();
+  expect(response.status).toBe(200);
+  expect((await response.json()).email.sent).toBe(1);
+  expect(sendEmail).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(sendEmail).mock.calls[0][0]).toMatchObject({ to: "other@example.test" });
+  expect(vi.mocked(sendEmail).mock.calls[0][0].html).toContain("https://nitido.example.test/pro/lucrari/" + visible);
+  expect(state.db.prepare("SELECT id FROM pro_notifications WHERE email_status='disabled' ORDER BY id").all()).toEqual([{ id: "external-target" }, { id: "scope-denied" }, { id: "wrong-org" }]);
+});
+it("rechecks ticket and recurring-calendar property access for stored notifications", async () => {
+  state.db.prepare("INSERT INTO pro_members VALUES('target-scope',?,'foreign','manager','[]',1)").run(org);
+  const ticket = core.createTicket(state.db, { id: "owner" }, { property_id: prop, title: "Test", description: "Test incident", priority: "normal" }).id;
+  const rule = core.createRecurring(state.db, { id: "owner" }, { property_id: prop, title: "Test", service: "cleaning_recurring", frequency: "weekly", start_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10), hour: 12, duration: 60, estimate: 0 }).id;
+  state.db.exec("DELETE FROM pro_notifications");
+  queueNotice("ticket-notice", "foreign", "/pro/tichete/" + ticket);
+  queueNotice("calendar-notice", "foreign", "/pro/calendar", rule + ":2026-01-01:missed");
+  state.user = { id: "foreign" };
+  expect(await (await read("notifications")).json()).toHaveLength(2);
+  state.db.prepare("UPDATE pro_members SET scope_json=? WHERE id='target-scope'").run(JSON.stringify(["no-access"]));
+  expect(await (await read("notifications")).json()).toEqual([]);
+});
+it("finds a partner's work beyond 500 other bookings and removes access after offer expiry", async () => {
+  state.db.exec("INSERT INTO pro_partners VALUES('target-firm','Target','TEST','active','[]','[]','TEST'); INSERT INTO pro_partner_members VALUES('target-firm','foreign',1)");
+  const id = notificationWork();
+  state.db.prepare("UPDATE pro_work_orders SET status='offered' WHERE id=?").run(id);
+  state.db.prepare("INSERT INTO pro_offers VALUES('target-offer',?,?,'target-firm','offered',?,?)").run(org, id, new Date(Date.now()+3600000).toISOString(), new Date().toISOString());
+  const insert = state.db.prepare("INSERT INTO pro_work_orders(id,organization_id,property_id,title,service,status,starts_at,ends_at,threshold_snapshot,estimate,financial_status,checklist_json,created_by,created_at) VALUES(?,?,?,'Other','cleaning_recurring','scheduled','2026-01-01T10:00:00Z','2026-01-01T11:00:00Z',0,0,'not_required','[]','owner','2026-01-01T00:00:00Z')");
+  state.db.transaction(() => { for (let i = 0; i < 505; i++) insert.run("other-"+i, org, prop); })();
+  state.db.exec("DELETE FROM pro_notifications");
+  queueNotice("partner-notice", "foreign", "/pro/lucrari/" + id);
+  state.user = { id: "foreign" };
+  const rows = await (await read("partner")).json();
+  expect(rows).toMatchObject([{ id }]);
+  expect(rows[0].property).not.toHaveProperty("address");
+  expect(await (await read("notifications")).json()).toHaveLength(1);
+  state.db.exec("UPDATE pro_offers SET expires_at='2000-01-01' WHERE id='target-offer'");
+  expect(await (await read("partner")).json()).toEqual([]);
+  expect(await (await read("notifications")).json()).toEqual([]);
+  state.db.prepare("UPDATE pro_work_orders SET status='accepted',partner_id='target-firm' WHERE id=?").run(id);
+  expect(await (await read("partner")).json()).toMatchObject([{ id, property: { address: "PRIVATE_ADDRESS" } }]);
+  expect(await (await read("notifications")).json()).toHaveLength(1);
+  state.db.exec("UPDATE pro_partners SET status='suspended' WHERE id='target-firm'");
+  expect(await (await read("partner")).json()).toEqual([]);
+  expect(await (await read("notifications")).json()).toEqual([]);
 });
