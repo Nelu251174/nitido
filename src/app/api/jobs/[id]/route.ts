@@ -5,7 +5,7 @@ import { db, getFirmByUserId } from "@/lib/db";
 import { JobRow } from "@/lib/types";
 import { getCurrentUser } from "@/lib/auth";
 import { clientCanReadJob, firmCanReadFullJob } from "@/lib/authorization";
-import { firmCoversCity } from "@/lib/text";
+import { canPreviewOpportunity } from "@/lib/opportunityEligibility";
 import { calcNetForFirm } from "@/lib/pricing";
 
 export async function GET(
@@ -23,7 +23,7 @@ export async function GET(
     (user.role === "client" && clientCanReadJob(user.id, job)) ||
     (firm && firmCanReadFullJob(firm.id, job));
   if (!authorized) {
-    const canPreview=Boolean(user.role==="firma"&&firm?.verified&&job.status==="waiting"&&firmCoversCity(firm.coverage_city,firm.coverage_cities_extra,job.city));
+    const canPreview=Boolean(user.role==="firma"&&firm&&canPreviewOpportunity(db,firm.id,job));
     if(!canPreview) return NextResponse.json({ error: "Acces interzis" }, { status: 403 });
     return NextResponse.json({job:{id:job.id,city:job.city,sqm:job.sqm,space_type:job.space_type,scheduled_at:job.scheduled_at,firm_payout:calcNetForFirm(job.price_gross),duration_minutes:job.duration_minutes,status:job.status,created_at:job.created_at}});
   }
