@@ -312,3 +312,32 @@ describe("Pro v1.1 database integration", () => {
     expect(csvCell('a"b')).toBe('"a""b"');
   });
 });
+
+describe('recurring storage integrity',()=>{
+ function rule(){return p.createRecurring(db,owner,{property_id:prop,title:'Recurență verificată',service:'cleaning_recurring',frequency:'weekly',start_date:new Date(Date.now()+86400000).toISOString().slice(0,10),hour:12,duration:60,estimate:500});}
+ it.each(['pro_occurrences','pro_audit_logs','pro_work_orders'])('rolls back storage failure in %s and retries without orphan work',table=>{
+  const r=rule();const before=db.prepare('SELECT next_date FROM pro_recurring_rules WHERE id=?').get(r.id);const auditCount=db.prepare('SELECT COUNT(*) n FROM pro_audit_logs').get();
+  db.exec(`CREATE TRIGGER fail_recurring BEFORE INSERT ON ${table} BEGIN SELECT RAISE(ABORT,'simulated storage failure'); END;`);
+  expect(()=>p.runRecurring(db)).toThrow('simulated storage failure');
+  expect(db.prepare('SELECT * FROM pro_work_orders').all()).toEqual([]);expect(db.prepare('SELECT * FROM pro_occurrences').all()).toEqual([]);expect(db.prepare('SELECT * FROM pro_approvals').all()).toEqual([]);expect(db.prepare('SELECT next_date FROM pro_recurring_rules WHERE id=?').get(r.id)).toEqual(before);expect(db.prepare('SELECT COUNT(*) n FROM pro_audit_logs').get()).toEqual(auditCount);
+  db.exec('DROP TRIGGER fail_recurring');const result=p.runRecurring(db);expect(result.generated).toBeGreaterThan(0);expect(db.prepare('SELECT COUNT(*) n FROM pro_work_orders').get()).toEqual({n:result.generated});expect(p.runRecurring(db).generated).toBe(0);
+ });
+ it('keeps a genuine past occurrence missed without creating a late job',()=>{
+  rule();const result=p.runRecurring(db,Date.now()+3*86400000);expect(result.missed).toBe(1);expect(db.prepare("SELECT * FROM pro_occurrences WHERE status='missed'").all()).toHaveLength(1);
+ });
+});
+describe('Pro collection financial scope',()=>{
+ it('does not let an unrestricted viewer membership widen scoped manager or approver access',()=>{
+  const second=p.createProperty(db,owner,{organization_id:org,name:'Apartament C',city:'Constanța',address:'Privat C'}).id;
+  db.prepare("INSERT INTO pro_members VALUES('manager-limited',?,'stranger','manager',?,1)").run(org,JSON.stringify([prop]));
+  db.prepare("INSERT INTO pro_members VALUES('viewer-all',?,'stranger','viewer','[]',1)").run(org);
+  db.prepare("INSERT INTO pro_members VALUES('approver-limited',?,'stranger','approver',?,1)").run(org,JSON.stringify([prop]));
+  const add=db.prepare("INSERT INTO pro_cost_entries(id,organization_id,property_id,category,amount,created_at) VALUES(?,?,?,'service',500,?)");
+  for(const [id,property] of [['allowed',prop],['hidden',second],['org-only',null]])add.run(id,org,property,new Date().toISOString());
+  expect(p.collection(db,stranger,org,'costs')).toMatchObject([{id:'allowed'}]);expect(p.collection(db,owner,org,'costs')).toHaveLength(3);
+  order();run(owner,{},()=>p.createWork(db,owner,{property_id:second,title:'Altă proprietate',service:'cleaning_recurring',starts_at:new Date(Date.now()+3600000).toISOString(),ends_at:new Date(Date.now()+7200000).toISOString(),estimate:1000}));
+  expect(p.collection(db,stranger,org,'approvals')).toMatchObject([{property_id:prop}]);expect(p.collection(db,owner,org,'approvals')).toHaveLength(2);
+  for(const property_id of [prop,second])p.createRecurring(db,owner,{property_id,title:'Recurență',service:'cleaning_recurring',frequency:'weekly',start_date:new Date(Date.now()+86400000).toISOString().slice(0,10),hour:12,duration:60,estimate:500});
+  expect(p.collection(db,stranger,org,'recurring')).toMatchObject([{property_id:prop}]);expect(p.collection(db,stranger,org,'properties')).toHaveLength(2);
+ });
+});

@@ -130,3 +130,11 @@ it('scopes withdrawal to both job and owner and preserves an offer on a mismatch
 it('rejects foreign-origin client selection before any payment or reservation',async()=>{
  const {POST:select}=await import('./[id]/offers/[offerId]/route');const {job}=await ready();s.user='c';const r=await select(request({},'/api/jobs/'+job.id+'/offers/test','https://untrusted.example'),{params:Promise.resolve({id:job.id,offerId:'test'})});expect(r.status).toBe(403);expect(s.authorize).not.toHaveBeenCalled();expect(s.db!.prepare('SELECT status FROM jobs WHERE id=?').get(job.id)).toEqual({status:'waiting'});
 });
+it.each(['accept','cancel','tracking-post','tracking-delete'])('blocks foreign-origin %s before state or payment changes',async action=>{
+ const {job}=await ready();s.user='u1';let handler;
+ if(action==='accept')handler=(await import('./[id]/accept/route')).POST;
+ else if(action==='cancel')handler=(await import('./[id]/cancel/route')).POST;
+ else {const route=await import('./[id]/tracking/route');handler=action==='tracking-post'?route.POST:route.DELETE;}
+ const req=new NextRequest('https://sandbox.nitido.ro/api/jobs/'+job.id,{method:action==='tracking-delete'?'DELETE':'POST',headers:{origin:'https://untrusted.example'}});
+ const res=await handler(req,{params:Promise.resolve({id:job.id})});expect(res.status).toBe(403);expect(s.authorize).not.toHaveBeenCalled();expect(s.db!.prepare('SELECT status FROM jobs WHERE id=?').get(job.id)).toEqual({status:'waiting'});expect(s.db!.prepare('SELECT * FROM job_live_locations').all()).toEqual([]);
+});

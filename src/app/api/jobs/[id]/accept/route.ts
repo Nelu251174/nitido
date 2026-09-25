@@ -1,3 +1,4 @@
+import {hasTrustedMutationOrigin} from "@/lib/security";
 import {firmJobView} from "@/lib/firmJobView";
 import { after, NextRequest, NextResponse } from "next/server";
 import { db, getFirmByUserId } from "@/lib/db";
@@ -10,6 +11,7 @@ import { JobRow } from "@/lib/types";
 export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>}){
   const user=await getCurrentUser(req);
   if(!user||user.role!=="firma") return NextResponse.json({error:"Trebuie să fii autentificat ca firmă"},{status:401});
+  if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:"Origine nepermisă"},{status:403});
   const firm=getFirmByUserId(user.id);
   if(!firm) return NextResponse.json({error:"Profilul firmei nu a fost găsit"},{status:403});
   const {id}=await params;
