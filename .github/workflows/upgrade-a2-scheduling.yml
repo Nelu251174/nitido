@@ -1,0 +1,29 @@
+name: NITIDO upgrade A2 assisted scheduling regression
+on:
+  push:
+    branches: [feat/nitido-upgrade-a2-assisted-scheduling]
+  pull_request:
+    branches: [feat/nitido-upgrade-a2-assessment-evidence, feat/nitido-pro-production-v11]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        timezone: [UTC, Europe/Bucharest]
+    env:
+      TZ: ${{ matrix.timezone }}
+      NITIDO_SEED_DEMO: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:upgrade:a2-scheduling
+      - run: npx next typegen
+      - run: npx tsc --noEmit
