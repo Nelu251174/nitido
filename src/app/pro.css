@@ -27,6 +27,10 @@
 }
 .pro-public,
 .pro-app {
+  --pro-surface: #f7f3ec;
+  --pro-field-surface: #fbf7ef;
+  --line: #ddd4c5;
+  --muted: #52616a;
   color: var(--ink);
   font-family: var(--font-inter), sans-serif;
 }
@@ -110,7 +114,7 @@
   padding: 18px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: white;
+  background: var(--pro-surface, #f7f3ec);
 }
 .pro-preview .pro-stat {
   background: #ffffff08;
@@ -147,7 +151,7 @@
   margin-top: 28px;
 }
 .pro-card {
-  background: white;
+  background: var(--pro-surface, #f7f3ec);
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 24px;
@@ -204,7 +208,7 @@
 .pro-select {
   border: 1px solid var(--line);
   border-radius: 9px;
-  background: #fff;
+  background: var(--pro-field-surface, #fbf7ef);
   padding: 11px 12px;
   min-height: 44px;
   width: 100%;
@@ -256,7 +260,7 @@
 .pro-sidebar {
   padding: 28px 18px;
   border-right: 1px solid var(--line);
-  background: white;
+  background: var(--pro-surface, #f7f3ec);
 }
 .pro-sidebar a {
   display: block;
@@ -309,7 +313,7 @@
   justify-content: space-between;
   gap: 18px;
   flex-wrap: wrap;
-  background: white;
+  background: var(--pro-surface, #f7f3ec);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 18px;
@@ -330,7 +334,7 @@
 }
 .pro-empty {
   padding: 40px 24px;
-  background: white;
+  background: var(--pro-surface, #f7f3ec);
   border: 1px dashed var(--line);
   border-radius: 14px;
   color: var(--muted);
