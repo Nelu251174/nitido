@@ -1,18 +1,19 @@
 # NITIDO Upgrade v1.1 — situație consolidată
 
-Data: 25.09.2026. Candidat: ramura `feat/nitido-crm-checklist-controls`.
+Data: 25.09.2026. Candidat: ramura `feat/nitido-pro-property-checklists`.
 Referință normativă: MASTER BRIEF v1.1, amendamentele A–H din 24.09.2026. Documentele A0–A4 descriu probele la momentul fiecărui pachet; acest inventar le reunește și explică limitele actuale. Un PR, o schemă sau un test unitar nu constituie acceptanță live.
 
 ## Ce include această livrare
 
-Ramura continuă `feat/nitido-upgrade-consolidation` (PR #82, `6cdf3cd264649dc98910503f2a30614be7c564a6`) și conține istoricul pachetelor anterioare. Nu este nevoie să se copieze manual fișierele din fiecare PR pentru a evalua candidatul. Nu s-a făcut merge în ramura de producție.
+Ramura continuă `feat/nitido-crm-checklist-controls` (PR #83, `f3425a3fe32b95b8fa30ef6cf3a41f3223609a7b`) și conține istoricul pachetelor anterioare. Nu este nevoie să se copieze manual fișierele din fiecare PR pentru a evalua candidatul. Nu s-a făcut merge în ramura de producție.
 
 1. Raport administrativ Marketplace cu selecție coerentă, costuri confirmate separate de cele necunoscute și indicatori ai prestatorilor în observare.
 2. Fișă client cu căutare, clasificări, note, restricții explicite versionate, istorice paginate și valoare/marjă cumulate.
 3. Severitate, responsabil intern, versiuni SLA și termene urmărite în dosarul de incident, fără valori activate implicit.
 4. Instrument SQLite read-only pentru backup și restaurare izolată, inclus în Docker; verifică integritatea, relațiile, schema, numerele de rânduri și hashurile.
 5. Editor administrativ de checklisturi Marketplace cu liste înghețate pe lucrare și păstrarea regulilor istorice; `CRM-AND-EXECUTION-CONTROLS.md`.
-6. O singură comandă de regresie și un workflow CI care include etapele precedente și modulele noi; documentație consolidată de operare și lansare.
+6. Checklisturi Pro administrabile pe proprietate și serviciu, istoric paginat și snapshot la crearea lucrării, inclusiv recurențe; `PRO-PROPERTY-CHECKLISTS.md`.
+7. O singură comandă de regresie și un workflow CI care include etapele precedente și modulele noi; documentație consolidată de operare și lansare.
 
 Suprafețele noi folosesc crem, iar acțiunile păstrează verdele. Nu s-a modificat arhitectura Stripe, nu s-au activat ponderi de scor, tarife comerciale Pro sau praguri financiare presupuse.
 
@@ -27,7 +28,7 @@ Suprafețele noi folosesc crem, iar acțiunile păstrează verdele. Nu s-a modif
 | Express și oportunități | Eligibilitate la citire și mutație, minimizare înainte de alocare, izolare ofertă asistată, un câștigător; documentele A3 de eligibilitate | Validare pe configurația reală de documente/zone/servicii; distribuția după un scor nou nu este activată |
 | Provider Score | Raportul nou arată indicatorii în observare; Quality Index existent este păstrat | Ponderi, perioadă, volum minim, reguli firme noi și date lipsă; validare pe pilot înainte de impact automat |
 | Incidente/remedieri | `visitCare`, verificări versionate, revizii concurente, severitate, responsabil, notă internă și termene; `CONSOLIDATED-OPERATIONS.md` | Escaladări/notificări SLA automate; maparea tuturor rezoluțiilor comerciale; nu se generează automat rambursări sau penalizări |
-| Dovezi/checklist | Editor Marketplace pe Standard/Express și categorii de evaluare, revizii auditate, copii imuabile pe lucrare, sarcini nerealizabile, raport/finalizare coerente | Editor Pro pe proprietate și reguli foto diferențiate pe serviciu din §11; validarea vizuală pe dispozitive |
+| Dovezi/checklist | Editor Marketplace pe Standard/Express și categorii de evaluare, revizii auditate, copii imuabile pe lucrare, sarcini nerealizabile, raport/finalizare coerente; editor Pro pe proprietate/serviciu cu revizii și istoric | Reguli foto diferențiate pe serviciu din §11; validarea vizuală pe dispozitive |
 | CRM operațional | Fișă internă, etichete, note, restricții tranzacționale la rezervări/evaluări/recurențe, valoare și marjă pe întregul istoric, costuri lipsă explicite | Segmentare avansată; controale organizaționale Pro distincte; validare reală a restricțiilor și totalurilor |
 | Organizații/proprietăți Pro | Scope pe organizație/proprietate, roluri Pro, acces sensibil în fereastra lucrării; `NITIDO-PRO-V11-IMPLEMENTATION.md` | Pilot real cu portofolii, echipe și acces verificat; model comercial încă neactivat |
 | Recurență/aprobări/rapoarte Pro | Weekly/biweekly/monthly, retry fără duplicate, limite calendar, rework și închidere corecte, CSV autorizat, notificări după scope | Extensia daily nu există în schema curentă. Validare fizică notificări și pilot; nu se pierde exportul CSV existent |

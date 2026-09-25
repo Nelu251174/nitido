@@ -38,3 +38,11 @@ Inventarul exact al modificărilor față de o versiune se obține din diff-ul G
 - `customerValue.ts`: valoarea serviciilor finalizate și marja pe întregul istoric, cu necunoscutele păstrate.
 - `executionTemplates.ts`, `executionTemplatesShared.ts`, `AdminExecutionTemplates.tsx`: publicare administrativă, copii imuabile pe lucrare și randare coerentă în conturile autorizate.
 - `CRM-AND-EXECUTION-CONTROLS.md`: scope, compatibilitate, limite Pro/foto și scenarii de acceptanță în sandbox.
+
+## Checklisturi Pro pe proprietate
+
+- `src/lib/pro/schema.ts`: migrare explicită aditivă 12, revizii imuabile; păstrează snapshoturile lucrărilor existente.
+- `src/lib/pro/core.ts`: configurare pe proprietate/serviciu, scope Owner/Manager/Operator Pro, conflict de versiune, audit atomic, snapshot și referința reviziei la crearea lucrării.
+- API Pro: citire/editor doar în scope, istoric paginat, autorizare inclusiv înainte de replay-ul noii comenzi.
+- `PropertyChecklists.tsx`: formular crem, instrucțiuni, revenire la punctele standard printr-o publicare nouă, istoric.
+- `propertyChecklists.test.ts` și testele API: migrare, concurență, izolare, audit și recurențe.

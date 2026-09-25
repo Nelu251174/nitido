@@ -461,3 +461,25 @@ it("finds a partner's work beyond 500 other bookings and removes access after of
   expect(await (await read("partner")).json()).toEqual([]);
   expect(await (await read("notifications")).json()).toEqual([]);
 });
+it("publishes property checklists once, rejects stale updates and reauthorizes replay", async () => {
+  const path = `properties/${prop}/checklist`, body = { service: "cleaning_recurring", revision: 0, items: ["Verifică terasa"], reason: "Actualizare pentru proprietate" }, key = crypto.randomUUID();
+  expect((await post(path, body, key)).status).toBe(200);
+  expect((await post(path, body, key)).status).toBe(200);
+  expect((await post(path, body)).status).toBe(409);
+  const data = await (await read(`properties/${prop}`)).json();
+  expect(data.checklist_configuration.templates.find((t: { service: string }) => t.service === body.service)).toMatchObject({ revision: 1, items: body.items });
+  const history = await (await read(`properties/${prop}/checklist-history?service=${body.service}`)).json();
+  expect(history.rows).toHaveLength(1);
+  state.db.prepare("UPDATE pro_members SET active=0 WHERE user_id='owner'").run();
+  expect((await post(path, body, key)).status).toBe(404);
+  expect((await read(`properties/${prop}/checklist-history?service=${body.service}`)).status).toBe(404);
+});
+it("does not expose property checklist configuration to a viewer or foreign client", async () => {
+  state.db.prepare("INSERT INTO pro_members VALUES('viewer',?,'foreign','viewer','[]',1)").run(org);
+  state.user = { id: "foreign" };
+  expect((await (await read(`properties/${prop}`)).json()).checklist_configuration).toBeUndefined();
+  expect((await read(`properties/${prop}/checklist-history?service=cleaning_recurring`)).status).toBe(404);
+  expect((await post(`properties/${prop}/checklist`, {})).status).toBe(404);
+  state.db.prepare("DELETE FROM pro_members WHERE id='viewer'").run();
+  expect((await read(`properties/${prop}`)).status).toBe(404);
+});

@@ -4,8 +4,8 @@
 
 | Verificare | Rezultat |
 |---|---|
-| `TZ=UTC npm run test:upgrade:consolidated` | 711 teste trecute, 56 fișiere |
-| `TZ=Europe/Bucharest npm run test:upgrade:consolidated` | 711 teste trecute, 56 fișiere |
+| `TZ=UTC npm run test:upgrade:consolidated` | 730 teste trecute, 57 fișiere |
+| `TZ=Europe/Bucharest npm run test:upgrade:consolidated` | 730 teste trecute, 57 fișiere |
 | `npm run test:backup` | 5 teste trecute |
 | `next typegen` + `tsc --noEmit` | Trecute |
 | `npm run build -- --webpack` | Build complet trecut, inclusiv generarea rutelor |
@@ -17,11 +17,17 @@ Buildul a identificat o dependență circulară introdusă prin încărcarea ser
 
 ## Extensie CRM/checklisturi
 
-Candidatul curent este `feat/nitido-crm-checklist-controls`. Testele suplimentare verifică refuzul rezervării fără consum de credit, replay-ul, ofertele asistate, restricția independentă a evaluărilor, izolarea recurențelor, păstrarea cursorului, auditul atomic, reviziile de checklist, sarcinile nerealizabile, raportul și finalizarea. Agregatele CRM sunt verificate dincolo de pagina de istoric, cu ultima revizie de cost, necunoscute și pierderi confirmate. Suita include acum și regresia garanției, deoarece revenirea moștenește lista originală.
+Extensia CRM/checklisturi Marketplace este inclusă din `feat/nitido-crm-checklist-controls`. Testele suplimentare verifică refuzul rezervării fără consum de credit, replay-ul, ofertele asistate, restricția independentă a evaluărilor, izolarea recurențelor, păstrarea cursorului, auditul atomic, reviziile de checklist, sarcinile nerealizabile, raportul și finalizarea. Agregatele CRM sunt verificate dincolo de pagina de istoric, cu ultima revizie de cost, necunoscute și pierderi confirmate. Suita include acum și regresia garanției, deoarece revenirea moștenește lista originală.
 
 Testul de integrare a conturilor folosește acum o bază nouă la fiecare caz, păstrând trigger-ele de imutabilitate; vechiul cleanup prin DELETE nu mai era compatibil cu rapoartele arhivate. Sunt verificate și izolarea listei între clienți, accesul echipei și revocarea la realocare.
 
-Scenariile reale de sandbox sunt în `CRM-AND-EXECUTION-CONTROLS.md`. CI pentru PR #82 este doar proba părintelui; candidatul nou necesită rezultatul propriului SHA.
+Scenariile reale de sandbox sunt în `CRM-AND-EXECUTION-CONTROLS.md`. CI pentru PR #83 a trecut; acesta este doar părintele candidatului actual, care necesită rezultatul propriului SHA.
+
+## Extensie checklisturi Pro pe proprietate
+
+Candidatul curent este `feat/nitido-pro-property-checklists`. Cele 19 probe suplimentare verifică migrarea aditivă/repetată, păstrarea unei lucrări existente, reguli per serviciu/proprietate, publicarea concurentă, auditul atomic, imutabilitatea, scope și roluri, istoricul paginat, refuzul listelor invalide și protejarea replay-ului după revocare. Recurențele preiau lista curentă numai la crearea unei lucrări noi.
+
+`PRO-PROPERTY-CHECKLISTS.md` descrie migrarea explicită 12 și scenariile sandbox. Nu sunt declarate efectuate probe pe dispozitive sau pe datele reale.
 
 ## Ce riscuri acoperă testele noi
 

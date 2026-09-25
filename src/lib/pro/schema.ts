@@ -33,6 +33,28 @@ CREATE INDEX pro_v11_audit_org ON pro_audit_logs(organization_id,created_at);
 CREATE INDEX pro_v11_notification_user ON pro_notifications(user_id,read_at);
 INSERT INTO pro_schema_migrations VALUES(11,datetime('now'));
 `;
+/** Additive migration: existing work snapshots and all marketplace data stay intact. */
+export const PRO_CHECKLIST_SCHEMA = `
+CREATE TABLE pro_property_checklists(
+ property_id TEXT NOT NULL REFERENCES pro_properties(id),
+ service TEXT NOT NULL,
+ revision INTEGER NOT NULL CHECK(revision>0),
+ items_json TEXT NOT NULL,
+ reason TEXT NOT NULL,
+ actor TEXT NOT NULL,
+ created_at TEXT NOT NULL,
+ PRIMARY KEY(property_id,service,revision)
+);
+CREATE TRIGGER pro_checklists_no_update BEFORE UPDATE ON pro_property_checklists BEGIN SELECT RAISE(ABORT,'checklists are append-only'); END;
+CREATE TRIGGER pro_checklists_no_delete BEFORE DELETE ON pro_property_checklists BEGIN SELECT RAISE(ABORT,'checklists are append-only'); END;
+INSERT INTO pro_schema_migrations VALUES(12,datetime('now'));
+`;
+function migrateChecklists(db: Database) {
+  db.transaction(() => {
+    if (!db.prepare("SELECT 1 FROM pro_schema_migrations WHERE version=12").get())
+      db.exec(PRO_CHECKLIST_SCHEMA);
+  }).immediate();
+}
 export function migratePro(db: Database) {
   if (
     db
@@ -47,6 +69,7 @@ export function migratePro(db: Database) {
       throw new Error(
         "Unsupported Pro schema version; explicit migration required",
       );
+    migrateChecklists(db);
     return;
   }
   if (
@@ -60,5 +83,5 @@ export function migratePro(db: Database) {
       "Legacy Pro tables detected. Preserve a verified backup and reconcile their data before v1.1 migration. No table was deleted.",
     );
   }
-  db.transaction(() => db.exec(PRO_SCHEMA)).immediate();
+  db.transaction(() => { db.exec(PRO_SCHEMA); db.exec(PRO_CHECKLIST_SCHEMA); }).immediate();
 }
