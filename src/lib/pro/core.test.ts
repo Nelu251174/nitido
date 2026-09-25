@@ -259,6 +259,7 @@ describe("Pro v1.1 database integration", () => {
     );
     expect(() => cmd(owner, id, "cancel", { note: "Test" })).toThrow();
     expect(get(id).status).toBe("scheduled");
+    expect(db.prepare("SELECT decision FROM pro_approvals WHERE work_order_id=?").get(id)).toEqual({ decision: "pending" });
   });
   it("does not allow edits or deletion of audit rows", () => {
     expect(() =>
@@ -355,4 +356,57 @@ describe('Pro approval and schedule rollback',()=>{
  it('keeps approval pending when its audit cannot be saved',()=>{const {id}=order();const before=get(id);db.exec("CREATE TRIGGER reject_approval_audit BEFORE INSERT ON pro_audit_logs BEGIN SELECT RAISE(ABORT,'audit unavailable'); END;");expect(()=>approve(id)).toThrow('audit unavailable');expect(get(id)).toEqual(before);expect(db.prepare('SELECT decision FROM pro_approvals WHERE work_order_id=?').get(id)).toEqual({decision:'pending'});});
  it('rolls back a moved interval on audit failure',()=>{const {id}=order();const before=get(id);const b={revision:before.revision,starts_at:new Date(Date.now()+3*3600000).toISOString(),ends_at:new Date(Date.now()+4*3600000).toISOString()};db.exec("CREATE TRIGGER reject_schedule_audit BEFORE INSERT ON pro_audit_logs BEGIN SELECT RAISE(ABORT,'audit unavailable'); END;");expect(()=>run(owner,b,()=>p.reschedule(db,owner,id,b))).toThrow('audit unavailable');expect(get(id)).toEqual(before);});
  it('rejects rescheduling into an occupied property interval',()=>{const {id}=order();const starts_at=new Date(Date.now()+3*3600000).toISOString(),ends_at=new Date(Date.now()+4*3600000).toISOString();run(owner,{},()=>p.createWork(db,owner,{property_id:prop,title:'Altă vizită',service:'cleaning_recurring',starts_at,ends_at,estimate:500}));const before=get(id);const b={revision:before.revision,starts_at,ends_at};expect(()=>run(owner,b,()=>p.reschedule(db,owner,id,b))).toThrow('ocupat');expect(get(id)).toEqual(before);});
+});
+
+describe("Pro closeout integrity", () => {
+  function submitted() {
+    const id = accepted();
+    cmd(partner, id, "start");
+    const answers = Object.fromEntries(JSON.parse(get(id).checklist_json).map((_: string, i: number) => [String(i), true]));
+    cmd(partner, id, "checklist", { answers });
+    db.prepare("INSERT INTO pro_media VALUES('closeout-photo',?,?,NULL,'after','closeout.webp','image/webp',12,'closeout-hash','partner',?)").run(org, id, new Date().toISOString());
+    cmd(partner, id, "submit", { final_cost: 900 });
+    return id;
+  }
+  it("rejects overlapping rework without changing the submitted report and permits an adjacent slot", () => {
+    const id = submitted();
+    const start = new Date(Date.now() + 3 * 3600000).toISOString();
+    const end = new Date(Date.now() + 4 * 3600000).toISOString();
+    run(owner, {}, () => p.createWork(db, owner, { property_id: prop, title: "Altă lucrare", service: "cleaning_recurring", starts_at: start, ends_at: end, estimate: 500 }));
+    const before = get(id);
+    expect(() => cmd(admin, id, "rework", { starts_at: start, ends_at: end, note: "Necesită remediere" })).toThrow("interval");
+    expect(get(id)).toEqual(before);
+    expect(db.prepare("SELECT COUNT(*) n FROM pro_audit_logs WHERE entity_id=? AND action='work.rework'").get(id)).toEqual({ n: 0 });
+    cmd(admin, id, "rework", { starts_at: end, ends_at: new Date(Date.now() + 5 * 3600000).toISOString(), note: "Remediere după lucrarea programată" });
+    expect(get(id)).toMatchObject({ status: "rework_requested", final_cost: null, answers_json: "{}" });
+    const auditRow = db.prepare("SELECT details_json FROM pro_audit_logs WHERE entity_id=? AND action='work.rework'").get(id) as { details_json: string };
+    expect(JSON.parse(auditRow.details_json)).toMatchObject({ previous_starts_at: before.starts_at, previous_ends_at: before.ends_at, previous_final_cost: 900, previous_answers: JSON.parse(before.answers_json), starts_at: end });
+    expect(db.prepare("SELECT * FROM pro_cost_entries").all()).toEqual([]);
+  });
+  it("supersedes pending approvals on cancellation while retaining their history", () => {
+    const { id } = order();
+    cmd(owner, id, "cancel", { note: "Clientul renunță" });
+    expect(db.prepare("SELECT decision,amount FROM pro_approvals WHERE work_order_id=?").get(id)).toEqual({ decision: "superseded", amount: 1000 });
+    expect(p.collection(db, approver, org, "approvals")).toMatchObject([{ decision: "superseded" }]);
+    expect(() => approve(id)).toThrow("închisă");
+    expect(db.prepare("SELECT * FROM pro_cost_entries").all()).toEqual([]);
+  });
+  it.each(["pro_cost_entries", "pro_audit_logs", "pro_notifications"])("rolls back closeout failure in %s and retries with exactly one cost", table => {
+    const id = submitted();
+    const before = get(id);
+    const key = crypto.randomUUID();
+    const body = { revision: before.revision, note: "Control calitate" };
+    const complete = () => run(admin, body, () => p.workCommand(db, admin, id, "complete", body), key);
+    db.exec(`CREATE TRIGGER reject_closeout BEFORE INSERT ON ${table} BEGIN SELECT RAISE(ABORT,'closeout storage failure'); END`);
+    expect(complete).toThrow("closeout storage failure");
+    expect(get(id)).toEqual(before);
+    expect(db.prepare("SELECT * FROM pro_cost_entries").all()).toEqual([]);
+    expect(db.prepare("SELECT * FROM pro_idempotency WHERE actor=? AND key=?").get(admin.id, key)).toBeUndefined();
+    db.exec("DROP TRIGGER reject_closeout");
+    expect(complete()).toEqual({ id });
+    expect(complete()).toEqual({ id });
+    expect(db.prepare("SELECT amount FROM pro_cost_entries WHERE work_order_id=?").all(id)).toEqual([{ amount: 900 }]);
+    expect(db.prepare("SELECT COUNT(*) n FROM pro_audit_logs WHERE entity_id=? AND action='work.complete'").get(id)).toEqual({ n: 1 });
+    expect(get(id).status).toBe("completed");
+  });
 });
