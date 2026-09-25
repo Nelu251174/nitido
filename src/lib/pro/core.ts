@@ -227,6 +227,50 @@ export function ticket(db: Database, p: Principal, id: string) {
   );
   return t;
 }
+export type NotificationTarget = {
+  organization_id: string;
+  user_id: string;
+  href: string;
+  event_key: string;
+};
+/** Queued notifications must obey the recipient's current resource access. */
+export function notificationAllowed(db: Database, p: Principal, n: NotificationTarget) {
+  if (n.user_id !== p.id) return false;
+  try {
+    const target = /^\/pro\/(lucrari|tichete)\/([^/?#]+)$/.exec(n.href);
+    if (target) {
+      const resource = target[1] === "lucrari"
+        ? work(db, p, target[2]) : ticket(db, p, target[2]);
+      return resource.organization_id === n.organization_id;
+    }
+    if (n.href === "/pro/calendar") {
+      const rule = db.prepare("SELECT property_id,organization_id FROM pro_recurring_rules WHERE id=?")
+        .get(n.event_key.split(":")[0]) as { property_id: string; organization_id: string } | undefined;
+      return !!rule && rule.organization_id === n.organization_id &&
+        allowed(db, p, rule.organization_id, ["owner", "manager", "operator", "approver"], rule.property_id);
+    }
+    return false;
+  } catch (error) {
+    if (error instanceof ProError && error.status === 404) return false;
+    throw error;
+  }
+}
+
+export function partnerWork(db: Database, p: Principal) {
+  return db.prepare(`
+    SELECT w.* FROM pro_work_orders w
+    WHERE w.status NOT IN ('completed','cancelled') AND (
+      EXISTS (SELECT 1 FROM pro_partner_members m JOIN pro_partners p ON p.id=m.partner_id
+        WHERE m.user_id=? AND m.active=1 AND p.status='active' AND p.id=w.partner_id
+        AND w.status IN ('accepted','in_progress','submitted_for_review','rework_requested'))
+      OR (w.status='offered' AND EXISTS (
+        SELECT 1 FROM pro_offers o JOIN pro_partners p ON p.id=o.partner_id
+        JOIN pro_partner_members m ON m.partner_id=p.id
+        WHERE o.work_order_id=w.id AND o.status='offered' AND o.expires_at>?
+        AND p.status='active' AND m.user_id=? AND m.active=1)))
+    ORDER BY w.starts_at,w.id LIMIT 500
+  `).all(p.id, now(), p.id) as Work[];
+}
 export function audit(
   db: Database,
   p: Principal,

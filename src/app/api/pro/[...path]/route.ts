@@ -124,40 +124,23 @@ export async function GET(req: NextRequest, ctx: Ctx) {
           .all(org),
       );
     }
-    if (kind === "notifications")
-      return json(
-        db
-          .prepare(
-            "SELECT id,title,href,read_at,email_status,created_at FROM pro_notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 100",
-          )
-          .all(p.id),
-      );
-    if (kind === "partner") {
-      const ids = pro.partnerIds(db, p);
-      const all = db
-        .prepare(
-          "SELECT DISTINCT w.* FROM pro_work_orders w LEFT JOIN pro_offers o ON o.work_order_id=w.id WHERE w.status NOT IN ('completed','cancelled') ORDER BY w.starts_at LIMIT 500",
-        )
-        .all() as pro.Work[];
-      return json(
-        all
-          .filter(
-            (w) =>
-              (w.partner_id && ids.includes(w.partner_id)) ||
-              (w.status === "offered" &&
-                (
-                  db
-                    .prepare(
-                      "SELECT partner_id FROM pro_offers WHERE work_order_id=? AND status='offered' AND expires_at>?",
-                    )
-                    .all(w.id, new Date().toISOString()) as {
-                    partner_id: string;
-                  }[]
-                ).some((o) => ids.includes(o.partner_id))),
-          )
-          .map((w) => pro.workView(db, p, w)),
-      );
+    if (kind === "notifications") {
+      const rows = db.prepare(
+        "SELECT * FROM pro_notifications WHERE user_id=? ORDER BY created_at DESC,id DESC",
+      ).iterate(p.id) as Iterable<pro.NotificationTarget & {
+        id: string; title: string; read_at: string | null; email_status: string; created_at: string;
+      }>;
+      const visible = [];
+      for (const row of rows) {
+        if (!pro.notificationAllowed(db, p, row)) continue;
+        const { id, title, href, read_at, email_status, created_at } = row;
+        visible.push({ id, title, href, read_at, email_status, created_at });
+        if (visible.length === 100) break;
+      }
+      return json(visible);
     }
+    if (kind === "partner")
+      return json(pro.partnerWork(db, p).map(w => pro.workView(db, p, w)));
     if (kind === "partners") {
       pro.requireRole(db, p, org, ["operator"]);
       return json(
@@ -305,17 +288,16 @@ async function dispatchEmails() {
     attempts: number;
     organization_id: string;
     user_id: string;
+    event_key: string;
   }[];
   const base = process.env.NEXT_PUBLIC_SITE_URL;
   if (!base || !base.startsWith("https://"))
     return { sent: 0, configured: false };
   for (const n of candidates) {
     if (!n.email) continue;
-    const member = pro.memberships(db, { id: n.user_id }, n.organization_id);
-    const partner = pro.partnerIds(db, { id: n.user_id });
-    if (!member.length && !partner.length) {
+    if (!pro.notificationAllowed(db, { id: n.user_id }, n)) {
       db.prepare(
-        "UPDATE pro_notifications SET email_status='disabled' WHERE id=?",
+        "UPDATE pro_notifications SET email_status='disabled',lease_until=NULL WHERE id=?",
       ).run(n.id);
       continue;
     }
@@ -860,6 +842,10 @@ export async function POST(req: NextRequest, ctx: Ctx) {
         return { id };
       }
       if (kind === "notifications" && id) {
+        const notification = db.prepare("SELECT * FROM pro_notifications WHERE id=? AND user_id=?")
+          .get(id, p.id) as pro.NotificationTarget | undefined;
+        if (!notification || !pro.notificationAllowed(db, p, notification))
+          pro.fail("Notificare indisponibilă.", 404);
         db.prepare(
           "UPDATE pro_notifications SET read_at=? WHERE id=? AND user_id=?",
         ).run(new Date().toISOString(), id, p.id);
