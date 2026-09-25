@@ -1,3 +1,4 @@
+import {JOB_ACTUAL_COSTS_SCHEMA} from './jobActualCosts';
 import {ASSISTED_OPERATIONS_SCHEMA} from './assistedOperations';
 import {ASSESSMENT_PLAN_SCHEMA} from './assessmentPlan';
 import {MANUAL_OFFER_SCHEDULE_SCHEMA} from './manualOfferSchedule';
@@ -482,6 +483,7 @@ db.exec(MANUAL_OFFER_SCHEDULE_SCHEMA);
 db.exec(ASSESSMENT_EVIDENCE_SCHEMA);
 db.exec(ASSESSMENT_PLAN_SCHEMA);
 db.exec(ASSISTED_OPERATIONS_SCHEMA);
+db.exec(JOB_ACTUAL_COSTS_SCHEMA);
   db.exec(EMAIL_VERIFICATION_SCHEMA);
 
   // Migrare simplă pentru coloane noi adăugate DUPĂ ce baza de date există deja
