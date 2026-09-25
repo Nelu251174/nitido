@@ -388,6 +388,44 @@ export function approveRequest(db: Database, p: Principal, w: Work) {
     );
   }
 }
+export function checklistConfigurationReady(db: Database) {
+  return !!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='pro_property_checklists'").get();
+}
+export function propertyChecklist(db: Database, propertyId: string, service: string) {
+  if (!Object.hasOwn(SERVICES, service)) fail("Serviciu nepermis.");
+  const row = checklistConfigurationReady(db) ? db.prepare(
+    "SELECT revision,items_json,reason,actor,created_at FROM pro_property_checklists WHERE property_id=? AND service=? ORDER BY revision DESC LIMIT 1",
+  ).get(propertyId, service) as { revision: number; items_json: string; reason: string; actor: string; created_at: string } | undefined : undefined;
+  return { service, revision: row?.revision ?? 0, items: row ? JSON.parse(row.items_json) as string[] : [...CHECKLISTS[service]], reason: row?.reason ?? "Listă standard pentru acest serviciu", actor: row?.actor ?? null, created_at: row?.created_at ?? null };
+}
+export function propertyChecklistConfiguration(db: Database, p: Principal, id: string) {
+  property(db, p, id, ["owner", "manager", "operator"]);
+  return { available: checklistConfigurationReady(db), templates: Object.keys(SERVICES).map(service => propertyChecklist(db, id, service)) };
+}
+export function propertyChecklistHistory(db: Database, p: Principal, id: string, service: string, before: number) {
+  property(db, p, id, ["owner", "manager", "operator"]);
+  if (!Object.hasOwn(SERVICES, service)) fail("Serviciu nepermis.");
+  int(before, "Versiune istoric", 1, Number.MAX_SAFE_INTEGER);
+  if (!checklistConfigurationReady(db)) return { rows: [], next: null };
+  const rows = db.prepare("SELECT revision,items_json,reason,actor,created_at FROM pro_property_checklists WHERE property_id=? AND service=? AND revision<? ORDER BY revision DESC LIMIT 21").all(id, service, before) as { revision: number; items_json: string; reason: string; actor: string; created_at: string }[];
+  return { rows: rows.slice(0, 20).map(({ items_json, ...r }) => ({ ...r, items: JSON.parse(items_json) as string[] })), next: rows.length > 20 ? rows[19].revision : null };
+}
+export function savePropertyChecklist(db: Database, p: Principal, id: string, b: Record<string, unknown>) {
+  const prop = property(db, p, id, ["owner", "manager", "operator"]);
+  if (!db.inTransaction) throw new Error("Checklist publication requires an atomic transaction");
+  if (!checklistConfigurationReady(db)) fail("Configurarea checklisturilor așteaptă migrarea tehnică.", 503);
+  if (prop.status !== "active") fail("Proprietatea nu este activă.", 409);
+  const service = text(b.service, "Serviciu");
+  const current = propertyChecklist(db, id, service);
+  if (int(b.revision, "Versiune") !== current.revision) fail("Lista a fost modificată. Reîncarcă proprietatea înainte de publicare.", 409);
+  if (!Array.isArray(b.items) || b.items.length < 1 || b.items.length > 40) fail("Lista trebuie să conțină între 1 și 40 de puncte.");
+  const items = b.items.map(item => text(item, "Punct de verificare", 300));
+  if (new Set(items.map(item => item.toLocaleLowerCase("ro-RO"))).size !== items.length) fail("Punctele de verificare trebuie să fie distincte.");
+  const reason = text(b.reason, "Motivul modificării", 2000), revision = current.revision + 1;
+  db.prepare("INSERT INTO pro_property_checklists(property_id,service,revision,items_json,reason,actor,created_at) VALUES(?,?,?,?,?,?,?)").run(id, service, revision, JSON.stringify(items), reason, p.id, now());
+  audit(db, p, prop.organization_id, id, "property.checklist_published", { service, revision, previous_revision: current.revision, reason });
+  return { property_id: id, service, revision };
+}
 export function createWork(
   db: Database,
   p: Principal,
@@ -402,7 +440,7 @@ export function createWork(
   if (org.status !== "active" || prop.status !== "active")
     fail("Portofoliul sau proprietatea nu este activă.", 409);
   const service = text(b.service, "Serviciu");
-  if (!(service in SERVICES)) fail("Serviciu nepermis.");
+  if (!Object.hasOwn(SERVICES, service)) fail("Serviciu nepermis.");
   const start = new Date(text(b.starts_at, "Început")),
     end = new Date(text(b.ends_at, "Sfârșit"));
   if (
@@ -421,6 +459,7 @@ export function createWork(
       .get(prop.id, end.toISOString(), start.toISOString())
   )
     fail("Există deja o lucrare în acest interval.", 409);
+  const checklist = propertyChecklist(db, prop.id, service);
   const id = randomUUID(),
     amount = int(b.estimate, "Cost estimat"),
     threshold = prop.threshold ?? org.threshold;
@@ -437,7 +476,7 @@ export function createWork(
     threshold,
     amount,
     amount > threshold ? "pending" : "not_required",
-    JSON.stringify(CHECKLISTS[service]),
+    JSON.stringify(checklist.items),
     p.id,
     now(),
   );
@@ -445,7 +484,7 @@ export function createWork(
     .prepare("SELECT * FROM pro_work_orders WHERE id=?")
     .get(id) as Work;
   approveRequest(db, p, w);
-  audit(db, p, org.id, id, "work.created");
+  audit(db, p, org.id, id, "work.created", { checklist_revision: checklist.revision, checklist_service: service });
   return { id };
 }
 function finance(w: Work) {

@@ -2,6 +2,7 @@
 /* API commands remain authoritative. Flexible rows render the versioned Pro read models. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
+import PropertyChecklists from "./PropertyChecklists";
 import Image from "next/image";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { SERVICES, STATUS, money } from "@/lib/pro/shared";
@@ -564,6 +565,7 @@ export default function Workspace({ path }: { path: string[] }) {
                     run={run}
                     onSubmit={(b, r) => r(`properties/${w.id}/update`, b)}
                   />
+                  {w.checklist_configuration && <PropertyChecklists key={w.id} propertyId={w.id} configuration={w.checklist_configuration} run={run} />}
                   <h2>Istoric lucrări</h2>
                   {workList(rows)}
                   <Form

@@ -73,7 +73,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     enabled();
     const p = await principal(req),
       segments = (await ctx.params).path,
-      [kind, id] = segments;
+      [kind, id, action] = segments;
     pro.limit(db, `read:${p.id}`, 240);
     const org = req.nextUrl.searchParams.get("organization_id") ?? "";
     const filters = {
@@ -208,6 +208,8 @@ export async function GET(req: NextRequest, ctx: Ctx) {
           .all(id),
       });
     }
+    if (kind === "properties" && id && action === "checklist-history")
+      return json(pro.propertyChecklistHistory(db, p, id, req.nextUrl.searchParams.get("service") ?? "", Number(req.nextUrl.searchParams.get("before") ?? Number.MAX_SAFE_INTEGER)));
     if (kind === "properties" && id) {
       const prop = pro.property(db, p, id);
       const sensitive =
@@ -223,7 +225,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
         pro.audit(db, p, prop.organization_id, id, "property.sensitive_view");
       return json(
         sensitive
-          ? prop
+          ? { ...prop, checklist_configuration: pro.propertyChecklistConfiguration(db, p, id) }
           : {
               id: prop.id,
               name: prop.name,
@@ -543,7 +545,11 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     if (raw.length > 20000) pro.fail("Cerere prea mare.");
     const b = JSON.parse(raw || "{}") as Record<string, unknown>;
     const key = req.headers.get("idempotency-key") ?? "";
+    // Authorize before idempotency replay too: a revoked property scope grants no access.
+    if (kind === "properties" && id && action === "checklist")
+      pro.property(db, p, id, ["owner", "manager", "operator"]);
     const result = pro.atomic(db, p, key, { segments, b }, () => {
+      if (kind === "properties" && id && action === "checklist") return pro.savePropertyChecklist(db, p, id, b);
       if (kind === "organizations" && !id) return pro.createOrg(db, p, b);
       if (kind === "properties" && !id) return pro.createProperty(db, p, b);
       if (kind === "properties" && id && action === "update") {
