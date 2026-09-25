@@ -1,0 +1,32 @@
+name: NITIDO consolidated upgrade verification
+on:
+  push:
+    branches: [feat/nitido-upgrade-consolidation]
+  pull_request:
+    branches: [fix/nitido-pro-notification-access]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        timezone: [UTC, Europe/Bucharest]
+    env:
+      TZ: ${{ matrix.timezone }}
+      NITIDO_SEED_DEMO: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:upgrade:consolidated
+      - run: npm run test:backup
+      - run: npx next typegen
+      - run: npx tsc --noEmit
+      - if: matrix.timezone == 'UTC'
+        run: npm run build

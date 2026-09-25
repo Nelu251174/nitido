@@ -1,0 +1,18 @@
+import {beforeEach,afterEach,it,expect,vi} from 'vitest';
+import Database from 'better-sqlite3';
+import {NextRequest} from 'next/server';
+import {INCIDENT_TRIAGE_SCHEMA} from '@/lib/incidentTriage';
+const state=vi.hoisted(()=>({db:null as Database.Database|null,actor:'verified-session' as string|null,origin:true,audit:vi.fn()}));
+vi.mock('@/lib/db',()=>({get db(){return state.db!;}}));
+vi.mock('@/lib/adminAuth',()=>({getAdminActorId:async()=>state.actor,auditAdminAction:state.audit}));
+vi.mock('@/lib/security',()=>({hasTrustedMutationOrigin:()=>state.origin}));
+import {GET,POST} from './route';
+const body=()=>({action:'policy',revision:0,pickupMinutes:30,providerMinutes:60,resolutionMinutes:120,reason:'Configurare test',actorId:'forged'});
+const req=(data?:unknown)=>new NextRequest('https://sandbox.nitido.ro/api/admin/incident-triage',data===undefined?{}:{method:'POST',body:JSON.stringify(data)});
+beforeEach(()=>{state.db=new Database(':memory:');state.db.exec('CREATE TABLE visit_cases(id TEXT PRIMARY KEY,updated_at TEXT);'+INCIDENT_TRIAGE_SCHEMA);state.actor='verified-session';state.origin=true;state.audit.mockReset();});
+afterEach(()=>state.db!.close());
+it('requires admin authentication on reads and mutations',async()=>{state.actor=null;expect((await GET(req())).status).toBe(401);expect((await POST(req(body()))).status).toBe(401);});
+it('rejects untrusted origin without a write',async()=>{state.origin=false;expect((await POST(req(body()))).status).toBe(403);expect(state.db!.prepare('SELECT * FROM incident_sla_policy').all()).toEqual([]);});
+it('uses authenticated actor, audits configuration and prevents caching',async()=>{const r=await POST(req(body()));expect(r.status).toBe(200);expect(r.headers.get('Cache-Control')).toBe('private, no-store');expect(state.db!.prepare('SELECT actor_id FROM incident_sla_policy').get()).toEqual({actor_id:'verified-session'});expect(state.audit).toHaveBeenCalledWith('incident.policy',null,{actorId:'verified-session',revision:1});expect((await GET(req())).headers.get('Cache-Control')).toBe('private, no-store');});
+it('rolls back policy and triage if the audit fails',async()=>{state.audit.mockImplementation(()=>{throw Error('secret SQL');});const r=await POST(req(body()));expect(r.status).toBe(500);expect(await r.text()).not.toContain('secret');expect(state.db!.prepare('SELECT * FROM incident_sla_policy').all()).toEqual([]);state.db!.exec("INSERT INTO visit_cases VALUES('c','2026-09-25T08:00:00Z')");const t=await POST(req({action:'triage',caseId:'c',caseRevision:'2026-09-25T08:00:00Z',revision:0,severity:'normal',owner:'Operator',note:'Test'}));expect(t.status).toBe(500);expect(state.db!.prepare('SELECT * FROM incident_triage').all()).toEqual([]);expect(state.db!.prepare('SELECT updated_at FROM visit_cases').get()).toEqual({updated_at:'2026-09-25T08:00:00Z'});});
+it('rejects stale versions, malformed bodies, oversized bodies and unsupported actions',async()=>{await POST(req(body()));expect((await POST(req(body()))).status).toBe(409);for(const input of [null,[],{action:'delete'}])expect((await POST(req(input))).status).toBe(400);expect((await POST(req('x'.repeat(14001)))).status).toBe(413);expect((await POST(new NextRequest('https://sandbox.nitido.ro',{method:'POST',body:'bad'}))).status).toBe(400);});

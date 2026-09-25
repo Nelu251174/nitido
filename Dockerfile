@@ -40,6 +40,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/scripts/recurring-runner.mjs ./sc
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/financial-recovery-runner.mjs ./scripts/financial-recovery-runner.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/notification-recovery-runner.mjs ./scripts/notification-recovery-runner.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/healthcheck.mjs ./scripts/healthcheck.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/verify-database-backup.mjs ./scripts/verify-database-backup.mjs
 
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/pro-migrate.mjs ./scripts/pro-migrate.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/pro-runner.mjs ./scripts/pro-runner.mjs

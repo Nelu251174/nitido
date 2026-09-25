@@ -1,0 +1,14 @@
+import {beforeEach,it,expect,vi} from 'vitest';
+import {NextRequest} from 'next/server';
+import {MarginError} from '@/lib/operationalMargin';
+const state=vi.hoisted(()=>({actor:'admin' as string|null,report:vi.fn()}));
+vi.mock('@/lib/db',()=>({db:{}}));
+vi.mock('@/lib/adminAuth',()=>({getAdminActorId:async()=>state.actor}));
+vi.mock('@/lib/operationalReport',()=>({operationalReport:state.report}));
+import {GET} from './route';
+const request=()=>new NextRequest('https://sandbox.nitido.ro/api/admin/operational-report?from=2026-09-01&to=2026-09-30&firm=f');
+beforeEach(()=>{state.actor='admin';state.report.mockReset();state.report.mockReturnValue({total:0});});
+it('requires verified admin authentication before any report data is read',async()=>{state.actor=null;const r=await GET(request());expect(r.status).toBe(401);expect(state.report).not.toHaveBeenCalled();expect(r.headers.get('Cache-Control')).toBe('private, no-store');});
+it('passes explicit filters and prevents caching',async()=>{const r=await GET(request());expect(r.status).toBe(200);expect(state.report).toHaveBeenCalledWith({},expect.objectContaining({from:'2026-09-01',to:'2026-09-30',firm:'f'}));expect(r.headers.get('Cache-Control')).toBe('private, no-store');});
+it.each([400,422])('preserves actionable validation status %s',async(status)=>{state.report.mockImplementation(()=>{throw new MarginError('Restrânge selecția',status);});expect((await GET(request())).status).toBe(status);});
+it('does not leak internal database failures',async()=>{state.report.mockImplementation(()=>{throw Error('secret SQL');});const r=await GET(request());expect(r.status).toBe(500);expect(await r.text()).not.toContain('secret');});
