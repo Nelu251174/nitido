@@ -3,10 +3,13 @@ import { newId } from "@/lib/db";
 
 export type WorkProofType = "ARRIVAL" | "COMPLETION";
 
-export function hasValidWorkProof(db: Database, jobId: string, firmId: string, proofType: WorkProofType): boolean {
-  return Boolean(db.prepare(`SELECT 1 FROM job_photos
+function validWorkProof(db: Database, jobId: string, firmId: string, proofType: WorkProofType): {id:string}|undefined {
+  return db.prepare(`SELECT id FROM job_photos
     WHERE job_id=? AND uploaded_by_firm_id=? AND proof_type=? AND status='VALID'
-      AND validated_at IS NOT NULL LIMIT 1`).get(jobId, firmId, proofType));
+      AND validated_at IS NOT NULL ORDER BY id LIMIT 1`).get(jobId, firmId, proofType) as {id:string}|undefined;
+}
+export function hasValidWorkProof(db: Database, jobId: string, firmId: string, proofType: WorkProofType): boolean {
+  return Boolean(validWorkProof(db,jobId,firmId,proofType));
 }
 
 export function auditWorkflow(db: Database, eventType: string, jobId: string, firmId: string | null, userId: string | null, details: object = {}): void {
@@ -26,25 +29,31 @@ export function assertCompletionProof(db: Database, jobId: string): { firmId: st
 export type ProofTransitionResult = { ok:true } | { ok:false; status:409; error:string };
 
 export function markArrivedWithProof(db: Database, jobId:string, firmId:string, userId:string): ProofTransitionResult {
+  return db.transaction(():ProofTransitionResult=>{
   const job=db.prepare("SELECT status FROM jobs WHERE id=? AND accepted_firm_id=?").get(jobId,firmId) as {status:string}|undefined;
   if(!job||job.status!=="accepted") return {ok:false,status:409,error:"Lucrarea nu poate fi confirmată de această firmă"};
-  if(!hasValidWorkProof(db,jobId,firmId,"ARRIVAL")){
+  const proof=validWorkProof(db,jobId,firmId,"ARRIVAL");
+  if(!proof){
     auditWorkflow(db,"JOB_ARRIVAL_ATTEMPT_BLOCKED_MISSING_PROOF",jobId,firmId,userId);
     return {ok:false,status:409,error:"Pentru a începe lucrarea trebuie să încarci cel puțin o fotografie făcută la sosirea la locație."};
   }
   const changed=db.prepare("UPDATE jobs SET status='arrived',arrived_confirmed_at=datetime('now') WHERE id=? AND status='accepted' AND accepted_firm_id=?").run(jobId,firmId);
   if(changed.changes!==1) return {ok:false,status:409,error:"Lucrarea nu poate fi confirmată de această firmă"};
-  auditWorkflow(db,"JOB_ARRIVED",jobId,firmId,userId); return {ok:true};
+  auditWorkflow(db,"JOB_ARRIVED",jobId,firmId,userId,{proofId:proof.id,proofType:"ARRIVAL"}); return {ok:true};
+  }).immediate();
 }
 
 export function markCompletedWithProof(db: Database, jobId:string, firmId:string, userId:string): ProofTransitionResult {
+  return db.transaction(():ProofTransitionResult=>{
   const job=db.prepare("SELECT status FROM jobs WHERE id=? AND accepted_firm_id=?").get(jobId,firmId) as {status:string}|undefined;
   if(!job||job.status!=="arrived") return {ok:false,status:409,error:"Lucrarea nu poate fi finalizată de această firmă"};
-  if(!hasValidWorkProof(db,jobId,firmId,"COMPLETION")){
+  const proof=validWorkProof(db,jobId,firmId,"COMPLETION");
+  if(!proof){
     auditWorkflow(db,"JOB_COMPLETION_ATTEMPT_BLOCKED_MISSING_PROOF",jobId,firmId,userId);
     return {ok:false,status:409,error:"Finalizarea este blocată. Încarcă fotografia obligatorie de finalizare a lucrării."};
   }
   const changed=db.prepare("UPDATE jobs SET status='completed',completed_at=datetime('now') WHERE id=? AND accepted_firm_id=? AND status='arrived'").run(jobId,firmId);
   if(changed.changes!==1) return {ok:false,status:409,error:"Lucrarea nu poate fi finalizată de această firmă"};
-  auditWorkflow(db,"JOB_COMPLETED",jobId,firmId,userId); return {ok:true};
+  auditWorkflow(db,"JOB_COMPLETED",jobId,firmId,userId,{proofId:proof.id,proofType:"COMPLETION"}); return {ok:true};
+  }).immediate();
 }

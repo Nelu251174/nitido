@@ -1,0 +1,16 @@
+import {beforeEach,it,expect,vi} from 'vitest';
+import {NextRequest} from 'next/server';
+const state=vi.hoisted(()=>({user:{id:'u',role:'firma'} as {id:string;role:string}|null,origin:true,firm:{id:'f'} as {id:string}|null,transition:vi.fn(),enqueue:vi.fn()}));
+vi.mock('@/lib/auth',()=>({getCurrentUser:async()=>state.user}));
+vi.mock('@/lib/security',()=>({hasTrustedMutationOrigin:()=>state.origin}));
+vi.mock('@/lib/db',()=>({db:{prepare:()=>({get:()=>({id:'j',status:'arrived'})})},getFirmByUserId:()=>state.firm}));
+vi.mock('@/lib/proofOfWork',()=>({markArrivedWithProof:state.transition}));
+vi.mock('@/lib/push',()=>({queueArrivedClientPush:state.enqueue,processPushOutbox:vi.fn()}));
+vi.mock('@/lib/firmJobView',()=>({firmJobView:(j:unknown)=>j}));
+import {POST} from './route';
+const call=()=>POST(new NextRequest('https://sandbox.nitido.ro/api/jobs/j/arrived',{method:'POST'}),{params:Promise.resolve({id:'j'})});
+beforeEach(()=>{state.user={id:'u',role:'firma'};state.firm={id:'f'};state.origin=true;state.transition.mockReset().mockReturnValue({ok:true});state.enqueue.mockReset().mockReturnValue([]);});
+it('requires authenticated firm',async()=>{state.user=null;expect((await call()).status).toBe(401);state.user={id:'c',role:'client'};expect((await call()).status).toBe(401);expect(state.transition).not.toHaveBeenCalled();});
+it('rejects untrusted origin before transition and notification',async()=>{state.origin=false;expect((await call()).status).toBe(403);expect(state.transition).not.toHaveBeenCalled();expect(state.enqueue).not.toHaveBeenCalled();});
+it('requires a firm profile and binds identities from the session',async()=>{state.firm=null;expect((await call()).status).toBe(403);state.firm={id:'f'};expect((await call()).status).toBe(200);expect(state.transition).toHaveBeenCalledWith(expect.anything(),'j','f','u');});
+it('does not notify after a blocked proof transition',async()=>{state.transition.mockReturnValue({ok:false,status:409,error:'Dovadă lipsă'});expect((await call()).status).toBe(409);expect(state.enqueue).not.toHaveBeenCalled();});

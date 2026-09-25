@@ -1,5 +1,6 @@
 import type {Database} from 'better-sqlite3';
 import {randomUUID} from 'node:crypto';
+import {auditWorkflow} from './proofOfWork';
 import {executionAccess} from './collaborationAccess';
 import {WorkspaceError,requireText} from './workspace';
 import {CHECKLIST} from './workspaceShared';
@@ -65,7 +66,13 @@ export function changeVisitCare(db:Database,jobId:string,user:Actor,b:Record<str
    if(photo&&!db.prepare("SELECT 1 FROM job_photos WHERE id=? AND job_id=? AND status='VALID'").get(photo,jobId))throw new WorkspaceError('Fotografia nu aparține lucrării.',403);
    const old=db.prepare('SELECT id,job_id,description,category,item_key,photo_id FROM visit_cases WHERE opened_by=? AND request_key=?').get(user.id,key) as {id:string;job_id:string;description:string;category:string;item_key:string|null;photo_id:string|null}|undefined;
    if(old){if(old.job_id!==jobId||old.description!==description||old.category!==category||old.item_key!==item||old.photo_id!==photo)throw new WorkspaceError('Cerere deja folosită cu alte date.',409);return {ok:true,id:old.id};}
-   const id=randomUUID(),now=new Date().toISOString();db.prepare('INSERT INTO visit_cases(id,job_id,opened_by,request_key,category,item_key,description,photo_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)').run(id,jobId,user.id,key,category,item,description,photo,now,now);if(category==='task'&&item&&['accepted','arrived'].includes(j.status)&&!db.prepare('SELECT 1 FROM workspace_execution_reports WHERE job_id=?').get(jobId))db.prepare('INSERT INTO workspace_checklist(job_id,item_key,done,updated_by,updated_at) VALUES(?,?,0,?,?) ON CONFLICT(job_id,item_key) DO UPDATE SET done=0,updated_by=excluded.updated_by,updated_at=excluded.updated_at').run(jobId,item,user.id,now);event(db,id,user.id,'open',description);return {ok:true,id};
+   const id=randomUUID(),now=new Date().toISOString();db.prepare('INSERT INTO visit_cases(id,job_id,opened_by,request_key,category,item_key,description,photo_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)').run(id,jobId,user.id,key,category,item,description,photo,now,now);if(category==='task'&&item&&['accepted','arrived'].includes(j.status)&&!db.prepare('SELECT 1 FROM workspace_execution_reports WHERE job_id=?').get(jobId)){
+    const previous=db.prepare('SELECT done FROM workspace_checklist WHERE job_id=? AND item_key=?').get(jobId,item) as {done:number}|undefined;
+    if(previous?.done!==0){
+     db.prepare('INSERT INTO workspace_checklist(job_id,item_key,done,updated_by,updated_at) VALUES(?,?,0,?,?) ON CONFLICT(job_id,item_key) DO UPDATE SET done=0,updated_by=excluded.updated_by,updated_at=excluded.updated_at').run(jobId,item,user.id,now);
+     auditWorkflow(db,'CHECKLIST_ITEM_CHANGED',jobId,j.accepted_firm_id,user.id,{itemKey:item,previous:previous?Boolean(previous.done):null,done:false,caseId:id,reason:'task_reported_unavailable'});
+    }
+   }event(db,id,user.id,'open',description);return {ok:true,id};
   }
   const id=requireText(b.caseId,'Dosar',100);
   const c=db.prepare('SELECT * FROM visit_cases WHERE id=? AND job_id=?').get(id,jobId) as {status:string;updated_at:string;proposed_at:string|null;reclean_job_id:string|null;created_at:string}|undefined;

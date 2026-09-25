@@ -35,3 +35,15 @@ describe("server-authoritative proof-of-work gates",()=>{
   it("replayed completion cannot transition or duplicate capture",()=>{job(db,"j1","arrived");proof(db,"p1","j1","firm_a","COMPLETION");expect(markCompletedWithProof(db,"j1","firm_a","user_a").ok).toBe(true);expect(markCompletedWithProof(db,"j1","firm_a","user_a").ok).toBe(false);});
   it("assertion binds completion proof to the allocated firm and job",()=>{job(db,"j1","completed");proof(db,"p1","j1","firm_b","COMPLETION");expect(()=>assertCompletionProof(db,"j1")).toThrow();});
 });
+
+describe('atomic execution evidence and audit',()=>{
+ for(const transition of [
+  {type:'ARRIVAL' as const,status:'accepted',next:'arrived',event:'JOB_ARRIVED',run:markArrivedWithProof},
+  {type:'COMPLETION' as const,status:'arrived',next:'completed',event:'JOB_COMPLETED',run:markCompletedWithProof},
+ ]){
+  it(`${transition.type}: rolls back the state when audit storage fails`,()=>{const db=setup();try{job(db,'j',transition.status);proof(db,'p','j','firm_a',transition.type);db.exec("CREATE TRIGGER fail_audit BEFORE INSERT ON workflow_audit_log BEGIN SELECT RAISE(ABORT,'audit unavailable'); END;");expect(()=>transition.run(db,'j','firm_a','user_a')).toThrow(/audit unavailable/);expect(db.prepare('SELECT status,completed_at,arrived_confirmed_at FROM jobs').get()).toEqual({status:transition.status,completed_at:null,arrived_confirmed_at:null});}finally{db.close();}});
+  it(`${transition.type}: records the precise accepted evidence and only one transition`,()=>{const db=setup();try{job(db,'j',transition.status);proof(db,'p','j','firm_a',transition.type);expect(transition.run(db,'j','firm_a','user_a').ok).toBe(true);expect(transition.run(db,'j','firm_a','user_a').ok).toBe(false);const rows=db.prepare('SELECT event_type,details FROM workflow_audit_log').all() as {event_type:string;details:string}[];expect(rows).toHaveLength(1);expect(rows[0].event_type).toBe(transition.event);expect(JSON.parse(rows[0].details)).toEqual({proofId:'p',proofType:transition.type});expect(db.prepare('SELECT status FROM jobs').get()).toEqual({status:transition.next});}finally{db.close();}});
+  it(`${transition.type}: rejects photos without validation timestamp`,()=>{const db=setup();try{job(db,'j',transition.status);proof(db,'p','j','firm_a',transition.type);db.exec('UPDATE job_photos SET validated_at=NULL');expect(transition.run(db,'j','firm_a','user_a').ok).toBe(false);}finally{db.close();}});
+ }
+ it('keeps the transition and evidence audit inside an outer transaction',()=>{const db=setup();try{job(db,'j');proof(db,'p','j','firm_a','ARRIVAL');expect(()=>db.transaction(()=>{expect(markArrivedWithProof(db,'j','firm_a','user_a').ok).toBe(true);throw Error('outer failure');}).immediate()).toThrow('outer failure');expect(db.prepare('SELECT status FROM jobs').get()).toEqual({status:'accepted'});expect(db.prepare('SELECT * FROM workflow_audit_log').all()).toHaveLength(0);}finally{db.close();}});
+});

@@ -1,3 +1,4 @@
+import {auditWorkflow} from './proofOfWork';
 import {jobAssistedOperation} from './assistedOperations';
 import {HOST_DEFAULTS,hostLocalInstant,type HostSettings} from './hostScheduleShared';
 import {requirePropertyModule,propertyOrganization,ORGANIZATION_SCHEMA} from "./organizations";
@@ -275,7 +276,10 @@ export function setChecklist(db:Database,userId:string,jobId:string,key:string,d
  if(db.prepare("SELECT 1 FROM workspace_execution_reports WHERE job_id=?").get(jobId))throw new WorkspaceError("Raportul a fost trimis. Verificările sunt blocate pentru a păstra dovada raportată.",409);
  if(done&&db.prepare("SELECT 1 FROM visit_cases WHERE job_id=? AND item_key=? AND category='task' AND status NOT IN ('resolved','closed')").get(jobId,key))throw new WorkspaceError('Sarcina este raportată ca nerealizabilă. Soluționează dosarul înainte de a o marca realizată.',409);
  if(!CHECKLIST.some(i=>i.key===key))throw new WorkspaceError("Verificare invalidă.");
+ const previous=db.prepare("SELECT done FROM workspace_checklist WHERE job_id=? AND item_key=?").get(jobId,key) as {done:number}|undefined;
+ if(previous?.done===(done?1:0))return;
  db.prepare("INSERT INTO workspace_checklist VALUES(?,?,?,?,?) ON CONFLICT(job_id,item_key) DO UPDATE SET done=excluded.done,updated_by=excluded.updated_by,updated_at=excluded.updated_at").run(jobId,key,done?1:0,userId,new Date().toISOString());
+ auditWorkflow(db,"CHECKLIST_ITEM_CHANGED",jobId,access.firm_id,userId,{itemKey:key,previous:previous?Boolean(previous.done):null,done});
  }).immediate();
 }
 

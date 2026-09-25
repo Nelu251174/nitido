@@ -2,6 +2,7 @@ import {beforeEach,afterEach,it,expect} from 'vitest';
 import Database from 'better-sqlite3';
 import {initializeDatabase} from './db';
 import {changeVisitCare,readVisitCare} from './visitCare';
+import {setChecklist} from './workspace';
 import {reviewIncident} from './incidentReview';
 let db:Database.Database;
 const owner={id:'client',role:'client'},firm={id:'provider',role:'firma'};
@@ -13,3 +14,6 @@ it('leaves execution, prices, provider score and receipts unchanged after review
 it('does not allow client or provider to review through the care mutation',()=>{const c=db.prepare('SELECT id,updated_at FROM visit_cases').get() as {id:string;updated_at:string};for(const actor of [owner,firm])expect(()=>changeVisitCare(db,'j',actor,{action:'review',caseId:c.id,revision:c.updated_at,note:'Confirmat',outcome:'confirmed'})).toThrow(/nepermisă/);});
 it('rejects a stale remedy action after a review and preserves the review',()=>{const c=db.prepare('SELECT id,updated_at FROM visit_cases').get() as {id:string;updated_at:string};review();expect(()=>changeVisitCare(db,'j',owner,{action:'resolve',caseId:c.id,revision:c.updated_at,note:'Rezolvat'})).toThrow(/schimbat/);expect(readVisitCare(db,'j',owner).cases[0].reviews).toHaveLength(1);});
 it('preserves reviews on repeated schema initialization',()=>{review();initializeDatabase(db);expect(readVisitCare(db,'j',owner).cases[0].reviews).toHaveLength(1);});
+
+it('audits a task incident reset and blocks checking it again while unresolved',()=>{db.exec("UPDATE jobs SET status='arrived'");setChecklist(db,'provider','j','floors',true);changeVisitCare(db,'j',owner,{action:'open',category:'task',itemKey:'floors',description:'Sarcină imposibilă din cauza accesului.',requestKey:'task'});const row=db.prepare("SELECT details FROM workflow_audit_log WHERE event_type='CHECKLIST_ITEM_CHANGED' ORDER BY rowid DESC LIMIT 1").get() as {details:string};expect(JSON.parse(row.details)).toMatchObject({itemKey:'floors',previous:true,done:false,reason:'task_reported_unavailable'});expect(()=>setChecklist(db,'provider','j','floors',true)).toThrow(/nerealizabilă/);});
+it('rolls back a task incident and checklist reset when its audit fails',()=>{db.exec("UPDATE jobs SET status='arrived'");setChecklist(db,'provider','j','floors',true);db.exec("CREATE TRIGGER fail_audit BEFORE INSERT ON workflow_audit_log BEGIN SELECT RAISE(ABORT,'audit unavailable'); END;");expect(()=>changeVisitCare(db,'j',owner,{action:'open',category:'task',itemKey:'floors',description:'Sarcină imposibilă.',requestKey:'task'})).toThrow(/audit unavailable/);expect(db.prepare("SELECT 1 FROM visit_cases WHERE category='task'").get()).toBeUndefined();expect(db.prepare('SELECT done FROM workspace_checklist').get()).toEqual({done:1});});
