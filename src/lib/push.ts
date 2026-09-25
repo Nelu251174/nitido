@@ -50,9 +50,9 @@ export function queueMessagePush(db:Database,messageId:string){
  return enqueueUser(db,"MESSAGE_RECEIVED_PUSH",m.job_id,recipient,"Mesaj nou NITIDO","Ai primit un mesaj nou. Deschide conversația pentru a-l citi.",m.sender_id===m.client_id?"/firma/mesaje":"/client/mesaje",messageId);
 }
 
-export function queueNewJobFirmPushes(db:Database,job:{id:string;city:string;spaceType:string;sqm:number}):string[]{
+export function queueNewJobFirmPushes(db:Database,job:{id:string;city:string;spaceType:string;sqm:number;targetFirmId?:string}):string[]{
   const firms=db.prepare(`SELECT f.id,f.user_id,f.coverage_city,f.coverage_cities_extra,f.suspended_until FROM firms f WHERE f.verified=1`).all() as {id:string;user_id:string;coverage_city:string;coverage_cities_extra:string|null;suspended_until:string|null}[];
-  const now=new Date();return firms.filter(f=>firmCoversCity(f.coverage_city,f.coverage_cities_extra,job.city)&&!(f.suspended_until&&new Date(f.suspended_until)>now)).flatMap(f=>enqueueUser(db,"JOB_CREATED_FIRM_PUSH",job.id,f.user_id,"Lucrare nouă disponibilă",`Curățenie ${labels[job.spaceType]??"serviciu"} · ${job.city} · ${job.sqm} m². Deschide NITIDO pentru detalii.`,`/firma?job=${encodeURIComponent(job.id)}`));
+  const now=new Date();return firms.filter(f=>(!job.targetFirmId||job.targetFirmId===f.id)&&firmCoversCity(f.coverage_city,f.coverage_cities_extra,job.city)&&!(f.suspended_until&&new Date(f.suspended_until)>now)).flatMap(f=>enqueueUser(db,"JOB_CREATED_FIRM_PUSH",job.id,f.user_id,"Lucrare nouă disponibilă",`Curățenie ${labels[job.spaceType]??"serviciu"} · ${job.city} · ${job.sqm} m². Deschide NITIDO pentru detalii.`,`/firma?job=${encodeURIComponent(job.id)}`));
 }
 
 function clientAndFirm(db:Database,jobId:string,status:string,extra="1=1"){return db.prepare(`SELECT j.client_id,fu.name firm_name FROM jobs j JOIN firms f ON f.id=j.accepted_firm_id JOIN users fu ON fu.id=f.user_id WHERE j.id=? AND j.status=? AND ${extra}`).get(jobId,status) as {client_id:string;firm_name:string}|undefined;}

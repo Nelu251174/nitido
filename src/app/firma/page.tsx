@@ -344,6 +344,7 @@ export default function FirmaPage() {
                     </span>
                   )}
                 </div>
+                {job.assisted_team&&<p className="mb-3 text-sm">Plan asistat: echipa {job.assisted_team} · {job.duration_minutes} minute lucru + {job.buffer_minutes} minute deplasare. Preluarea alocă această echipă după verificarea disponibilității.</p>}
                 {job.scan && job.scan.length > 0 && (
                   <div className="mb-3">
                     <div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1.5">

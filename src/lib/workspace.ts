@@ -1,3 +1,4 @@
+import {jobAssistedOperation} from './assistedOperations';
 import {HOST_DEFAULTS,hostLocalInstant,type HostSettings} from './hostScheduleShared';
 import {requirePropertyModule,propertyOrganization,ORGANIZATION_SCHEMA} from "./organizations";
 import {firmAvailabilityError} from "./firmAvailability";
@@ -245,6 +246,7 @@ export function cancelTeamBlock(db:Database,userId:string,id:string){
 }
 export function assignTeam(db:Database,userId:string,teamId:string,jobId:string){
  return db.transaction(()=>{
+ const operation=jobAssistedOperation(db,jobId);if(operation&&operation.teamId!==teamId)throw new WorkspaceError('Echipa aparține planului confirmat. Schimbarea necesită reconfirmarea planului.',409);
  const previous=db.prepare('SELECT team_id FROM workspace_assignments WHERE job_id=?').get(jobId) as {team_id:string}|undefined;
  const team=db.prepare("SELECT t.* FROM workspace_teams t JOIN firms f ON f.id=t.firm_id WHERE t.id=? AND f.user_id=? AND t.active=1").get(teamId,userId) as {id:string;firm_id:string;minimum_duration_minutes:number;travel_minutes:number}|undefined;
  const job=authorizedJob(db,userId,jobId);

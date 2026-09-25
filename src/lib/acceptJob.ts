@@ -1,3 +1,5 @@
+import {jobAssistedOperation,reserveAssistedTeam} from './assistedOperations';
+import {MarginError} from './operationalMargin';
 import {recordSelectionConfirmation,confirmSelectionReceipt} from "./selectionRecovery";
 import type { Database } from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
@@ -48,10 +50,12 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
       if (unavailable) return fail(unavailable, 409, 'CAPACITY_UNAVAILABLE');
       const updated = db.prepare("UPDATE jobs SET status='accepted',accepted_firm_id=?,accepted_at=datetime('now') WHERE id=? AND status='waiting'").run(firmId, jobId);
       if (updated.changes !== 1) return fail('Lucrarea nu mai este disponibilă');
+      reserveAssistedTeam(db,jobId,firmId);
       db.prepare('INSERT INTO job_acceptance_claims(job_id,token) VALUES(?,?) ON CONFLICT(job_id) DO UPDATE SET token=excluded.token').run(jobId, claim);
       return { ok: true as const, job, firm };
     }).immediate();
-  } catch {
+  } catch (e) {
+    if(e instanceof MarginError)return fail(e.message,e.status,'ASSISTED_CAPACITY_UNAVAILABLE');
     return fail('Preluarea nu a putut fi rezervată. Reîncarcă lucrarea și reîncearcă.', 503);
   }
   if (!reserved.ok) return reserved;
@@ -59,9 +63,11 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
     await authorizePayment(db, jobId, reserved.job.price_gross, reserved.firm.stripe_account_id, reserved.job.credit_applied ?? 0, selection ? paymentId => recordSelectionConfirmation(db, {jobId,claim,offerId:selection.offerId,clientId:selection.clientId,firmId,priceGross:reserved.job.price_gross,creditApplied:reserved.job.credit_applied}, paymentId) : undefined);
   } catch {
     try {
-      db.prepare(`UPDATE jobs SET status='waiting',accepted_firm_id=NULL,accepted_at=NULL
+      db.transaction(()=>{const released=db.prepare(`UPDATE jobs SET status='waiting',accepted_firm_id=NULL,accepted_at=NULL
         WHERE id=? AND status='accepted' AND accepted_firm_id=?
         AND EXISTS(SELECT 1 FROM job_acceptance_claims WHERE job_id=? AND token=?)`).run(jobId, firmId, jobId, claim);
+      if(released.changes){const p=jobAssistedOperation(db,jobId);if(p)db.prepare('DELETE FROM workspace_assignments WHERE job_id=? AND team_id=?').run(jobId,p.teamId);}
+      }).immediate();
     } catch {
       return fail('Starea preluării necesită verificare. Reîncarcă lucrarea; rezervarea nu a fost eliberată.', 503);
     }
