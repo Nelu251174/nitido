@@ -1,3 +1,4 @@
+import {CUSTOMER_OPERATIONS_SCHEMA,INCIDENT_TRIAGE_SCHEMA} from './operationsSchema';
 import {JOB_ACTUAL_COSTS_SCHEMA} from './jobActualCosts';
 import {ASSISTED_OPERATIONS_SCHEMA} from './assistedOperations';
 import {ASSESSMENT_PLAN_SCHEMA} from './assessmentPlan';
@@ -471,6 +472,8 @@ export function initializeDatabase(db: Database.Database): void {
   );
   CREATE INDEX IF NOT EXISTS reschedule_authorization_cleanup ON reschedule_authorizations(cleanup_status,retry_after_ms);`);
   db.exec(VISIT_CARE_SCHEMA);
+  db.exec(INCIDENT_TRIAGE_SCHEMA);
+  db.exec(CUSTOMER_OPERATIONS_SCHEMA);
   db.exec(JOB_NAVIGATION_SCHEMA);
   initializeCatalog(db);
   db.exec(CATALOG_CAPACITY_SCHEMA);

@@ -5,6 +5,8 @@ import Link from "next/link";
 import {AdminMarginPolicy} from "@/components/AdminMarginPolicy";
 import {AdminPricing} from "@/components/AdminPricing";
 import {AdminServiceCatalog} from "@/components/AdminServiceCatalog";
+import {AdminCustomers} from "@/components/AdminCustomers";
+import {AdminOperationalReport} from "@/components/AdminOperationalReport";
 import {AdminIncidentReviews} from "@/components/AdminIncidentReviews";
 import {AdminAssessments} from "@/components/AdminAssessments";
 import {AdminOperations} from "@/components/AdminOperations";
@@ -153,7 +155,7 @@ export default function AdminPage() {
     const scrollToSection = () => {
       cancelAnimationFrame(frame);
       const id = window.location.hash.slice(1);
-      if (!["firme", "lucrari", "calitate", "plati", "catalog", "evaluari", "incidente"].includes(id)) return;
+      if (!["firme", "lucrari", "calitate", "plati", "catalog", "evaluari", "incidente", "performanta", "clienti"].includes(id)) return;
       frame = requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: "start" }));
     };
     scrollToSection();
@@ -329,6 +331,8 @@ export default function AdminPage() {
 
         <section id="evaluari"><AdminAssessments/></section>
         <AdminIncidentReviews/>
+        <AdminOperationalReport/>
+        <AdminCustomers/>
         <section id="catalog">
           <AdminServiceCatalog/>
           <AdminPricing/>

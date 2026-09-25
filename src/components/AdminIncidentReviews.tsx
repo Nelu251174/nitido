@@ -1,5 +1,6 @@
 'use client';
 import {useCallback,useEffect,useState} from 'react';
+import {AdminIncidentTriage} from './AdminIncidentTriage';
 import {inputClass} from './ui';
 type Review={outcome:string;note:string;created_at:string};
 type Case={id:string;job_id:string;category:string;description:string;photo_id:string|null;status:string;updated_at:string;reviews:Review[];events:{action:string;note:string;created_at:string}[]};
@@ -19,6 +20,7 @@ export function AdminIncidentReviews(){
   {error&&<p role="status">{error}</p>}
   <div className="flex flex-wrap gap-3"><button className="v2-btn v2-btn-secondary" disabled={busy||loading} onClick={()=>{setLoading(true);void load().catch(e=>setError(e.message));}}>Actualizează dosarele</button><button className="v2-btn v2-btn-secondary" disabled={busy||loading||offset===0} onClick={()=>{setLoading(true);setSelected('');setOffset(offset-50);}}>Pagina anterioară</button><button className="v2-btn v2-btn-secondary" disabled={busy||loading||!more} onClick={()=>{setLoading(true);setSelected('');setOffset(offset+50);}}>Pagina următoare</button></div>
   {loading?<p>Se încarcă dosarele…</p>:<label className="block">Alege dosarul · pagina {offset/50+1}<select className={inputClass} disabled={busy} value={selected} onChange={e=>{setSelected(e.target.value);setNote('');setOutcome('needs_information');setError('');}}><option value="">Selectează un dosar ({cases.length})</option>{cases.map(c=><option value={c.id} key={c.id}>{categories[c.category]??c.category} · {statuses[c.status]??c.status} · {c.job_id} · {c.reviews.length?outcomes[c.reviews[0].outcome]:'Neverificat'}</option>)}</select></label>}
+  <AdminIncidentTriage caseId={current?.id} caseRevision={current?.updated_at} onSaved={load}/>
   {current&&!loading&&<article className="space-y-3">
    <h3 className="font-bold">{categories[current.category]??current.category} · {statuses[current.status]??current.status}</h3><p className="whitespace-pre-wrap break-words">{current.description}</p>
    {current.photo_id?<a className="underline" href={`/api/uploads/${encodeURIComponent(current.photo_id)}`} target="_blank" rel="noreferrer">Deschide fotografia atașată sesizării</a>:<p>Sesizarea nu are fotografie atașată. Absența fotografiei nu dovedește că sesizarea este nefondată.</p>}

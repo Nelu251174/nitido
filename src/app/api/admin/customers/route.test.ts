@@ -1,0 +1,17 @@
+import {beforeEach,afterEach,it,expect,vi} from 'vitest';
+import Database from 'better-sqlite3';
+import {NextRequest} from 'next/server';
+import {CUSTOMER_OPERATIONS_SCHEMA} from '@/lib/customerOperations';
+const state=vi.hoisted(()=>({db:null as Database.Database|null,actor:'verified-session' as string|null,origin:true,audit:vi.fn()}));
+vi.mock('@/lib/db',()=>({get db(){return state.db!;}}));
+vi.mock('@/lib/adminAuth',()=>({getAdminActorId:async()=>state.actor,auditAdminAction:state.audit}));
+vi.mock('@/lib/security',()=>({hasTrustedMutationOrigin:()=>state.origin}));
+import {GET,POST} from './route';
+const body=()=>({action:'note',clientId:'c',note:'Notă internă',actorId:'forged'});
+const req=(data?:unknown)=>new NextRequest('https://sandbox.nitido.ro/api/admin/customers',data===undefined?{}:{method:'POST',body:JSON.stringify(data)});
+beforeEach(()=>{state.db=new Database(':memory:');state.db.exec("CREATE TABLE users(id TEXT PRIMARY KEY,role TEXT,name TEXT,email TEXT,phone TEXT,credit_balance INTEGER,created_at TEXT);INSERT INTO users VALUES('c','client','Client',NULL,NULL,0,'2026-09-25');"+CUSTOMER_OPERATIONS_SCHEMA);state.actor='verified-session';state.origin=true;state.audit.mockReset();});
+afterEach(()=>state.db!.close());
+it('requires verified admin on reads and writes',async()=>{state.actor=null;expect((await GET(req())).status).toBe(401);expect((await POST(req(body()))).status).toBe(401);});
+it('rejects cross-origin writes and never accepts a forged note author',async()=>{state.origin=false;expect((await POST(req(body()))).status).toBe(403);state.origin=true;expect((await POST(req(body()))).status).toBe(200);expect(state.db!.prepare('SELECT actor_id FROM customer_internal_notes').get()).toEqual({actor_id:'verified-session'});expect(state.audit).toHaveBeenCalledWith('customer.note','c',expect.objectContaining({actorId:'verified-session'}));});
+it('rolls back note if audit fails without disclosing database details',async()=>{state.audit.mockImplementation(()=>{throw Error('secret SQL');});const r=await POST(req(body()));expect(r.status).toBe(500);expect(await r.text()).not.toContain('secret');expect(state.db!.prepare('SELECT * FROM customer_internal_notes').all()).toEqual([]);});
+it('uses no-store and validates body shape/size',async()=>{expect((await GET(req())).headers.get('Cache-Control')).toBe('private, no-store');for(const input of [null,[],{action:'delete'}])expect((await POST(req(input))).status).toBe(400);expect((await POST(req('x'.repeat(18001)))).status).toBe(413);});
