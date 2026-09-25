@@ -116,3 +116,46 @@
   .assisted-entry { display: block; }
   .assisted-entry > a { width: 100%; max-width: none; }
 }
+
+/* Expanded navigation scrolls inside its own surface; account controls stay visible. */
+@media (min-width: 761px) {
+  :is(.approved-client > aside, .operations-layout > .operations-sidebar, .board-page > .board-sidebar) {
+    position: sticky;
+    top: var(--app-safe-top, 0px);
+    height: calc(100vh - var(--app-safe-top, 0px));
+    height: calc(100dvh - var(--app-safe-top, 0px));
+    max-height: calc(100vh - var(--app-safe-top, 0px));
+    max-height: calc(100dvh - var(--app-safe-top, 0px));
+    overflow: auto;
+    align-self: start;
+  }
+  :is(.approved-client > aside, .operations-layout > .operations-sidebar, .board-page > .board-sidebar) > .workspace-nav {
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--nitido-brand-dark) transparent;
+    padding: 4px;
+    margin-inline: -4px;
+    align-content: start;
+  }
+  :is(.approved-client > aside, .operations-layout > .operations-sidebar, .board-page > .board-sidebar) > .workspace-nav > * {
+    flex-shrink: 0;
+  }
+  :is(.approved-client > aside, .operations-layout > .operations-sidebar, .board-page > .board-sidebar) .workspace-nav a {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+.workspace-toolbar.portfolio-toolbar { align-items: end; flex-wrap: wrap; }
+.portfolio-toolbar > label { display: grid; gap: 6px; width: min(100%, 320px); }
+.portfolio-toolbar > label > select { width: 100%; min-height: 44px; margin: 0; }
+.portfolio-toolbar > .v2-btn { min-height: 44px; margin: 0; white-space: normal; text-align: center; }
+.portfolio-toolbar > p { flex-basis: 100%; }
+@media (max-width: 760px) {
+  .portfolio-toolbar > label, .portfolio-toolbar > .v2-btn { width: 100%; }
+}
