@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { CHECKLISTS, SERVICES } from "@/lib/pro/shared";
 
-type Template = { service: string; revision: number; items: string[]; reason: string; actor: string | null; created_at: string | null };
+type Template = { photoRulesAvailable?:boolean;photoRules?:{arrivalMin:number;completionMin:number}; service: string; revision: number; items: string[]; reason: string; actor: string | null; created_at: string | null };
 type History = { rows: (Omit<Template, "service">)[]; next: number | null };
 export default function PropertyChecklists({ propertyId, configuration, run }: {
   propertyId: string;
@@ -25,6 +25,7 @@ export default function PropertyChecklists({ propertyId, configuration, run }: {
 }
 function Editor({ propertyId, template, run }: { propertyId: string; template: Template; run: (path: string, body: Record<string, unknown>) => Promise<unknown> }) {
   const [items, setItems] = useState(template.items.join("\n"));
+  const [photos,setPhotos]=useState(template.photoRules??{arrivalMin:0,completionMin:1});
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -46,7 +47,7 @@ function Editor({ propertyId, template, run }: { propertyId: string; template: T
     <form className="mt-3" onSubmit={async e => {
       e.preventDefault(); setBusy(true); setError("");
       try {
-        await run(`properties/${propertyId}/checklist`, { service: template.service, revision: template.revision, items: items.split("\n").map(s => s.trim()).filter(Boolean), reason });
+        await run(`properties/${propertyId}/checklist`, { service: template.service, revision: template.revision, items: items.split("\n").map(s => s.trim()).filter(Boolean), reason,...(template.photoRulesAvailable?{photoRules:photos}:{}) });
         setSaved(true);
       } catch (e) { setError(e instanceof Error ? e.message : "Publicarea nu a fost confirmată."); }
       finally { setBusy(false); }
@@ -55,6 +56,7 @@ function Editor({ propertyId, template, run }: { propertyId: string; template: T
         <textarea value={items} onChange={e => setItems(e.target.value)} rows={10} maxLength={12040} required disabled={saved} aria-describedby="property-checklist-help" />
       </label>
       <p id="property-checklist-help">Între 1 și 40 de puncte distincte, maximum 300 de caractere fiecare. Pentru finalizarea lucrării, prestatorul va trebui să confirme fiecare punct.</p>
+      {template.photoRulesAvailable&&<fieldset className="mt-3"><legend>Fotografii pentru proprietate și serviciu</legend><label className="pro-field">Minimum înainte de execuție · 0 dacă nu sunt necesare<input type="number" min={0} max={20} required disabled={busy||saved} value={photos.arrivalMin} onChange={e=>setPhotos({...photos,arrivalMin:Number(e.target.value)})}/></label><label className="pro-field">Minimum la finalizare<input type="number" min={1} max={20} required disabled={busy||saved} value={photos.completionMin} onChange={e=>setPhotos({...photos,completionMin:Number(e.target.value)})}/></label><p>Maximum 20 de fotografii obligatorii în total. Cerințele rămân salvate în lucrare. O remediere cere dovezi noi; fotografiile din execuția anterioară nu sunt reutilizate.</p></fieldset>}
       <label className="pro-field mt-3">Motivul modificării
         <textarea value={reason} onChange={e => setReason(e.target.value)} maxLength={2000} required disabled={saved} />
       </label>
@@ -71,6 +73,7 @@ function Editor({ propertyId, template, run }: { propertyId: string; template: T
       {history.rows.map(row => <details key={row.revision} className="mt-3">
         <summary>Versiunea {row.revision} · {new Date(row.created_at!).toLocaleString("ro-RO")}</summary>
         <p>{row.reason}</p><p>Autor: {row.actor}</p>
+        {row.photoRules && <p>Fotografii minime: {row.photoRules.arrivalMin} înainte și {row.photoRules.completionMin} la finalizare.</p>}
         <ol className="list-decimal pl-5">{row.items.map((item, i) => <li key={i}>{item}</li>)}</ol>
       </details>)}
       {history.next && <button type="button" className="v2-btn v2-btn-secondary mt-3" disabled={busy} onClick={() => loadHistory(history.next!)}>Versiuni mai vechi</button>}

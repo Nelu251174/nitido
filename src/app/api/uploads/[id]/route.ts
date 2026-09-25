@@ -20,7 +20,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getCurrentUser(req);
-  const admin = await isAdmin();
+  const admin = await isAdmin('operations');
   if (!user && !admin) return NextResponse.json({ error: "Autentificare necesară" }, { status: 401 });
 
   const { id } = await params;

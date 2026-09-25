@@ -20,7 +20,7 @@ const request=(data:unknown=body(),origin='https://nitido.test')=>new NextReques
 beforeEach(()=>{
  vi.resetAllMocks();state.values.clear();vi.useFakeTimers();vi.setSystemTime(new Date('2026-09-13T07:00:00Z'));
  vi.stubEnv('NITIDO_ADMIN_EMAIL','admin@example.com');vi.stubEnv('NITIDO_ADMIN_PASSWORD','fixture-password');vi.stubEnv('NITIDO_ADMIN_PASSWORD_HASH','');vi.stubEnv('NITIDO_ADMIN_TOTP_SECRET','GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ');vi.stubEnv('NITIDO_ADMIN_RECOVERY_HASHES',createHash('sha256').update(recovery).digest('hex'));vi.stubEnv('NEXT_PUBLIC_SITE_URL','https://sandbox.nitido.ro');vi.stubEnv('NITIDO_ENABLE_BEARER_AUTH','true');
- db.exec('DROP TRIGGER IF EXISTS reject_mfa;DELETE FROM admin_session_mfa;DELETE FROM admin_sessions;DELETE FROM admin_totp_state;DELETE FROM admin_used_recovery_codes;DELETE FROM admin_login_limit;DELETE FROM admin_audit_log');
+ db.exec('DROP TRIGGER IF EXISTS reject_mfa;DELETE FROM admin_session_identity;DELETE FROM admin_session_mfa;DELETE FROM admin_sessions;DELETE FROM admin_totp_state;DELETE FROM admin_used_recovery_codes;DELETE FROM admin_login_limit;DELETE FROM admin_audit_log');
  state.set.mockImplementation((name:string,value:string)=>state.values.set(name,value));state.remove.mockImplementation((name:string)=>state.values.delete(name));
 });
 afterEach(()=>{vi.useRealTimers();vi.unstubAllEnvs();});
@@ -49,4 +49,18 @@ describe('admin password plus MFA and protected session',()=>{
  it('rejects credential changes while login is awaiting the cookie context',async()=>{state.beforeCookies.mockImplementationOnce(()=>{vi.stubEnv('NITIDO_ADMIN_PASSWORD','rotated');});const data=body();expect(await authenticateAdmin(data.email,data.password,data.code,'totp')).toBe(false);expect(state.set).not.toHaveBeenCalled();});
  it('does not keep an orphan session if cookie issuance fails',async()=>{state.set.mockImplementationOnce(()=>{throw Error('private cookie error');});const response=await POST(request());expect(response.status).toBe(503);expect(JSON.stringify(await response.json())).not.toContain('private cookie error');expect(db.prepare('SELECT * FROM admin_sessions').all()).toHaveLength(0);expect((await POST(request())).status).toBe(401);});
  it('enforces the account-wide attempt limit despite changing forwarded IPs',async()=>{for(let i=0;i<20;i++)expect((await POST(request({...body(),password:'wrong'}))).status).toBe(401);expect((await POST(request())).status).toBe(429);vi.setSystemTime(Date.now()+15*60000);expect((await POST(request())).status).toBe(200);});
+});
+
+describe('nominal internal roles with real MFA sessions',()=>{
+ async function staff(role:'operator'|'manager'|'finance'){
+  vi.useRealTimers();const email=`staff${++sequence}@example.com`,secret='JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
+  vi.stubEnv('NITIDO_ADMIN_STAFF_ACCOUNTS_JSON',JSON.stringify([{email,passwordHash:await bcrypt.hash('staff-password',10),totpSecret:secret}]));
+  db.prepare('INSERT INTO admin_staff VALUES(?,?,?,?,?)').run(email,email,role,1,1);
+  const config=getAdminSecurityConfig({NITIDO_ADMIN_EMAIL:email,NITIDO_ADMIN_PASSWORD:'staff-password',NITIDO_ADMIN_TOTP_SECRET:secret})!;
+  expect((await POST(request({email,password:'staff-password',code:totpAt(config.secret,Math.floor(Date.now()/30000)),method:'totp'}))).status).toBe(200);return email;
+ }
+ it('prevents an Operator from reaching financial or Super Admin endpoints',async()=>{await staff('operator');expect(await isAdmin('operations')).toBe(true);expect(await isAdmin('finance')).toBe(false);expect(await isAdmin()).toBe(false);expect((await cancellation(new NextRequest('https://nitido.test/api/admin/payment-cancellation',{method:'POST',headers:{origin:'https://nitido.test'},body:'{}'}))).status).toBe(401);});
+ it('gives Finance financial access without operational or role-management access',async()=>{await staff('finance');expect(await isAdmin('finance')).toBe(true);expect(await isAdmin('operations')).toBe(false);expect(await isAdmin()).toBe(false);});
+ it('invalidates existing sessions immediately on role revision or deactivation',async()=>{const id=await staff('manager');expect(await isAdmin('manage')).toBe(true);db.prepare('UPDATE admin_staff SET revision=revision+1,role=? WHERE id=?').run('super_admin',id);expect(await isAdmin()).toBe(false);expect(await isAdmin('session')).toBe(false);});
+ it('revokes staff access if the credential registry is removed',async()=>{await staff('manager');vi.stubEnv('NITIDO_ADMIN_STAFF_ACCOUNTS_JSON','[]');expect(await isAdmin('session')).toBe(false);});
 });

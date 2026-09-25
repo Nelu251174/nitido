@@ -7,11 +7,11 @@ import {ManagedPricingError} from '@/lib/managedPricing';
 import {listTariffs,createTariff,saveTariff,simulateTariff,publishTariff,withdrawTariff} from '@/lib/managedPricingStore';
 
 export async function GET(){
-  if(!await isAdmin())return NextResponse.json({error:'Neautorizat'},{status:401});
+  if(!await isAdmin('manage'))return NextResponse.json({error:'Neautorizat'},{status:401});
   return NextResponse.json({tariffs:listTariffs(db),bookingActivation:managedBookingEnabled()},{headers:{'Cache-Control':'no-store'}});
 }
 export async function POST(req:NextRequest){
-  if(!await isAdmin())return NextResponse.json({error:'Neautorizat'},{status:401});
+  if(!await isAdmin('manage'))return NextResponse.json({error:'Neautorizat'},{status:401});
   if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:'Origine invalidă'},{status:403});
   const body=await req.json().catch(()=>null);
   if(!body||typeof body!=='object'||Array.isArray(body))return NextResponse.json({error:'Cerere invalidă'},{status:400});

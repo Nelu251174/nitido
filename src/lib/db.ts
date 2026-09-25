@@ -1,3 +1,5 @@
+import {INCIDENT_RESOLUTION_SCHEMA} from './incidentResolution';
+import {ADMIN_STAFF_SCHEMA} from './adminStaff';
 import {CUSTOMER_OPERATIONS_SCHEMA,INCIDENT_TRIAGE_SCHEMA,EXECUTION_TEMPLATES_SCHEMA} from './operationsSchema';
 import {JOB_ACTUAL_COSTS_SCHEMA} from './jobActualCosts';
 import {ASSISTED_OPERATIONS_SCHEMA} from './assistedOperations';
@@ -55,6 +57,7 @@ ${SAVED_CARDS_SCHEMA}
 ${NOTIFICATION_CLAIM_SCHEMA}
 ${SELECTION_RECOVERY_SCHEMA}
 ${ADMIN_MFA_SCHEMA}
+${ADMIN_STAFF_SCHEMA}
 ${FINANCIAL_RECOVERY_SCHEMA}
 ${PAYMENT_RECOVERY_SCHEMA}
 ${PAYOUT_RECONCILIATION_SCHEMA}
@@ -474,6 +477,7 @@ export function initializeDatabase(db: Database.Database): void {
   CREATE INDEX IF NOT EXISTS reschedule_authorization_cleanup ON reschedule_authorizations(cleanup_status,retry_after_ms);`);
   db.exec(VISIT_CARE_SCHEMA);
   db.exec(INCIDENT_TRIAGE_SCHEMA);
+  db.exec(INCIDENT_RESOLUTION_SCHEMA);
   db.exec(CUSTOMER_OPERATIONS_SCHEMA);
   db.exec(JOB_NAVIGATION_SCHEMA);
   initializeCatalog(db);

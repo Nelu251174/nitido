@@ -50,3 +50,16 @@ it('rolls back rules and job together if creation fails',()=>{
  publish();expect(()=>db.transaction(()=>{job('new');freezeExecutionRules(db,'new','standard');throw Error('rollback');}).immediate()).toThrow('rollback');
  expect(db.prepare('SELECT * FROM jobs').all()).toEqual([]);expect(db.prepare('SELECT * FROM job_execution_rules').all()).toEqual([]);
 });
+it('freezes service-specific photo counts and gates report, completion and capture',()=>{
+ db.transaction(()=>saveExecutionTemplate(db,{scope:'standard',revision:0,reason:'Approved photo policy',items:[{key:'inspection',label:'Inspection'}],photoRules:{arrivalMin:2,completionMin:3}},'admin')).immediate();
+ job('new');freeze('new');photo('a1','ARRIVAL');photo('c1','COMPLETION');setChecklist(db,'u','new','inspection',true);
+ expect(()=>submitExecutionReport(db,'u','new','Ready')).toThrow(/fotografiile/);expect(markCompletedWithProof(db,'new','f','u')).toMatchObject({ok:false});
+ photo('a2','ARRIVAL');photo('c2','COMPLETION');photo('c3','COMPLETION');submitExecutionReport(db,'u','new','All photos');expect(markCompletedWithProof(db,'new','f','u')).toEqual({ok:true});
+ publish(1);job('repair');freeze('repair','new');expect(db.prepare("SELECT arrival_min,completion_min FROM job_photo_rules WHERE job_id='repair'").get()).toEqual({arrival_min:2,completion_min:3});
+ expect(()=>db.exec("UPDATE job_photo_rules SET completion_min=1")).toThrow(/immutable/);
+});
+it('does not apply new photo requirements to legacy jobs and rejects invalid minima',()=>{
+ job('legacy');for(const photoRules of [{arrivalMin:0,completionMin:1},{arrivalMin:1,completionMin:21},{arrivalMin:1.5,completionMin:2},null])expect(()=>db.transaction(()=>saveExecutionTemplate(db,{scope:'standard',revision:0,reason:'Test',items:[{key:'a',label:'A'}],photoRules},'admin')).immediate()).toThrow(/foto/);
+ db.prepare("INSERT INTO job_photos(id,job_id,owner_user_id,uploaded_by_firm_id,proof_type,filename,status,validated_at) VALUES('legacy-proof','legacy','u','f','COMPLETION','proof.jpg','VALID',datetime('now'))").run();
+ expect(markCompletedWithProof(db,'legacy','f','u')).toEqual({ok:true});
+});

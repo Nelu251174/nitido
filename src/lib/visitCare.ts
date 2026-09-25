@@ -1,3 +1,4 @@
+import {INCIDENT_RESOLUTION_SCHEMA} from './operationsSchema';
 import type {Database} from 'better-sqlite3';
 import {randomUUID} from 'node:crypto';
 import {auditWorkflow} from './proofOfWork';
@@ -19,6 +20,7 @@ CREATE INDEX IF NOT EXISTS visit_case_events_case ON visit_case_events(case_id,c
 CREATE TABLE IF NOT EXISTS workspace_notices(id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id),job_id TEXT REFERENCES jobs(id),message TEXT NOT NULL,path TEXT NOT NULL,created_at TEXT NOT NULL,read_at TEXT);
 CREATE INDEX IF NOT EXISTS workspace_notices_user ON workspace_notices(user_id,read_at,created_at);
 ${INCIDENT_REVIEW_SCHEMA}
+${INCIDENT_RESOLUTION_SCHEMA}
 `;
 export function notice(db:Database,userId:string,jobId:string|null,message:string,path:string){db.prepare('INSERT INTO workspace_notices(id,user_id,job_id,message,path,created_at) VALUES(?,?,?,?,?,?)').run(randomUUID(),userId,jobId,message,path,new Date().toISOString());}
 export function snapshotInstructions(db:Database,jobId:string,propertyId:string,clientId:string){
@@ -45,7 +47,7 @@ function event(db:Database,id:string,userId:string,action:string,note:string){
 export function readVisitCare(db:Database,jobId:string,user:Actor){
  const a=access(db,jobId,user);
  const cases=db.prepare('SELECT id,category,item_key,description,photo_id,status,proposed_at,reclean_job_id,created_at,updated_at FROM visit_cases WHERE job_id=? ORDER BY created_at DESC').all(jobId) as {id:string;updated_at:string}[];
- return {executionItems:jobExecutionRules(db,jobId).items,canConfirm:a.owner,canManage:a.firm,canResolve:a.owner||a.admin,canReport:!!a.job.accepted_firm_id,jobStatus:a.job.status,instructions:db.prepare('SELECT rooms,sensitive_materials,usual_tasks,preferences FROM visit_instructions WHERE job_id=?').get(jobId)??null,receipt:db.prepare('SELECT confirmed_at FROM visit_receipts WHERE job_id=?').get(jobId)??null,photos:db.prepare("SELECT id,proof_type FROM job_photos WHERE job_id=? AND status='VALID'").all(jobId),cases:cases.map(c=>({...c,reviews:incidentReviews(db,c.id),events:db.prepare('SELECT action,note,created_at FROM visit_case_events WHERE case_id=? ORDER BY created_at,id').all(c.id)}))};
+ return {executionItems:jobExecutionRules(db,jobId).items,canConfirm:a.owner,canManage:a.firm,canResolve:a.owner||a.admin,canReport:!!a.job.accepted_firm_id,jobStatus:a.job.status,instructions:db.prepare('SELECT rooms,sensitive_materials,usual_tasks,preferences FROM visit_instructions WHERE job_id=?').get(jobId)??null,receipt:db.prepare('SELECT confirmed_at FROM visit_receipts WHERE job_id=?').get(jobId)??null,photos:db.prepare("SELECT id,proof_type FROM job_photos WHERE job_id=? AND status='VALID'").all(jobId),cases:cases.map(c=>({...c,resolutions:db.prepare("SELECT kind,created_at FROM incident_resolutions WHERE case_id=? AND state='completed' ORDER BY created_at DESC,id DESC").all(c.id),reviews:incidentReviews(db,c.id),events:db.prepare('SELECT action,note,created_at FROM visit_case_events WHERE case_id=? ORDER BY created_at,id').all(c.id)}))};
 }
 export function changeVisitCare(db:Database,jobId:string,user:Actor,b:Record<string,unknown>){
  return db.transaction(()=>{

@@ -49,10 +49,20 @@ CREATE TRIGGER pro_checklists_no_update BEFORE UPDATE ON pro_property_checklists
 CREATE TRIGGER pro_checklists_no_delete BEFORE DELETE ON pro_property_checklists BEGIN SELECT RAISE(ABORT,'checklists are append-only'); END;
 INSERT INTO pro_schema_migrations VALUES(12,datetime('now'));
 `;
+export const PRO_PHOTO_RULES_SCHEMA = `
+CREATE TABLE pro_property_photo_rules(property_id TEXT NOT NULL,service TEXT NOT NULL,revision INTEGER NOT NULL,arrival_min INTEGER NOT NULL CHECK(arrival_min BETWEEN 0 AND 20),completion_min INTEGER NOT NULL CHECK(completion_min BETWEEN 1 AND 20),PRIMARY KEY(property_id,service,revision),FOREIGN KEY(property_id,service,revision) REFERENCES pro_property_checklists(property_id,service,revision));
+CREATE TABLE pro_work_photo_rules(work_order_id TEXT PRIMARY KEY REFERENCES pro_work_orders(id),arrival_min INTEGER NOT NULL CHECK(arrival_min BETWEEN 0 AND 20),completion_min INTEGER NOT NULL CHECK(completion_min BETWEEN 1 AND 20));
+CREATE TRIGGER pro_property_photo_no_update BEFORE UPDATE ON pro_property_photo_rules BEGIN SELECT RAISE(ABORT,'photo rules immutable'); END;
+CREATE TRIGGER pro_property_photo_no_delete BEFORE DELETE ON pro_property_photo_rules BEGIN SELECT RAISE(ABORT,'photo rules retained'); END;
+CREATE TRIGGER pro_work_photo_no_update BEFORE UPDATE ON pro_work_photo_rules BEGIN SELECT RAISE(ABORT,'photo snapshot immutable'); END;
+CREATE TRIGGER pro_work_photo_no_delete BEFORE DELETE ON pro_work_photo_rules BEGIN SELECT RAISE(ABORT,'photo snapshot retained'); END;
+INSERT INTO pro_schema_migrations VALUES(13,datetime('now'));
+`;
 function migrateChecklists(db: Database) {
   db.transaction(() => {
     if (!db.prepare("SELECT 1 FROM pro_schema_migrations WHERE version=12").get())
       db.exec(PRO_CHECKLIST_SCHEMA);
+    if (!db.prepare("SELECT 1 FROM pro_schema_migrations WHERE version=13").get()) db.exec(PRO_PHOTO_RULES_SCHEMA);
   }).immediate();
 }
 export function migratePro(db: Database) {
@@ -83,5 +93,5 @@ export function migratePro(db: Database) {
       "Legacy Pro tables detected. Preserve a verified backup and reconcile their data before v1.1 migration. No table was deleted.",
     );
   }
-  db.transaction(() => { db.exec(PRO_SCHEMA); db.exec(PRO_CHECKLIST_SCHEMA); }).immediate();
+  db.transaction(() => { db.exec(PRO_SCHEMA); db.exec(PRO_CHECKLIST_SCHEMA); db.exec(PRO_PHOTO_RULES_SCHEMA); }).immediate();
 }

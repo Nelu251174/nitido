@@ -30,3 +30,17 @@ it('uses latest cost revision, preserves discount once and never presents partia
 it('does not mutate provider state, jobs or cost history',()=>{job('j');cost('j',1);const tables=['jobs','firms','job_actual_costs'];const snapshot=()=>tables.map(t=>db.prepare(`SELECT * FROM ${t}`).all());const before=snapshot();operationalReport(db,period);expect(snapshot()).toEqual(before);});
 it('rejects invalid dates, ranges and modes',()=>{for(const patch of [{from:'2026-02-30'},{from:'invalid'},{from:'2026-10-01'},{from:'2024-01-01'},{mode:'pro'},{space:'unknown'}])expect(()=>operationalReport(db,{...period,...patch})).toThrow();});
 it('refuses a truncated report',()=>{db.transaction(()=>{for(let i=0;i<10001;i++)job('j'+i);})();expect(()=>operationalReport(db,period)).toThrow(/10.000/);});
+it('calculates medians, explicit denominators and lifetime service value without guessing acceptance',()=>{
+ job('earlier','2026-08-01T10:00:00Z');job('one','2026-09-01T10:00:00Z');job('two','2026-09-02T10:00:00Z');job('cancelled','2026-09-03T10:00:00Z','cancelled');
+ db.exec("UPDATE jobs SET accepted_at='2026-09-01 10:10:00' WHERE id='one';UPDATE jobs SET accepted_at='2026-09-02 10:30:00' WHERE id='two'");
+ const r=operationalReport(db,period);expect(r.kpis.allocation).toEqual({minutes:20,samples:2});expect(r.kpis.cancellation).toMatchObject({numerator:1,denominator:3});expect(r.kpis.repeatOrders).toEqual({numerator:2,denominator:2,percent:100});expect(r.kpis.lifetime).toMatchObject({clients:1,completedJobs:3,serviceValueBani:150000});expect(r.kpis.averageOrderBani).toBe(50000);expect(r.kpis.providerAcceptance.percent).toBeNull();
+});
+it('filters by frozen service and recorded postal zone without reclassifying legacy work',()=>{
+ job('one');job('legacy');db.exec("UPDATE jobs SET postal_code='010101' WHERE id='one';INSERT INTO job_execution_rules VALUES('one','general',1,'[]','2026-09-01')");
+ expect(operationalReport(db,{...period,service:'general',zone:'010101'}).total).toBe(1);expect(operationalReport(db,{...period,service:'legacy'}).total).toBe(1);expect(operationalReport(db,{...period,zone:"' OR 1=1 --"}).total).toBe(0);expect(operationalReport(db,{...period,firm:'f'}).kpis.requests).toBeNull();
+});
+it('counts unconverted assessment requests in conversion denominator',()=>{
+ db.prepare('INSERT INTO service_assessments VALUES(?,?,?,?,?,?,?,?,?)').run('a','c','key',JSON.stringify({category:'general',city:'București'}),1,'{}','submitted',1,'2026-09-01T10:00:00Z');
+ expect(operationalReport(db,{...period,city:'București',service:'general'}).kpis.requests).toMatchObject({total:1,converted:0,percent:0,offerMedianMinutes:null});
+ expect(operationalReport(db,{...period,city:'Cluj'}).kpis.requests).toMatchObject({total:0,percent:null});
+});

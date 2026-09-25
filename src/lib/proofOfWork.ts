@@ -1,13 +1,15 @@
-import {jobExecutionRules} from './executionTemplates';
+import {jobPhotoRules,jobExecutionRules} from './executionTemplates';
 import type { Database } from "better-sqlite3";
 import { newId } from "@/lib/db";
 
 export type WorkProofType = "ARRIVAL" | "COMPLETION";
 
 function validWorkProof(db: Database, jobId: string, firmId: string, proofType: WorkProofType): {id:string}|undefined {
-  return db.prepare(`SELECT id FROM job_photos
+  const required=jobPhotoRules(db,jobId)[proofType==='ARRIVAL'?'arrivalMin':'completionMin'];
+  const proofs=db.prepare(`SELECT id FROM job_photos
     WHERE job_id=? AND uploaded_by_firm_id=? AND proof_type=? AND status='VALID'
-      AND validated_at IS NOT NULL ORDER BY id LIMIT 1`).get(jobId, firmId, proofType) as {id:string}|undefined;
+      AND validated_at IS NOT NULL ORDER BY id LIMIT ?`).all(jobId, firmId, proofType,required) as {id:string}[];
+  return proofs.length>=required?proofs[0]:undefined;
 }
 export function hasValidWorkProof(db: Database, jobId: string, firmId: string, proofType: WorkProofType): boolean {
   return Boolean(validWorkProof(db,jobId,firmId,proofType));
@@ -36,7 +38,7 @@ export function markArrivedWithProof(db: Database, jobId:string, firmId:string, 
   const proof=validWorkProof(db,jobId,firmId,"ARRIVAL");
   if(!proof){
     auditWorkflow(db,"JOB_ARRIVAL_ATTEMPT_BLOCKED_MISSING_PROOF",jobId,firmId,userId);
-    return {ok:false,status:409,error:"Pentru a începe lucrarea trebuie să încarci cel puțin o fotografie făcută la sosirea la locație."};
+    return {ok:false,status:409,error:`Pentru a începe lucrarea sunt necesare ${jobPhotoRules(db,jobId).arrivalMin} fotografii valide de sosire, conform cerințelor acestei lucrări.`};
   }
   const changed=db.prepare("UPDATE jobs SET status='arrived',arrived_confirmed_at=datetime('now') WHERE id=? AND status='accepted' AND accepted_firm_id=?").run(jobId,firmId);
   if(changed.changes!==1) return {ok:false,status:409,error:"Lucrarea nu poate fi confirmată de această firmă"};
@@ -51,7 +53,7 @@ export function markCompletedWithProof(db: Database, jobId:string, firmId:string
   const proof=validWorkProof(db,jobId,firmId,"COMPLETION");
   if(!proof){
     auditWorkflow(db,"JOB_COMPLETION_ATTEMPT_BLOCKED_MISSING_PROOF",jobId,firmId,userId);
-    return {ok:false,status:409,error:"Finalizarea este blocată. Încarcă fotografia obligatorie de finalizare a lucrării."};
+    return {ok:false,status:409,error:`Finalizarea este blocată. Sunt necesare ${jobPhotoRules(db,jobId).completionMin} fotografii valide de finalizare, conform cerințelor acestei lucrări.`};
   }
   const rules=jobExecutionRules(db,jobId);
   if(rules.revision>0){

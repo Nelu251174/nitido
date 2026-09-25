@@ -46,3 +46,13 @@ Inventarul exact al modificărilor față de o versiune se obține din diff-ul G
 - API Pro: citire/editor doar în scope, istoric paginat, autorizare inclusiv înainte de replay-ul noii comenzi.
 - `PropertyChecklists.tsx`: formular crem, instrucțiuni, revenire la punctele standard printr-o publicare nouă, istoric.
 - `propertyChecklists.test.ts` și testele API: migrare, concurență, izolare, audit și recurențe.
+
+## Roluri, foto, indicatori și rezoluții
+
+- `adminRolesShared.ts`, `adminStaff.ts`, `adminAuth.ts`: conturi nominale, MFA, matrice de permisiuni, revizii și revocarea sesiunilor.
+- API `auth/me`, `staff`, `workbench`; `AdminStaff`, `AdminRoleWorkspace`, `AdminInternalJobs`: suprafețe crem, listare limitată și redacție financiară.
+- `executionTemplates*`, `proofOfWork`, `collaborationAccess`, `TeamExecutionCard`: cerințe foto versionate și aplicate în fluxurile Marketplace.
+- Schema Pro 13, `core.ts`, API media, `PropertyChecklists`, `Workspace`: reguli pe proprietate/serviciu, snapshot, upload la sosire și dovezi noi la remediere.
+- `operationalReport`, `AdminOperationalReport`: cohortele și definițiile indicatorilor, filtre serviciu/cod poștal, necunoscute explicite.
+- `incidentResolution*`, API și componentă; `VisitCare`: rezoluții, dovezi de finalizare, permisiuni și afișare publică fără note interne.
+- `INTERNAL-ROLES-PHOTOS-AND-RESOLUTIONS.md`: configurare, migrare, limite și acceptanță.

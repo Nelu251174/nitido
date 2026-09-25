@@ -1,4 +1,4 @@
-import {freezeExecutionRules} from '@/lib/executionTemplates';
+import {jobPhotoRules,freezeExecutionRules} from '@/lib/executionTemplates';
 import {assertCustomerCanCreate,CustomerRestrictionError} from '@/lib/customerRestrictions';
 import {jobAssistedOperation} from '@/lib/assistedOperations';
 import {prepareManualOfferBooking,linkManualOfferJob} from '@/lib/manualOfferBooking';
@@ -96,8 +96,8 @@ export async function GET(req: NextRequest) {
   if (jobs.length > 0) {
     const placeholders = jobs.map(() => "?").join(",");
     const photos = db
-      .prepare(`SELECT id, job_id, filename, proof_type, context_label, created_at FROM job_photos WHERE job_id IN (${placeholders}) AND status='VALID'`)
-      .all(...jobs.map((j) => j.id)) as { id: string; job_id: string; filename: string; proof_type:string; context_label:string|null; created_at:string }[];
+      .prepare(`SELECT id, job_id, filename, uploaded_by_firm_id, validated_at, proof_type, context_label, created_at FROM job_photos WHERE job_id IN (${placeholders}) AND status='VALID'`)
+      .all(...jobs.map((j) => j.id)) as { id: string; job_id: string; filename: string; uploaded_by_firm_id:string|null;validated_at:string|null;proof_type:string; context_label:string|null; created_at:string }[];
     for (const p of photos) {
       const arr = photosByJob.get(p.job_id) ?? [];
       arr.push(`/api/uploads/${p.id}`);
@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
         scan.push({ id:p.id, url:`/api/uploads/${p.id}`, room:p.context_label, roomLabel:scanRoomLabel(p.context_label) });
         scanByJob.set(p.job_id, scan);
       }
-      if (p.proof_type === "ARRIVAL" || p.proof_type === "COMPLETION") {
+      if ((p.proof_type === "ARRIVAL" || p.proof_type === "COMPLETION")&&p.validated_at&&p.uploaded_by_firm_id===jobs.find(j=>j.id===p.job_id)?.accepted_firm_id) {
         const proofs = proofsByJob.get(p.job_id) ?? [];
         proofs.push({ id:p.id, type:p.proof_type, url:`/api/uploads/${p.id}`, createdAt:p.created_at });
         proofsByJob.set(p.job_id, proofs);
@@ -120,7 +120,7 @@ export async function GET(req: NextRequest) {
 
   const jobsWithPhotos = jobs.map((j) => {
     const canSeePrivate = user.role === "client" || j.accepted_firm_id === firmId;
-    if (canSeePrivate) {const payment=paymentsByJob.get(j.id)??null;return { ...j, ...(user.role==="client"?{authorizationStatus:authorizationByJob.get(j.id)??null}:{}), photos: photosByJob.get(j.id) ?? [], scan: scanByJob.get(j.id) ?? [], proofs: proofsByJob.get(j.id) ?? [], ownReview:user.role==="client"?ownReviewsByJob.get(j.id)??null:undefined, financial:payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null,...(user.role==="firma"?{firm_payout:payment?.firmPayout??calcNetForFirm(j.price_gross)}:{}) };}
+    if (canSeePrivate) {const payment=paymentsByJob.get(j.id)??null;return { ...j, photoRules:jobPhotoRules(db,j.id), ...(user.role==="client"?{authorizationStatus:authorizationByJob.get(j.id)??null}:{}), photos: photosByJob.get(j.id) ?? [], scan: scanByJob.get(j.id) ?? [], proofs: proofsByJob.get(j.id) ?? [], ownReview:user.role==="client"?ownReviewsByJob.get(j.id)??null:undefined, financial:payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null,...(user.role==="firma"?{firm_payout:payment?.firmPayout??calcNetForFirm(j.price_gross)}:{}) };}
     return {
       id: j.id,
       city: j.city,

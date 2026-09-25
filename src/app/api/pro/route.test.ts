@@ -483,3 +483,33 @@ it("does not expose property checklist configuration to a viewer or foreign clie
   state.db.prepare("DELETE FROM pro_members WHERE id='viewer'").run();
   expect((await read(`properties/${prop}`)).status).toBe(404);
 });
+
+it("allows assigned partners to upload before photos before starting and keeps other categories gated", async () => {
+  const fs = await import("node:fs");
+  const os = await import("node:os");
+  const path = await import("node:path");
+  const sharp = (await import("sharp")).default;
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "nitido-photo-route-"));
+  const cwd = vi.spyOn(process, "cwd").mockReturnValue(temp);
+  try {
+    state.db.exec("INSERT INTO users VALUES('provider','Provider','provider@example.test','firma')");
+    state.db.prepare("INSERT INTO pro_partners VALUES('photo-firm','Firmă test','TEST','active',?,?,'TEST')").run(JSON.stringify(["Constanța"]), JSON.stringify(["cleaning_recurring"]));
+    state.db.exec("INSERT INTO pro_partner_members VALUES('photo-firm','provider',1)");
+    const created = await post("work-orders", { property_id: prop, title: "Foto", service: "cleaning_recurring", starts_at: new Date(Date.now()+3600000).toISOString(), ends_at: new Date(Date.now()+7200000).toISOString(), estimate: 0 });
+    const { id } = await created.json();
+    state.db.prepare("UPDATE pro_work_orders SET status='accepted',partner_id='photo-firm' WHERE id=?").run(id);
+    state.user = { id: "provider" };
+    const upload = async (category: string, color: string) => {
+      const bytes = await sharp({create:{width:4,height:4,channels:3,background:color}}).png().toBuffer();
+      const form = new FormData(); form.set("file", new File([new Uint8Array(bytes)], "proof.png", {type:"image/png"})); form.set("work_order_id", id); form.set("category",category);
+      return POST(new NextRequest("http://localhost/api/pro/media", {method:"POST",headers:{origin:"http://localhost"},body:form}), {params:Promise.resolve({path:["media"]})});
+    };
+    expect((await upload("after", "red")).status).toBe(403);
+    expect((await upload("before", "green")).status).toBe(201);
+    expect(state.db.prepare("SELECT category FROM pro_media WHERE work_order_id=?").all(id)).toEqual([{category:"before"}]);
+    state.db.prepare("UPDATE pro_work_orders SET status='rework_requested' WHERE id=?").run(id);
+    expect((await upload("before", "blue")).status).toBe(201);
+    state.db.prepare("UPDATE pro_work_orders SET status='completed' WHERE id=?").run(id);
+    expect((await upload("before", "yellow")).status).toBe(404);
+  } finally { cwd.mockRestore(); fs.rmSync(temp,{recursive:true,force:true}); }
+});

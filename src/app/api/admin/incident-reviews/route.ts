@@ -6,7 +6,7 @@ import {WorkspaceError} from '@/lib/workspace';
 import {incidentReviews,reviewIncident} from '@/lib/incidentReview';
 const response=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:{'Cache-Control':'private, no-store'}});
 export async function GET(req:NextRequest){
- if(!await getAdminActorId())return response({error:'Neautorizat'},401);
+ if(!await getAdminActorId('incidents'))return response({error:'Neautorizat'},401);
  try{
  const offset=Number(req.nextUrl.searchParams.get('offset')??0);
  if(!Number.isSafeInteger(offset)||offset<0)throw new WorkspaceError('Pagină invalidă.');
@@ -15,7 +15,7 @@ export async function GET(req:NextRequest){
  }catch(e){return response({error:e instanceof WorkspaceError?e.message:'Dosarele nu pot fi încărcate.'},e instanceof WorkspaceError?e.status:500);}
 }
 export async function POST(req:NextRequest){
- const actor=await getAdminActorId();if(!actor)return response({error:'Neautorizat'},401);
+ const actor=await getAdminActorId('operations');if(!actor)return response({error:'Neautorizat'},401);
  if(!hasTrustedMutationOrigin(req))return response({error:'Origine invalidă'},403);
  try{
  const raw=await req.text();if(Buffer.byteLength(raw)>12000)return response({error:'Cerere prea mare'},413);

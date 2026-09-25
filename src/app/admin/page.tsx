@@ -1,5 +1,8 @@
 "use client";
 
+import {AdminRoleWorkspace} from '@/components/AdminRoleWorkspace';
+import {AdminStaff} from '@/components/AdminStaff';
+import type {AdminIdentity} from '@/lib/adminRolesShared';
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import {AdminMarginPolicy} from "@/components/AdminMarginPolicy";
@@ -103,9 +106,14 @@ export default function AdminPage() {
   const [adminFactor,setAdminFactor]=useState<'totp'|'recovery'>('totp');
   const [adminLoginBusy,setAdminLoginBusy]=useState(false);
   const adminLoginRunning=useRef(false);
+  const [identity,setIdentity]=useState<AdminIdentity|null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
+    const me=await fetch('/api/admin/auth/me',{cache:'no-store'});
+    if(!me.ok){setAuthenticated(false);setIdentity(null);return;}
+    const session=await me.json();setIdentity(session.identity);setAuthenticated(true);
+    if(session.identity.role!=='super_admin')return;
     const res = await fetch("/api/admin/overview");
     if (res.status === 401) {
       setAuthenticated(false);
@@ -259,6 +267,7 @@ export default function AdminPage() {
     );
   }
 
+  if(identity&&identity.role!=='super_admin')return <AdminRoleWorkspace identity={identity}/>;
   return (
     <div className="board-page board-admin"><BoardSidebar role="admin"/>
       <header className="glass sticky top-0 z-20">
@@ -282,6 +291,7 @@ export default function AdminPage() {
       <main className="max-w-5xl mx-auto px-6 py-10 space-y-10">
 <header className="mb-8"><p className="v2-eyebrow">NITIDO CONTROL</p><h1 className="workspace-title">Centrul de operațiuni</h1><p className="text-muted">Lucrări, firme și excepții care necesită intervenție.</p></header><div className="workspace-metrics"><Card><p className="text-sm text-muted">Lucrări în așteptare</p><b className="text-3xl">{jobs.filter(j=>j.status==="waiting").length}</b></Card><Card><p className="text-sm text-muted">Plăți de verificat</p><b className="text-3xl">{payments.filter(p=>["failed","pending"].includes(p.status)).length}</b></Card><Card><p className="text-sm text-muted">Notificări nereușite</p><b className="text-3xl">{notifications.filter(n=>n.status==="failed").length}</b></Card></div>
 
+        <AdminStaff/>
         <AdminOperations jobs={jobs} payments={payments}/>
         {resetMessage && (
           <div className="bg-aqua/10 border border-aqua text-aqua-deep text-xs rounded-lg px-4 py-2.5 -mt-4">

@@ -1,12 +1,13 @@
 import type {Database} from 'better-sqlite3';
 import {CHECKLIST} from './workspaceShared';
-import {EXECUTION_SCOPES,type ExecutionItem,type ExecutionTemplate} from './executionTemplatesShared';
+import {EXECUTION_SCOPES,type PhotoRules,type ExecutionItem,type ExecutionTemplate} from './executionTemplatesShared';
 export class ExecutionTemplateError extends Error{constructor(message:string,public status=400){super(message)}}
 function validScope(scope:unknown):string{if(typeof scope!=='string'||!EXECUTION_SCOPES.some(s=>s[0]===scope))throw new ExecutionTemplateError('Serviciu invalid.');return scope;}
 export function executionTemplate(db:Database,scope:string):ExecutionTemplate{
  validScope(scope);
  const row=db.prepare('SELECT revision,items_json,reason,actor_id,created_at FROM execution_templates WHERE scope=? ORDER BY revision DESC LIMIT 1').get(scope) as {revision:number;items_json:string;reason:string;actor_id:string;created_at:string}|undefined;
- return row?{scope,revision:row.revision,items:JSON.parse(row.items_json),reason:row.reason,actor:row.actor_id,createdAt:row.created_at}:{scope,revision:0,items:CHECKLIST.map(i=>({...i})),reason:null,actor:null,createdAt:null};
+ const photoRules=row?(db.prepare('SELECT arrival_min AS arrivalMin,completion_min AS completionMin FROM execution_photo_templates WHERE scope=? AND revision=?').get(scope,row.revision) as PhotoRules|undefined):undefined;
+ return row?{photoRules:photoRules??{arrivalMin:1,completionMin:1},scope,revision:row.revision,items:JSON.parse(row.items_json),reason:row.reason,actor:row.actor_id,createdAt:row.created_at}:{photoRules:{arrivalMin:1,completionMin:1},scope,revision:0,items:CHECKLIST.map(i=>({...i})),reason:null,actor:null,createdAt:null};
 }
 export function executionTemplates(db:Database){return EXECUTION_SCOPES.map(([scope])=>executionTemplate(db,scope));}
 export function saveExecutionTemplate(db:Database,b:Record<string,unknown>,actor:string){
@@ -20,10 +21,14 @@ export function saveExecutionTemplate(db:Database,b:Record<string,unknown>,actor
   if(!item||typeof item!=='object'||typeof item.key!=='string'||!/^[-a-z0-9_]{1,40}$/.test(item.key)||keys.has(item.key)||typeof item.label!=='string'||!item.label.trim()||item.label.length>300)throw new ExecutionTemplateError('Fiecare sarcină are nevoie de un cod unic și o descriere de maximum 300 de caractere.');
   keys.add(item.key);return {key:item.key,label:item.label.trim()};
  });
+ const photos=b.photoRules===undefined?current.photoRules:b.photoRules as PhotoRules;
+ if(!photos||!Number.isInteger(photos.arrivalMin)||!Number.isInteger(photos.completionMin)||photos.arrivalMin<1||photos.arrivalMin>20||photos.completionMin<1||photos.completionMin>20)throw new ExecutionTemplateError('Cerințele foto trebuie să fie numere întregi între 1 și 20.');
  const revision=current.revision+1;
  db.prepare('INSERT INTO execution_templates VALUES(?,?,?,?,?,?)').run(scope,revision,JSON.stringify(items),b.reason.trim(),actor,new Date().toISOString());
+ db.prepare('INSERT INTO execution_photo_templates VALUES(?,?,?,?)').run(scope,revision,photos.arrivalMin,photos.completionMin);
  return {scope,revision};
 }
+export function jobPhotoRules(db:Database,jobId:string):PhotoRules{return db.prepare('SELECT arrival_min AS arrivalMin,completion_min AS completionMin FROM job_photo_rules WHERE job_id=?').get(jobId) as PhotoRules|undefined??{arrivalMin:1,completionMin:1};}
 // Missing snapshots are historical jobs: never resolve them against today's template.
 export function jobExecutionRules(db:Database,jobId:string):{scope:string;revision:number;items:ExecutionItem[]}{
  const row=db.prepare('SELECT scope,revision,items_json FROM job_execution_rules WHERE job_id=?').get(jobId) as {scope:string;revision:number;items_json:string}|undefined;
@@ -35,4 +40,6 @@ export function freezeExecutionRules(db:Database,jobId:string,scope:string,paren
  if(db.prepare('SELECT 1 FROM job_execution_rules WHERE job_id=?').get(jobId))return;
  const rules=parentJobId?jobExecutionRules(db,parentJobId):executionTemplate(db,scope);
  db.prepare('INSERT INTO job_execution_rules VALUES(?,?,?,?,?)').run(jobId,rules.scope,rules.revision,JSON.stringify(rules.items),new Date().toISOString());
+ const photos=parentJobId?jobPhotoRules(db,parentJobId):executionTemplate(db,scope).photoRules;
+ db.prepare('INSERT INTO job_photo_rules VALUES(?,?,?)').run(jobId,photos.arrivalMin,photos.completionMin);
 }
