@@ -690,7 +690,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
         const cost = db
           .prepare("SELECT * FROM pro_cost_entries WHERE id=?")
           .get(id) as
-          { organization_id: string; property_id: string } | undefined;
+          { organization_id: string; property_id: string | null } | undefined;
         if (!cost) pro.fail("Cost inexistent.", 404);
         pro.requireRole(
           db,

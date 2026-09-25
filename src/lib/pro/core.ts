@@ -120,15 +120,16 @@ export function allowed(
   p: Principal,
   org: string,
   roles: Role[],
-  property?: string,
+  property?: string | null,
 ) {
+  // undefined checks role membership; null requires organization-wide scope.
   return memberships(db, p, org).some(
     (m) =>
       roles.includes(m.role) &&
-      (!property ||
+      (property === undefined ||
         m.role === "owner" ||
         JSON.parse(m.scope_json).length === 0 ||
-        JSON.parse(m.scope_json).includes(property)),
+        (property !== null && JSON.parse(m.scope_json).includes(property))),
   );
 }
 export function requireRole(
@@ -136,7 +137,7 @@ export function requireRole(
   p: Principal,
   org: string,
   roles: Role[],
-  property?: string,
+  property?: string | null,
 ) {
   if (p.admin && roles.includes("operator")) return;
   if (!allowed(db, p, org, roles, property)) fail("Acces interzis.", 404);
@@ -626,8 +627,12 @@ export function workCommand(
       +end - +start > 12 * 3600000
     )
       fail("Interval remediere invalid.");
+    if (db.prepare(
+      "SELECT 1 FROM pro_work_orders WHERE property_id=? AND id<>? AND status NOT IN ('completed','cancelled') AND starts_at<? AND ends_at>?",
+    ).get(w.property_id, id, end.toISOString(), start.toISOString()))
+      fail("Există deja o lucrare în acest interval.", 409);
     db.prepare(
-      "UPDATE pro_work_orders SET review_note=?,starts_at=?,ends_at=?,answers_json=? WHERE id=?",
+      "UPDATE pro_work_orders SET review_note=?,starts_at=?,ends_at=?,answers_json=?,final_cost=NULL WHERE id=?",
     ).run(note, start.toISOString(), end.toISOString(), "{}", id);
     move("rework_requested");
   } else if (action === "cancel") {
@@ -638,10 +643,20 @@ export function workCommand(
     db.prepare(
       "UPDATE pro_offers SET status='withdrawn' WHERE work_order_id=? AND status='offered'",
     ).run(id);
+    db.prepare(
+      "UPDATE pro_approvals SET decision='superseded' WHERE work_order_id=? AND decision='pending'",
+    ).run(id);
     move("cancelled");
   } else fail("Acțiune necunoscută.", 404);
   audit(db, p, w.organization_id, id, `work.${action}`, {
     from: w.status,
+    ...(action === "rework" ? {
+      previous_starts_at: w.starts_at, previous_ends_at: w.ends_at,
+      starts_at: new Date(String(b.starts_at)).toISOString(),
+      ends_at: new Date(String(b.ends_at)).toISOString(),
+      previous_final_cost: w.final_cost,
+      previous_answers: JSON.parse(w.answers_json),
+    } : {}),
     note: typeof b.note === "string" ? b.note.slice(0, 2000) : "",
   });
   notify(
@@ -953,10 +968,7 @@ export function collection(
       prop,
     );
   const roleScope = (propertyId: string | null, roles: Role[]) =>
-    Boolean(p.admin) || memberships(db, p, orgId).some(member =>
-      roles.includes(member.role) && (member.role === "owner" ||
-        JSON.parse(member.scope_json).length === 0 ||
-        (propertyId !== null && JSON.parse(member.scope_json).includes(propertyId))));
+    Boolean(p.admin) || allowed(db, p, orgId, roles, propertyId);
   if (kind === "properties")
     return (
       db
