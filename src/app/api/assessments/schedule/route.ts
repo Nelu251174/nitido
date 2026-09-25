@@ -1,3 +1,4 @@
+import {latestAssistedOperation} from '@/lib/assistedOperations';
 import {NextRequest,NextResponse} from 'next/server';
 import {db} from '@/lib/db';
 import {getCurrentUser} from '@/lib/auth';
@@ -26,6 +27,7 @@ export async function POST(req:NextRequest){
   const raw=await req.text();if(Buffer.byteLength(raw)>5000)return response({error:'Cerere prea mare'},413);
   const input=JSON.parse(raw);if(!input||typeof input!=='object'||Array.isArray(input))return response({error:'Cerere invalidă'},400);
   const schedule=db.transaction(()=>{
+   if(latestAssistedOperation(db,input.id))throw new MarginError('Folosește propunerea operațională pentru schimbarea intervalului.',409);
    const owner=scheduleOwner(db,input.id,null),source=compatibleManualOffer(db,owner,input.id);
    if(source.jobId)throw new MarginError('Rezervarea există deja. Folosește fluxul de reprogramare a lucrării.',409);
    const result=saveOfferSchedule(db,input.id,input,actor);

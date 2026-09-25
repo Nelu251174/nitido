@@ -1,3 +1,4 @@
+import {jobAssistedOperation} from '@/lib/assistedOperations';
 import {prepareManualOfferBooking,linkManualOfferJob} from '@/lib/manualOfferBooking';
 import {MarginError} from '@/lib/operationalMargin';
 import {managedBookingEnabled,bookingPriceContext,acceptedBookingQuote,linkBookingQuote,type BookingPriceSnapshot} from "@/lib/bookingQuotes";
@@ -69,7 +70,7 @@ export async function GET(req: NextRequest) {
     jobs = jobs.filter(
       (j) =>
         j.accepted_firm_id === firm.id ||
-        (Boolean(firm.verified) && j.status === "waiting" && firmCoversCity(firm.coverage_city, firm.coverage_cities_extra, j.city))
+        (Boolean(firm.verified) && (!jobAssistedOperation(db,j.id)||jobAssistedOperation(db,j.id)!.firmId===firm.id) && j.status === "waiting" && firmCoversCity(firm.coverage_city, firm.coverage_cities_extra, j.city))
     );
     // Express 60 = prioritate maximă: lucrările premium urcă în capul feed-ului
     // (restul rămâne pe ordinea existentă, cele mai noi primele).
@@ -130,6 +131,7 @@ export async function GET(req: NextRequest) {
       price_gross: j.price_gross,
       firm_payout: calcNetForFirm(j.price_gross),
       duration_minutes: j.duration_minutes,
+      assisted_team:jobAssistedOperation(db,j.id)?.teamName??null,
       status: j.status,
       created_at: j.created_at,
       // Express 60: firma vede că e tier premium cu preluare garantată + countdown.
@@ -163,7 +165,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(()=>null);
   if(!body||typeof body!=="object")return NextResponse.json({error:"Cerere invalidă"},{status:400});
   const manual=body.manualOfferId!=null;
-  if(manual){try{const offer=prepareManualOfferBooking(db,user.id,body);if(offer.jobId){const job=db.prepare("SELECT * FROM jobs WHERE id=? AND client_id=?").get(offer.jobId,user.id);if(!job)throw new MarginError("Rezervarea nu poate fi verificată.",409);return NextResponse.json({job,replayed:true});}body.details=offer.terms.scope;}catch(e){if(e instanceof MarginError)return NextResponse.json({error:e.message},{status:e.status});throw e;}}
+  let assisted=false;
+  if(manual){try{const offer=prepareManualOfferBooking(db,user.id,body);if(offer.jobId){const job=db.prepare("SELECT * FROM jobs WHERE id=? AND client_id=?").get(offer.jobId,user.id);if(!job)throw new MarginError("Rezervarea nu poate fi verificată.",409);return NextResponse.json({job,replayed:true});}body.details=offer.terms.scope;assisted=Boolean(offer.operation);}catch(e){if(e instanceof MarginError)return NextResponse.json({error:e.message},{status:e.status});throw e;}}
   if(body.propertyId){try{ownProperty(db,user.id,String(body.propertyId))}catch(e){return NextResponse.json({error:e instanceof WorkspaceError?e.message:"Proprietate invalidă"},{status:404})}}
 
   if(body.hostEventId){const existing=turnoverReplay(db,user.id,String(body.hostEventId));if(existing)return NextResponse.json({job:existing,replayed:true});}
@@ -232,11 +235,11 @@ export async function POST(req: NextRequest) {
   if (whenType !== "asap" && whenType !== "scheduled") {
     return NextResponse.json({ error: "Tipul programării nu este valid" }, { status: 400 });
   }
-  if (details !== undefined && (typeof details !== "string" || details.length > 500)) {
+  if (details !== undefined && (typeof details !== "string" || details.length > (assisted?4000:500))) {
     return NextResponse.json({ error: "Detaliile pot avea maximum 500 de caractere" }, { status: 400 });
   }
 
-  if(sqm>AUTOMATIC_MAX_SQM)return NextResponse.json({error:"Suprafața necesită evaluare asistată înainte de rezervare.",assessmentRequired:true,assessmentUrl:"/client/evaluari"},{status:422});
+  if(!assisted&&sqm>AUTOMATIC_MAX_SQM)return NextResponse.json({error:"Suprafața necesită evaluare asistată înainte de rezervare.",assessmentRequired:true,assessmentUrl:"/client/evaluari"},{status:422});
 
   if(!manual&&managedBookingEnabled()&&body.quoteId){
     try{
@@ -295,10 +298,11 @@ export async function POST(req: NextRequest) {
   if(!validWindowsSqm(windowsSqm))return NextResponse.json({error:"Suprafața geamurilor trebuie să fie între 0 și 200 m², fără zecimale"},{status:400});
   const managedPricing=!manual&&managedBookingEnabled();
   if(!managedPricing&&body.quoteId)return NextResponse.json({error:"Configurarea tarifelor s-a schimbat. Solicită o ofertă nouă."},{status:409});
-  let priceGross = calcServicePrice(spaceType, sqm,windowsSqm) + express60Fee;
+  let priceGross = manual?0:calcServicePrice(spaceType, sqm,windowsSqm) + express60Fee;
   if(!manual&&!managedPricing&&((body.pricingVersion!==undefined&&body.pricingVersion!==PRICING_VERSION)||(body.expectedPriceGross!==undefined&&body.expectedPriceGross!==priceGross)))return NextResponse.json({error:"Tariful s-a actualizat. Reîncarcă pagina și verifică noul preț înainte de publicare."},{status:409});
   if(!Number.isSafeInteger(priceGross*100))return NextResponse.json({error:"Suprafața depășește limita de calcul"},{status:400});
-  const durationMinutes = calcServiceDuration(sqm,windowsSqm);
+  let durationMinutes = assisted?0:calcServiceDuration(sqm,windowsSqm);
+  let bufferMinutes=BUFFER_MINUTES;
 
   // Aplicare automată a creditului disponibil (program de recomandare — vezi
   // src/lib/referral.ts). Firma tot primește pe baza prețului INTEGRAL — vezi
@@ -321,7 +325,7 @@ export async function POST(req: NextRequest) {
     }
     let acceptedPrice:BookingPriceSnapshot|null=null;
     let manualSnapshot:unknown=null;
-    if(manual){const accepted=prepareManualOfferBooking(db,user.id,body);if(accepted.jobId){const job=db.prepare("SELECT * FROM jobs WHERE id=? AND client_id=?").get(accepted.jobId,user.id) as JobRow|undefined;if(!job)throw new MarginError("Rezervarea nu poate fi verificată.",409);return {job,replayed:true};}priceGross=accepted.terms.totalBani/100;creditUsed=0;manualSnapshot={version:`manual:${accepted.row.id}:${accepted.row.estimate_revision}`,offerId:accepted.row.id,currency:'RON',recordedAt:new Date().toISOString(),grossBani:accepted.terms.grossBani,creditBani:0,clientTotalBani:accepted.terms.totalBani,terms:accepted.terms,schedule:accepted.schedule};}
+    if(manual){const accepted=prepareManualOfferBooking(db,user.id,body);if(accepted.jobId){const job=db.prepare("SELECT * FROM jobs WHERE id=? AND client_id=?").get(accepted.jobId,user.id) as JobRow|undefined;if(!job)throw new MarginError("Rezervarea nu poate fi verificată.",409);return {job,replayed:true};}priceGross=accepted.terms.totalBani/100;creditUsed=0;if(accepted.operation){durationMinutes=accepted.operation.durationMinutes;bufferMinutes=accepted.operation.bufferMinutes;}manualSnapshot={version:`manual:${accepted.row.id}:${accepted.row.estimate_revision}`,offerId:accepted.row.id,currency:'RON',recordedAt:new Date().toISOString(),grossBani:accepted.terms.grossBani,creditBani:0,clientTotalBani:accepted.terms.totalBani,terms:accepted.terms,schedule:accepted.schedule,operation:accepted.operation};}
 
     if(managedPricing){
       const accepted=acceptedBookingQuote(db,user.id,body.quoteId,bookingPriceContext(body));
@@ -345,11 +349,11 @@ export async function POST(req: NextRequest) {
          scheduled_at, price_gross, credit_applied, duration_minutes, buffer_minutes, photos_count, mode,
          express_60, express_60_fee, express_60_deadline, express_60_status, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting')`
-    ).run(id,user.id,street,postalCode ?? null,city,floor ?? null,typeof details === "string" ? details.trim() || null : null,requestId,sqm,spaceType,whenType,scheduledAt.toISOString(),priceGross,creditUsed,durationMinutes,BUFFER_MINUTES,ownedPhotoIds.length,jobMode,isExpress60?1:0,express60Fee,isExpress60?express60Deadline(new Date().toISOString()).toISOString():null,isExpress60?"pending":null);
+    ).run(id,user.id,street,postalCode ?? null,city,floor ?? null,typeof details === "string" ? details.trim() || null : null,requestId,sqm,spaceType,whenType,scheduledAt.toISOString(),priceGross,creditUsed,durationMinutes,bufferMinutes,ownedPhotoIds.length,jobMode,isExpress60?1:0,express60Fee,isExpress60?express60Deadline(new Date().toISOString()).toISOString():null,isExpress60?"pending":null);
     if(body.entrance)db.prepare("INSERT INTO job_navigation(job_id,latitude,longitude,confirmed_at) VALUES(?,?,?,?)").run(id,body.entrance.lat,body.entrance.lng,new Date().toISOString());
     if (card.stripeConfigured) saveJobCard(db,user.id,id,body.cardId);
     db.prepare("UPDATE jobs SET pricing_snapshot=?, windows_sqm=? WHERE id=?").run(JSON.stringify(manualSnapshot??acceptedPrice??pricingSnapshot({spaceType,sqm,windowsSqm,expressFeeLei:express60Fee,creditLei:creditUsed})),windowsSqm,id);
-    if(manual)linkManualOfferJob(db,user.id,body.manualOfferId,id);
+    if(manual){linkManualOfferJob(db,user.id,body.manualOfferId,id);if(assisted)db.prepare('INSERT INTO assisted_job_plans VALUES(?,?,?)').run(id,body.manualOfferId,body.assistedRevision);}
     if(acceptedPrice)linkBookingQuote(db,user.id,acceptedPrice.quoteId,id);
     if (ownedPhotoIds.length > 0) {
       const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL AND NOT EXISTS(SELECT 1 FROM assessment_photos a WHERE a.photo_id=job_photos.id)");
@@ -367,7 +371,7 @@ export async function POST(req: NextRequest) {
   const job = created.job;
 
   try {
-    const notificationIds=queueNewJobFirmPushes(db,{id:job.id,city,spaceType,sqm});
+    const notificationIds=queueNewJobFirmPushes(db,{id:job.id,city,spaceType,sqm,targetFirmId:jobAssistedOperation(db,job.id)?.firmId});
     if(notificationIds.length)after(()=>processPushOutbox(db,notificationIds));
   } catch {
     console.error("[push-outbox] enqueue_failed JOB_CREATED_FIRM_PUSH");
