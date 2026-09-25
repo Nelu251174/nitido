@@ -1,3 +1,4 @@
+import {MARGIN_POLICY_SCHEMA,saveMarginPolicy} from '@/lib/marginPolicy';
 import {afterEach,beforeEach,describe,it,expect,vi} from 'vitest';
 import Database from 'better-sqlite3';
 import {MANUAL_ESTIMATE_SCHEMA,saveManualEstimate} from './manualEstimates';
@@ -5,12 +6,12 @@ import {COST_CODES,emptyManualEstimate} from './operationalMargin';
 import {MANUAL_OFFERS_SCHEMA,listManualOffers,publishManualOffer,withdrawManualOffer,decideManualOffer,manualOffersEnabled} from './manualOffers';
 let db:Database.Database;
 const now=new Date('2026-09-24T12:00:00.000Z');
-const input=()=>({id:'a',revision:1,scope:'Curățenie generală, fără geamuri.',expiresAt:'2026-09-25T12:00:00Z',reason:'Aprobare internă test'});
+const input=()=>({id:'a',revision:1,policyRevision:1,scope:'Curățenie generală, fără geamuri.',expiresAt:'2026-09-25T12:00:00Z',reason:'Aprobare internă test'});
 function estimate(){const d=emptyManualEstimate();d.lines=[{label:'Curățenie',amountBani:50000}];d.reason='SECRET INTERNAL';d.provider={amountBani:30000,state:'confirmed',source:'SECRET PROVIDER',recordedAt:now.toISOString()};for(const c of COST_CODES)d.costs[c]={...d.costs[c],amountBani:0,state:'confirmed',source:'SECRET COST',recordedAt:now.toISOString()};return d;}
 function save(revision=0){return saveManualEstimate(db,{id:'a',revision,assessmentVersion:1,definition:estimate()},'admin',now);}
 const publish=()=>publishManualOffer(db,input(),'admin',now);
 const accept=(id:string,date=now)=>decideManualOffer(db,'client',{id,action:'accept',confirmed:true,totalBani:50000},date);
-beforeEach(()=>{db=new Database(':memory:');db.pragma('foreign_keys=ON');db.exec(`CREATE TABLE service_assessments(id TEXT PRIMARY KEY,client_id TEXT,status TEXT,version INTEGER,payload TEXT);INSERT INTO service_assessments VALUES('a','client','submitted',1,'{"category":"general"}');`+MANUAL_ESTIMATE_SCHEMA+MANUAL_OFFERS_SCHEMA);save();});
+beforeEach(()=>{db=new Database(':memory:');db.pragma('foreign_keys=ON');db.exec(`CREATE TABLE service_assessments(id TEXT PRIMARY KEY,client_id TEXT,status TEXT,version INTEGER,payload TEXT);INSERT INTO service_assessments VALUES('a','client','submitted',1,'{"category":"general"}');`+MANUAL_ESTIMATE_SCHEMA+MANUAL_OFFERS_SCHEMA+MARGIN_POLICY_SCHEMA);saveMarginPolicy(db,{revision:0,minBani:0,minBasisPoints:null,reason:'Test policy'},'admin');save();});
 afterEach(()=>{db.close();vi.unstubAllEnvs();});
 describe('manual offer lifecycle',()=>{
  it('exposes only frozen client terms without cost or margin details',()=>{const o=publish();expect(o.terms.totalBani).toBe(50000);const json=JSON.stringify(listManualOffers(db,'a','client',now));expect(json).not.toMatch(/SECRET|provider|margin|actor|reason/);expect(listManualOffers(db,'a','intruder',now)).toEqual([]);});

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import {AdminMarginPolicy} from "@/components/AdminMarginPolicy";
 import {AdminPricing} from "@/components/AdminPricing";
 import {AdminServiceCatalog} from "@/components/AdminServiceCatalog";
 import {AdminAssessments} from "@/components/AdminAssessments";
@@ -329,6 +330,7 @@ export default function AdminPage() {
         <section id="catalog">
           <AdminServiceCatalog/>
           <AdminPricing/>
+          <AdminMarginPolicy/>
           <h2 className="font-display font-bold text-ink mb-3">ESTIMATOR LIVE — tipuri afișate clientului</h2>
           <Card>
             <p className="text-xs text-muted mb-3">Controlezi ce vede clientul în calculatorul de preț de pe prima pagină: schimbi eticheta unui tip sau îl ascunzi/afișezi. Prețul rămâne calculat din tariful oficial.</p>

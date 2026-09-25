@@ -1,3 +1,5 @@
+import {currentMarginPolicy,evaluateMarginPolicy} from '@/lib/marginPolicy';
+import {listManualEstimates} from '@/lib/manualEstimates';
 import {NextRequest,NextResponse} from 'next/server';
 import {getAdminActorId,auditAdminAction} from '@/lib/adminAuth';
 import {db} from '@/lib/db';
@@ -8,7 +10,8 @@ const response=(data:unknown,status=200)=>NextResponse.json(data,{status,headers
 export async function GET(req:NextRequest){
  if(!await getAdminActorId())return response({error:'Neautorizat'},401);
  const id=req.nextUrl.searchParams.get('id');if(!id||id.length>100)return response({error:'Referință invalidă'},400);
- return response({offers:listManualOffers(db,id,null),enabled:manualOffersEnabled()});
+ const policy=currentMarginPolicy(db),estimate=listManualEstimates(db,id)[0];
+ return response({offers:listManualOffers(db,id,null),enabled:manualOffersEnabled(),marginReview:{policy,estimateRevision:estimate?.revision??null,result:estimate?evaluateMarginPolicy(estimate.definition,policy):null}});
 }
 export async function POST(req:NextRequest){
  const actor=await getAdminActorId();if(!actor)return response({error:'Neautorizat'},401);
