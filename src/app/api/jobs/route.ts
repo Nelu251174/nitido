@@ -1,3 +1,5 @@
+import {prepareManualOfferBooking,linkManualOfferJob} from '@/lib/manualOfferBooking';
+import {MarginError} from '@/lib/operationalMargin';
 import {managedBookingEnabled,bookingPriceContext,acceptedBookingQuote,linkBookingQuote,type BookingPriceSnapshot} from "@/lib/bookingQuotes";
 import {ManagedPricingError} from "@/lib/managedPricing";
 import {validEntrance} from "@/lib/entrance";
@@ -160,6 +162,8 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(()=>null);
   if(!body||typeof body!=="object")return NextResponse.json({error:"Cerere invalidă"},{status:400});
+  const manual=body.manualOfferId!=null;
+  if(manual){try{const offer=prepareManualOfferBooking(db,user.id,body);if(offer.jobId){const job=db.prepare("SELECT * FROM jobs WHERE id=? AND client_id=?").get(offer.jobId,user.id);if(!job)throw new MarginError("Rezervarea nu poate fi verificată.",409);return NextResponse.json({job,replayed:true});}body.details=offer.terms.scope;}catch(e){if(e instanceof MarginError)return NextResponse.json({error:e.message},{status:e.status});throw e;}}
   if(body.propertyId){try{ownProperty(db,user.id,String(body.propertyId))}catch(e){return NextResponse.json({error:e instanceof WorkspaceError?e.message:"Proprietate invalidă"},{status:404})}}
 
   if(body.hostEventId){const existing=turnoverReplay(db,user.id,String(body.hostEventId));if(existing)return NextResponse.json({job:existing,replayed:true});}
@@ -203,11 +207,11 @@ export async function POST(req: NextRequest) {
   }
 
   const validSpaceTypes: readonly SpaceType[] = ["apartament", "casa", "birou", "altul"];
-  const requestId = req.headers.get("Idempotency-Key")?.trim() || null;
+  const requestId = manual ? `manual:${body.manualOfferId}` : req.headers.get("Idempotency-Key")?.trim() || null;
   if (requestId && requestId.length > 100) {
     return NextResponse.json({ error: "Identificatorul cererii este invalid" }, { status: 400 });
   }
-  if (requestId) {
+  if (requestId && !manual) {
     const existing = db.prepare("SELECT * FROM jobs WHERE client_id = ? AND client_request_id = ?").get(user.id, requestId) as JobRow | undefined;
     if (existing) return NextResponse.json({ job: existing, replayed: true });
   }
@@ -234,7 +238,7 @@ export async function POST(req: NextRequest) {
 
   if(sqm>AUTOMATIC_MAX_SQM)return NextResponse.json({error:"Suprafața necesită evaluare asistată înainte de rezervare.",assessmentRequired:true,assessmentUrl:"/client/evaluari"},{status:422});
 
-  if(managedBookingEnabled()&&body.quoteId){
+  if(!manual&&managedBookingEnabled()&&body.quoteId){
     try{
       const quote=acceptedBookingQuote(db,user.id,body.quoteId,bookingPriceContext(body));
       if(quote.jobId){const existing=db.prepare("SELECT * FROM jobs WHERE id=? AND client_id=?").get(quote.jobId,user.id) as JobRow|undefined;if(existing)return NextResponse.json({job:existing,replayed:true});}
@@ -289,10 +293,10 @@ export async function POST(req: NextRequest) {
   const express60Fee = isExpress60 ? EXPRESS_60_FEE_LEI : 0;
   const windowsSqm=body.windowsSqm??0;
   if(!validWindowsSqm(windowsSqm))return NextResponse.json({error:"Suprafața geamurilor trebuie să fie între 0 și 200 m², fără zecimale"},{status:400});
-  const managedPricing=managedBookingEnabled();
+  const managedPricing=!manual&&managedBookingEnabled();
   if(!managedPricing&&body.quoteId)return NextResponse.json({error:"Configurarea tarifelor s-a schimbat. Solicită o ofertă nouă."},{status:409});
   let priceGross = calcServicePrice(spaceType, sqm,windowsSqm) + express60Fee;
-  if(!managedPricing&&((body.pricingVersion!==undefined&&body.pricingVersion!==PRICING_VERSION)||(body.expectedPriceGross!==undefined&&body.expectedPriceGross!==priceGross)))return NextResponse.json({error:"Tariful s-a actualizat. Reîncarcă pagina și verifică noul preț înainte de publicare."},{status:409});
+  if(!manual&&!managedPricing&&((body.pricingVersion!==undefined&&body.pricingVersion!==PRICING_VERSION)||(body.expectedPriceGross!==undefined&&body.expectedPriceGross!==priceGross)))return NextResponse.json({error:"Tariful s-a actualizat. Reîncarcă pagina și verifică noul preț înainte de publicare."},{status:409});
   if(!Number.isSafeInteger(priceGross*100))return NextResponse.json({error:"Suprafața depășește limita de calcul"},{status:400});
   const durationMinutes = calcServiceDuration(sqm,windowsSqm);
 
@@ -311,11 +315,14 @@ export async function POST(req: NextRequest) {
   const id = newId("job");
   let created: { job: JobRow; replayed: boolean };
   try { created = db.transaction((): { job: JobRow; replayed: boolean } => {
-    if (requestId) {
+    if (requestId && !manual) {
       const existing = db.prepare("SELECT * FROM jobs WHERE client_id = ? AND client_request_id = ?").get(user.id, requestId) as JobRow | undefined;
       if (existing) return { job: existing, replayed: true };
     }
     let acceptedPrice:BookingPriceSnapshot|null=null;
+    let manualSnapshot:unknown=null;
+    if(manual){const accepted=prepareManualOfferBooking(db,user.id,body);if(accepted.jobId){const job=db.prepare("SELECT * FROM jobs WHERE id=? AND client_id=?").get(accepted.jobId,user.id) as JobRow|undefined;if(!job)throw new MarginError("Rezervarea nu poate fi verificată.",409);return {job,replayed:true};}priceGross=accepted.terms.totalBani/100;creditUsed=0;manualSnapshot={version:`manual:${accepted.row.id}:${accepted.row.estimate_revision}`,offerId:accepted.row.id,currency:'RON',recordedAt:new Date().toISOString(),grossBani:accepted.terms.grossBani,creditBani:0,clientTotalBani:accepted.terms.totalBani,terms:accepted.terms};}
+
     if(managedPricing){
       const accepted=acceptedBookingQuote(db,user.id,body.quoteId,bookingPriceContext(body));
       if(accepted.jobId){
@@ -341,7 +348,8 @@ export async function POST(req: NextRequest) {
     ).run(id,user.id,street,postalCode ?? null,city,floor ?? null,typeof details === "string" ? details.trim() || null : null,requestId,sqm,spaceType,whenType,scheduledAt.toISOString(),priceGross,creditUsed,durationMinutes,BUFFER_MINUTES,ownedPhotoIds.length,jobMode,isExpress60?1:0,express60Fee,isExpress60?express60Deadline(new Date().toISOString()).toISOString():null,isExpress60?"pending":null);
     if(body.entrance)db.prepare("INSERT INTO job_navigation(job_id,latitude,longitude,confirmed_at) VALUES(?,?,?,?)").run(id,body.entrance.lat,body.entrance.lng,new Date().toISOString());
     if (card.stripeConfigured) saveJobCard(db,user.id,id,body.cardId);
-    db.prepare("UPDATE jobs SET pricing_snapshot=?, windows_sqm=? WHERE id=?").run(JSON.stringify(acceptedPrice??pricingSnapshot({spaceType,sqm,windowsSqm,expressFeeLei:express60Fee,creditLei:creditUsed})),windowsSqm,id);
+    db.prepare("UPDATE jobs SET pricing_snapshot=?, windows_sqm=? WHERE id=?").run(JSON.stringify(manualSnapshot??acceptedPrice??pricingSnapshot({spaceType,sqm,windowsSqm,expressFeeLei:express60Fee,creditLei:creditUsed})),windowsSqm,id);
+    if(manual)linkManualOfferJob(db,user.id,body.manualOfferId,id);
     if(acceptedPrice)linkBookingQuote(db,user.id,acceptedPrice.quoteId,id);
     if (ownedPhotoIds.length > 0) {
       const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL");
@@ -354,7 +362,7 @@ export async function POST(req: NextRequest) {
     if(linked){enforceOrganizationBooking(db,linked.property_id,id);enforcePropertyBudget(db,linked.property_id,id);snapshotInstructions(db,id,linked.property_id,user.id);}
     return { job: db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow, replayed: false };
   }).immediate();
-  } catch(e) { if(e instanceof ManagedPricingError || e instanceof AccessError || e instanceof OrganizationError || e instanceof WorkspaceError || e instanceof CardSetupError)return NextResponse.json({error:e.message},{status:e.status}); throw e; }
+  } catch(e) { if(e instanceof MarginError || e instanceof ManagedPricingError || e instanceof AccessError || e instanceof OrganizationError || e instanceof WorkspaceError || e instanceof CardSetupError)return NextResponse.json({error:e.message},{status:e.status}); throw e; }
   if (created.replayed) return NextResponse.json({ job: created.job, replayed: true });
   const job = created.job;
 
