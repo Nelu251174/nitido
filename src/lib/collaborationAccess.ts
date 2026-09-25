@@ -1,3 +1,4 @@
+import {CHECKLIST} from "./workspaceShared";
 import {requirePropertyModule,acceptOrganizationInvite,propertyOrganization,organizationRole,organizationAudit} from "./organizations";
 import {notice} from "./visitCare";
 import type { Database } from "better-sqlite3";
@@ -28,6 +29,19 @@ CREATE TABLE IF NOT EXISTS workspace_execution_reports (
  job_id TEXT PRIMARY KEY REFERENCES jobs(id), submitted_by TEXT NOT NULL REFERENCES users(id),
  note TEXT NOT NULL DEFAULT '', submitted_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS workspace_execution_evidence (
+ job_id TEXT PRIMARY KEY REFERENCES workspace_execution_reports(job_id), snapshot_json TEXT NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS execution_evidence_no_update BEFORE UPDATE ON workspace_execution_evidence
+ BEGIN SELECT RAISE(ABORT,'Execution evidence is immutable'); END;
+CREATE TRIGGER IF NOT EXISTS execution_evidence_no_delete BEFORE DELETE ON workspace_execution_evidence
+ BEGIN SELECT RAISE(ABORT,'Execution evidence is immutable'); END;
+CREATE TRIGGER IF NOT EXISTS execution_report_no_update BEFORE UPDATE ON workspace_execution_reports
+ WHEN EXISTS(SELECT 1 FROM workspace_execution_evidence WHERE job_id=OLD.job_id)
+ BEGIN SELECT RAISE(ABORT,'Submitted execution report is immutable'); END;
+CREATE TRIGGER IF NOT EXISTS execution_report_no_delete BEFORE DELETE ON workspace_execution_reports
+ WHEN EXISTS(SELECT 1 FROM workspace_execution_evidence WHERE job_id=OLD.job_id)
+ BEGIN SELECT RAISE(ABORT,'Submitted execution report is immutable'); END;
 CREATE TABLE IF NOT EXISTS workspace_approvals (
  id TEXT PRIMARY KEY, property_id TEXT NOT NULL REFERENCES workspace_properties(id),
  requested_by TEXT NOT NULL REFERENCES users(id), request_key TEXT NOT NULL,
@@ -96,18 +110,35 @@ export function executionAccess(db:Database,userId:string,jobId:string){
         AND m.user_id=? AND m.active=1 AND m.role='worker'))`).get(jobId,userId,userId) as {firm_id:string;owner_id:string;status:string}|undefined;
   return row??null;
 }
-export function submitExecutionReport(db:Database,userId:string,jobId:string,note:string){
-  return db.transaction(()=>{
-    const access=executionAccess(db,userId,jobId);
-    if(!access||access.status!=="arrived")throw new AccessError("Lucrarea nu poate fi raportată.",403);
-    const proofs=db.prepare("SELECT DISTINCT proof_type FROM job_photos WHERE job_id=? AND uploaded_by_firm_id=? AND status='VALID' AND validated_at IS NOT NULL AND proof_type IN ('ARRIVAL','COMPLETION')").all(jobId,access.firm_id);
-    const checks=db.prepare("SELECT item_key FROM workspace_checklist WHERE job_id=? AND done=1").all(jobId) as {item_key:string}[];
-    if(proofs.length<2||!["surfaces","kitchen","bathroom","floors","waste","inspection"].every(k=>checks.some(c=>c.item_key===k)))throw new AccessError("Completează toate verificările și fotografiile de început/final înainte să trimiți raportul.",409);
-    if(note.length>2000)throw new AccessError("Nota poate avea maximum 2.000 de caractere.");
-    db.prepare("INSERT INTO workspace_execution_reports VALUES(?,?,?,?) ON CONFLICT(job_id) DO NOTHING").run(jobId,userId,note.trim(),new Date().toISOString());
-    audit(db,userId,"execution.submit",jobId);
-  })();
+export type ExecutionEvidence={version:1;checklist:{key:string;label:string;done:boolean}[];photos:{id:string;proof_type:string;validated_at:string}[]};
+/** Caller must first authorize access to the job. Historical reports have no reconstructed snapshot. */
+export function executionReportRecord(db:Database,jobId:string){
+ const row=db.prepare(`SELECT r.note,r.submitted_at,e.snapshot_json FROM workspace_execution_reports r
+  LEFT JOIN workspace_execution_evidence e ON e.job_id=r.job_id WHERE r.job_id=?`).get(jobId) as {note:string;submitted_at:string;snapshot_json:string|null}|undefined;
+ return row?{note:row.note,submitted_at:row.submitted_at,evidence:row.snapshot_json?JSON.parse(row.snapshot_json) as ExecutionEvidence:null}:null;
 }
+export function submitExecutionReport(db:Database,userId:string,jobId:string,note:string){
+ return db.transaction(()=>{
+  const access=executionAccess(db,userId,jobId);
+  if(!access||!['arrived','completed'].includes(access.status))throw new AccessError("Lucrarea nu poate fi raportată.",403);
+  if(typeof note!=='string'||note.length>2000)throw new AccessError("Nota poate avea maximum 2.000 de caractere.");
+  const normalized=note.trim();
+  const existing=db.prepare('SELECT submitted_by,note FROM workspace_execution_reports WHERE job_id=?').get(jobId) as {submitted_by:string;note:string}|undefined;
+  if(existing){
+   if(existing.submitted_by!==userId||existing.note!==normalized)throw new AccessError('Există deja un raport cu alt autor sau alt conținut. Reîncarcă raportul trimis.',409);
+   return;
+  }
+  if(access.status!=='arrived')throw new AccessError('Lucrarea nu poate fi raportată.',409);
+  const photos=db.prepare("SELECT id,proof_type,validated_at FROM job_photos WHERE job_id=? AND uploaded_by_firm_id=? AND status='VALID' AND validated_at IS NOT NULL AND proof_type IN ('ARRIVAL','COMPLETION') ORDER BY proof_type,id").all(jobId,access.firm_id) as ExecutionEvidence['photos'];
+  const checks=db.prepare("SELECT item_key FROM workspace_checklist WHERE job_id=? AND done=1").all(jobId) as {item_key:string}[];
+  if(!['ARRIVAL','COMPLETION'].every(type=>photos.some(p=>p.proof_type===type))||!CHECKLIST.every(k=>checks.some(c=>c.item_key===k.key)))throw new AccessError("Completează toate verificările și fotografiile de început/final înainte să trimiți raportul.",409);
+  const evidence:ExecutionEvidence={version:1,checklist:CHECKLIST.map(c=>({...c,done:true})),photos};
+  db.prepare("INSERT INTO workspace_execution_reports(job_id,submitted_by,note,submitted_at) VALUES(?,?,?,?)").run(jobId,userId,normalized,new Date().toISOString());
+  db.prepare('INSERT INTO workspace_execution_evidence(job_id,snapshot_json) VALUES(?,?)').run(jobId,JSON.stringify(evidence));
+  audit(db,userId,'execution.submit',jobId);
+ }).immediate();
+}
+
 export function createApproval(db:Database,userId:string,b:{propertyId:string;date:string;note:string;requestKey:string}){
  return db.transaction(()=>{
   const role=resourceRole(db,userId,"property",b.propertyId);
