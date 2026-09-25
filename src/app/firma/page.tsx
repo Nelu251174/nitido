@@ -1,4 +1,5 @@
 "use client";
+import {AssistedJourney} from "@/components/AssistedJourney";
 import {VisitCare} from "@/components/VisitCare";
 import {RescheduleVisit} from '@/components/RescheduleVisit';
 import { logoutWithNativePush } from "@/lib/nativePushClient";
@@ -234,6 +235,7 @@ export default function FirmaPage() {
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-8">
 
         <header className="section-heading"><div><p className="v2-eyebrow">NITIDO PARTENER</p><h1 className="workspace-title">Lucrări potrivite pentru echipa ta</h1><p className="text-muted">Aplică la oportunități și organizează-ți activitatea cu NITIDO.RO.</p></div><Link className="v2-btn v2-btn-primary" href="/firma/calendar">Deschide calendarul ↗</Link></header>
+        <AssistedJourney role="firma"/>
         <section className="workspace-metrics"><Card><p className="text-sm text-muted">Oportunități în zonă</p><b className="text-3xl">{waitingJobs.length}</b></Card><Card><p className="text-sm text-muted">Lucrări active</p><b className="text-3xl">{activeJobs.length}</b></Card><Card><p className="text-sm text-muted">Lucrări finalizate</p><b className="text-3xl">{historyJobs.length}</b></Card></section>
         {message && (
           <div className="bg-coral/10 border border-coral text-coral text-sm rounded-lg px-4 py-2.5">
