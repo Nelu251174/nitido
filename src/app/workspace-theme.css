@@ -159,3 +159,24 @@
 @media (max-width: 760px) {
   .portfolio-toolbar > label, .portfolio-toolbar > .v2-btn { width: 100%; }
 }
+
+/* Keep the approved cream visible on child surfaces as well as the page root. */
+:is(.operations-layout, .board-page, .approved-client, .pro-app) {
+  --workspace-surface: #fbf7ef;
+}
+:is(.operations-layout, .board-page, .approved-client) > main,
+.operations-layout > .operations-main,
+.pro-app .pro-shell > main {
+  background: var(--workspace-cream);
+}
+:is(.operations-layout, .board-page, .approved-client, .pro-app)
+  :is(.design-panel, .v2-card, .property-card, .empty-workspace, .team-calendar,
+      .offer-comparison-card, .assisted-journey, .board-topbar, .operations-topbar,
+      .mobile-workspace-nav) {
+  background: var(--workspace-surface);
+}
+:is(.operations-layout, .board-page, .approved-client) > header,
+:is(.operations-layout, .board-page, .approved-client) > aside
+  :is(.workspace-menu-toggle, .board-sidebar-note, button[aria-label=Meniu], nav.hidden) {
+  background: var(--workspace-surface);
+}
