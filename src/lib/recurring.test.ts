@@ -64,6 +64,19 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     expect(computeNextDate("monthly", new Date("2026-01-15T00:00:00+02:00"))).toBe("2026-02-15");
   });
 
+  it('leaves restricted recurrence cursors intact, processes other clients and resumes after release',async()=>{
+    seedClientAndFirm(db);db.exec("INSERT INTO users(id,role,name) VALUES('client_2','client','Other')");
+    const a=createRecurringPlan(db,{...basePlan,startDate:'2026-01-05'});if(!a.ok)throw Error(a.error);
+    createRecurringPlan(db,{...basePlan,clientId:'client_2',startDate:'2026-01-05'});
+    db.exec("INSERT INTO customer_restrictions VALUES('client_1',1,1,0,'Investigation','admin','2026-01-04')");
+    const cursor=db.prepare('SELECT next_run_date,last_job_id FROM recurring_plans WHERE id=?').get(a.planId);
+    const result=await generateDueRecurringJobs(db,new Date('2026-01-05T06:00:00Z'));
+    expect(result.blocked).toMatchObject([{planId:a.planId}]);expect(result.created).toHaveLength(1);
+    expect(db.prepare('SELECT next_run_date,last_job_id FROM recurring_plans WHERE id=?').get(a.planId)).toEqual(cursor);
+    db.exec("INSERT INTO customer_restrictions VALUES('client_1',2,0,0,'Resolved','admin','2026-01-05')");
+    expect((await generateDueRecurringJobs(db,new Date('2026-01-05T06:00:00Z'))).created).toHaveLength(1);
+  });
+
   it("creează un plan și îl listează pentru client", () => {
     seedPreferredFirm(db);
     const r = createRecurringPlan(db, { ...basePlan, preferredFirmId: "firm_pref", startDate: "2026-01-05" });

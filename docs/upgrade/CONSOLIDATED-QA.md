@@ -4,8 +4,8 @@
 
 | Verificare | Rezultat |
 |---|---|
-| `TZ=UTC npm run test:upgrade:consolidated` | 674 teste trecute, 51 fișiere |
-| `TZ=Europe/Bucharest npm run test:upgrade:consolidated` | 674 teste trecute, 51 fișiere |
+| `TZ=UTC npm run test:upgrade:consolidated` | 711 teste trecute, 56 fișiere |
+| `TZ=Europe/Bucharest npm run test:upgrade:consolidated` | 711 teste trecute, 56 fișiere |
 | `npm run test:backup` | 5 teste trecute |
 | `next typegen` + `tsc --noEmit` | Trecute |
 | `npm run build -- --webpack` | Build complet trecut, inclusiv generarea rutelor |
@@ -14,6 +14,14 @@
 Acestea sunt probe ale candidatului local. Selecția consolidată include A0–A4 și noile module; **nu este întreaga suită a repository-ului**. Rezultatele nu confirmă CI pe un SHA remote până când acel workflow nu se termină. Nu au fost făcute rezervări sau plăți reale.
 
 Buildul a identificat o dependență circulară introdusă prin încărcarea serviciului CRM din inițializarea bazei. Schema nouă a fost mutată în `operationsSchema.ts`, un modul fără importuri de servicii. Buildul complet a fost repetat după remediere. În workspace se folosește explicit Webpack pentru instalarea existentă de dependențe; workflow-ul GitHub folosește instalare curată și comanda normală de build.
+
+## Extensie CRM/checklisturi
+
+Candidatul curent este `feat/nitido-crm-checklist-controls`. Testele suplimentare verifică refuzul rezervării fără consum de credit, replay-ul, ofertele asistate, restricția independentă a evaluărilor, izolarea recurențelor, păstrarea cursorului, auditul atomic, reviziile de checklist, sarcinile nerealizabile, raportul și finalizarea. Agregatele CRM sunt verificate dincolo de pagina de istoric, cu ultima revizie de cost, necunoscute și pierderi confirmate. Suita include acum și regresia garanției, deoarece revenirea moștenește lista originală.
+
+Testul de integrare a conturilor folosește acum o bază nouă la fiecare caz, păstrând trigger-ele de imutabilitate; vechiul cleanup prin DELETE nu mai era compatibil cu rapoartele arhivate. Sunt verificate și izolarea listei între clienți, accesul echipei și revocarea la realocare.
+
+Scenariile reale de sandbox sunt în `CRM-AND-EXECUTION-CONTROLS.md`. CI pentru PR #82 este doar proba părintelui; candidatul nou necesită rezultatul propriului SHA.
 
 ## Ce riscuri acoperă testele noi
 

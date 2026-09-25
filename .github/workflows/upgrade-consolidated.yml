@@ -1,9 +1,9 @@
 name: NITIDO consolidated upgrade verification
 on:
   push:
-    branches: [feat/nitido-upgrade-consolidation]
+    branches: [feat/nitido-upgrade-consolidation, feat/nitido-crm-checklist-controls]
   pull_request:
-    branches: [fix/nitido-pro-notification-access]
+    branches: [fix/nitido-pro-notification-access, feat/nitido-upgrade-consolidation]
   workflow_dispatch:
 permissions:
   contents: read

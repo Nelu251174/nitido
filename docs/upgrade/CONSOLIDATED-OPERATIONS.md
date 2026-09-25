@@ -26,7 +26,7 @@ Căutare după nume, email sau identificator, 50 de rezultate/pagină. Fișa afi
 
 Etichetele sunt configurabile prin introducere explicită (maximum 12, câte 60 de caractere). Modificările cer motiv și revizia curentă; două editări concurente nu se suprascriu. Notele rețin autorul sesiunii administrative și data; corecțiile se fac printr-o notă nouă. Mutările au audit atomic: eșecul auditului anulează salvarea.
 
-Etichetele sunt clasificări, **nu controale de acces**. O etichetă scrisă „blocat” nu blochează rezervarea și nu trebuie folosită ca substitut pentru un control antifraudă. Limitarea/blocarea clienților pe toate căile de creare, segmentarea avansată și raportul de valoare pe întreaga relație rămân lucrări distincte. Fișa nu mută proprietăți workspace în organizații Pro.
+Etichetele sunt clasificări, **nu controale de acces**. O etichetă scrisă „blocat” nu blochează rezervarea și nu trebuie folosită ca substitut pentru un control antifraudă. Controalele explicite de rezervare/evaluare, recurența și raportul de valoare pe întreaga relație sunt descrise în `CRM-AND-EXECUTION-CONTROLS.md`. Segmentarea avansată și controalele organizaționale Pro rămân distincte. Fișa nu mută proprietăți workspace în organizații Pro.
 
 ## Incidente: responsabil și termene
 

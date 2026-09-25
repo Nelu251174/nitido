@@ -31,3 +31,10 @@ Fișiere extinse: `src/lib/db.ts` (schema aditivă), `src/app/admin/page.tsx` ș
 - Aspect: `workspace-theme.css`, componente workspace/Pro și corecții anterioare de meniu. Noile componente refolosesc tema crem.
 
 Inventarul exact al modificărilor față de o versiune se obține din diff-ul Git pentru SHA-urile respective; lista nu pretinde că fiecare fișier al repository-ului a fost rescris sau reverificat în acest pachet.
+
+## Extensie CRM și checklisturi
+
+- `customerRestrictions.ts`, `customerOperations.ts`: controale versionate, păstrate în aceeași tranzacție cu rezervarea/evaluarea; recurența raportează seria blocată fără a avansa cursorul.
+- `customerValue.ts`: valoarea serviciilor finalizate și marja pe întregul istoric, cu necunoscutele păstrate.
+- `executionTemplates.ts`, `executionTemplatesShared.ts`, `AdminExecutionTemplates.tsx`: publicare administrativă, copii imuabile pe lucrare și randare coerentă în conturile autorizate.
+- `CRM-AND-EXECUTION-CONTROLS.md`: scope, compatibilitate, limite Pro/foto și scenarii de acceptanță în sandbox.

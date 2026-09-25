@@ -1,4 +1,4 @@
-import {CUSTOMER_OPERATIONS_SCHEMA,INCIDENT_TRIAGE_SCHEMA} from './operationsSchema';
+import {CUSTOMER_OPERATIONS_SCHEMA,INCIDENT_TRIAGE_SCHEMA,EXECUTION_TEMPLATES_SCHEMA} from './operationsSchema';
 import {JOB_ACTUAL_COSTS_SCHEMA} from './jobActualCosts';
 import {ASSISTED_OPERATIONS_SCHEMA} from './assistedOperations';
 import {ASSESSMENT_PLAN_SCHEMA} from './assessmentPlan';
@@ -50,6 +50,7 @@ db.pragma("foreign_keys = ON");
 // Exportată separat ca teste (vitest) să poată crea o bază de date in-memory
 // cu aceeași schemă, izolată de fișierul de date reale.
 export const SCHEMA_SQL = `
+${EXECUTION_TEMPLATES_SCHEMA}
 ${SAVED_CARDS_SCHEMA}
 ${NOTIFICATION_CLAIM_SCHEMA}
 ${SELECTION_RECOVERY_SCHEMA}

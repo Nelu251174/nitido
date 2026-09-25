@@ -15,3 +15,9 @@ it('requires verified admin on reads and writes',async()=>{state.actor=null;expe
 it('rejects cross-origin writes and never accepts a forged note author',async()=>{state.origin=false;expect((await POST(req(body()))).status).toBe(403);state.origin=true;expect((await POST(req(body()))).status).toBe(200);expect(state.db!.prepare('SELECT actor_id FROM customer_internal_notes').get()).toEqual({actor_id:'verified-session'});expect(state.audit).toHaveBeenCalledWith('customer.note','c',expect.objectContaining({actorId:'verified-session'}));});
 it('rolls back note if audit fails without disclosing database details',async()=>{state.audit.mockImplementation(()=>{throw Error('secret SQL');});const r=await POST(req(body()));expect(r.status).toBe(500);expect(await r.text()).not.toContain('secret');expect(state.db!.prepare('SELECT * FROM customer_internal_notes').all()).toEqual([]);});
 it('uses no-store and validates body shape/size',async()=>{expect((await GET(req())).headers.get('Cache-Control')).toBe('private, no-store');for(const input of [null,[],{action:'delete'}])expect((await POST(req(input))).status).toBe(400);expect((await POST(req('x'.repeat(18001)))).status).toBe(413);});
+
+it('audits restrictions atomically with verified actor and never applies a failed change',async()=>{
+ const data={action:'restrict',clientId:'c',revision:0,blockBookings:true,blockAssessments:false,reason:'Test',actorId:'forged'};
+ state.audit.mockImplementation(()=>{throw Error('audit unavailable');});expect((await POST(req(data))).status).toBe(500);expect(state.db!.prepare('SELECT * FROM customer_restrictions').all()).toEqual([]);
+ state.audit.mockReset();expect((await POST(req(data))).status).toBe(200);expect(state.db!.prepare('SELECT actor_id,block_bookings,block_assessments FROM customer_restrictions').get()).toEqual({actor_id:'verified-session',block_bookings:1,block_assessments:0});expect((await POST(req(data))).status).toBe(409);
+});

@@ -1,3 +1,5 @@
+import {freezeExecutionRules} from '@/lib/executionTemplates';
+import {assertCustomerCanCreate,CustomerRestrictionError} from '@/lib/customerRestrictions';
 import {requirePropertyModule,enforceOrganizationBooking,OrganizationError} from "./organizations";
 import {snapshotInstructions,notice} from "./visitCare";
 import { bucharestScheduledAt } from "@/lib/scheduling";
@@ -327,6 +329,7 @@ export async function generateDueRecurringJobs(
       const plan=db.prepare("SELECT * FROM recurring_plans WHERE id=? AND status='active'").get(id) as PlanRow|undefined;
       if(!plan||(clientId&&plan.client_id!==clientId))return [];
       if(plan.property_id&&!db.prepare('SELECT 1 FROM workspace_properties WHERE id=? AND owner_id=? AND archived=0').get(plan.property_id,plan.client_id))return [];
+      assertCustomerCanCreate(db,plan.client_id,'bookings');
       const pause=db.prepare('SELECT start_date,end_date FROM recurring_pauses WHERE plan_id=?').get(id) as {start_date:string;end_date:string}|undefined;
       const result:string[]=[];
       let date=plan.next_run_date;
@@ -339,6 +342,7 @@ export async function generateDueRecurringJobs(
           const snapshot=pricingSnapshot({spaceType:plan.space_type,sqm:plan.sqm,expressFeeLei:0,creditLei:0,createdAt:now.toISOString()});
           db.prepare(`INSERT INTO jobs(id,client_id,street,postal_code,city,floor,details,sqm,space_type,when_type,scheduled_at,price_gross,credit_applied,duration_minutes,buffer_minutes,photos_count,mode,status,pricing_snapshot)
             VALUES(?,?,?,?,?,?,?,?,?,'scheduled',?,?,0,?,?,0,'standard','waiting',?)`).run(jobId,plan.client_id,plan.street,plan.postal_code,plan.city,plan.floor,plan.details,plan.sqm,plan.space_type,scheduled.toISOString(),calcGrossPrice(plan.space_type,plan.sqm),calcDurationMinutes(plan.sqm),BUFFER_MINUTES,JSON.stringify(snapshot));
+          freezeExecutionRules(db,jobId,'standard');
           db.prepare('INSERT INTO recurring_occurrences(plan_id,schedule_generation,occurrence_date,job_id,scheduled_at) VALUES(?,?,?,?,?)').run(id,plan.schedule_generation,date,jobId,scheduled.toISOString());
           if(plan.property_id){db.prepare('INSERT INTO workspace_property_jobs(job_id,property_id) VALUES(?,?)').run(jobId,plan.property_id);enforceOrganizationBooking(db,plan.property_id,jobId);enforcePropertyBudget(db,plan.property_id,jobId);snapshotInstructions(db,jobId,plan.property_id,plan.client_id);}
           db.prepare('UPDATE recurring_plans SET last_job_id=? WHERE id=?').run(jobId,id);
@@ -352,7 +356,7 @@ export async function generateDueRecurringJobs(
       return result;
     }).immediate();
     created.push(...batch);
-    }catch(error){if(error instanceof AccessError||error instanceof OrganizationError)blocked.push({planId:id,error:error.message});else throw error;}
+    }catch(error){if(error instanceof CustomerRestrictionError||error instanceof AccessError||error instanceof OrganizationError)blocked.push({planId:id,error:error.message});else throw error;}
   }
   return {created,blocked};
 }

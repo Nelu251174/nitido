@@ -1,3 +1,4 @@
+import {jobExecutionRules} from './executionTemplates';
 import type { Database } from "better-sqlite3";
 import { newId } from "@/lib/db";
 
@@ -51,6 +52,11 @@ export function markCompletedWithProof(db: Database, jobId:string, firmId:string
   if(!proof){
     auditWorkflow(db,"JOB_COMPLETION_ATTEMPT_BLOCKED_MISSING_PROOF",jobId,firmId,userId);
     return {ok:false,status:409,error:"Finalizarea este blocată. Încarcă fotografia obligatorie de finalizare a lucrării."};
+  }
+  const rules=jobExecutionRules(db,jobId);
+  if(rules.revision>0){
+    const done=db.prepare('SELECT item_key FROM workspace_checklist WHERE job_id=? AND done=1').all(jobId) as {item_key:string}[];
+    if(!rules.items.every(item=>done.some(d=>d.item_key===item.key))||db.prepare("SELECT 1 FROM visit_cases WHERE job_id=? AND category='task' AND status NOT IN ('resolved','closed')").get(jobId))return {ok:false,status:409,error:'Completează lista de verificări confirmată pentru această lucrare și soluționează sarcinile raportate înainte de finalizare.'};
   }
   const changed=db.prepare("UPDATE jobs SET status='completed',completed_at=datetime('now') WHERE id=? AND accepted_firm_id=? AND status='arrived'").run(jobId,firmId);
   if(changed.changes!==1) return {ok:false,status:409,error:"Lucrarea nu poate fi finalizată de această firmă"};

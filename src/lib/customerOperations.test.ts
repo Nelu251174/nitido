@@ -13,3 +13,16 @@ it('records note author/date and retains previous notes without altering user da
 it('paginates instead of silently truncating customer notes or directory',()=>{db.transaction(()=>{for(let i=0;i<51;i++)changeCustomerOperations(db,{action:'note',clientId:'c',note:'Note '+i},'admin');})();const first=customerRecord(db,'c'),second=customerRecord(db,'c',50);expect(first.notes.rows).toHaveLength(50);expect(first.notes.hasMore).toBe(true);expect(second.notes.rows).toHaveLength(1);expect(second.notes.hasMore).toBe(false);const insert=db.prepare("INSERT INTO users(id,role,name) VALUES(?,'client',?)");for(let i=0;i<51;i++)insert.run('extra'+i,'Extra '+i);expect(customerDirectory(db,'Extra').hasMore).toBe(true);expect(customerDirectory(db,'Extra',50).clients).toHaveLength(1);});
 it('rejects invalid inputs and requires a transaction',()=>{expect(()=>changeCustomerOperations(db,{},'admin')).toThrow(/Tranzacție/);for(const input of [{action:'note',note:' '},{action:'note',note:'x'.repeat(4001)},{action:'classify',revision:0,tags:Array(13).fill('x'),reason:'Test'},{action:'classify',revision:0,tags:[12],reason:'Test'},{action:'delete'}])expect(()=>change(input)).toThrow();expect(()=>customerRecord(db,'c',-1)).toThrow();expect(()=>customerDirectory(db,'x'.repeat(151))).toThrow();});
 it('initializes additively and retains internal records after repeated migration',()=>{change({action:'note',note:'Păstrează'});initializeDatabase(db);expect(customerRecord(db,'c').notes.rows).toHaveLength(1);expect(db.pragma('foreign_key_check')).toEqual([]);});
+
+it('applies independent restriction scopes, audits author and rejects stale changes',()=>{
+ change({action:'restrict',revision:0,blockBookings:true,blockAssessments:false,reason:'Verificare necesară'});
+ expect(customerRecord(db,'c').restriction).toMatchObject({revision:1,block_bookings:1,block_assessments:0,actor_id:'admin-session'});
+ expect(customerRecord(db,'c2').restriction.revision).toBe(0);
+ expect(()=>change({action:'restrict',revision:0,blockBookings:false,blockAssessments:false,reason:'Stale'})).toThrow(/modificate/);
+ change({action:'restrict',revision:1,blockBookings:false,blockAssessments:false,reason:'Verificare încheiată'});
+ expect(customerRecord(db,'c').restriction.block_bookings).toBe(0);
+ expect(customerRecord(db,'c').restrictions.rows).toHaveLength(2);
+ expect(()=>db.exec('DELETE FROM customer_restrictions')).toThrow(/retained/);
+ expect(()=>db.exec('UPDATE customer_restrictions SET block_bookings=0')).toThrow(/immutable/);
+ for(const input of [{reason:''},{blockBookings:1},{blockAssessments:null}])expect(()=>change({action:'restrict',revision:2,blockBookings:true,blockAssessments:true,reason:'Test',...input})).toThrow();
+});

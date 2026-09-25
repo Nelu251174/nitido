@@ -5,6 +5,7 @@ import Link from "next/link";
 import {AdminMarginPolicy} from "@/components/AdminMarginPolicy";
 import {AdminPricing} from "@/components/AdminPricing";
 import {AdminServiceCatalog} from "@/components/AdminServiceCatalog";
+import {AdminExecutionTemplates} from "@/components/AdminExecutionTemplates";
 import {AdminCustomers} from "@/components/AdminCustomers";
 import {AdminOperationalReport} from "@/components/AdminOperationalReport";
 import {AdminIncidentReviews} from "@/components/AdminIncidentReviews";
@@ -335,6 +336,7 @@ export default function AdminPage() {
         <AdminCustomers/>
         <section id="catalog">
           <AdminServiceCatalog/>
+          <AdminExecutionTemplates/>
           <AdminPricing/>
           <AdminMarginPolicy/>
           <h2 className="font-display font-bold text-ink mb-3">ESTIMATOR LIVE — tipuri afișate clientului</h2>
