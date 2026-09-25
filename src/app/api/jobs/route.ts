@@ -321,7 +321,7 @@ export async function POST(req: NextRequest) {
     }
     let acceptedPrice:BookingPriceSnapshot|null=null;
     let manualSnapshot:unknown=null;
-    if(manual){const accepted=prepareManualOfferBooking(db,user.id,body);if(accepted.jobId){const job=db.prepare("SELECT * FROM jobs WHERE id=? AND client_id=?").get(accepted.jobId,user.id) as JobRow|undefined;if(!job)throw new MarginError("Rezervarea nu poate fi verificată.",409);return {job,replayed:true};}priceGross=accepted.terms.totalBani/100;creditUsed=0;manualSnapshot={version:`manual:${accepted.row.id}:${accepted.row.estimate_revision}`,offerId:accepted.row.id,currency:'RON',recordedAt:new Date().toISOString(),grossBani:accepted.terms.grossBani,creditBani:0,clientTotalBani:accepted.terms.totalBani,terms:accepted.terms};}
+    if(manual){const accepted=prepareManualOfferBooking(db,user.id,body);if(accepted.jobId){const job=db.prepare("SELECT * FROM jobs WHERE id=? AND client_id=?").get(accepted.jobId,user.id) as JobRow|undefined;if(!job)throw new MarginError("Rezervarea nu poate fi verificată.",409);return {job,replayed:true};}priceGross=accepted.terms.totalBani/100;creditUsed=0;manualSnapshot={version:`manual:${accepted.row.id}:${accepted.row.estimate_revision}`,offerId:accepted.row.id,currency:'RON',recordedAt:new Date().toISOString(),grossBani:accepted.terms.grossBani,creditBani:0,clientTotalBani:accepted.terms.totalBani,terms:accepted.terms,schedule:accepted.schedule};}
 
     if(managedPricing){
       const accepted=acceptedBookingQuote(db,user.id,body.quoteId,bookingPriceContext(body));

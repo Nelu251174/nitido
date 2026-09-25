@@ -1,3 +1,4 @@
+import {validateOfferSchedule} from './manualOfferSchedule';
 import type {Database} from 'better-sqlite3';
 import {MarginError,validateManualEstimate} from './operationalMargin';
 import {manualOffersEnabled,type PublicManualOffer} from './manualOffers';
@@ -34,14 +35,15 @@ export function compatibleManualOffer(db:Database,clientId:string,id:unknown){
 }
 export function prepareManualOfferBooking(db:Database,clientId:string,body:Record<string,unknown>){
  if(!manualOfferBookingEnabled())throw new MarginError('Rezervarea ofertelor manuale nu este activată în sandbox.',403);
- if(body.quoteId||body.hostEventId||body.approvalId||body.propertyId||body.express60||body.mode!=='express'||body.whenType!=='asap')throw new MarginError('Oferta manuală folosește fluxul simplu de preluare, fără Express 60 sau alte oferte combinate.',422);
+ if(body.quoteId||body.hostEventId||body.approvalId||body.propertyId||body.express60||body.mode!=='express')throw new MarginError('Oferta manuală folosește fluxul simplu de preluare, fără Express 60 sau alte oferte combinate.',422);
  const s=compatibleManualOffer(db,clientId,body.manualOfferId);
- if(s.jobId)return s;
+ if(s.jobId)return {...s,schedule:null};
+ const schedule=validateOfferSchedule(db,s.row.id,body);
  for(const [key,max] of [['street',200],['postalCode',12]] as const){if(typeof body[key]!=='string'||!body[key].trim()||body[key].length>max)throw new MarginError('Completează adresa și codul poștal.',400);}
  if(body.floor!=null&&(typeof body.floor!=='string'||body.floor.length>20))throw new MarginError('Etaj invalid.',400);
  if(body.confirmedManualTotalBani!==s.terms.totalBani||body.manualBookingConfirmed!==true)throw new MarginError('Confirmă explicit suma și crearea rezervării.',409);
  if(typeof body.city!=='string'||normalizeCity(body.city)!==normalizeCity(s.terms.context.city)||body.sqm!==s.terms.context.sqm||(body.windowsSqm??0)!==s.windowsSqm)throw new MarginError('Parametrii diferă de oferta acceptată.',409);
- return s;
+ return {...s,schedule};
 }
 export function linkManualOfferJob(db:Database,clientId:string,offerId:string,jobId:string){
  if(!db.inTransaction)throw new MarginError('Rezervarea trebuie legată în aceeași tranzacție.',500);

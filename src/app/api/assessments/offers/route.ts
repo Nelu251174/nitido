@@ -1,3 +1,4 @@
+import {latestOfferSchedule,publicOfferSchedule} from '@/lib/manualOfferSchedule';
 import {compatibleManualOffer,manualOfferBookingEnabled} from '@/lib/manualOfferBooking';
 import {NextRequest,NextResponse} from 'next/server';
 import {db} from '@/lib/db';
@@ -9,7 +10,7 @@ const response=(body:unknown,status=200)=>NextResponse.json(body,{status,headers
 export async function GET(req:NextRequest){
  const u=await getCurrentUser(req);if(!u||u.role!=='client')return response({error:'Autentificare ca client necesară'},401);
  const id=req.nextUrl.searchParams.get('id');if(!id||id.length>100)return response({error:'Referință invalidă'},400);
- const offers=listManualOffers(db,id,u.id).map(offer=>{if(offer.status!=='accepted'||!manualOfferBookingEnabled())return offer;try{const result=compatibleManualOffer(db,u.id,offer.id);return {...offer,booking:{enabled:true,jobId:result.jobId,windowsSqm:result.windowsSqm}};}catch(e){if(e instanceof MarginError)return {...offer,booking:{enabled:false,reason:e.message}};throw e;}});
+ const offers=listManualOffers(db,id,u.id).map(offer=>{if(offer.status!=='accepted'||!manualOfferBookingEnabled())return offer;try{const result=compatibleManualOffer(db,u.id,offer.id);return {...offer,booking:{enabled:true,jobId:result.jobId,windowsSqm:result.windowsSqm,schedule:publicOfferSchedule(latestOfferSchedule(db,offer.id))}};}catch(e){if(e instanceof MarginError)return {...offer,booking:{enabled:false,reason:e.message}};throw e;}});
  return response({offers,enabled:manualOffersEnabled()});
 }
 export async function POST(req:NextRequest){

@@ -1,3 +1,4 @@
+import {MANUAL_OFFER_SCHEDULE_SCHEMA} from './manualOfferSchedule';
 import {ASSESSMENT_EVIDENCE_SCHEMA} from './assessmentEvidence';
 import {MANUAL_OFFER_BOOKING_SCHEMA} from './manualOfferBooking';
 import {MARGIN_POLICY_SCHEMA} from './marginPolicy';
@@ -475,6 +476,7 @@ export function initializeDatabase(db: Database.Database): void {
   db.exec(MANUAL_OFFERS_SCHEMA);
 db.exec(MARGIN_POLICY_SCHEMA);
 db.exec(MANUAL_OFFER_BOOKING_SCHEMA);
+db.exec(MANUAL_OFFER_SCHEDULE_SCHEMA);
 db.exec(ASSESSMENT_EVIDENCE_SCHEMA);
   db.exec(EMAIL_VERIFICATION_SCHEMA);
 
