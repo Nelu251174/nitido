@@ -10,7 +10,7 @@ import {latestOfferSchedule,publicOfferSchedule,saveOfferSchedule,scheduleOwner}
 const response=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{'Cache-Control':'private, no-store'}});
 export async function GET(req:NextRequest){
  const admin=req.nextUrl.searchParams.get('admin')==='true';
- const actor=admin?await getAdminActorId():null;
+ const actor=admin?await getAdminActorId('operations'):null;
  const user=admin?null:await getCurrentUser(req);
  if(admin?!actor:(!user||user.role!=='client'))return response({error:'Neautorizat'},401);
  try{
@@ -20,7 +20,7 @@ export async function GET(req:NextRequest){
  }catch(e){if(e instanceof MarginError)return response({error:e.message},e.status);throw e;}
 }
 export async function POST(req:NextRequest){
- const actor=await getAdminActorId();if(!actor)return response({error:'Neautorizat'},401);
+ const actor=await getAdminActorId('operations');if(!actor)return response({error:'Neautorizat'},401);
  if(!hasTrustedMutationOrigin(req))return response({error:'Origine invalidă'},403);
  if(!manualOfferBookingEnabled())return response({error:'Programarea ofertelor nu este activată în sandbox.'},403);
  try{

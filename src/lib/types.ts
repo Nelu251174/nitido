@@ -48,6 +48,7 @@ export interface JobRow {
   // Nitido Scan (Pachet C): pozele de context ale clientului, etichetate pe
   // încăpere, vizibile firmei încă din feed.
   scan?: { id: string; url: string; room: string | null; roomLabel: string }[];
+  photoRules?: {arrivalMin:number;completionMin:number};
   proofs?: { id: string; type: "ARRIVAL" | "COMPLETION"; url: string; createdAt: string }[];
   ownReview?: { rating: number; reviewText: string | null; badge: "Recenzie verificată" } | null;
 }

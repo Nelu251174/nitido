@@ -1,4 +1,4 @@
-import {jobExecutionRules} from './executionTemplates';
+import {jobPhotoRules,jobExecutionRules} from './executionTemplates';
 import {requirePropertyModule,acceptOrganizationInvite,propertyOrganization,organizationRole,organizationAudit} from "./organizations";
 import {notice} from "./visitCare";
 import type { Database } from "better-sqlite3";
@@ -132,7 +132,7 @@ export function submitExecutionReport(db:Database,userId:string,jobId:string,not
   const photos=db.prepare("SELECT id,proof_type,validated_at FROM job_photos WHERE job_id=? AND uploaded_by_firm_id=? AND status='VALID' AND validated_at IS NOT NULL AND proof_type IN ('ARRIVAL','COMPLETION') ORDER BY proof_type,id").all(jobId,access.firm_id) as ExecutionEvidence['photos'];
   const checks=db.prepare("SELECT item_key FROM workspace_checklist WHERE job_id=? AND done=1").all(jobId) as {item_key:string}[];
   const items=jobExecutionRules(db,jobId).items;
-  if(!['ARRIVAL','COMPLETION'].every(type=>photos.some(p=>p.proof_type===type))||!items.every(k=>checks.some(c=>c.item_key===k.key)))throw new AccessError("Completează toate verificările și fotografiile de început/final înainte să trimiți raportul.",409);
+  if(!(['ARRIVAL','COMPLETION'] as const).every(type=>photos.filter(p=>p.proof_type===type).length>=jobPhotoRules(db,jobId)[type==='ARRIVAL'?'arrivalMin':'completionMin'])||!items.every(k=>checks.some(c=>c.item_key===k.key)))throw new AccessError("Completează toate verificările și fotografiile de început/final înainte să trimiți raportul.",409);
   const evidence:ExecutionEvidence={version:1,checklist:items.map(c=>({...c,done:true})),photos};
   db.prepare("INSERT INTO workspace_execution_reports(job_id,submitted_by,note,submitted_at) VALUES(?,?,?,?)").run(jobId,userId,normalized,new Date().toISOString());
   db.prepare('INSERT INTO workspace_execution_evidence(job_id,snapshot_json) VALUES(?,?)').run(jobId,JSON.stringify(evidence));

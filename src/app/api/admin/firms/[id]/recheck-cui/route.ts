@@ -16,7 +16,7 @@ export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await isAdmin())) return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
+  if (!(await isAdmin('manage'))) return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
   const { id } = await params;
 
   const firm = db.prepare("SELECT id, cui FROM firms WHERE id = ?").get(id) as

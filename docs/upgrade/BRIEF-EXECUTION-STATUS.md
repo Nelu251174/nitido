@@ -1,11 +1,11 @@
 # NITIDO Upgrade v1.1 — situație consolidată
 
-Data: 25.09.2026. Candidat: ramura `feat/nitido-pro-property-checklists`.
+Data: 25.09.2026. Candidat: ramura `feat/nitido-internal-operations`.
 Referință normativă: MASTER BRIEF v1.1, amendamentele A–H din 24.09.2026. Documentele A0–A4 descriu probele la momentul fiecărui pachet; acest inventar le reunește și explică limitele actuale. Un PR, o schemă sau un test unitar nu constituie acceptanță live.
 
 ## Ce include această livrare
 
-Ramura continuă `feat/nitido-crm-checklist-controls` (PR #83, `f3425a3fe32b95b8fa30ef6cf3a41f3223609a7b`) și conține istoricul pachetelor anterioare. Nu este nevoie să se copieze manual fișierele din fiecare PR pentru a evalua candidatul. Nu s-a făcut merge în ramura de producție.
+Ramura continuă `feat/nitido-pro-property-checklists` (PR #84, `66ab20494b54f11a547207e70063afd4dace5429`) și conține istoricul pachetelor anterioare. Nu este nevoie să se copieze manual fișierele din fiecare PR pentru a evalua candidatul. Nu s-a făcut merge în ramura de producție.
 
 1. Raport administrativ Marketplace cu selecție coerentă, costuri confirmate separate de cele necunoscute și indicatori ai prestatorilor în observare.
 2. Fișă client cu căutare, clasificări, note, restricții explicite versionate, istorice paginate și valoare/marjă cumulate.
@@ -13,7 +13,8 @@ Ramura continuă `feat/nitido-crm-checklist-controls` (PR #83, `f3425a3fe32b95b8
 4. Instrument SQLite read-only pentru backup și restaurare izolată, inclus în Docker; verifică integritatea, relațiile, schema, numerele de rânduri și hashurile.
 5. Editor administrativ de checklisturi Marketplace cu liste înghețate pe lucrare și păstrarea regulilor istorice; `CRM-AND-EXECUTION-CONTROLS.md`.
 6. Checklisturi Pro administrabile pe proprietate și serviciu, istoric paginat și snapshot la crearea lucrării, inclusiv recurențe; `PRO-PROPERTY-CHECKLISTS.md`.
-7. O singură comandă de regresie și un workflow CI care include etapele precedente și modulele noi; documentație consolidată de operare și lansare.
+7. Roluri nominale Operator/Manager/Financiar/Super Admin cu MFA și revocare, reguli foto Marketplace/Pro, indicatori suplimentari și rezoluții auditate; `INTERNAL-ROLES-PHOTOS-AND-RESOLUTIONS.md`.
+8. O singură comandă de regresie și un workflow CI care include etapele precedente și modulele noi; documentație consolidată de operare și lansare.
 
 Suprafețele noi folosesc crem, iar acțiunile păstrează verdele. Nu s-a modificat arhitectura Stripe, nu s-au activat ponderi de scor, tarife comerciale Pro sau praguri financiare presupuse.
 
@@ -27,13 +28,13 @@ Suprafețele noi folosesc crem, iar acțiunile păstrează verdele. Nu s-a modif
 | Capacitate și alocare | `assessmentPlan`, `assistedOperations`, verificare/rezervare atomică; `A2-atomic-team-allocation.md` | Configurarea echipelor și capacității reale; proba concurentă pe mediul țintă |
 | Express și oportunități | Eligibilitate la citire și mutație, minimizare înainte de alocare, izolare ofertă asistată, un câștigător; documentele A3 de eligibilitate | Validare pe configurația reală de documente/zone/servicii; distribuția după un scor nou nu este activată |
 | Provider Score | Raportul nou arată indicatorii în observare; Quality Index existent este păstrat | Ponderi, perioadă, volum minim, reguli firme noi și date lipsă; validare pe pilot înainte de impact automat |
-| Incidente/remedieri | `visitCare`, verificări versionate, revizii concurente, severitate, responsabil, notă internă și termene; `CONSOLIDATED-OPERATIONS.md` | Escaladări/notificări SLA automate; maparea tuturor rezoluțiilor comerciale; nu se generează automat rambursări sau penalizări |
-| Dovezi/checklist | Editor Marketplace pe Standard/Express și categorii de evaluare, revizii auditate, copii imuabile pe lucrare, sarcini nerealizabile, raport/finalizare coerente; editor Pro pe proprietate/serviciu cu revizii și istoric | Reguli foto diferențiate pe serviciu din §11; validarea vizuală pe dispozitive |
+| Incidente/remedieri | `visitCare`, verificări versionate, revizii concurente, severitate, responsabil, notă internă și termene; `CONSOLIDATED-OPERATIONS.md` | Rezoluții auditate implementate în noul pachet; rămân escaladările/notificările SLA automate și creditul/penalizarea efectivă conform politicii comerciale |
+| Dovezi/checklist | Editor Marketplace pe Standard/Express și categorii de evaluare, revizii auditate, copii imuabile pe lucrare, sarcini nerealizabile, raport/finalizare coerente; editor Pro pe proprietate/serviciu cu revizii și istoric | Reguli foto diferențiate implementate cu snapshot Marketplace/Pro; rămân migrarea Pro 13 și validarea în sandbox/dispozitive |
 | CRM operațional | Fișă internă, etichete, note, restricții tranzacționale la rezervări/evaluări/recurențe, valoare și marjă pe întregul istoric, costuri lipsă explicite | Segmentare avansată; controale organizaționale Pro distincte; validare reală a restricțiilor și totalurilor |
 | Organizații/proprietăți Pro | Scope pe organizație/proprietate, roluri Pro, acces sensibil în fereastra lucrării; `NITIDO-PRO-V11-IMPLEMENTATION.md` | Pilot real cu portofolii, echipe și acces verificat; model comercial încă neactivat |
 | Recurență/aprobări/rapoarte Pro | Weekly/biweekly/monthly, retry fără duplicate, limite calendar, rework și închidere corecte, CSV autorizat, notificări după scope | Extensia daily nu există în schema curentă. Validare fizică notificări și pilot; nu se pierde exportul CSV existent |
-| Roluri interne NITIDO | Sesiunea Admin existentă cu MFA și actor verificat; rolurile Pro au propriile reguli | Separarea nominală Operator NITIDO / Manager / Financiar / Super Admin din §21 nu este complet implementată. Responsabilul textual al incidentului nu închide această cerință |
-| KPI și A5 | Stări Marketplace, reclamații distincte, marjă documentată, indicatori prestator, rapoarte Pro | KPI-urile complete din §4, filtre serviciu/zonă și automatizări validate după pilot; raportul actual nu este prezentat ca întreg dashboardul comercial |
+| Roluri interne NITIDO | Conturi nominale cu MFA, roluri și drepturi server-side, revocare și audit | Provisionare/acceptanță sandbox; delegarea granulară a CRM-ului istoric și administrării globale Pro, încă Super Admin |
+| KPI și A5 | Stări Marketplace, reclamații distincte, marjă documentată, indicatori prestator, rapoarte Pro | Mediane, rate, valoare istorică, marjă procentuală și filtre serviciu/cod poștal implementate; rămân registrul invitațiilor pentru acceptarea prestatorilor, unificarea cu Pro și validarea operațională |
 | Mobil | Cod Capacitor existent și corecțiile de aspect anterioare sunt păstrate; suprafețe crem | Parcurgere reală iOS/Android; build încărcat, procesat și distribuit separat în TestFlight/Google Play. Un deploy web nu dovedește un update în magazin |
 | Backup/deploy | Instrument executabil, probe sintetice, documentația de mai jos; schema nouă este aditivă | Restaurarea SQLite + fișiere pe infrastructura țintă și verificarea rollback-ului pe datele reale |
 

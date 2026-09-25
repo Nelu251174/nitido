@@ -8,12 +8,12 @@ import {CatalogError} from '@/lib/serviceCatalog';
 import {listAssessmentPlans,planAssessment,saveAssessmentPlan} from '@/lib/assessmentPlan';
 const response=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{'Cache-Control':'private, no-store'}});
 export async function GET(req:NextRequest){
- if(!await getAdminActorId())return response({error:'Neautorizat'},401);
+ if(!await getAdminActorId('operations'))return response({error:'Neautorizat'},401);
  try{const a=planAssessment(db,req.nextUrl.searchParams.get('id'));return response({plans:listAssessmentPlans(db,a.id),assessmentVersion:a.version,enabled:manualOffersEnabled()&&!process.env.STRIPE_SECRET_KEY?.startsWith('rk_live_')});}
  catch(e){if(e instanceof MarginError)return response({error:e.message},e.status);throw e;}
 }
 export async function POST(req:NextRequest){
- const actor=await getAdminActorId();if(!actor)return response({error:'Neautorizat'},401);
+ const actor=await getAdminActorId('operations');if(!actor)return response({error:'Neautorizat'},401);
  if(!hasTrustedMutationOrigin(req))return response({error:'Origine invalidă'},403);
  if(!manualOffersEnabled()||process.env.STRIPE_SECRET_KEY?.startsWith('rk_live_'))return response({error:'Planificarea este disponibilă numai în sandbox după activare.'},403);
  try{

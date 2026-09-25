@@ -12,7 +12,7 @@ db.pragma("foreign_keys=ON");
 try {
   migratePro(db);
   console.log(
-    "Pro v1.1 migration complete, including property checklist revision 12; existing marketplace tables preserved.",
+    "Pro v1.1 migration complete, including property checklists and photo rules revision 13; existing marketplace tables preserved.",
   );
 } finally {
   db.close();

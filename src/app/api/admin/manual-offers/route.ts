@@ -8,13 +8,13 @@ import {MarginError} from '@/lib/operationalMargin';
 import {listManualOffers,publishManualOffer,withdrawManualOffer,manualOffersEnabled} from '@/lib/manualOffers';
 const response=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:{'Cache-Control':'private, no-store'}});
 export async function GET(req:NextRequest){
- if(!await getAdminActorId())return response({error:'Neautorizat'},401);
+ if(!await getAdminActorId('manage'))return response({error:'Neautorizat'},401);
  const id=req.nextUrl.searchParams.get('id');if(!id||id.length>100)return response({error:'Referință invalidă'},400);
  const policy=currentMarginPolicy(db),estimate=listManualEstimates(db,id)[0];
  return response({offers:listManualOffers(db,id,null),enabled:manualOffersEnabled(),marginReview:{policy,estimateRevision:estimate?.revision??null,result:estimate?evaluateMarginPolicy(estimate.definition,policy):null}});
 }
 export async function POST(req:NextRequest){
- const actor=await getAdminActorId();if(!actor)return response({error:'Neautorizat'},401);
+ const actor=await getAdminActorId('manage');if(!actor)return response({error:'Neautorizat'},401);
  if(!hasTrustedMutationOrigin(req))return response({error:'Origine invalidă'},403);
  if(!manualOffersEnabled())return response({error:'Publicarea ofertelor este disponibilă numai în sandbox, după activare.'},403);
  try{

@@ -1,4 +1,4 @@
-import {jobExecutionRules} from '@/lib/executionTemplates';
+import {jobPhotoRules,jobExecutionRules} from '@/lib/executionTemplates';
 import {OrganizationError,organizationRole,propertyOrganization} from "@/lib/organizations";
 import { hasTrustedMutationOrigin } from "@/lib/security";
 import { after, NextRequest,NextResponse } from "next/server";
@@ -25,7 +25,7 @@ export async function GET(req:NextRequest){
  const approvals=resources.filter(r=>r.kind==='property').flatMap(r=>db.prepare("SELECT a.*,u.name requester_name FROM workspace_approvals a JOIN users u ON u.id=a.requested_by WHERE a.property_id=? ORDER BY a.created_at DESC LIMIT 100").all(r.id).map(row=>{const a=row as {requested_by:string};const org=propertyOrganization(db,r.id);return {...a,can_decide:['owner','approver'].includes(r.role??''),can_approve:['owner','approver'].includes(r.role??'')&&(!org?.separate_approver||a.requested_by!==user.id)}}));
  // Deliberate projection: worker responses contain no prices, credits, payment identifiers or client contact details.
  const jobs=db.prepare(`SELECT j.id,j.street,j.city,j.sqm,j.windows_sqm,j.space_type,j.status,j.scheduled_at,j.details,j.duration_minutes FROM jobs j JOIN firms f ON f.id=j.accepted_firm_id WHERE j.status IN ('accepted','arrived') AND (f.user_id=? OR EXISTS(SELECT 1 FROM workspace_assignments a JOIN workspace_teams t ON t.id=a.team_id JOIN workspace_members m ON m.kind='team' AND m.resource_id=t.id WHERE a.job_id=j.id AND t.firm_id=j.accepted_firm_id AND t.active=1 AND m.user_id=? AND m.active=1 AND m.role='worker')) ORDER BY j.scheduled_at`).all(user.id,user.id) as {id:string}[];
- const execution=jobs.map(j=>({...j,executionItems:jobExecutionRules(db,j.id).items,checklist:db.prepare("SELECT item_key,done FROM workspace_checklist WHERE job_id=?").all(j.id),photos:db.prepare("SELECT id,proof_type FROM job_photos WHERE job_id=? AND status='VALID'").all(j.id),report:executionReportRecord(db,j.id)}));
+ const execution=jobs.map(j=>({...j,photoRules:jobPhotoRules(db,j.id),executionItems:jobExecutionRules(db,j.id).items,checklist:db.prepare("SELECT item_key,done FROM workspace_checklist WHERE job_id=?").all(j.id),photos:db.prepare("SELECT id,proof_type FROM job_photos WHERE job_id=? AND status='VALID' AND validated_at IS NOT NULL AND uploaded_by_firm_id=(SELECT accepted_firm_id FROM jobs WHERE id=?)").all(j.id,j.id),report:executionReportRecord(db,j.id)}));
  return response({resources,members,invites,properties,approvals,jobs:execution});
 }
 export async function POST(req:NextRequest){

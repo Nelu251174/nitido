@@ -8,7 +8,7 @@ import {reconcileSandboxPayout} from '@/lib/payoutReconciliation';
 const reply=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{'Cache-Control':'private, no-store'}});
 function validIds(body:unknown):body is {accountId:string;payoutId:string}{return !!body&&typeof body==='object'&&'accountId' in body&&typeof body.accountId==='string'&&/^acct_[a-zA-Z0-9]{1,100}$/.test(body.accountId)&&'payoutId' in body&&typeof body.payoutId==='string'&&/^po_[a-zA-Z0-9]{1,100}$/.test(body.payoutId);}
 export async function GET(req:NextRequest){
- if(!(await isAdmin()))return reply({error:'Neautorizat'},401);
+ if(!(await isAdmin('finance')))return reply({error:'Neautorizat'},401);
  const ids={accountId:req.nextUrl.searchParams.get('accountId'),payoutId:req.nextUrl.searchParams.get('payoutId')};
  if(!validIds(ids))return reply({error:'Referințe invalide'},400);
  const row=db.prepare('SELECT report_json FROM payout_reconciliation_runs WHERE account_id=? AND payout_id=? ORDER BY rowid DESC LIMIT 1').get(ids.accountId,ids.payoutId) as {report_json:string}|undefined;
@@ -21,7 +21,7 @@ function trusted(req:NextRequest){
  try{const site=new URL(process.env.NEXT_PUBLIC_SITE_URL??'');return site.protocol==='https:'&&!site.username&&!site.password&&origin===site.origin;}catch{return false;}
 }
 export async function POST(req:NextRequest){
- if(!(await isAdmin()))return reply({error:'Neautorizat'},401);
+ if(!(await isAdmin('finance')))return reply({error:'Neautorizat'},401);
  if(!trusted(req))return reply({error:'Origine nepermisă'},403);
  if(!consumeRateLimit('admin-payout-reconciliation',6,60000))return reply({error:'Prea multe verificări. Reîncearcă într-un minut.'},429);
  const body=await req.json().catch(()=>null);

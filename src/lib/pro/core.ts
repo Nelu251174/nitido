@@ -388,6 +388,9 @@ export function approveRequest(db: Database, p: Principal, w: Work) {
     );
   }
 }
+export function proPhotoRulesReady(db:Database){return !!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='pro_work_photo_rules'").get();}
+export function workPhotoRules(db:Database,id:string):{arrivalMin:number;completionMin:number}{return (proPhotoRulesReady(db)?db.prepare('SELECT arrival_min AS arrivalMin,completion_min AS completionMin FROM pro_work_photo_rules WHERE work_order_id=?').get(id):undefined) as {arrivalMin:number;completionMin:number}|undefined??{arrivalMin:0,completionMin:1};}
+function proPhotoCount(db:Database,id:string,categories:string[]){return (db.prepare(`SELECT COUNT(DISTINCT hash) n FROM pro_media WHERE work_order_id=? AND category IN (${categories.map(()=>'?').join(',')}) AND created_at>COALESCE((SELECT MAX(created_at) FROM pro_audit_logs WHERE entity_id=? AND action='work.rework'),'')`).get(id,...categories,id) as {n:number}).n;}
 export function checklistConfigurationReady(db: Database) {
   return !!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='pro_property_checklists'").get();
 }
@@ -396,7 +399,8 @@ export function propertyChecklist(db: Database, propertyId: string, service: str
   const row = checklistConfigurationReady(db) ? db.prepare(
     "SELECT revision,items_json,reason,actor,created_at FROM pro_property_checklists WHERE property_id=? AND service=? ORDER BY revision DESC LIMIT 1",
   ).get(propertyId, service) as { revision: number; items_json: string; reason: string; actor: string; created_at: string } | undefined : undefined;
-  return { service, revision: row?.revision ?? 0, items: row ? JSON.parse(row.items_json) as string[] : [...CHECKLISTS[service]], reason: row?.reason ?? "Listă standard pentru acest serviciu", actor: row?.actor ?? null, created_at: row?.created_at ?? null };
+  const photoRules=(row&&proPhotoRulesReady(db)?db.prepare('SELECT arrival_min AS arrivalMin,completion_min AS completionMin FROM pro_property_photo_rules WHERE property_id=? AND service=? AND revision=?').get(propertyId,service,row.revision):undefined) as {arrivalMin:number;completionMin:number}|undefined;
+  return { photoRulesAvailable:proPhotoRulesReady(db),photoRules:photoRules??{arrivalMin:0,completionMin:1},service, revision: row?.revision ?? 0, items: row ? JSON.parse(row.items_json) as string[] : [...CHECKLISTS[service]], reason: row?.reason ?? "Listă standard pentru acest serviciu", actor: row?.actor ?? null, created_at: row?.created_at ?? null };
 }
 export function propertyChecklistConfiguration(db: Database, p: Principal, id: string) {
   property(db, p, id, ["owner", "manager", "operator"]);
@@ -408,7 +412,7 @@ export function propertyChecklistHistory(db: Database, p: Principal, id: string,
   int(before, "Versiune istoric", 1, Number.MAX_SAFE_INTEGER);
   if (!checklistConfigurationReady(db)) return { rows: [], next: null };
   const rows = db.prepare("SELECT revision,items_json,reason,actor,created_at FROM pro_property_checklists WHERE property_id=? AND service=? AND revision<? ORDER BY revision DESC LIMIT 21").all(id, service, before) as { revision: number; items_json: string; reason: string; actor: string; created_at: string }[];
-  return { rows: rows.slice(0, 20).map(({ items_json, ...r }) => ({ ...r, items: JSON.parse(items_json) as string[] })), next: rows.length > 20 ? rows[19].revision : null };
+  return { rows: rows.slice(0, 20).map(({ items_json, ...r }) => ({ ...r, items: JSON.parse(items_json) as string[], photoRules: (proPhotoRulesReady(db) ? db.prepare("SELECT arrival_min AS arrivalMin,completion_min AS completionMin FROM pro_property_photo_rules WHERE property_id=? AND service=? AND revision=?").get(id, service, r.revision) : undefined) ?? {arrivalMin:0,completionMin:1} })), next: rows.length > 20 ? rows[19].revision : null };
 }
 export function savePropertyChecklist(db: Database, p: Principal, id: string, b: Record<string, unknown>) {
   const prop = property(db, p, id, ["owner", "manager", "operator"]);
@@ -421,9 +425,13 @@ export function savePropertyChecklist(db: Database, p: Principal, id: string, b:
   if (!Array.isArray(b.items) || b.items.length < 1 || b.items.length > 40) fail("Lista trebuie să conțină între 1 și 40 de puncte.");
   const items = b.items.map(item => text(item, "Punct de verificare", 300));
   if (new Set(items.map(item => item.toLocaleLowerCase("ro-RO"))).size !== items.length) fail("Punctele de verificare trebuie să fie distincte.");
+  const photos=b.photoRules===undefined?current.photoRules:b.photoRules as {arrivalMin:number;completionMin:number};
+  if(!photos||!Number.isInteger(photos.arrivalMin)||photos.arrivalMin<0||photos.arrivalMin>20||!Number.isInteger(photos.completionMin)||photos.completionMin<1||photos.completionMin>20||photos.arrivalMin+photos.completionMin>20)fail('Reguli foto invalide: 0–19 la sosire, 1–20 la finalizare, maximum 20 în total.');
+  if(b.photoRules!==undefined&&!proPhotoRulesReady(db))fail('Regulile foto așteaptă migrarea tehnică.',503);
   const reason = text(b.reason, "Motivul modificării", 2000), revision = current.revision + 1;
   db.prepare("INSERT INTO pro_property_checklists(property_id,service,revision,items_json,reason,actor,created_at) VALUES(?,?,?,?,?,?,?)").run(id, service, revision, JSON.stringify(items), reason, p.id, now());
-  audit(db, p, prop.organization_id, id, "property.checklist_published", { service, revision, previous_revision: current.revision, reason });
+  if(proPhotoRulesReady(db))db.prepare('INSERT INTO pro_property_photo_rules VALUES(?,?,?,?,?)').run(id,service,revision,photos.arrivalMin,photos.completionMin);
+  audit(db, p, prop.organization_id, id, "property.checklist_published", { service, revision, previous_revision: current.revision, reason, photoRules: photos });
   return { property_id: id, service, revision };
 }
 export function createWork(
@@ -484,6 +492,7 @@ export function createWork(
     .prepare("SELECT * FROM pro_work_orders WHERE id=?")
     .get(id) as Work;
   approveRequest(db, p, w);
+  if(proPhotoRulesReady(db))db.prepare('INSERT INTO pro_work_photo_rules VALUES(?,?,?)').run(id,checklist.photoRules.arrivalMin,checklist.photoRules.completionMin);
   audit(db, p, org.id, id, "work.created", { checklist_revision: checklist.revision, checklist_service: service });
   return { id };
 }
@@ -625,6 +634,7 @@ export function workCommand(
       Date.now() > +new Date(w.ends_at)
     )
       fail("Execuția este în afara ferestrei programate.", 409);
+    if(proPhotoCount(db,id,['before'])<workPhotoRules(db,id).arrivalMin)fail(`Încarcă minimum ${workPhotoRules(db,id).arrivalMin} fotografii de sosire pentru această execuție.`,409);
     move("in_progress");
     db.prepare(
       "UPDATE pro_tickets SET status='in_progress' WHERE work_order_id=?",
@@ -653,14 +663,8 @@ export function workCommand(
       answers = JSON.parse(w.answers_json) as Record<string, boolean>;
     if (!list.every((_, i) => answers[String(i)]))
       fail("Finalizează toate punctele obligatorii.", 409);
-    if (
-      !db
-        .prepare(
-          "SELECT 1 FROM pro_media WHERE work_order_id=? AND category IN ('after','resolution') AND created_at>COALESCE((SELECT MAX(created_at) FROM pro_audit_logs WHERE entity_id=? AND action='work.rework'),'')",
-        )
-        .get(id, id)
-    )
-      fail("Încarcă dovada foto de finalizare.", 409);
+    if(proPhotoCount(db,id,['after','resolution'])<workPhotoRules(db,id).completionMin)
+      fail(`Încarcă dovada foto de finalizare: minimum ${workPhotoRules(db,id).completionMin} fotografii distincte pentru această execuție.`,409);
     const amount = int(b.final_cost, "Cost final");
     if (amount > w.estimate)
       fail("Costul suplimentar trebuie aprobat înainte de execuție.", 409);
@@ -1003,7 +1007,7 @@ export function workView(db: Database, p: Principal, w: Work) {
     partner ||
     offeredPartner ||
     allowed(db, p, w.organization_id, ["approver"], w.property_id);
-  return {
+  return {photoRules:workPhotoRules(db,w.id),
     ...w,
     estimate: moneyAllowed ? w.estimate : undefined,
     final_cost: moneyAllowed ? w.final_cost : undefined,

@@ -24,10 +24,23 @@ CREATE TRIGGER IF NOT EXISTS incident_triage_no_delete BEFORE DELETE ON incident
 `;
 
 export const EXECUTION_TEMPLATES_SCHEMA=`
+CREATE TABLE IF NOT EXISTS execution_photo_templates(scope TEXT NOT NULL,revision INTEGER NOT NULL,arrival_min INTEGER NOT NULL CHECK(arrival_min BETWEEN 1 AND 20),completion_min INTEGER NOT NULL CHECK(completion_min BETWEEN 1 AND 20),PRIMARY KEY(scope,revision),FOREIGN KEY(scope,revision) REFERENCES execution_templates(scope,revision));
+CREATE TABLE IF NOT EXISTS job_photo_rules(job_id TEXT PRIMARY KEY REFERENCES jobs(id),arrival_min INTEGER NOT NULL CHECK(arrival_min BETWEEN 1 AND 20),completion_min INTEGER NOT NULL CHECK(completion_min BETWEEN 1 AND 20));
+CREATE TRIGGER IF NOT EXISTS execution_photo_templates_no_update BEFORE UPDATE ON execution_photo_templates BEGIN SELECT RAISE(ABORT,'Photo policy immutable'); END;
+CREATE TRIGGER IF NOT EXISTS execution_photo_templates_no_delete BEFORE DELETE ON execution_photo_templates BEGIN SELECT RAISE(ABORT,'Photo policy retained'); END;
+CREATE TRIGGER IF NOT EXISTS job_photo_rules_no_update BEFORE UPDATE ON job_photo_rules BEGIN SELECT RAISE(ABORT,'Photo snapshot immutable'); END;
+CREATE TRIGGER IF NOT EXISTS job_photo_rules_no_delete BEFORE DELETE ON job_photo_rules BEGIN SELECT RAISE(ABORT,'Photo snapshot retained'); END;
 CREATE TABLE IF NOT EXISTS execution_templates(scope TEXT NOT NULL,revision INTEGER NOT NULL CHECK(revision>0),items_json TEXT NOT NULL,reason TEXT NOT NULL,actor_id TEXT NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(scope,revision));
 CREATE TABLE IF NOT EXISTS job_execution_rules(job_id TEXT PRIMARY KEY REFERENCES jobs(id),scope TEXT NOT NULL,revision INTEGER NOT NULL,items_json TEXT NOT NULL,created_at TEXT NOT NULL);
 CREATE TRIGGER IF NOT EXISTS execution_templates_no_update BEFORE UPDATE ON execution_templates BEGIN SELECT RAISE(ABORT,'Execution template immutable'); END;
 CREATE TRIGGER IF NOT EXISTS execution_templates_no_delete BEFORE DELETE ON execution_templates BEGIN SELECT RAISE(ABORT,'Execution template retained'); END;
 CREATE TRIGGER IF NOT EXISTS job_execution_rules_no_update BEFORE UPDATE ON job_execution_rules BEGIN SELECT RAISE(ABORT,'Execution rules immutable'); END;
 CREATE TRIGGER IF NOT EXISTS job_execution_rules_no_delete BEFORE DELETE ON job_execution_rules BEGIN SELECT RAISE(ABORT,'Execution rules retained'); END;
+`;
+
+export const INCIDENT_RESOLUTION_SCHEMA=`
+CREATE TABLE IF NOT EXISTS incident_resolutions(id TEXT PRIMARY KEY,case_id TEXT NOT NULL REFERENCES visit_cases(id),kind TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('pending','completed')),note TEXT NOT NULL,reference TEXT,actor_id TEXT NOT NULL,created_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS incident_resolutions_case ON incident_resolutions(case_id,created_at,id);
+CREATE TRIGGER IF NOT EXISTS incident_resolutions_no_update BEFORE UPDATE ON incident_resolutions BEGIN SELECT RAISE(ABORT,'Resolution history immutable'); END;
+CREATE TRIGGER IF NOT EXISTS incident_resolutions_no_delete BEFORE DELETE ON incident_resolutions BEGIN SELECT RAISE(ABORT,'Resolution history retained'); END;
 `;

@@ -13,7 +13,7 @@ function trusted(req:NextRequest){
 }
 /** Retry an existing cancellation for a terminal job; never initiate a new release decision. */
 export async function POST(req:NextRequest){
- if(!(await isAdmin()))return reply({error:'Neautorizat'},401);
+ if(!(await isAdmin('finance')))return reply({error:'Neautorizat'},401);
  if(!trusted(req))return reply({error:'Origine nepermisă'},403);
  if(!consumeRateLimit('admin-payment-cancellation',6,60000))return reply({error:'Prea multe încercări. Reîncearcă într-un minut.'},429);
  const body=await req.json().catch(()=>null);

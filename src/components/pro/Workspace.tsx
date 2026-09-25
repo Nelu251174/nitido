@@ -741,7 +741,7 @@ export default function Workspace({ path }: { path: string[] }) {
                     <Checklist key={w.revision} work={w} run={run} />
                   </div>
                   <div className="pro-card mt-4">
-                    <h2>Dovezi foto</h2>
+                    <h2>Dovezi foto</h2><p>Minimum la sosire: {w.photoRules?.arrivalMin??0}; minimum la finalizare: {w.photoRules?.completionMin??1}. La remediere sunt necesare fotografii noi, după redeschiderea execuției.</p>
                     <div className="pro-photos">
                       {w.media?.map((m: Row) => (
                         <a
@@ -765,8 +765,9 @@ export default function Workspace({ path }: { path: string[] }) {
                         Nu există fotografii disponibile.
                       </p>
                     )}
-                    {w.permissions.partner && w.status === "in_progress" && (
+                    {w.permissions.partner && ["accepted", "rework_requested", "in_progress"].includes(w.status) && (
                       <Upload
+                        beforeOnly={w.status !== "in_progress"}
                         entity="work_order_id"
                         id={w.id}
                         onDone={() => setTick((v) => v + 1)}
@@ -1452,10 +1453,12 @@ function Checklist({ work: w, run }: { work: Row; run: Run }) {
   );
 }
 function Upload({
+  beforeOnly = false,
   entity,
   id,
   onDone,
 }: {
+  beforeOnly?: boolean;
   entity: string;
   id: string;
   onDone: () => void;
@@ -1494,12 +1497,14 @@ function Upload({
       </label>
       <label className="pro-field mt-3">
         Categorie
-        <select name="category">
-          <option value="after">După execuție</option>
+        <select name="category" key={String(beforeOnly)} defaultValue={beforeOnly ? "before" : "after"}>
+          {!beforeOnly && <option value="after">După execuție</option>}
           <option value="before">Înainte</option>
-          <option value="issue">Problemă</option>
-          <option value="resolution">Remediere</option>
-          <option value="quote">Deviz</option>
+          {!beforeOnly && <>
+            <option value="issue">Problemă</option>
+            <option value="resolution">Remediere</option>
+            <option value="quote">Deviz</option>
+          </>}
         </select>
       </label>
       <button className="v2-btn v2-btn-secondary mt-3" disabled={busy}>

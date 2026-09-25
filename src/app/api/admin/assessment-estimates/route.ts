@@ -6,12 +6,12 @@ import {MarginError} from '@/lib/operationalMargin';
 import {listManualEstimates,saveManualEstimate} from '@/lib/manualEstimates';
 const response=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:{'Cache-Control':'private, no-store'}});
 export async function GET(req:NextRequest){
- if(!await getAdminActorId())return response({error:'Neautorizat'},401);
+ if(!await getAdminActorId('manage'))return response({error:'Neautorizat'},401);
  const id=req.nextUrl.searchParams.get('id');if(!id||id.length>100)return response({error:'Referință invalidă'},400);
  return response({estimates:listManualEstimates(db,id),clientVisible:false});
 }
 export async function POST(req:NextRequest){
- const actor=await getAdminActorId();if(!actor)return response({error:'Neautorizat'},401);
+ const actor=await getAdminActorId('manage');if(!actor)return response({error:'Neautorizat'},401);
  if(!hasTrustedMutationOrigin(req))return response({error:'Origine invalidă'},403);
  try{
  const raw=await req.text();if(Buffer.byteLength(raw)>30000)return response({error:'Cerere prea mare'},413);

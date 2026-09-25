@@ -41,7 +41,7 @@ it("upgrades v11 additively and idempotently, preserving existing tables and row
   const existingWorks = old.prepare("SELECT * FROM pro_work_orders").all();
   migratePro(old); migratePro(old);
   expect(old.prepare("SELECT * FROM pro_work_orders").all()).toEqual(existingWorks);
-  expect(old.prepare("SELECT version FROM pro_schema_migrations ORDER BY version").all()).toEqual([{ version: 11 }, { version: 12 }]);
+  expect(old.prepare("SELECT version FROM pro_schema_migrations ORDER BY version").all()).toEqual([{ version: 11 }, { version: 12 }, { version: 13 }]);
   expect(old.prepare("SELECT value FROM marketplace_sentinel").get()).toEqual({ value: "preserved" });
   expect(old.prepare("SELECT id FROM users").get()).toEqual({ id: "marketplace-client" }); old.close();
 });
@@ -103,4 +103,22 @@ it("recurring generation captures the current checklist and retry preserves the 
   for (const row of original as { checklist_json: string }[]) expect(JSON.parse(row.checklist_json)).toEqual(["Verifică livingul"]);
   publish(1, ["Noua cerință"]); expect(p.runRecurring(db).generated).toBe(0);
   expect(db.prepare("SELECT id,checklist_json FROM pro_work_orders ORDER BY id").all()).toEqual(original);
+});
+
+it("snapshots photo requirements per service, preserves existing works and audits each revision", () => {
+  const first = work();
+  const body = { service, revision: 0, items: ["Verifică livingul"], reason: "Dovezi pentru această proprietate", photoRules: { arrivalMin: 2, completionMin: 3 } };
+  p.atomic(db, owner, crypto.randomUUID(), body, () => p.savePropertyChecklist(db, owner, property, body));
+  const second = work(2);
+  expect(p.workPhotoRules(db, first.id)).toEqual({ arrivalMin: 0, completionMin: 1 });
+  expect(p.workPhotoRules(db, second.id)).toEqual(body.photoRules);
+  publish(1); // Publishing checklist text without photo fields preserves the policy.
+  expect(p.propertyChecklist(db, property, service).photoRules).toEqual(body.photoRules);
+  expect(p.propertyChecklistHistory(db, owner, property, service, 100).rows[1].photoRules).toEqual(body.photoRules);
+  expect(p.propertyChecklist(db, property, "property_check").photoRules).toEqual({ arrivalMin: 0, completionMin: 1 });
+  expect(() => db.exec("UPDATE pro_work_photo_rules SET completion_min=1")).toThrow("immutable");
+  expect(() => db.exec("DELETE FROM pro_property_photo_rules")).toThrow("retained");
+  const invalid = { ...body, revision: 2, photoRules: { arrivalMin: 15, completionMin: 10 } };
+  expect(() => p.atomic(db, owner, crypto.randomUUID(), invalid, () => p.savePropertyChecklist(db, owner, property, invalid))).toThrow("maximum 20");
+  expect(p.propertyChecklist(db, property, service).revision).toBe(2);
 });

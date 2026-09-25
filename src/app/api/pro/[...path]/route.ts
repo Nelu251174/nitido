@@ -417,7 +417,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
           !(
             w.partner_id &&
             pro.partnerIds(db, p).includes(w.partner_id) &&
-            w.status === "in_progress"
+            (w.status === "in_progress" || (form.get("category") === "before" && ["accepted", "rework_requested"].includes(w.status)))
           )
         )
           pro.fail("Nu poți încărca aici.", 403);
@@ -491,16 +491,15 @@ export async function POST(req: NextRequest, ctx: Ctx) {
                 ["owner", "manager", "operator"],
                 current.property_id,
               ) &&
-              current.status !== "in_progress"
+              current.status !== "in_progress" &&
+              !(category === "before" && ["accepted", "rework_requested"].includes(current.status))
             )
               pro.fail("Execuția nu este activă.", 409);
           }
-          const count = db
-            .prepare(
-              "SELECT COUNT(*) n FROM pro_media WHERE work_order_id=? OR ticket_id=?",
-            )
-            .get(ref.work_order_id, ref.ticket_id) as { n: number };
-          if (count.n >= 20) pro.fail("Maximum 20 fotografii.", 409);
+          const count = ref.work_order_id
+            ? db.prepare("SELECT COUNT(*) n FROM pro_media WHERE work_order_id=? AND created_at>COALESCE((SELECT MAX(created_at) FROM pro_audit_logs WHERE entity_id=? AND action='work.rework'),'')").get(ref.work_order_id, ref.work_order_id) as {n:number}
+            : db.prepare("SELECT COUNT(*) n FROM pro_media WHERE ticket_id=?").get(ref.ticket_id) as {n:number};
+          if (count.n >= 20) pro.fail("Maximum 20 fotografii pentru această execuție sau acest tichet.", 409);
           if (
             db
               .prepare(

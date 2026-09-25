@@ -410,3 +410,27 @@ describe("Pro closeout integrity", () => {
     expect(get(id).status).toBe("completed");
   });
 });
+
+it("enforces distinct arrival and completion photos, including fresh evidence after rework", () => {
+  vi.useFakeTimers(); vi.setSystemTime(new Date("2026-09-25T10:00:00Z"));
+  const body = { service: "cleaning_recurring", revision: 0, items: ["Verifică livingul"], reason: "Dovezi necesare", photoRules: { arrivalMin: 2, completionMin: 2 } };
+  run(owner, body, () => p.savePropertyChecklist(db, owner, prop, body));
+  const id = accepted();
+  const photo = (category: string, hash = crypto.randomUUID()) => db.prepare("INSERT INTO pro_media VALUES(?,?,?,NULL,?,?,'image/webp',12,?,'partner',?)").run(crypto.randomUUID(), org, id, category, crypto.randomUUID()+".webp", hash, new Date().toISOString());
+  expect(() => cmd(partner, id, "start")).toThrow("sosire");
+  photo("before", "duplicate"); photo("before", "duplicate");
+  expect(() => cmd(partner, id, "start")).toThrow("sosire");
+  photo("before"); cmd(partner, id, "start");
+  cmd(partner, id, "checklist", { answers: { "0": true } });
+  photo("issue"); photo("after");
+  expect(() => cmd(partner, id, "submit", { final_cost: 900 })).toThrow("minimum 2");
+  photo("resolution"); cmd(partner, id, "submit", { final_cost: 900 });
+  vi.advanceTimersByTime(1000);
+  cmd(admin, id, "rework", { note: "Refă verificarea", starts_at: new Date(Date.now()).toISOString(), ends_at: new Date(Date.now()+3600000).toISOString() });
+  expect(() => cmd(partner, id, "start")).toThrow("sosire");
+  vi.advanceTimersByTime(1000); photo("before"); photo("before");
+  cmd(partner, id, "start"); cmd(partner, id, "checklist", { answers: { "0": true } });
+  expect(() => cmd(partner, id, "submit", { final_cost: 900 })).toThrow("minimum 2");
+  photo("after"); photo("resolution"); cmd(partner, id, "submit", { final_cost: 900 });
+  expect(get(id).status).toBe("submitted_for_review");
+});
