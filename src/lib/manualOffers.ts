@@ -1,3 +1,4 @@
+import {checkOfferMargin,recordOfferMargin} from './marginPolicy';
 import type {Database} from 'better-sqlite3';
 import {randomUUID} from 'node:crypto';
 import {MarginError,validateManualEstimate,calculateOperationalMargin} from './operationalMargin';
@@ -26,7 +27,7 @@ function event(db:Database,id:string,actor:string,action:string,reason:string,no
 export function listManualOffers(db:Database,assessmentId:string,clientId:string|null,now=new Date()):PublicManualOffer[]{
  return (db.prepare(`SELECT o.* FROM assessment_offers o JOIN service_assessments a ON a.id=o.assessment_id WHERE a.id=? ${clientId===null?'':'AND a.client_id=?'} ORDER BY o.created_at DESC,o.id LIMIT 100`).all(assessmentId,...(clientId===null?[]:[clientId])) as OfferRow[]).map(r=>view(r,now));
 }
-export function publishManualOffer(db:Database,args:{id:unknown;revision:unknown;scope:unknown;expiresAt:unknown;reason:unknown},actor:string,now=new Date()){
+export function publishManualOffer(db:Database,args:{id:unknown;revision:unknown;scope:unknown;expiresAt:unknown;reason:unknown;policyRevision?:unknown;exceptionReason?:unknown},actor:string,now=new Date()){
  const assessmentId=text(args.id,100),scope=text(args.scope,4000),reason=text(args.reason,2000);
  if(!actor||!Number.isSafeInteger(args.revision)||Number(args.revision)<1)throw new MarginError('Revizie sau operator invalid.');
  if(typeof args.expiresAt!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?(?:Z|[+-]\d{2}:\d{2})$/.test(args.expiresAt)||!Number.isFinite(Date.parse(args.expiresAt))||Date.parse(args.expiresAt)<=now.getTime())throw new MarginError('Expirarea trebuie să fie în viitor și să includă fusul orar.');
@@ -46,10 +47,11 @@ export function publishManualOffer(db:Database,args:{id:unknown;revision:unknown
  const publicJson=JSON.stringify({currency:'RON',scope,context:{category:request.category,city:request.city,sqm:request.sqm},lines:definition.lines,grossBani:margin.grossBani,discountBani:margin.platformDiscountBani,totalBani:margin.clientDueBani});
  const old=db.prepare('SELECT * FROM assessment_offers WHERE assessment_id=? AND estimate_revision=?').get(assessmentId,args.revision) as OfferRow|undefined;
  if(old){if(old.public_json!==publicJson||old.expires_at!==expires)throw new MarginError('Această revizie a fost deja publicată cu alți termeni.',409);return view(old,now);}
+ const marginCheck=checkOfferMargin(db,definition,args.policyRevision,args.exceptionReason);
  const current=db.prepare("SELECT * FROM assessment_offers WHERE assessment_id=? AND status IN ('offered','accepted')").get(assessmentId) as OfferRow|undefined;
  if(current?.status==='accepted')throw new MarginError('Oferta acceptată nu poate fi înlocuită.',409);
  if(current){db.prepare("UPDATE assessment_offers SET status='superseded' WHERE id=?").run(current.id);event(db,current.id,actor,'superseded',reason,now);}
- const id=randomUUID();db.prepare("INSERT INTO assessment_offers VALUES(?,?,?,?,?,?,?,'offered')").run(id,assessmentId,estimate.revision,a.version,publicJson,expires,now.toISOString());event(db,id,actor,'published',reason,now);
+ const id=randomUUID();db.prepare("INSERT INTO assessment_offers VALUES(?,?,?,?,?,?,?,'offered')").run(id,assessmentId,estimate.revision,a.version,publicJson,expires,now.toISOString());event(db,id,actor,'published',reason,now);recordOfferMargin(db,id,marginCheck,actor,now);
  return view(db.prepare('SELECT * FROM assessment_offers WHERE id=?').get(id) as OfferRow,now);
  }).immediate();
 }
