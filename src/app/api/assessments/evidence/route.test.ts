@@ -1,0 +1,18 @@
+import {beforeEach,afterEach,it,expect,vi} from 'vitest';
+import Database from 'better-sqlite3';
+import {NextRequest} from 'next/server';
+const s=vi.hoisted(()=>({db:null as Database.Database|null,user:null as {id:string;role:string}|null,actor:null as string|null,origin:true,audit:vi.fn()}));
+vi.mock('@/lib/db',()=>({get db(){return s.db!;}}));
+vi.mock('@/lib/auth',()=>({getCurrentUser:async()=>s.user}));
+vi.mock('@/lib/adminAuth',()=>({getAdminActorId:async()=>s.actor,auditAdminAction:s.audit}));
+vi.mock('@/lib/security',()=>({hasTrustedMutationOrigin:()=>s.origin}));
+import {ASSESSMENT_EVIDENCE_SCHEMA,attachAssessmentPhoto} from '@/lib/assessmentEvidence';
+import {GET,POST} from './route';
+const get=(admin=false)=>new NextRequest(`https://sandbox.nitido.ro/api/assessments/evidence?id=a${admin?'&admin=true':''}`);
+const post=(body:unknown={id:'a',version:2,decision:'approved',reason:'Private note',actor:'forged'})=>new NextRequest('https://sandbox.nitido.ro/api/assessments/evidence',{method:'POST',body:JSON.stringify(body)});
+beforeEach(()=>{s.db=new Database(':memory:');s.db.exec(`CREATE TABLE service_assessments(id TEXT PRIMARY KEY,client_id TEXT,version INTEGER,status TEXT);INSERT INTO service_assessments VALUES('a','c',1,'submitted');CREATE TABLE job_photos(id TEXT PRIMARY KEY,owner_user_id TEXT,job_id TEXT,proof_type TEXT,status TEXT,validated_at TEXT,created_at TEXT);INSERT INTO job_photos VALUES('p','c',NULL,'CLIENT_CONTEXT','VALID','2026-09-25','2026-09-25');`+ASSESSMENT_EVIDENCE_SCHEMA);attachAssessmentPhoto(s.db,'a','c','p');s.user={id:'c',role:'client'};s.actor='verified';s.origin=true;s.audit.mockReset();vi.stubEnv('NITIDO_MANUAL_OFFERS_SANDBOX','true');vi.stubEnv('NEXT_PUBLIC_SITE_URL','https://sandbox.nitido.ro');vi.stubEnv('STRIPE_SECRET_KEY','');});
+afterEach(()=>{s.db!.close();vi.unstubAllEnvs();});
+it('rejects anonymous, foreign owner and forged administrative read requests',async()=>{s.user=null;s.actor=null;expect((await GET(get())).status).toBe(401);expect((await GET(get(true))).status).toBe(401);expect((await POST(post())).status).toBe(401);s.user={id:'other',role:'client'};expect((await GET(get())).status).toBe(404);s.user={id:'c',role:'firma'};expect((await GET(get())).status).toBe(401);});
+it('uses verified admin identity and does not disclose internal reason to client',async()=>{expect((await POST(post())).status).toBe(200);const admin=await GET(get(true));expect(await admin.json()).toMatchObject({review:{actor_id:'verified',reason:'Private note'}});const client=await GET(get());expect(client.headers.get('Cache-Control')).toBe('private, no-store');expect(await client.text()).not.toMatch(/Private note|verified|forged/);});
+it('blocks CSRF, disabled sandbox and oversized input',async()=>{s.origin=false;expect((await POST(post())).status).toBe(403);s.origin=true;vi.stubEnv('NITIDO_MANUAL_OFFERS_SANDBOX','false');expect((await POST(post())).status).toBe(403);vi.stubEnv('NITIDO_MANUAL_OFFERS_SANDBOX','true');expect((await POST(post('x'.repeat(5001)))).status).toBe(413);expect((await POST(post([]))).status).toBe(400);});
+it('rolls back review when admin audit fails',async()=>{s.audit.mockImplementation(()=>{throw Error('private failure');});expect((await POST(post())).status).toBe(500);expect(s.db!.prepare('SELECT * FROM assessment_photo_reviews').all()).toEqual([]);});

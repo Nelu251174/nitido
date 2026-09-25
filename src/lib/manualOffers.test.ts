@@ -1,3 +1,4 @@
+import {ASSESSMENT_EVIDENCE_SCHEMA} from './assessmentEvidence';
 import {MARGIN_POLICY_SCHEMA,saveMarginPolicy} from '@/lib/marginPolicy';
 import {afterEach,beforeEach,describe,it,expect,vi} from 'vitest';
 import Database from 'better-sqlite3';
@@ -11,7 +12,7 @@ function estimate(){const d=emptyManualEstimate();d.lines=[{label:'Curățenie',
 function save(revision=0){return saveManualEstimate(db,{id:'a',revision,assessmentVersion:1,definition:estimate()},'admin',now);}
 const publish=()=>publishManualOffer(db,input(),'admin',now);
 const accept=(id:string,date=now)=>decideManualOffer(db,'client',{id,action:'accept',confirmed:true,totalBani:50000},date);
-beforeEach(()=>{db=new Database(':memory:');db.pragma('foreign_keys=ON');db.exec(`CREATE TABLE service_assessments(id TEXT PRIMARY KEY,client_id TEXT,status TEXT,version INTEGER,payload TEXT);INSERT INTO service_assessments VALUES('a','client','submitted',1,'{"category":"general"}');`+MANUAL_ESTIMATE_SCHEMA+MANUAL_OFFERS_SCHEMA+MARGIN_POLICY_SCHEMA);saveMarginPolicy(db,{revision:0,minBani:0,minBasisPoints:null,reason:'Test policy'},'admin');save();});
+beforeEach(()=>{db=new Database(':memory:');db.pragma('foreign_keys=ON');db.exec(`CREATE TABLE service_assessments(id TEXT PRIMARY KEY,client_id TEXT,status TEXT,version INTEGER,payload TEXT);INSERT INTO service_assessments VALUES('a','client','submitted',1,'{"category":"general"}');`+"CREATE TABLE job_photos(id TEXT PRIMARY KEY,owner_user_id TEXT,job_id TEXT,proof_type TEXT,status TEXT,validated_at TEXT,created_at TEXT);"+MANUAL_ESTIMATE_SCHEMA+MANUAL_OFFERS_SCHEMA+MARGIN_POLICY_SCHEMA+ASSESSMENT_EVIDENCE_SCHEMA);saveMarginPolicy(db,{revision:0,minBani:0,minBasisPoints:null,reason:'Test policy'},'admin');save();});
 afterEach(()=>{db.close();vi.unstubAllEnvs();});
 describe('manual offer lifecycle',()=>{
  it('exposes only frozen client terms without cost or margin details',()=>{const o=publish();expect(o.terms.totalBani).toBe(50000);const json=JSON.stringify(listManualOffers(db,'a','client',now));expect(json).not.toMatch(/SECRET|provider|margin|actor|reason/);expect(listManualOffers(db,'a','intruder',now)).toEqual([]);});
