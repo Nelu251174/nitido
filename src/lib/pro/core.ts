@@ -951,6 +951,11 @@ export function collection(
       ["owner", "manager", "approver", "viewer", "contact", "operator"],
       prop,
     );
+  const roleScope = (propertyId: string | null, roles: Role[]) =>
+    Boolean(p.admin) || memberships(db, p, orgId).some(member =>
+      roles.includes(member.role) && (member.role === "owner" ||
+        JSON.parse(member.scope_json).length === 0 ||
+        (propertyId !== null && JSON.parse(member.scope_json).includes(propertyId))));
   if (kind === "properties")
     return (
       db
@@ -988,7 +993,7 @@ export function collection(
           "SELECT a.*,w.property_id,w.title FROM pro_approvals a JOIN pro_work_orders w ON w.id=a.work_order_id WHERE a.organization_id=? ORDER BY a.created_at DESC LIMIT 500",
         )
         .all(orgId) as { property_id: string }[]
-    ).filter((x) => scope(x.property_id));
+    ).filter((x) => roleScope(x.property_id, ["owner", "approver", "operator"]));
   }
   if (kind === "costs") {
     requireRole(db, p, orgId, ["owner", "manager", "operator"]);
@@ -1010,7 +1015,7 @@ export function collection(
           filters.category ?? "",
           filters.category ?? "",
         ) as { property_id: string }[]
-    ).filter((x) => !x.property_id || scope(x.property_id));
+    ).filter((x) => roleScope(x.property_id, ["owner", "manager", "operator"]));
   }
   if (kind === "team") {
     requireRole(db, p, orgId, ["owner", "operator"]);
@@ -1026,7 +1031,7 @@ export function collection(
       db
         .prepare("SELECT * FROM pro_recurring_rules WHERE organization_id=?")
         .all(orgId) as { property_id: string }[]
-    ).filter((x) => scope(x.property_id));
+    ).filter((x) => roleScope(x.property_id, ["owner", "manager", "operator"]));
   }
   fail("Listă inexistentă.", 404);
 }
@@ -1186,9 +1191,9 @@ export function runRecurring(db: Database, stamp = Date.now()) {
           ) {
             try {
               const starts = hostLocalInstant(day, r.hour);
-              if (+new Date(starts) < stamp) throw new Error("missed");
-              const result = db.transaction(() =>
-                createWork(
+              if (+new Date(starts) < stamp) throw new ProError("Programarea este în trecut.");
+              db.transaction(() => {
+                const result = createWork(
                   db,
                   { id: r.created_by },
                   {
@@ -1201,13 +1206,15 @@ export function runRecurring(db: Database, stamp = Date.now()) {
                     ).toISOString(),
                     estimate: r.estimate,
                   },
-                ),
-              )();
-              db.prepare(
-                "INSERT INTO pro_occurrences VALUES(?,?,?,'generated')",
-              ).run(r.id, day, result.id);
+                );
+                db.prepare(
+                  "INSERT INTO pro_occurrences VALUES(?,?,?,'generated')",
+                ).run(r.id, day, result.id);
+              })();
               generated++;
-            } catch {
+            } catch (error) {
+              // Storage failures must roll back and retry, never consume the occurrence.
+              if (!(error instanceof ProError) || error.status >= 500) throw error;
               db.prepare(
                 "INSERT INTO pro_occurrences VALUES(?,?,NULL,'missed')",
               ).run(r.id, day);

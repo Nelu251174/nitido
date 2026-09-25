@@ -1,3 +1,4 @@
+import {hasTrustedMutationOrigin} from "@/lib/security";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { clientCanReadJob, firmCanReadFullJob } from "@/lib/authorization";
@@ -20,6 +21,7 @@ export async function GET(req:NextRequest,{params}:{params:Promise<{id:string}>}
 
 export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>}){
   const user=await getCurrentUser(req);if(!user||user.role!=="firma")return NextResponse.json({error:"Autentificare Firmă necesară"},{status:401});
+  if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:"Origine nepermisă"},{status:403});
   const firm=getFirmByUserId(user.id);const {id}=await params;const job=db.prepare("SELECT * FROM jobs WHERE id=?").get(id) as JobRow|undefined;
   if(!job)return NextResponse.json({error:"Lucrare inexistentă"},{status:404});
   if(!firm||!firmCanReadFullJob(firm.id,job))return NextResponse.json({error:"Acces interzis"},{status:403});
@@ -33,6 +35,7 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>
 
 export async function DELETE(req:NextRequest,{params}:{params:Promise<{id:string}>}){
   const user=await getCurrentUser(req);if(!user||user.role!=="firma")return NextResponse.json({error:"Autentificare Firmă necesară"},{status:401});
+  if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:"Origine nepermisă"},{status:403});
   const firm=getFirmByUserId(user.id);const {id}=await params;const job=db.prepare("SELECT * FROM jobs WHERE id=?").get(id) as JobRow|undefined;
   if(!job)return NextResponse.json({error:"Lucrare inexistentă"},{status:404});if(!firm||job.accepted_firm_id!==firm.id)return NextResponse.json({error:"Acces interzis"},{status:403});
   db.prepare("DELETE FROM job_live_locations WHERE job_id=? AND firm_id=?").run(id,firm.id);return NextResponse.json({ok:true});
