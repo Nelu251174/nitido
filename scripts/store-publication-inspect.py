@@ -44,7 +44,10 @@ def apple_inspect():
     codes = [int(b['attributes']['version']) for b in builds]
     def readiness(path, required):
         try:
-            fields = apple_get(token, path)['data']['attributes']
+            data = apple_get(token, path).get('data')
+            if not data:
+                return {'available': False, 'missingFields': required}
+            fields = data['attributes']
             return {'available': True, 'missingFields': [key for key in required if not fields.get(key)],
                 'demoAccountRequired': fields.get('demoAccountRequired'),
                 'demoAccountProvided': bool(fields.get('demoAccountName') and fields.get('demoAccountPassword')),
