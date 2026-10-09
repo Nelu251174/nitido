@@ -109,7 +109,7 @@ jobs:
           python3 -m pip install --quiet --break-system-packages pyjwt cryptography
           python3 scripts/mobile-apple-preflight.py
 
-      - name: Archive (semnare automată)
+      - name: Archive without a development device profile
         run: |
           xcodebuild -project ios/App/App.xcodeproj \
             -scheme App \
@@ -122,6 +122,8 @@ jobs:
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CODE_SIGN_STYLE=Automatic \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
             CURRENT_PROJECT_VERSION="$NITIDO_IOS_BUILD_NUMBER" \
             MARKETING_VERSION="$NITIDO_MARKETING_VERSION" \
             clean archive
@@ -142,7 +144,11 @@ jobs:
           </plist>
           PLIST
 
-      - name: Exportă .ipa
+      # App Store distribution signing happens during export. An automatically
+      # signed archive would first request a development profile and registered
+      # devices, which this distribution-only team does not have. The exported
+      # IPA still has to pass the signature and provisioning checks below.
+      - name: Export and sign App Store IPA
         run: |
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
