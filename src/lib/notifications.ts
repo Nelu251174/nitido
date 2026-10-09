@@ -1,3 +1,4 @@
+import {trackInvitationDelivery} from './providerInvitations';
 import {claimNotification,startNotificationDispatch,finishNotification,recoverNotificationClaims,retryableNotificationSql} from "./notificationClaims";
 import type { Database } from "better-sqlite3";
 import { newId } from "@/lib/db";
@@ -33,9 +34,11 @@ function enqueue(db: Database, eventType: SmsEventType, jobId: string, recipient
 }
 
 export function queueJobCreatedFirmAlerts(db: Database, job: {id:string;city:string;spaceType:string;sqm:number;scheduledAt:string|null}, phones:(string|null)[]): string[] {
+  return db.transaction(()=>{
   const body = `NITIDO.RO: Lucrare nouă disponibilă în ${job.city}. Tip: ${labels[job.spaceType]??"curățenie"}, suprafață: ${job.sqm} m², data/ora: ${scheduledLabel(job.scheduledAt)}. Deschide NITIDO pentru detalii și Accept.`;
   return [...new Set(phones.map(p=>p&&toE164Romania(p)).filter((p):p is string=>Boolean(p)))]
-    .map(phone=>enqueue(db,"JOB_CREATED_FIRM_ALERT",job.id,phone,body,"recipient")).filter((id):id is string=>Boolean(id));
+    .map(phone=>{const id=enqueue(db,"JOB_CREATED_FIRM_ALERT",job.id,phone,body,"recipient");if(id){const row=db.prepare("SELECT recipient_user_id FROM notification_outbox WHERE id=?").get(id) as {recipient_user_id:string|null};trackInvitationDelivery(db,"sms",id,job.id,row.recipient_user_id);}return id;}).filter((id):id is string=>Boolean(id));
+  }).immediate();
 }
 
 export function queueJobAcceptedClientSms(db: Database, jobId:string): string[] {

@@ -4,7 +4,7 @@ import {NextRequest} from 'next/server';
 import {CUSTOMER_OPERATIONS_SCHEMA} from '@/lib/customerOperations';
 const state=vi.hoisted(()=>({db:null as Database.Database|null,actor:'verified-session' as string|null,origin:true,audit:vi.fn()}));
 vi.mock('@/lib/db',()=>({get db(){return state.db!;}}));
-vi.mock('@/lib/adminAuth',()=>({getAdminActorId:async()=>state.actor,auditAdminAction:state.audit}));
+vi.mock('@/lib/adminAuth',()=>({getAdminIdentity:async()=>state.actor?{id:state.actor,email:'root@test.ro',role:'super_admin',revision:1}:null,auditAdminAction:state.audit}));
 vi.mock('@/lib/security',()=>({hasTrustedMutationOrigin:()=>state.origin}));
 import {GET,POST} from './route';
 const body=()=>({action:'note',clientId:'c',note:'Notă internă',actorId:'forged'});

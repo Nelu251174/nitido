@@ -1,3 +1,4 @@
+import {invitationEvent} from './providerInvitations';
 import {jobAssistedOperation,checkAssistedTeam} from './assistedOperations';
 import {MarginError} from './operationalMargin';
 import type { Database } from "better-sqlite3";
@@ -116,6 +117,7 @@ function createOfferLocked(db: Database, jobId: string, firmId: string, message?
       db.prepare(
         "UPDATE offers SET status='pending', message=?, updated_at=datetime('now') WHERE id=?"
       ).run(trimmed, existing.id);
+      invitationEvent(db,jobId,firmId,'offered',existing.id+':reactivated:'+new Date().toISOString());
       return { ok: true, offerId: existing.id };
     }
     return { ok: false, error: "Ai trimis deja o ofertă la această lucrare", status: 409 };
@@ -125,6 +127,7 @@ function createOfferLocked(db: Database, jobId: string, firmId: string, message?
   db.prepare(
     "INSERT INTO offers (id, job_id, firm_id, message, status) VALUES (?, ?, ?, ?, 'pending')"
   ).run(offerId, jobId, firmId, trimmed);
+  invitationEvent(db,jobId,firmId,'offered',offerId);
   return { ok: true, offerId };
 }
 
@@ -202,5 +205,6 @@ function withdrawOfferLocked(db: Database, offerId: string, firmId: string, jobI
   if (!offer || (jobId !== undefined && offer.job_id !== jobId)) return { ok: false, error: "Ofertă inexistentă", status: 404 };
   if (offer.status !== "pending" || offer.job_status !== "waiting") return { ok: false, error: "Oferta nu poate fi retrasă după începerea preluării. Reîncarcă lucrarea.", status: 409 };
   db.prepare("UPDATE offers SET status='withdrawn', updated_at=datetime('now') WHERE id=?").run(offerId);
+  invitationEvent(db,offer.job_id,firmId,'withdrawn',offerId+':'+new Date().toISOString());
   return { ok: true, offerId };
 }

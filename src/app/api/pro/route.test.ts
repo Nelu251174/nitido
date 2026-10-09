@@ -14,7 +14,7 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 vi.mock("@/lib/auth", () => ({ getCurrentUser: async () => state.user }));
-vi.mock("@/lib/adminAuth", () => ({ isAdmin: async () => state.admin }));
+vi.mock("@/lib/adminAuth", () => ({ getAdminIdentity: async () => state.admin ? {id:"admin",email:"root@test.ro",role:"super_admin",revision:1} : null }));
 vi.mock("@/lib/email", () => ({
   emailConfigured: vi.fn(() => false),
   sendEmail: vi.fn(),

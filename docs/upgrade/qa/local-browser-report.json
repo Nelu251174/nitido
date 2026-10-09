@@ -1,0 +1,945 @@
+{
+  "scope": "Local isolated Next production server, synthetic SQLite, real MFA login; no hosting or device acceptance",
+  "started": "2026-10-09T08:12:17.264Z",
+  "checks": [
+    {
+      "name": "operator authenticates through password + TOTP",
+      "passed": true,
+      "details": {
+        "loginStatus": 200,
+        "identityRole": "operator"
+      }
+    },
+    {
+      "name": "operator admin permissions",
+      "passed": true,
+      "details": {
+        "workbench": 200,
+        "overview": 401,
+        "execution-templates": 401,
+        "operational-report?from=2026-10-01&to=2026-10-09": 401
+      }
+    },
+    {
+      "name": "operator Pro internal read permissions",
+      "passed": true,
+      "details": {
+        "costStatus": 403,
+        "propertyAddressVisible": true
+      }
+    },
+    {
+      "name": "operator Pro work detail renders its redacted payload",
+      "passed": true,
+      "details": {
+        "checklistVisible": true,
+        "estimateVisible": false
+      }
+    },
+    {
+      "name": "manager authenticates through password + TOTP",
+      "passed": true,
+      "details": {
+        "loginStatus": 200,
+        "identityRole": "manager"
+      }
+    },
+    {
+      "name": "manager admin permissions",
+      "passed": true,
+      "details": {
+        "workbench": 200,
+        "overview": 401,
+        "execution-templates": 200,
+        "operational-report?from=2026-10-01&to=2026-10-09": 200
+      }
+    },
+    {
+      "name": "manager Pro internal read permissions",
+      "passed": true,
+      "details": {
+        "costStatus": 200,
+        "propertyAddressVisible": true
+      }
+    },
+    {
+      "name": "Manager photo rule editor persists revised synthetic policy",
+      "passed": true,
+      "details": {
+        "arrivalMin": 2,
+        "completionMin": 3
+      }
+    },
+    {
+      "name": "Manager configures Provider Score through real observation-only form on synthetic DB",
+      "passed": true,
+      "details": {
+        "path": "UI /admin → Provider Score; POST/GET /api/admin/provider-score",
+        "mode": "observation",
+        "automaticAllocation": false,
+        "syntheticWeightsOnly": true
+      }
+    },
+    {
+      "name": "manager Pro work detail renders its redacted payload",
+      "passed": true,
+      "details": {
+        "checklistVisible": true,
+        "estimateVisible": true
+      }
+    },
+    {
+      "name": "Manager creates, pauses and resumes daily recurrence through Pro calendar UI",
+      "passed": true,
+      "details": {
+        "path": "UI /pro/calendar → POST /api/pro/recurring → POST /api/pro/recurring/:id (pause/resume) → GET /api/pro/recurring",
+        "frequency": "daily",
+        "pauseActive": 0,
+        "resumeActive": 1,
+        "generatedOccurrences": 0
+      }
+    },
+    {
+      "name": "finance authenticates through password + TOTP",
+      "passed": true,
+      "details": {
+        "loginStatus": 200,
+        "identityRole": "finance"
+      }
+    },
+    {
+      "name": "finance admin permissions",
+      "passed": true,
+      "details": {
+        "workbench": 200,
+        "overview": 401,
+        "execution-templates": 401,
+        "operational-report?from=2026-10-01&to=2026-10-09": 200
+      }
+    },
+    {
+      "name": "finance Pro internal read permissions",
+      "passed": true,
+      "details": {
+        "costStatus": 200,
+        "propertyAddressVisible": false
+      }
+    },
+    {
+      "name": "finance Pro work detail renders its redacted payload",
+      "passed": true,
+      "details": {
+        "checklistVisible": false,
+        "estimateVisible": true
+      }
+    },
+    {
+      "name": "super_admin authenticates through password + TOTP",
+      "passed": true,
+      "details": {
+        "loginStatus": 200,
+        "identityRole": "super_admin"
+      }
+    },
+    {
+      "name": "super_admin admin permissions",
+      "passed": true,
+      "details": {
+        "workbench": 200,
+        "overview": 200,
+        "execution-templates": 200,
+        "operational-report?from=2026-10-01&to=2026-10-09": 200
+      }
+    },
+    {
+      "name": "super_admin Pro internal read permissions",
+      "passed": true,
+      "details": {
+        "costStatus": 200,
+        "propertyAddressVisible": true
+      }
+    },
+    {
+      "name": "super_admin Pro work detail renders its redacted payload",
+      "passed": true,
+      "details": {
+        "checklistVisible": true,
+        "estimateVisible": true
+      }
+    },
+    {
+      "name": "Scoped Pro viewer cannot see other property, private address or finance",
+      "passed": true,
+      "details": {
+        "propertyCount": 1,
+        "hiddenStatus": 404,
+        "costStatus": 404
+      }
+    }
+  ],
+  "layouts": [
+    {
+      "label": "public",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgba(0, 0, 0, 0)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "public",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgba(0, 0, 0, 0)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "public",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgba(0, 0, 0, 0)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "public",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgba(0, 0, 0, 0)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "public",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgba(0, 0, 0, 0)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "public",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgba(0, 0, 0, 0)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "operator",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "operator",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "operator",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "operator",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "operator",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "operator",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-operator",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-operator",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-operator",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-operator",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-operator",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-operator",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "manager",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "H1",
+          "text": "Manager operațional",
+          "right": 504
+        },
+        {
+          "tag": "P",
+          "text": "manager@example.test",
+          "right": 504
+        },
+        {
+          "tag": "SECTION",
+          "text": "Lucrări și verificări disponibile rolului tăuLista afișează ",
+          "right": 504
+        },
+        {
+          "tag": "H2",
+          "text": "Lucrări și verificări disponibile rolului tău",
+          "right": 485
+        },
+        {
+          "tag": "P",
+          "text": "Lista afișează cel mult 50 de lucrări pe pagină. Sumele și r",
+          "right": 485
+        },
+        {
+          "tag": "DIV",
+          "text": "",
+          "right": 485
+        },
+        {
+          "tag": "DIV",
+          "text": "Pagina anterioarăPagina următoare",
+          "right": 485
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Pagina următoare",
+          "right": 365
+        }
+      ],
+      "passed": true
+    },
+    {
+      "label": "manager",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "H1",
+          "text": "Manager operațional",
+          "right": 504
+        },
+        {
+          "tag": "P",
+          "text": "manager@example.test",
+          "right": 504
+        },
+        {
+          "tag": "SECTION",
+          "text": "Lucrări și verificări disponibile rolului tăuLista afișează ",
+          "right": 504
+        },
+        {
+          "tag": "H2",
+          "text": "Lucrări și verificări disponibile rolului tău",
+          "right": 485
+        },
+        {
+          "tag": "P",
+          "text": "Lista afișează cel mult 50 de lucrări pe pagină. Sumele și r",
+          "right": 485
+        },
+        {
+          "tag": "DIV",
+          "text": "",
+          "right": 485
+        },
+        {
+          "tag": "DIV",
+          "text": "Pagina anterioarăPagina următoare",
+          "right": 485
+        },
+        {
+          "tag": "SECTION",
+          "text": "Clienți: context și istoric operaționalCaută după nume, emai",
+          "right": 504
+        }
+      ],
+      "passed": true
+    },
+    {
+      "label": "manager",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "H1",
+          "text": "Manager operațional",
+          "right": 504
+        },
+        {
+          "tag": "P",
+          "text": "manager@example.test",
+          "right": 504
+        },
+        {
+          "tag": "SECTION",
+          "text": "Lucrări și verificări disponibile rolului tăuLista afișează ",
+          "right": 504
+        },
+        {
+          "tag": "H2",
+          "text": "Lucrări și verificări disponibile rolului tău",
+          "right": 485
+        },
+        {
+          "tag": "P",
+          "text": "Lista afișează cel mult 50 de lucrări pe pagină. Sumele și r",
+          "right": 485
+        },
+        {
+          "tag": "DIV",
+          "text": "",
+          "right": 485
+        },
+        {
+          "tag": "DIV",
+          "text": "Pagina anterioarăPagina următoare",
+          "right": 485
+        },
+        {
+          "tag": "SECTION",
+          "text": "Clienți: context și istoric operaționalCaută după nume, emai",
+          "right": 504
+        }
+      ],
+      "passed": true
+    },
+    {
+      "label": "manager",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "manager",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "manager",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-manager",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-manager",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-manager",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-manager",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-manager",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-manager",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "finance",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "finance",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "finance",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "finance",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "finance",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "finance",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-finance",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-finance",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-finance",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-finance",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-finance",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-finance",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "super_admin",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "DIV",
+          "text": "Monitorizare lucrări0 rezultateToate stărileÎn așteptareProg",
+          "right": 419
+        },
+        {
+          "tag": "DIV",
+          "text": "Monitorizare lucrări0 rezultate",
+          "right": 400
+        },
+        {
+          "tag": "SPAN",
+          "text": "0 rezultate",
+          "right": 400
+        },
+        {
+          "tag": "DIV",
+          "text": "Toate stărileÎn așteptareProgramatăÎn lucruFinalizatăAnulată",
+          "right": 400
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "right": 400
+        },
+        {
+          "tag": "SELECT",
+          "text": "Toate stărileÎn așteptareProgramatăÎn lucruFinalizatăAnulată",
+          "right": 400
+        },
+        {
+          "tag": "DIV",
+          "text": "LucrareProgramareStareTotalDetaliiNicio lucrare pentru filtr",
+          "right": 400
+        },
+        {
+          "tag": "TABLE",
+          "text": "LucrareProgramareStareTotalDetalii",
+          "right": 400
+        }
+      ],
+      "passed": true
+    },
+    {
+      "label": "super_admin",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "DIV",
+          "text": "Monitorizare lucrări0 rezultateToate stărileÎn așteptareProg",
+          "right": 419
+        },
+        {
+          "tag": "DIV",
+          "text": "Monitorizare lucrări0 rezultate",
+          "right": 400
+        },
+        {
+          "tag": "SPAN",
+          "text": "0 rezultate",
+          "right": 400
+        },
+        {
+          "tag": "DIV",
+          "text": "Toate stărileÎn așteptareProgramatăÎn lucruFinalizatăAnulată",
+          "right": 400
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "right": 400
+        },
+        {
+          "tag": "SELECT",
+          "text": "Toate stărileÎn așteptareProgramatăÎn lucruFinalizatăAnulată",
+          "right": 400
+        },
+        {
+          "tag": "DIV",
+          "text": "LucrareProgramareStareTotalDetaliiNicio lucrare pentru filtr",
+          "right": 400
+        },
+        {
+          "tag": "TABLE",
+          "text": "LucrareProgramareStareTotalDetalii",
+          "right": 400
+        }
+      ],
+      "passed": true
+    },
+    {
+      "label": "super_admin",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "LABEL",
+          "text": "Excluderi",
+          "right": 481
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "right": 481
+        },
+        {
+          "tag": "LABEL",
+          "text": "Localități propuse",
+          "right": 481
+        },
+        {
+          "tag": "TEXTAREA",
+          "text": "",
+          "right": 481
+        },
+        {
+          "tag": "TABLE",
+          "text": "JobFirmăTipStatusÎncărcatăValidatăDovadă",
+          "right": 440
+        },
+        {
+          "tag": "THEAD",
+          "text": "JobFirmăTipStatusÎncărcatăValidatăDovadă",
+          "right": 440
+        },
+        {
+          "tag": "TR",
+          "text": "JobFirmăTipStatusÎncărcatăValidatăDovadă",
+          "right": 440
+        },
+        {
+          "tag": "TH",
+          "text": "Dovadă",
+          "right": 440
+        }
+      ],
+      "passed": true
+    },
+    {
+      "label": "super_admin",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "JobBrutComisionNet firmăStatusTaxă StripeTransferPayoutRefun",
+          "right": 806
+        },
+        {
+          "tag": "THEAD",
+          "text": "JobBrutComisionNet firmăStatusTaxă StripeTransferPayoutRefun",
+          "right": 805
+        },
+        {
+          "tag": "TR",
+          "text": "JobBrutComisionNet firmăStatusTaxă StripeTransferPayoutRefun",
+          "right": 805
+        },
+        {
+          "tag": "TH",
+          "text": "Refund / dispută",
+          "right": 805
+        },
+        {
+          "tag": "TBODY",
+          "text": "",
+          "right": 805
+        }
+      ],
+      "passed": true
+    },
+    {
+      "label": "super_admin",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "super_admin",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-super_admin",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-super_admin",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-super_admin",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-super_admin",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-super_admin",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-super_admin",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-viewer",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-viewer",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-viewer",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-viewer",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-viewer",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-viewer",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "passed": true
+    }
+  ],
+  "pageErrors": [],
+  "developmentRetries": [],
+  "buildId": "ozzIOUr4rE7_fxFObTJDE",
+  "migrations": [
+    11,
+    12,
+    13,
+    14
+  ],
+  "finished": "2026-10-09T08:12:47.481Z",
+  "passed": true
+}

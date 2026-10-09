@@ -1,11 +1,13 @@
 # NITIDO Upgrade v1.1 — situație consolidată
 
-Data: 25.09.2026. Candidat: ramura `feat/nitido-internal-operations`.
+Data: 09.10.2026. Candidat: ramura `codex/nitido-v11-completion`, continuare din PR #85 / `4c8315148504bc2edd98a5d9b155763db987b339`.
+
+Brieful integral primit de la proprietar este păstrat în [MASTER-BRIEF-v1.1.md](MASTER-BRIEF-v1.1.md), SHA-256 `1bdd7c191df26cd3445cb1e09d4baca44fc6379e1d8670276bc70e8f7ec65024`. Documentul este referința cerințelor; afirmarea dintr-un brief nu constituie dovadă de implementare.
 Referință normativă: MASTER BRIEF v1.1, amendamentele A–H din 24.09.2026. Documentele A0–A4 descriu probele la momentul fiecărui pachet; acest inventar le reunește și explică limitele actuale. Un PR, o schemă sau un test unitar nu constituie acceptanță live.
 
 ## Ce include această livrare
 
-Ramura continuă `feat/nitido-pro-property-checklists` (PR #84, `66ab20494b54f11a547207e70063afd4dace5429`) și conține istoricul pachetelor anterioare. Nu este nevoie să se copieze manual fișierele din fiecare PR pentru a evalua candidatul. Nu s-a făcut merge în ramura de producție.
+Ramura continuă PR #85, care include PR #84 (`66ab20494b54f11a547207e70063afd4dace5429`) și istoricul pachetelor anterioare. Nu este nevoie să se copieze manual fișierele din fiecare PR pentru a evalua candidatul. Nu s-a făcut merge în ramura de producție.
 
 1. Raport administrativ Marketplace cu selecție coerentă, costuri confirmate separate de cele necunoscute și indicatori ai prestatorilor în observare.
 2. Fișă client cu căutare, clasificări, note, restricții explicite versionate, istorice paginate și valoare/marjă cumulate.
@@ -14,7 +16,11 @@ Ramura continuă `feat/nitido-pro-property-checklists` (PR #84, `66ab20494b54f11
 5. Editor administrativ de checklisturi Marketplace cu liste înghețate pe lucrare și păstrarea regulilor istorice; `CRM-AND-EXECUTION-CONTROLS.md`.
 6. Checklisturi Pro administrabile pe proprietate și serviciu, istoric paginat și snapshot la crearea lucrării, inclusiv recurențe; `PRO-PROPERTY-CHECKLISTS.md`.
 7. Roluri nominale Operator/Manager/Financiar/Super Admin cu MFA și revocare, reguli foto Marketplace/Pro, indicatori suplimentari și rezoluții auditate; `INTERNAL-ROLES-PHOTOS-AND-RESOLUTIONS.md`.
-8. O singură comandă de regresie și un workflow CI care include etapele precedente și modulele noi; documentație consolidată de operare și lansare.
+8. Delegare granulară a CRM și Pro pentru rolurile nominale, inclusiv redacție server-side și audit; `INTERNAL-DELEGATION-COMPLETION.md`.
+9. Recurență Pro zilnică, pauză/reluare, dată finală inclusivă și migrare aditivă 14 compatibilă cu rollback; `PRO-DAILY-RECURRENCE.md`.
+10. Registru deduplicat al invitațiilor trimise confirmate și KPI cu cohorte explicite; `PROVIDER-INVITATIONS-AND-KPI.md`.
+11. Provider Score configurabil numai pentru observare, fără ponderi implicite sau impact automat; `PROVIDER-SCORE-OBSERVATION.md`.
+12. O singură comandă de regresie și un workflow CI care include etapele precedente și modulele noi; documentație consolidată de operare și lansare.
 
 Suprafețele noi folosesc crem, iar acțiunile păstrează verdele. Nu s-a modificat arhitectura Stripe, nu s-au activat ponderi de scor, tarife comerciale Pro sau praguri financiare presupuse.
 
@@ -27,18 +33,18 @@ Suprafețele noi folosesc crem, iar acțiunile păstrează verdele. Nu s-a modif
 | A2 — ofertare, marjă și excepții | Evaluare → dovezi → estimare → ofertă → programare → rezervare; marjă estimată/efectivă și policy/excepții auditate | Valori comerciale/fiscale aprobate și testare operațională; costurile necunoscute rămân necunoscute |
 | Capacitate și alocare | `assessmentPlan`, `assistedOperations`, verificare/rezervare atomică; `A2-atomic-team-allocation.md` | Configurarea echipelor și capacității reale; proba concurentă pe mediul țintă |
 | Express și oportunități | Eligibilitate la citire și mutație, minimizare înainte de alocare, izolare ofertă asistată, un câștigător; documentele A3 de eligibilitate | Validare pe configurația reală de documente/zone/servicii; distribuția după un scor nou nu este activată |
-| Provider Score | Raportul nou arată indicatorii în observare; Quality Index existent este păstrat | Ponderi, perioadă, volum minim, reguli firme noi și date lipsă; validare pe pilot înainte de impact automat |
+| Provider Score | Politici configurabile versionate/imuabile, perioadă comună București, volume minime și date lipsă explicite; Quality Index păstrat | Configurarea politicii pentru pilot și validarea înainte de impact automat; distribuția graduală nouă nu este implementată |
 | Incidente/remedieri | `visitCare`, verificări versionate, revizii concurente, severitate, responsabil, notă internă și termene; `CONSOLIDATED-OPERATIONS.md` | Rezoluții auditate implementate în noul pachet; rămân escaladările/notificările SLA automate și creditul/penalizarea efectivă conform politicii comerciale |
-| Dovezi/checklist | Editor Marketplace pe Standard/Express și categorii de evaluare, revizii auditate, copii imuabile pe lucrare, sarcini nerealizabile, raport/finalizare coerente; editor Pro pe proprietate/serviciu cu revizii și istoric | Reguli foto diferențiate implementate cu snapshot Marketplace/Pro; rămân migrarea Pro 13 și validarea în sandbox/dispozitive |
-| CRM operațional | Fișă internă, etichete, note, restricții tranzacționale la rezervări/evaluări/recurențe, valoare și marjă pe întregul istoric, costuri lipsă explicite | Segmentare avansată; controale organizaționale Pro distincte; validare reală a restricțiilor și totalurilor |
+| Dovezi/checklist | Editor Marketplace pe Standard/Express și categorii de evaluare, revizii auditate, copii imuabile pe lucrare, sarcini nerealizabile, raport/finalizare coerente; editor Pro pe proprietate/serviciu cu revizii și istoric | Reguli foto diferențiate implementate cu snapshot Marketplace/Pro; rămân executarea migrărilor Pro 13–14 pe infrastructură și validarea în sandbox/dispozitive |
+| CRM operațional | Fișă internă, etichete, note, restricții tranzacționale la rezervări/evaluări/recurențe, valoare și marjă pe întregul istoric, costuri lipsă explicite | Delegare nominală CRM/Pro implementată; segmentarea avansată și validarea reală a restricțiilor și totalurilor rămân deschise |
 | Organizații/proprietăți Pro | Scope pe organizație/proprietate, roluri Pro, acces sensibil în fereastra lucrării; `NITIDO-PRO-V11-IMPLEMENTATION.md` | Pilot real cu portofolii, echipe și acces verificat; model comercial încă neactivat |
-| Recurență/aprobări/rapoarte Pro | Weekly/biweekly/monthly, retry fără duplicate, limite calendar, rework și închidere corecte, CSV autorizat, notificări după scope | Extensia daily nu există în schema curentă. Validare fizică notificări și pilot; nu se pierde exportul CSV existent |
-| Roluri interne NITIDO | Conturi nominale cu MFA, roluri și drepturi server-side, revocare și audit | Provisionare/acceptanță sandbox; delegarea granulară a CRM-ului istoric și administrării globale Pro, încă Super Admin |
-| KPI și A5 | Stări Marketplace, reclamații distincte, marjă documentată, indicatori prestator, rapoarte Pro | Mediane, rate, valoare istorică, marjă procentuală și filtre serviciu/cod poștal implementate; rămân registrul invitațiilor pentru acceptarea prestatorilor, unificarea cu Pro și validarea operațională |
+| Recurență/aprobări/rapoarte Pro | Daily/weekly/biweekly/monthly, retry fără duplicate, DST București, pauză/reluare, limite calendar, rework și închidere, CSV autorizat | Migrarea 14 executată pe mediu țintă, validare fizică notificări și pilot; CSV existent păstrat |
+| Roluri interne NITIDO | Conturi nominale cu MFA, roluri și drepturi server-side, revocare și audit | Delegare CRM/Pro nominală implementată; provisionare conturi MFA și acceptanță sandbox rămân deschise |
+| KPI și A5 | Stări Marketplace, reclamații distincte, marjă documentată, indicatori prestator, rapoarte Pro | Mediane, rate, valoare istorică, marjă procentuală și filtre serviciu/cod poștal implementate; registrul invitațiilor și definițiile KPI sunt implementate; rămân conversia exactă pe cereri eligibile fără registru istoric, unificarea dashboardului cu Pro (P1) și validarea operațională |
 | Mobil | Cod Capacitor existent și corecțiile de aspect anterioare sunt păstrate; suprafețe crem | Parcurgere reală iOS/Android; build încărcat, procesat și distribuit separat în TestFlight/Google Play. Un deploy web nu dovedește un update în magazin |
 | Backup/deploy | Instrument executabil, probe sintetice, documentația de mai jos; schema nouă este aditivă | Restaurarea SQLite + fișiere pe infrastructura țintă și verificarea rollback-ului pe datele reale |
 
-**Brief-ul nu este închis integral.** Tabelul separă explicit lipsurile de cod de probele operaționale și de deciziile comerciale. Nu există o bază verificată pentru un procent de finalizare sau pentru afirmația „tot P0 este gata”. Lipsurile de cod de mai sus nu trebuie reclasificate drept simple aprobări lipsă.
+**Brief-ul nu este închis integral.** Codul candidat trece 1.661 teste în UTC și Europe/Bucharest; aceste rezultate nu înlocuiesc acceptanța sandbox/LIVE. Tabelul separă explicit lipsurile de cod de probele operaționale și de deciziile comerciale. Nu există o bază verificată pentru un procent de finalizare sau pentru afirmația „tot P0 este gata”. Distribuția graduală Express după Provider Score nu a fost implementată sau activată; necesită politica operațională și pilotul. Conversia exactă pe cereri eligibile nu poate fi dedusă din istoricul disponibil. Aceste lacune nu sunt reclasificate drept simple aprobări lipsă.
 
 ## Livrabile obligatorii §30
 

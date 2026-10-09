@@ -68,3 +68,7 @@ Folosește o copie de lucru izolată și date de test. Scriptul de verificare al
 | SQLite + fotografii + revenire la imagine compatibilă | Restaurare pe infrastructura țintă, hashuri, totaluri, acces foto și durată |
 
 Niciun rând din acest ultim tabel nu este marcat PASS pe baza testelor locale. Configurația conturilor și infrastructurii reale, pilotul și deciziile comerciale rămân separate de validarea codului.
+
+## Actualizare după PR #85, 09.10.2026
+
+Comanda `npm run test:upgrade:consolidated` rulează acum toată suita Vitest. Rezultatul este 1.661/1.661 în UTC și Europe/Bucharest, fără teste omise, plus 38/38 teste ale scripturilor și build/TypeScript validate. Vezi `V11-COMPLETION-QA.md` pentru baseline, migrări, probe browser și limitele de acceptanță. Rezultatele etapelor anterioare de mai sus sunt istorice, nu substituie starea candidatului curent.

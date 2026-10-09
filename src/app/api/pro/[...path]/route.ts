@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { isAdmin } from "@/lib/adminAuth";
+import { getAdminIdentity } from "@/lib/adminAuth";
+import type { AdminRole } from "@/lib/adminRolesShared";
+import { internalProAllowed, internalProPermissions, internalProView } from "@/lib/pro/internalAccess";
 import { hasTrustedMutationOrigin, constantTimeEqual } from "@/lib/security";
 import { emailIsVerified } from "@/lib/emailVerification";
 import { emailConfigured, sendEmail } from "@/lib/email";
@@ -26,10 +28,11 @@ const error = (e: unknown) =>
     : e instanceof pro.ProError
       ? json({ error: e.message }, e.status)
       : json({ error: "Operațiunea nu a fost confirmată. Reîncearcă." }, 503);
-async function principal(req: NextRequest) {
+async function principal(req: NextRequest): Promise<pro.Principal & { internalRole?: AdminRole }> {
   const user = await getCurrentUser(req);
   if (user) return { id: user.id };
-  if (await isAdmin()) return { id: "admin", admin: true };
+  const identity = await getAdminIdentity();
+  if (identity) return { id: identity.id, admin: true, internalRole: identity.role };
   throw new pro.ProError("Autentificare necesară.", 401);
 }
 function enabled(publicOnly = false) {
@@ -74,6 +77,8 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     const p = await principal(req),
       segments = (await ctx.params).path,
       [kind, id, action] = segments;
+    if (p.internalRole && !internalProAllowed(p.internalRole, 'GET', segments)) pro.fail('Rolul nu permite această citire Pro.', 403);
+    const respond = (data: unknown, status = 200) => json(internalProView(data, p.internalRole), status);
     pro.limit(db, `read:${p.id}`, 240);
     const org = req.nextUrl.searchParams.get("organization_id") ?? "";
     const filters = {
@@ -83,11 +88,12 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       category: req.nextUrl.searchParams.get("category") ?? "",
     };
     if (kind === "context")
-      return json({
+      return respond({
         organizations: pro.listOrganizations(db, p),
         partners: pro.partnerIds(db, p),
         admin: !!p.admin,
         user_id: p.id,
+        ...(p.internalRole ? { internal_role: p.internalRole, internal_permissions: internalProPermissions(p.internalRole) } : {}),
       });
     if (kind === "media" && id) {
       const m = db.prepare("SELECT * FROM pro_media WHERE id=?").get(id) as
@@ -116,7 +122,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     }
     if (kind === "invites") {
       pro.requireRole(db, p, org, ["owner"]);
-      return json(
+      return respond(
         db
           .prepare(
             "SELECT id,email,role,expires_at,used_at,revoked FROM pro_invites WHERE organization_id=? ORDER BY expires_at DESC",
@@ -137,13 +143,13 @@ export async function GET(req: NextRequest, ctx: Ctx) {
         visible.push({ id, title, href, read_at, email_status, created_at });
         if (visible.length === 100) break;
       }
-      return json(visible);
+      return respond(visible);
     }
     if (kind === "partner")
-      return json(pro.partnerWork(db, p).map(w => pro.workView(db, p, w)));
+      return respond(pro.partnerWork(db, p).map(w => pro.workView(db, p, w)));
     if (kind === "partners") {
       pro.requireRole(db, p, org, ["operator"]);
-      return json(
+      return respond(
         db
           .prepare(
             "SELECT id,name,status,cities_json,services_json FROM pro_partners ORDER BY name",
@@ -153,7 +159,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     }
     if (kind === "leads") {
       if (!p.admin) pro.fail("Acces interzis.", 403);
-      return json(
+      return respond(
         db
           .prepare("SELECT * FROM pro_leads ORDER BY created_at DESC LIMIT 200")
           .all(),
@@ -161,7 +167,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     }
     if (kind === "work-orders" && id) {
       const w = pro.work(db, p, id);
-      if (segments[2] === "credential") return json(pro.credential(db, p, id));
+      if (segments[2] === "credential") return respond(pro.credential(db, p, id));
       const media = mediaAccess.bind(null, p);
       const files = db
         .prepare(
@@ -181,7 +187,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
         /* Offer preview never discloses photographs. */
       }
       const view = pro.workView(db, p, w);
-      return json({
+      return respond({
         ...view,
         media: photos,
         audit: db
@@ -201,7 +207,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     }
     if (kind === "tickets" && id) {
       const t = pro.ticket(db, p, id);
-      return json({
+      return respond({
         ...t,
         media: db
           .prepare("SELECT id,category FROM pro_media WHERE ticket_id=?")
@@ -209,7 +215,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       });
     }
     if (kind === "properties" && id && action === "checklist-history")
-      return json(pro.propertyChecklistHistory(db, p, id, req.nextUrl.searchParams.get("service") ?? "", Number(req.nextUrl.searchParams.get("before") ?? Number.MAX_SAFE_INTEGER)));
+      return respond(pro.propertyChecklistHistory(db, p, id, req.nextUrl.searchParams.get("service") ?? "", Number(req.nextUrl.searchParams.get("before") ?? Number.MAX_SAFE_INTEGER)));
     if (kind === "properties" && id) {
       const prop = pro.property(db, p, id);
       const sensitive =
@@ -223,7 +229,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
         );
       if (sensitive)
         pro.audit(db, p, prop.organization_id, id, "property.sensitive_view");
-      return json(
+      return respond(
         sensitive
           ? { ...prop, checklist_configuration: pro.propertyChecklistConfiguration(db, p, id) }
           : {
@@ -266,7 +272,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
         },
       });
     }
-    return json(pro.collection(db, p, org, kind, filters));
+    return respond(pro.collection(db, p, org, kind, filters));
   } catch (e) {
     return error(e);
   }
@@ -382,6 +388,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     }
     enabled();
     const p = await principal(req);
+    if (p.internalRole && !internalProAllowed(p.internalRole, 'POST', segments)) pro.fail('Rolul nu permite această modificare Pro.', 403);
     if (!hasTrustedMutationOrigin(req)) pro.fail("Origine invalidă.", 403);
     pro.limit(db, `write:${p.id}`, 40);
     if (kind === "media") {
@@ -580,9 +587,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
           id,
         );
         if (status !== "active") {
-          db.prepare(
-            "UPDATE pro_recurring_rules SET active=0 WHERE property_id=?",
-          ).run(id);
+          pro.pausePropertyRecurring(db, id);
           db.prepare(
             "DELETE FROM pro_access_credentials WHERE property_id=?",
           ).run(id);
@@ -757,10 +762,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
           r.property_id,
         );
         if (typeof b.active !== "boolean") pro.fail("Stare invalidă.");
-        db.prepare("UPDATE pro_recurring_rules SET active=? WHERE id=?").run(
-          b.active ? 1 : 0,
-          id,
-        );
+        pro.setRecurringActive(db, id, b.active);
         pro.audit(db, p, r.organization_id, id, "recurring.pause", {
           active: b.active,
         });
@@ -948,7 +950,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       }
       pro.fail("Acțiune inexistentă.", 404);
     });
-    return json(result);
+    return json(internalProView(result, p.internalRole));
   } catch (e) {
     return error(e);
   }

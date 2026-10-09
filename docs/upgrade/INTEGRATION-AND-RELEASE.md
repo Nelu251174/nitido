@@ -10,10 +10,10 @@ Nu copia secrete din producție în sandbox. Nu activa chei live, Connect sau ab
 
 ## Pregătirea sandbox-ului
 
-1. Folosește ramura `feat/nitido-pro-property-checklists` și SHA-ul exact al PR-ului. Ea include părinții upgrade-ului; nu înlocui doar un fișier dintr-un pachet intermediar. Confirmă rezultatul CI pe același SHA.
+1. Folosește ramura `codex/nitido-v11-completion` și SHA-ul exact al PR-ului. Ea include părinții upgrade-ului; nu înlocui doar un fișier dintr-un pachet intermediar. Confirmă rezultatul CI pe același SHA.
 2. Identifică în Coolify aplicația **sandbox**, volumele ei și versiunea anterioară. Fă o copie coerentă și verifică restaurarea izolată conform `BACKUP-RESTORE.md` înainte de migrare. Backupul producției nu se deduce din cel al sandbox-ului sau invers.
 3. Păstrează separarea test/live și configurarea MFA. Activările deja existente sunt `NITIDO_MANAGED_PRICING_SANDBOX=true` și `NITIDO_MANUAL_OFFERS_SANDBOX=true`, numai împreună cu `NEXT_PUBLIC_SITE_URL=https://sandbox.nitido.ro` și fără secret Stripe live. Nu se înlocuiesc automat variabilele existente.
-4. Rulează migrarea Pro explicită pentru revizia 12 conform `PRO-PROPERTY-CHECKLISTS.md`; ea adaugă istoricul checklisturilor fără să rescrie lucrările existente. Refuzul tabelelor legacy nu se ocolește cu DROP. Inițializarea Marketplace adaugă schema acestui pachet; noile tabele nu cer copierea datelor clienților în altă bază.
+4. Rulează migrarea Pro explicită până la revizia 14 conform `PRO-PROPERTY-CHECKLISTS.md`, `INTERNAL-ROLES-PHOTOS-AND-RESOLUTIONS.md` și `PRO-DAILY-RECURRENCE.md`; se păstrează istoricul checklisturilor, regulile foto și lucrările existente. Refuzul tabelelor legacy nu se ocolește cu DROP. Inițializarea Marketplace adaugă schema acestui pachet; noile tabele nu cer copierea datelor clienților în altă bază.
 5. După deploy verifică sănătatea containerului, SHA-ul servit și scenariile din `CONSOLIDATED-QA.md`. Verde/Success la build nu închide acceptanța funcțională.
 
 Adresele funcționale după publicarea efectivă în sandbox sunt pagina principală, `/admin#performanta`, `/admin#clienti`, `/admin#incidente`, `/admin#catalog` (checklisturi), plus `/pro/proprietati` → fișa proprietății → „Checklisturi pentru această proprietate” și rutele Standard/Express/Pro existente. Aceste căi nu sunt dovada că noul commit este deja publicat.
@@ -33,3 +33,11 @@ NITIDO folosește aplicația Capacitor existentă. Un update web nu dovedește �
 Codul, testele, schema, scriptul și documentele sunt în `Nelu251174/nitido`, în ramura candidatului. Ownerul are nevoie de acces verificat la GitHub, Coolify/host, volume/backupuri, DNS, email, analytics și conturile Apple/Google relevante. Nu se pot deduce drepturile dintr-o captură sau din existența unui link. Nu sunt publicate credențiale în documente sau în commit.
 
 În sesiunea de implementare nu a fost disponibil acces operabil la Coolify și parcurgerea sandbox prin browser a fost blocată de politica instrumentului. Acea restricție nu a fost ocolită prin alt client. Nu a fost confirmată disponibilitatea unui nou build în magazine. Aceste limite explică lipsa dovezilor live, dar nu înlocuiesc lista lipsurilor de implementare din `BRIEF-EXECUTION-STATUS.md`.
+
+## Verificarea din 09.10.2026
+
+GitHub este accesibil. `main` rămâne la `2101988542d989b46cb2c091922d16ddce334387`; PR #85 rămâne baza `4c8315148504bc2edd98a5d9b155763db987b339`. Ramura de producție documentată anterior, `fix/windows-area-clear` / `9cbc59357c0a6b0aa29e91cdfb8d69c3de97ff35`, este strămoș al PR #85: `git rev-list --left-right --count` arată `0 37`. Integrarea precedentă `59528ff` păstrează `docker-compose.production.yml`; divergența descrisă în stări Work mai vechi nu mai descrie acest candidat. Sursa efectiv instalată azi rămâne neverificată.
+
+Coolify și domeniile publice NITIDO sunt blocate de politica HTTP a mediului; Coolify răspunde `CONNECT 403` înainte de autentificare. Nu există sesiune Coolify/token configurat în acest mediu. Nu s-a declanșat webhookul GitHub cu țintă necunoscută. Pentru publicare sunt necesare permiterea domeniilor `coolify.nitido.ro`, `sandbox.nitido.ro`, `nitido.ro` și o sesiune sau un token Coolify furnizat prin configurare securizată, cu acces la aplicațiile și volumele relevante. Nu se trimit secrete în chat sau repository.
+
+Rezultatele locale, migrările sintetice și verificările browser sunt în `V11-COMPLETION-QA.md` și `ENVIRONMENT-ACCEPTANCE.md`. Nu s-a executat merge în `main`, deploy sandbox/LIVE, migrare a bazei de pe host sau distribuție mobilă.

@@ -3,7 +3,7 @@ import Sqlite from 'better-sqlite3';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { SCHEMA_SQL } from './db';
+import { initializeDatabase } from './db';
 import { createOffer, selectOffer } from './offers';
 import { authorizePayment } from './payments';
 import { recoverSelection, selectionRecoveryState, recordSelectionConfirmation } from './selectionRecovery';
@@ -15,7 +15,7 @@ let losing: string;
 beforeEach(() => {
   vi.stubEnv('NODE_ENV', 'test'); vi.stubEnv('STRIPE_SECRET_KEY', '');
   directory = mkdtempSync(join(tmpdir(), 'nitido-selection-')); path = join(directory, 'db.sqlite');
-  db = new Sqlite(path, { timeout: 0 }); db.pragma('journal_mode=WAL'); db.exec(SCHEMA_SQL);
+  db = new Sqlite(path, { timeout: 0 }); db.pragma('journal_mode=WAL'); initializeDatabase(db);
   db.exec(`INSERT INTO users(id,role,name) VALUES('c','client','Client'),('u','firma','Firm'),('v','firma','Other');
     INSERT INTO firms(id,user_id,coverage_city,verified) VALUES('f','u','București',1),('g','v','București',1);
     INSERT INTO jobs(id,client_id,street,city,sqm,space_type,when_type,scheduled_at,price_gross,duration_minutes,buffer_minutes,status,mode)

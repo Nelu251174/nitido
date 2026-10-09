@@ -1,3 +1,4 @@
+import {acknowledgeInvitationDelivery} from './providerInvitations';
 import {randomUUID} from 'node:crypto';
 import type {Database} from 'better-sqlite3';
 
@@ -45,10 +46,14 @@ export function startNotificationDispatch(db:Database,channel:NotificationChanne
 export function finishNotification(db:Database,channel:NotificationChannel,id:string,token:string,result:{providerMessageId:string}|{error:string}):boolean{
  const outcome='providerMessageId' in result&&(typeof result.providerMessageId!=='string'||!result.providerMessageId.trim())?{error:'DELIVERY_UNKNOWN'}:result;
  const sent='providerMessageId' in outcome;
- return db.prepare(`UPDATE ${table(channel)} SET status=?,provider_message_id=?,last_error=?,sent_at=CASE WHEN ? THEN datetime('now') ELSE sent_at END
+ return db.transaction(()=>{
+ const changed=db.prepare(`UPDATE ${table(channel)} SET status=?,provider_message_id=?,last_error=?,sent_at=CASE WHEN ? THEN datetime('now') ELSE sent_at END
   WHERE id=? AND (status='sending' OR (status='failed' AND last_error='DELIVERY_UNKNOWN'))
   AND EXISTS(SELECT 1 FROM notification_delivery_claims WHERE channel=? AND outbox_id=? AND token=?)`)
   .run(sent?'sent':'failed',sent?outcome.providerMessageId:null,sent?null:outcome.error,sent?1:0,id,channel,id,token).changes===1;
+ if(changed&&sent)acknowledgeInvitationDelivery(db,channel,id);
+ return changed;
+ }).immediate();
 }
 
 export function recoverNotificationClaims(db:Database,now=Date.now()){

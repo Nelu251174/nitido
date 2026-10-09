@@ -1,10 +1,9 @@
 import {beforeEach,afterEach,it,expect} from 'vitest';
 import Database from 'better-sqlite3';
-import {SCHEMA_SQL} from './db';
-import {WORKSPACE_SCHEMA} from './workspace';
+import {initializeDatabase} from './db';
 import {PROPERTY_CSV_HEADER,previewPropertyImport,commitPropertyImport} from './propertyImport';
 let db:Database.Database;
-beforeEach(()=>{db=new Database(':memory:');db.exec(SCHEMA_SQL);db.exec(WORKSPACE_SCHEMA);db.exec("INSERT INTO users(id,role,name) VALUES('a','client','A'),('b','client','B'),('f','firma','F')")});afterEach(()=>db.close());
+beforeEach(()=>{db=new Database(':memory:');initializeDatabase(db);db.exec("INSERT INTO users(id,role,name) VALUES('a','client','A'),('b','client','B'),('f','firma','F')")});afterEach(()=>db.close());
 const line='Birou,București,Strada 1,100,birou,business,Office,123.45,Note';
 const csv=(...rows:string[])=>PROPERTY_CSV_HEADER+'\r\n'+rows.join('\r\n');
 it('previews without writes and atomically imports valid rows',()=>{expect(previewPropertyImport(db,'a',csv(line)).rows[0].status).toBe('new');expect(db.prepare('SELECT COUNT(*) n FROM workspace_properties').get()).toEqual({n:0});expect(commitPropertyImport(db,'a',csv(line))).toEqual({created:1,skipped:0});expect(db.prepare('SELECT budget_bani FROM workspace_properties').get()).toEqual({budget_bani:12345})});
