@@ -2,7 +2,8 @@ import { publicPageMetadata } from "@/lib/publicSeo";
 export const metadata = publicPageMetadata("/confidentialitate");
 import { InformationPage, type InfoSection } from "@/components/InformationPage";
 import { legalIdentityStatus } from "@/lib/legalConfig";
-export default function Page(){const legal=legalIdentityStatus();const sections:InfoSection[]=[
+import { connection } from "next/server";
+export default async function Page(){await connection();const legal=legalIdentityStatus();const sections:InfoSection[]=[
   {title:"1. Operatorul datelor",paragraphs:[legal.productionReady?`Operatorul este ${legal.values.LEGAL_ENTITY_NAME}, ${legal.values.LEGAL_ENTITY_REGISTRATION}, ${legal.values.LEGAL_ENTITY_ADDRESS}. Contact: ${legal.values.LEGAL_CONTACT_EMAIL}.`:"Identitatea juridică a operatorului nu este completată integral pe această pagină. Pentru identificare și solicitări privind datele personale, contactează support@nitido.ro. Această lipsă de informații trebuie clarificată și nu este înlocuită de denumirea comercială NITIDO.RO."]},
   {title:"2. Ce date colectăm",paragraphs:["Colectăm numai datele necesare contului, lucrărilor, plăților, notificărilor, suportului și securității.","Informațiile diferă în funcție de ceea ce faci: simpla consultare a unei pagini nu presupune completarea unei adrese de intervenție, în timp ce rezervarea unui serviciu o necesită. Evită să introduci în câmpurile libere informații medicale, copii de acte sau date despre terți fără legătură cu solicitarea."]},
   {title:"3. Date de cont",items:["Nume","Email","Telefon","Rol","Parolă stocată numai sub formă de hash","Cod și sold de recomandare"]},
