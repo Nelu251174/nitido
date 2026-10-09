@@ -24,7 +24,6 @@ jobs:
       ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       GH_TOKEN: ${{ github.token }}
-      EVIDENCE: ${{ runner.temp }}/mobile-release-evidence.json
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,6 +42,7 @@ jobs:
         run: python -m pip install pyjwt cryptography
       - name: Verify exact successful source provenance and download signed IPA
         run: |
+          echo "EVIDENCE=$RUNNER_TEMP/mobile-release-evidence.json" >> "$GITHUB_ENV"
           test "$(git -C app rev-parse HEAD)" = "$NITIDO_SOURCE_SHA"
           for RUN in 37971466646 37957420729; do
             test "$(gh api "repos/Nelu251174/nitido/actions/runs/$RUN" --jq '.head_sha')" = "$NITIDO_SOURCE_SHA"
