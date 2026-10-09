@@ -34,3 +34,15 @@ mobile/.eas/
 /ios/App/App/public/
 /ios/App/App/capacitor.config.json
 .DS_Store
+
+# Preserve main protections for local credentials and generated artifacts.
+/.pnp
+.pnp.*
+/out/
+/build/
+/coverage/
+*.pem
+.env*.local
+/.vercel/
+*.tsbuildinfo
+next-env.d.ts
