@@ -42,12 +42,30 @@ def apple_inspect():
     versions = apple_rows(token, '/v1/apps/' + app_id + '/appStoreVersions?limit=200')
     groups = apple_rows(token, '/v1/apps/' + app_id + '/betaGroups?limit=200')
     codes = [int(b['attributes']['version']) for b in builds]
+    def readiness(path, required):
+        try:
+            fields = apple_get(token, path)['data']['attributes']
+            return {'available': True, 'missingFields': [key for key in required if not fields.get(key)],
+                'demoAccountRequired': fields.get('demoAccountRequired'),
+                'demoAccountProvided': bool(fields.get('demoAccountName') and fields.get('demoAccountPassword')),
+                'notesProvided': bool(fields.get('notes'))}
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                return {'available': False, 'missingFields': required}
+            return {'available': False, 'httpStatus': error.code}
+    contact_fields = ['contactFirstName', 'contactLastName', 'contactEmail', 'contactPhone']
+    beta_review = readiness('/v1/apps/' + app_id + '/betaAppReviewDetail', contact_fields)
+    for version in versions:
+        version['readiness'] = readiness('/v1/appStoreVersions/' + version['id'] + '/appStoreReviewDetail', contact_fields)
+    beta_info = apple_rows(token, '/v1/apps/' + app_id + '/betaAppLocalizations?limit=200')
+    beta_info_flags = [{'locale': item['attributes']['locale'],
+        'missingFields': [key for key in ['description', 'feedbackEmail', 'privacyPolicyUrl'] if not item['attributes'].get(key)]} for item in beta_info]
     return {'available': True, 'authenticated': True, 'appId': app['id'],
         'bundleId': app['attributes']['bundleId'], 'name': app['attributes']['name'],
-        'highestBuild': max(codes, default=0),
+        'highestBuild': max(codes, default=0), 'betaReviewReadiness': beta_review, 'betaInformation': beta_info_flags,
         'builds': [{'id': b['id'], **{k: b['attributes'].get(k) for k in
-            ['version', 'processingState', 'uploadedDate']}} for b in builds],
-        'versions': [{'id': v['id'], **{k: v['attributes'].get(k) for k in
+            ['version', 'processingState', 'uploadedDate', 'usesNonExemptEncryption']}} for b in builds],
+        'versions': [{'id': v['id'], 'reviewReadiness': v['readiness'], **{k: v['attributes'].get(k) for k in
             ['versionString', 'appStoreState', 'platform']}} for v in versions],
         'groups': [{'id': g['id'], **{k: g['attributes'].get(k) for k in
             ['isInternalGroup', 'publicLinkEnabled', 'publicLink']}} for g in groups]}
@@ -82,7 +100,7 @@ def play_inspect():
                 releases.append({k: release.get(k) for k in ['status', 'versionCodes']})
             sanitized.append({'track': track['track'], 'releases': releases})
         return {'available': True, 'authenticated': True, 'package': 'ro.nitido.app',
-            'highestBuild': max(codes, default=0), 'tracks': sanitized}
+            'highestBuild': max(codes, default=0), 'betaReviewReadiness': beta_review, 'betaInformation': beta_info_flags, 'tracks': sanitized}
     finally:
         if edit:
             response = session.delete(base + '/' + edit, timeout=30)
