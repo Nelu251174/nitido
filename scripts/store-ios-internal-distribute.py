@@ -1,5 +1,5 @@
 """Associate verified uploaded build16 with existing internal TestFlight groups."""
-import datetime, json, os, pathlib, time, urllib.parse, urllib.request
+import datetime, json, os, pathlib, time, urllib.parse, urllib.request, urllib.error
 import jwt
 
 token = jwt.encode({'iss': os.environ['ASC_ISSUER_ID'], 'iat': int(time.time()),
@@ -46,9 +46,19 @@ assert internal, 'No existing internal TestFlight group; no new users invited'
 assigned = []
 for group in internal:
     gid = urllib.parse.quote(group['id'], safe='')
-    api('/v1/betaGroups/' + gid + '/relationships/builds', 'POST',
-        {'data': [{'type': 'builds', 'id': build['id']}]})
-    assigned.append(group['id'])
+    existing = api('/v1/betaGroups/' + gid + '/relationships/builds?limit=200').get('data', [])
+    if any(item['id'] == build['id'] for item in existing):
+        assigned.append(group['id'])
+        continue
+    try:
+        api('/v1/betaGroups/' + gid + '/relationships/builds', 'POST',
+            {'data': [{'type': 'builds', 'id': build['id']}]})
+        assigned.append(group['id'])
+    except urllib.error.HTTPError as error:
+        body = json.loads(error.read())
+        print(json.dumps({'groupId': group['id'], 'httpStatus': error.code,
+            'errors': [{key: item.get(key) for key in ['code', 'title', 'detail']} for item in body.get('errors', [])]}))
+        raise SystemExit('TestFlight group assignment requires follow-up; no public release claimed')
 details = api('/v1/builds/' + build['id'] + '/buildBetaDetail')['data']['attributes']
 result = {'appId': app_id, 'bundleId': 'ro.nitido.app', 'build': version,
     'buildId': build['id'], 'processingState': 'VALID', 'existingInternalGroups': assigned,
