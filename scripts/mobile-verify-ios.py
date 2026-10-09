@@ -39,6 +39,10 @@ with tempfile.TemporaryDirectory() as folder:
     if ent.get('aps-environment') != 'production': raise SystemExit('Missing production APNs entitlement')
     signed = subprocess.run(['codesign','-d','--entitlements',':-',str(app)],capture_output=True,check=True).stdout
     actual = plistlib.loads(signed)
-    if actual.get('application-identifier') != expected_app or actual.get('get-task-allow',False) is not False or actual.get('aps-environment') != 'production':
-        raise SystemExit('Signed app entitlements do not match distribution profile')
+    if actual.get('application-identifier') != expected_app:
+        raise SystemExit('Signed IPA application identifier does not match distribution profile')
+    if actual.get('get-task-allow',False) is not False:
+        raise SystemExit('Signed IPA must not allow debugging')
+    if actual.get('aps-environment') != 'production':
+        raise SystemExit('Signed IPA is missing the production APNs entitlement')
     print('IPA signature, identity, version, SDK and distribution entitlements verified')

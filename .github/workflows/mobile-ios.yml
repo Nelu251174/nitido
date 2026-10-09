@@ -128,6 +128,16 @@ jobs:
             MARKETING_VERSION="$NITIDO_MARKETING_VERSION" \
             clean archive
 
+      - name: Preserve push entitlement for distribution export
+        run: |
+          # The unsigned archive has no signing entitlement blob. Seed its
+          # declared push capability with an intermediate ad-hoc signature so
+          # Xcode's distribution export preserves it. This is not the IPA's
+          # final signature: export uses the existing Apple distribution identity.
+          codesign --force --sign - \
+            --entitlements ios/App/App/App.entitlements \
+            "$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app"
+
       - name: Creează ExportOptions.plist
         run: |
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
