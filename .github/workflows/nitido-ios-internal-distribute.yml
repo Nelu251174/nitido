@@ -1,0 +1,41 @@
+name: NITIDO build16 existing internal TestFlight distribution
+on:
+  push:
+    branches: [codex/nitido-store-publication]
+    paths:
+      - .github/workflows/nitido-ios-internal-distribute.yml
+      - scripts/store-ios-internal-distribute.py
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nitido-testflight-distribution-existing-app
+  cancel-in-progress: false
+jobs:
+  distribute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Authenticate verified upload provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/Nelu251174/nitido/actions/runs/37974756867 --jq '.conclusion')" = success
+          test "$(gh api repos/Nelu251174/nitido/actions/runs/37974756867 --jq '.head_sha')" = fb6776952d63e12a1669fbe561ad6fd7bb2749fc
+      - run: python -m pip install pyjwt cryptography
+      - name: Wait for Apple processing and associate existing groups
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          STORE_REPORT: ${{ runner.temp }}/testflight-internal-distribution.json
+        run: python scripts/store-ios-internal-distribute.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nitido-build16-testflight-internal-distribution
+          path: ${{ runner.temp }}/testflight-internal-distribution.json
+          if-no-files-found: error
