@@ -1,0 +1,22 @@
+import {beforeEach,afterEach,it,expect,vi} from 'vitest';
+import Database from 'better-sqlite3';
+import {NextRequest} from 'next/server';
+const s=vi.hoisted(()=>({db:null as Database.Database|null,user:{id:'c',role:'client'},admin:false,write:vi.fn(),rm:vi.fn(),decode:vi.fn()}));
+vi.mock('@/lib/db',()=>({get db(){return s.db!;},newId:()=>`photo_${crypto.randomUUID()}`,getFirmByUserId:()=>({id:'firm'})}));
+vi.mock('@/lib/auth',()=>({getCurrentUser:async()=>s.user}));
+vi.mock('@/lib/adminAuth',()=>({isAdmin:async()=>s.admin}));
+vi.mock('@/lib/security',()=>({hasTrustedMutationOrigin:()=>true,consumeRateLimit:()=>true,requestIp:()=>''}));
+vi.mock('@/lib/uploadImage',()=>({prepareUploadImage:s.decode}));
+vi.mock('fs',()=>({default:{existsSync:()=>true,writeFileSync:s.write,rmSync:s.rm,readFileSync:()=>Buffer.from('image')}}));
+import {ASSESSMENT_EVIDENCE_SCHEMA} from '@/lib/assessmentEvidence';
+import {POST} from '../../uploads/route';
+import {GET} from '../../uploads/[id]/route';
+const png=Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]);
+function req(id='a',bytes=png,mime='image/png'){const f=new FormData();f.set('file',new File([bytes],'client.png',{type:mime}));f.set('assessmentId',id);return new NextRequest('https://sandbox.nitido.ro/api/uploads',{method:'POST',body:f});}
+beforeEach(()=>{s.db=new Database(':memory:');s.db.pragma('foreign_keys=ON');s.db.exec(`CREATE TABLE service_assessments(id TEXT PRIMARY KEY,client_id TEXT,version INTEGER,status TEXT);INSERT INTO service_assessments VALUES('a','c',1,'submitted'),('other','other',1,'submitted');CREATE TABLE jobs(id TEXT PRIMARY KEY,client_id TEXT,accepted_firm_id TEXT,status TEXT,city TEXT);CREATE TABLE job_photos(id TEXT PRIMARY KEY,owner_user_id TEXT,job_id TEXT,proof_type TEXT,context_label TEXT,filename TEXT,mime_type TEXT,file_size INTEGER,status TEXT,validated_at TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP);`+ASSESSMENT_EVIDENCE_SCHEMA);s.user={id:'c',role:'client'};s.admin=false;s.write.mockReset();s.rm.mockReset();s.decode.mockReset().mockResolvedValue(png);vi.stubEnv('NITIDO_MANUAL_OFFERS_SANDBOX','true');vi.stubEnv('NEXT_PUBLIC_SITE_URL','https://sandbox.nitido.ro');vi.stubEnv('STRIPE_SECRET_KEY','');});
+afterEach(()=>{s.db!.close();vi.unstubAllEnvs();});
+it('uses decoded image bytes and attaches atomically to the owning assessment',async()=>{const r=await POST(req());expect(r.status).toBe(201);const {id}=await r.json();expect(s.decode).toHaveBeenCalled();expect(s.write).toHaveBeenCalled();expect(s.db!.prepare('SELECT * FROM assessment_photos').get()).toMatchObject({photo_id:id,assessment_id:'a'});expect(s.db!.prepare("SELECT version FROM service_assessments WHERE id='a'").get()).toEqual({version:2});});
+it('rejects foreign assessment uploads before writing files',async()=>{expect((await POST(req('other'))).status).toBe(404);expect(s.write).not.toHaveBeenCalled();expect(s.db!.prepare('SELECT * FROM job_photos').all()).toEqual([]);});
+it('rejects forged content and decoding failures',async()=>{expect((await POST(req('a',Buffer.from('not an image')))).status).toBe(400);s.decode.mockRejectedValue(Error('invalid pixels'));expect((await POST(req())).status).toBe(400);expect(s.write).not.toHaveBeenCalled();});
+it('rolls back the inserted photo and request version when disk writing fails',async()=>{s.write.mockImplementation(()=>{throw Error('disk failure');});expect((await POST(req())).status).toBe(503);expect(s.db!.prepare('SELECT * FROM job_photos').all()).toEqual([]);expect(s.db!.prepare('SELECT * FROM assessment_photos').all()).toEqual([]);expect(s.db!.prepare("SELECT version FROM service_assessments WHERE id='a'").get()).toEqual({version:1});});
+it('protects assessment assets from other clients and firms while allowing owner and verified admin',async()=>{const {id}=await (await POST(req())).json();const read=()=>GET(new NextRequest('https://sandbox.nitido.ro/api/uploads/'+id),{params:Promise.resolve({id})});expect((await read()).status).toBe(200);s.user={id:'other',role:'client'};expect((await read()).status).toBe(403);s.user={id:'f',role:'firma'};expect((await read()).status).toBe(403);s.admin=true;const result=await read();expect(result.status).toBe(200);expect(result.headers.get('Cache-Control')).toBe('private, no-store');});

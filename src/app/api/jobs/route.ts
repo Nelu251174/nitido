@@ -1,25 +1,53 @@
-import { NextRequest, NextResponse } from "next/server";
-import { db, newId, listAlertableFirms, getFirmById } from "@/lib/db";
+import {jobPhotoRules,freezeExecutionRules} from '@/lib/executionTemplates';
+import {assertCustomerCanCreate,CustomerRestrictionError} from '@/lib/customerRestrictions';
+import {jobAssistedOperation} from '@/lib/assistedOperations';
+import {prepareManualOfferBooking,linkManualOfferJob} from '@/lib/manualOfferBooking';
+import {MarginError} from '@/lib/operationalMargin';
+import {managedBookingEnabled,bookingPriceContext,acceptedBookingQuote,linkBookingQuote,type BookingPriceSnapshot} from "@/lib/bookingQuotes";
+import {ManagedPricingError} from "@/lib/managedPricing";
+import {validEntrance} from "@/lib/entrance";
+import {turnoverReplay,validateTurnoverBooking} from '@/lib/hostTurnover';
+import {enforceOrganizationBooking,OrganizationError} from "@/lib/organizations";
+import {snapshotInstructions} from "@/lib/visitCare";
+import {firmJobView} from "@/lib/firmJobView";
+import {CardSetupError,saveJobCard} from "@/lib/savedCards";
+import { pricingSnapshot } from "@/lib/pricingSnapshot";
+import { hasTrustedMutationOrigin } from "@/lib/security";
+import { bookingDateKey, bucharestScheduledAt, hasSchedulingLeadTime, nextBucharestSlot } from "@/lib/scheduling";
+import { AccessError, consumeApproval, enforcePropertyBudget } from "@/lib/collaborationAccess";
+import { ownProperty, linkPropertyJob, WorkspaceError } from "@/lib/workspace";
+import { after, NextRequest, NextResponse } from "next/server";
+import { db, newId, getFirmByUserId } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import {
-  calcGrossPrice,
-  calcDurationMinutes,
+  AUTOMATIC_MAX_SQM,
+  calcServicePrice,
+  calcServiceDuration,
+  validWindowsSqm,
+  PRICING_VERSION,
+  calcNetForFirm,
   BUFFER_MINUTES,
   MIN_LEAD_HOURS,
-  isSlotValid,
-  nextValidAsapSlot,
+  SLOT_HOURS,
   SpaceType,
 } from "@/lib/pricing";
-import { normalizeCity, firmCoversCity } from "@/lib/text";
-import { sendNewJobAlertSms } from "@/lib/sms";
+import { canPreviewOpportunity } from "@/lib/opportunityEligibility";
+import {processPushOutbox,queueNewJobFirmPushes} from "@/lib/push";
 import { applyCredit } from "@/lib/referral";
+import { getClientCardInfo } from "@/lib/clientPayments";
 import { JobRow } from "@/lib/types";
+import { scanRoomLabel } from "@/lib/nitidoScan";
+import { EXPRESS_60_FEE_LEI, express60Deadline, expireExpress60Guarantees } from "@/lib/express60";
 
 export async function GET(req: NextRequest) {
+  const user = await getCurrentUser(req);
+  if (!user) return NextResponse.json({ error: "Autentificare necesară" }, { status: 401 });
+  // Express 60: retrogradează lazy lucrările premium cu garanția expirată, la
+  // orice încărcare de feed — astfel breach-ul funcționează și fără cron extern
+  // (backstop-ul programat /api/cron/express60 rămâne disponibil în plus).
+  expireExpress60Guarantees(db);
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
-  const city = searchParams.get("city");
-  const firmId = searchParams.get("firmId");
 
   let query = "SELECT * FROM jobs WHERE 1=1";
   const params: unknown[] = [];
@@ -34,35 +62,98 @@ export async function GET(req: NextRequest) {
   query += " ORDER BY created_at DESC";
 
   let jobs = db.prepare(query).all(...params) as JobRow[];
-  if (firmId) {
-    // Filtrare pe zona reală de acoperire a firmei (oraș principal + eventuale
-    // localități extra) — folosit de panoul de Firmă pentru "Alerte noi".
-    const firm = getFirmById(firmId);
-    if (firm) {
-      jobs = jobs.filter((j) => firmCoversCity(firm.coverage_city, firm.coverage_cities_extra, j.city));
-    } else {
-      jobs = [];
-    }
-  } else if (city) {
-    const target = normalizeCity(city);
-    jobs = jobs.filter((j) => normalizeCity(j.city) === target);
+  let firmId: string | null = null;
+  if (user.role === "client") {
+    jobs = jobs.filter((j) => j.client_id === user.id);
+  } else {
+    const firm = getFirmByUserId(user.id);
+    if (!firm) return NextResponse.json({ error: "Profil firmă inexistent" }, { status: 403 });
+    firmId = firm.id;
+    jobs = jobs.filter(
+      (j) =>
+        j.accepted_firm_id === firm.id ||
+        canPreviewOpportunity(db,firm.id,j)
+    );
+    // Express 60 = prioritate maximă: lucrările premium urcă în capul feed-ului
+    // (restul rămâne pe ordinea existentă, cele mai noi primele).
+    jobs = jobs
+      .map((j, index) => ({ j, index }))
+      .sort((a, b) => {
+        const aEx = a.j.status === "waiting" && a.j.express_60 ? 1 : 0;
+        const bEx = b.j.status === "waiting" && b.j.express_60 ? 1 : 0;
+        return bEx - aEx || a.index - b.index;
+      })
+      .map((entry) => entry.j);
   }
 
+  const authorizationByJob=new Map<string,string>();
+  if(user.role==="client")for(const row of db.prepare("SELECT a.job_id,a.status FROM payment_authorization_attempts a JOIN jobs j ON j.id=a.job_id WHERE j.client_id=? AND j.status='waiting'").all(user.id) as {job_id:string;status:string}[])authorizationByJob.set(row.job_id,row.status);
   const photosByJob = new Map<string, string[]>();
+  const scanByJob = new Map<string, {id:string;url:string;room:string|null;roomLabel:string}[]>();
+  const proofsByJob = new Map<string, {id:string;type:"ARRIVAL"|"COMPLETION";url:string;createdAt:string}[]>();
+  const ownReviewsByJob = new Map<string,{rating:number;reviewText:string|null;badge:"Recenzie verificată"}>();
+  const paymentsByJob = new Map<string,{paymentStatus:string;firmPayout:number;transferStatus:string;payoutStatus:string;refundStatus:string;disputeStatus:string}>();
   if (jobs.length > 0) {
     const placeholders = jobs.map(() => "?").join(",");
     const photos = db
-      .prepare(`SELECT job_id, filename FROM job_photos WHERE job_id IN (${placeholders})`)
-      .all(...jobs.map((j) => j.id)) as { job_id: string; filename: string }[];
+      .prepare(`SELECT id, job_id, filename, uploaded_by_firm_id, validated_at, proof_type, context_label, created_at FROM job_photos WHERE job_id IN (${placeholders}) AND status='VALID'`)
+      .all(...jobs.map((j) => j.id)) as { id: string; job_id: string; filename: string; uploaded_by_firm_id:string|null;validated_at:string|null;proof_type:string; context_label:string|null; created_at:string }[];
     for (const p of photos) {
       const arr = photosByJob.get(p.job_id) ?? [];
-      arr.push(`/uploads/${p.filename}`);
+      arr.push(`/api/uploads/${p.id}`);
       photosByJob.set(p.job_id, arr);
+      if (p.proof_type === "CLIENT_CONTEXT") {
+        const scan = scanByJob.get(p.job_id) ?? [];
+        scan.push({ id:p.id, url:`/api/uploads/${p.id}`, room:p.context_label, roomLabel:scanRoomLabel(p.context_label) });
+        scanByJob.set(p.job_id, scan);
+      }
+      if ((p.proof_type === "ARRIVAL" || p.proof_type === "COMPLETION")&&p.validated_at&&p.uploaded_by_firm_id===jobs.find(j=>j.id===p.job_id)?.accepted_firm_id) {
+        const proofs = proofsByJob.get(p.job_id) ?? [];
+        proofs.push({ id:p.id, type:p.proof_type, url:`/api/uploads/${p.id}`, createdAt:p.created_at });
+        proofsByJob.set(p.job_id, proofs);
+      }
     }
   }
 
-  const jobsWithPhotos = jobs.map((j) => ({ ...j, photos: photosByJob.get(j.id) ?? [] }));
-  return NextResponse.json({ jobs: jobsWithPhotos });
+  if(user.role==="client"&&jobs.length){const placeholders=jobs.map(()=>"?").join(",");const reviews=db.prepare(`SELECT job_id,stars,comment FROM ratings r WHERE client_id=? AND status='active' AND moderation_status!='hidden' AND job_id IN (${placeholders}) AND EXISTS(SELECT 1 FROM payments p WHERE p.job_id=r.job_id AND p.status='captured') AND EXISTS(SELECT 1 FROM job_photos p WHERE p.job_id=r.job_id AND p.uploaded_by_firm_id=r.firm_id AND p.proof_type='ARRIVAL' AND p.status='VALID' AND p.validated_at IS NOT NULL) AND EXISTS(SELECT 1 FROM job_photos p WHERE p.job_id=r.job_id AND p.uploaded_by_firm_id=r.firm_id AND p.proof_type='COMPLETION' AND p.status='VALID' AND p.validated_at IS NOT NULL)`).all(user.id,...jobs.map(j=>j.id)) as {job_id:string;stars:number;comment:string|null}[];for(const review of reviews)ownReviewsByJob.set(review.job_id,{rating:review.stars,reviewText:review.comment,badge:"Recenzie verificată"});}
+  if(jobs.length){const placeholders=jobs.map(()=>"?").join(",");const rows=db.prepare(`SELECT job_id,status,amount_net,transfer_status,payout_status,refund_status,dispute_status FROM payments WHERE job_id IN (${placeholders})`).all(...jobs.map(job=>job.id)) as {job_id:string;status:string;amount_net:number;transfer_status:string;payout_status:string;refund_status:string;dispute_status:string}[];for(const payment of rows)paymentsByJob.set(payment.job_id,{paymentStatus:payment.status,firmPayout:payment.amount_net,transferStatus:payment.transfer_status,payoutStatus:payment.payout_status,refundStatus:payment.refund_status,disputeStatus:payment.dispute_status});}
+
+  const jobsWithPhotos = jobs.map((j) => {
+    const canSeePrivate = user.role === "client" || j.accepted_firm_id === firmId;
+    if (canSeePrivate) {const payment=paymentsByJob.get(j.id)??null;return { ...j, photoRules:jobPhotoRules(db,j.id), ...(user.role==="client"?{authorizationStatus:authorizationByJob.get(j.id)??null}:{}), photos: photosByJob.get(j.id) ?? [], scan: scanByJob.get(j.id) ?? [], proofs: proofsByJob.get(j.id) ?? [], ownReview:user.role==="client"?ownReviewsByJob.get(j.id)??null:undefined, financial:payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null,...(user.role==="firma"?{firm_payout:payment?.firmPayout??calcNetForFirm(j.price_gross)}:{}) };}
+    return {
+      id: j.id,
+      city: j.city,
+      sqm: j.sqm,
+      windows_sqm: j.windows_sqm??0,
+      space_type: j.space_type,
+      when_type: j.when_type,
+      mode: j.mode,
+      scheduled_at: j.scheduled_at,
+      price_gross: j.price_gross,
+      firm_payout: calcNetForFirm(j.price_gross),
+      duration_minutes: j.duration_minutes,
+      assisted_team:jobAssistedOperation(db,j.id)?.teamName??null,
+      status: j.status,
+      created_at: j.created_at,
+      // Express 60: firma vede că e tier premium cu preluare garantată + countdown.
+      express_60: j.express_60,
+      express_60_deadline: j.express_60_deadline,
+      express_60_status: j.express_60_status,
+      // Nitido Scan: firma vede pozele de context etichetate încă din feed,
+      // ca să estimeze mai bine înainte de a prelua/oferta.
+      scan: [],
+    };
+  });
+  // Pentru firme: lista lucrărilor la care firma a trimis deja o ofertă (ca UI-ul
+  // să arate „Ofertă trimisă" în loc de butonul de ofertă).
+  let offeredJobIds: string[] = [];
+  if (user.role === "firma" && firmId) {
+    offeredJobIds = (db
+      .prepare("SELECT job_id FROM offers WHERE firm_id = ? AND status IN ('pending','accepted')")
+      .all(firmId) as { job_id: string }[]).map((o) => o.job_id);
+  }
+  return NextResponse.json({ jobs: user.role==="firma"?jobsWithPhotos.map(firmJobView):jobsWithPhotos, offeredJobIds });
 }
 
 export async function POST(req: NextRequest) {
@@ -71,8 +162,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Trebuie să fii autentificat ca client" }, { status: 401 });
   }
 
-  const body = await req.json();
+  if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:"Origine invalidă"},{status:403});
 
+  const body = await req.json().catch(()=>null);
+  if(!body||typeof body!=="object")return NextResponse.json({error:"Cerere invalidă"},{status:400});
+  const manual=body.manualOfferId!=null;
+  let assisted=false;
+  if(manual){try{const offer=prepareManualOfferBooking(db,user.id,body);if(offer.jobId){const job=db.prepare("SELECT * FROM jobs WHERE id=? AND client_id=?").get(offer.jobId,user.id);if(!job)throw new MarginError("Rezervarea nu poate fi verificată.",409);return NextResponse.json({job,replayed:true});}body.details=offer.terms.scope;assisted=Boolean(offer.operation);}catch(e){if(e instanceof MarginError)return NextResponse.json({error:e.message},{status:e.status});throw e;}}
+  if(body.propertyId){try{ownProperty(db,user.id,String(body.propertyId))}catch(e){return NextResponse.json({error:e instanceof WorkspaceError?e.message:"Proprietate invalidă"},{status:404})}}
+
+  if(body.hostEventId){const existing=turnoverReplay(db,user.id,String(body.hostEventId));if(existing)return NextResponse.json({job:existing,replayed:true});}
   const {
     street,
     postalCode,
@@ -81,9 +180,12 @@ export async function POST(req: NextRequest) {
     sqm,
     spaceType,
     whenType,
+    mode, // 'express' (urgențe, primul care acceptă) | 'standard' (oferte, clientul alege)
+    express60, // true = tier premium Express 60 (preluare garantată în 60 min)
     scheduledDate, // ISO date string (ziua aleasă), doar dacă whenType === 'scheduled'
     scheduledHour, // oră din SLOT_HOURS, doar dacă whenType === 'scheduled'
     photoIds,
+    details,
   } = body as {
     street: string;
     postalCode?: string;
@@ -92,39 +194,94 @@ export async function POST(req: NextRequest) {
     sqm: number;
     spaceType: SpaceType;
     whenType: "asap" | "scheduled";
+    mode?: "express" | "standard";
+    express60?: boolean;
     scheduledDate?: string;
     scheduledHour?: number;
     photoIds?: string[];
+    details?: string;
   };
+
+  // Express 60 e inerent urgent → forțează modul 'express' (preluare directă).
+  // Altfel: modul ales de client, implicit 'express' pentru compatibilitate.
+  const isExpress60 = express60 === true;
+  const jobMode: "express" | "standard" = isExpress60 ? "express" : mode === "standard" ? "standard" : "express";
+  // Express 60 nu are sens pentru lucrări programate în viitor — doar „cât mai curând".
+  if (isExpress60 && whenType !== "asap") {
+    return NextResponse.json({ error: "Express 60 este disponibil doar pentru preluare imediată (Cât mai curând)" }, { status: 400 });
+  }
+
+  const validSpaceTypes: readonly SpaceType[] = ["apartament", "casa", "birou", "altul"];
+  const requestId = manual ? `manual:${body.manualOfferId}` : req.headers.get("Idempotency-Key")?.trim() || null;
+  if (requestId && requestId.length > 100) {
+    return NextResponse.json({ error: "Identificatorul cererii este invalid" }, { status: 400 });
+  }
+  if (requestId && !manual) {
+    const existing = db.prepare("SELECT * FROM jobs WHERE client_id = ? AND client_request_id = ?").get(user.id, requestId) as JobRow | undefined;
+    if (existing) return NextResponse.json({ job: existing, replayed: true });
+  }
 
   if (!street || !city || !sqm || !spaceType || !whenType) {
     return NextResponse.json({ error: "Câmpuri obligatorii lipsă" }, { status: 400 });
   }
+  if(body.entrance!=null&&!validEntrance(body.entrance,{street,city,postalCode})){return NextResponse.json({error:"Confirmă din nou intrarea pentru adresa aleasă."},{status:400});}
   if (sqm <= 0) {
     return NextResponse.json({ error: "Suprafața trebuie să fie pozitivă" }, { status: 400 });
+  }
+  if (!Number.isSafeInteger(sqm)) {
+    return NextResponse.json({ error: "Suprafața trebuie să fie un număr întreg" }, { status: 400 });
+  }
+  if (!validSpaceTypes.includes(spaceType)) {
+    return NextResponse.json({ error: "Tipul serviciului nu este valid" }, { status: 400 });
+  }
+  if (whenType !== "asap" && whenType !== "scheduled") {
+    return NextResponse.json({ error: "Tipul programării nu este valid" }, { status: 400 });
+  }
+  if (details !== undefined && (typeof details !== "string" || details.length > (assisted?4000:500))) {
+    return NextResponse.json({ error: "Detaliile pot avea maximum 500 de caractere" }, { status: 400 });
+  }
+
+  if(!assisted&&sqm>AUTOMATIC_MAX_SQM)return NextResponse.json({error:"Suprafața necesită evaluare asistată înainte de rezervare.",assessmentRequired:true,assessmentUrl:"/client/evaluari"},{status:422});
+
+  if(!manual&&managedBookingEnabled()&&body.quoteId){
+    try{
+      const quote=acceptedBookingQuote(db,user.id,body.quoteId,bookingPriceContext(body));
+      if(quote.jobId){const existing=db.prepare("SELECT * FROM jobs WHERE id=? AND client_id=?").get(quote.jobId,user.id) as JobRow|undefined;if(existing)return NextResponse.json({job:existing,replayed:true});}
+    }catch(e){if(e instanceof ManagedPricingError)return NextResponse.json({error:e.message},{status:e.status});throw e;}
+  }
+
+  // Card obligatoriu înainte de postare — la acceptare se pune HOLD pe acest
+  // card, deci trebuie salvat dinainte. Dacă Stripe nu e activat, se sare peste.
+  const card = getClientCardInfo(db, user.id);
+  if (card.stripeConfigured && !card.hasCard) {
+    return NextResponse.json(
+      { error: "Adaugă un card înainte de a posta o lucrare.", needsCard: true },
+      { status: 402 }
+    );
   }
 
   let scheduledAt: Date;
 
   if (whenType === "asap") {
-    const slot = nextValidAsapSlot();
+    const slot = nextBucharestSlot();
     if (!slot) {
       return NextResponse.json(
         { error: "Niciun slot disponibil în următoarele 3 zile" },
         { status: 400 }
       );
     }
-    scheduledAt = new Date(slot.date);
-    scheduledAt.setHours(slot.hour, 0, 0, 0);
+    scheduledAt = slot;
   } else {
-    if (!scheduledDate || scheduledHour === undefined) {
+    if (!scheduledDate || scheduledHour === undefined || !SLOT_HOURS.includes(scheduledHour as typeof SLOT_HOURS[number])) {
       return NextResponse.json(
         { error: "Dată și oră necesare pentru programare" },
         { status: 400 }
       );
     }
-    const day = new Date(scheduledDate);
-    if (!isSlotValid(day, scheduledHour)) {
+    const day = bookingDateKey(scheduledDate);
+    if(!day)return NextResponse.json({error:"Data programării nu este validă"},{status:400});
+    scheduledAt = bucharestScheduledAt(day,scheduledHour);
+    if (!hasSchedulingLeadTime(scheduledAt)) {
       return NextResponse.json(
         {
           error: `Slotul ales nu respectă pragul minim de ${MIN_LEAD_HOURS} oră/ore până la ora dorită`,
@@ -132,70 +289,99 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    scheduledAt = new Date(day);
-    scheduledAt.setHours(scheduledHour, 0, 0, 0);
+
   }
 
-  const priceGross = calcGrossPrice(spaceType, sqm);
-  const durationMinutes = calcDurationMinutes(sqm);
+  // Express 60: suplimentul premium se adaugă la prețul brut. HOLD-ul se pune
+  // abia la acceptare, deci se percepe DOAR dacă o firmă chiar preia; dacă
+  // garanția nu e respectată, suplimentul se scoate din nou (vezi express60.ts).
+  const express60Fee = isExpress60 ? EXPRESS_60_FEE_LEI : 0;
+  const windowsSqm=body.windowsSqm??0;
+  if(!validWindowsSqm(windowsSqm))return NextResponse.json({error:"Suprafața geamurilor trebuie să fie între 0 și 200 m², fără zecimale"},{status:400});
+  const managedPricing=!manual&&managedBookingEnabled();
+  if(!managedPricing&&body.quoteId)return NextResponse.json({error:"Configurarea tarifelor s-a schimbat. Solicită o ofertă nouă."},{status:409});
+  let priceGross = manual?0:calcServicePrice(spaceType, sqm,windowsSqm) + express60Fee;
+  if(!manual&&!managedPricing&&((body.pricingVersion!==undefined&&body.pricingVersion!==PRICING_VERSION)||(body.expectedPriceGross!==undefined&&body.expectedPriceGross!==priceGross)))return NextResponse.json({error:"Tariful s-a actualizat. Reîncarcă pagina și verifică noul preț înainte de publicare."},{status:409});
+  if(!Number.isSafeInteger(priceGross*100))return NextResponse.json({error:"Suprafața depășește limita de calcul"},{status:400});
+  let durationMinutes = assisted?0:calcServiceDuration(sqm,windowsSqm);
+  let bufferMinutes=BUFFER_MINUTES;
 
   // Aplicare automată a creditului disponibil (program de recomandare — vezi
   // src/lib/referral.ts). Firma tot primește pe baza prețului INTEGRAL — vezi
   // src/lib/payments.ts, discount-ul e absorbit din comisionul platformei.
-  const { creditUsed } = applyCredit(priceGross, user.credit_balance);
-  if (creditUsed > 0) {
-    db.prepare("UPDATE users SET credit_balance = credit_balance - ? WHERE id = ?").run(
-      creditUsed,
-      user.id
-    );
-  }
-
-  const validPhotoIds = (photoIds ?? []).slice(0, 5);
-
-  const id = newId("job");
-  db.prepare(
-    `INSERT INTO jobs
-      (id, client_id, street, postal_code, city, floor, sqm, space_type, when_type,
-       scheduled_at, price_gross, credit_applied, duration_minutes, buffer_minutes, photos_count, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting')`
-  ).run(
-    id,
-    user.id,
-    street,
-    postalCode ?? null,
-    city,
-    floor ?? null,
-    sqm,
-    spaceType,
-    whenType,
-    scheduledAt.toISOString(),
-    priceGross,
-    creditUsed,
-    durationMinutes,
-    BUFFER_MINUTES,
-    validPhotoIds.length
+  let { creditUsed } = applyCredit(priceGross, user.credit_balance);
+  const requestedPhotoIds = Array.from(new Set(photoIds ?? [])).slice(0, 5);
+  const ownedPhotoIds = requestedPhotoIds.filter((photoId) =>
+    db.prepare("SELECT 1 FROM job_photos WHERE id = ? AND owner_user_id = ? AND job_id IS NULL AND NOT EXISTS(SELECT 1 FROM assessment_photos a WHERE a.photo_id=job_photos.id)")
+      .get(photoId, user.id)
   );
-
-  if (validPhotoIds.length > 0) {
-    const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND job_id IS NULL");
-    for (const photoId of validPhotoIds) linkPhoto.run(id, photoId);
+  if (ownedPhotoIds.length !== requestedPhotoIds.length) {
+    return NextResponse.json({ error: "Una sau mai multe poze nu îți aparțin" }, { status: 403 });
   }
+  const id = newId("job");
+  let created: { job: JobRow; replayed: boolean };
+  try { created = db.transaction((): { job: JobRow; replayed: boolean } => {
+    if (requestId && !manual) {
+      const existing = db.prepare("SELECT * FROM jobs WHERE client_id = ? AND client_request_id = ?").get(user.id, requestId) as JobRow | undefined;
+      if (existing) return { job: existing, replayed: true };
+    }
+    let acceptedPrice:BookingPriceSnapshot|null=null;
+    let manualSnapshot:unknown=null;
+    if(manual){const accepted=prepareManualOfferBooking(db,user.id,body);if(accepted.jobId){const job=db.prepare("SELECT * FROM jobs WHERE id=? AND client_id=?").get(accepted.jobId,user.id) as JobRow|undefined;if(!job)throw new MarginError("Rezervarea nu poate fi verificată.",409);return {job,replayed:true};}priceGross=accepted.terms.totalBani/100;creditUsed=0;if(accepted.operation){durationMinutes=accepted.operation.durationMinutes;bufferMinutes=accepted.operation.bufferMinutes;}manualSnapshot={version:`manual:${accepted.row.id}:${accepted.row.estimate_revision}`,offerId:accepted.row.id,currency:'RON',recordedAt:new Date().toISOString(),grossBani:accepted.terms.grossBani,creditBani:0,clientTotalBani:accepted.terms.totalBani,terms:accepted.terms,schedule:accepted.schedule,operation:accepted.operation};}
 
-  const job = db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow;
+    if(managedPricing){
+      const accepted=acceptedBookingQuote(db,user.id,body.quoteId,bookingPriceContext(body));
+      if(accepted.jobId){
+        const existing=db.prepare("SELECT * FROM jobs WHERE id=? AND client_id=?").get(accepted.jobId,user.id) as JobRow|undefined;
+        if(!existing)throw new ManagedPricingError("Rezervarea ofertei nu poate fi verificată.",409);
+        return {job:existing,replayed:true};
+      }
+      acceptedPrice=accepted.snapshot;
+      priceGross=acceptedPrice.grossBani/100;creditUsed=acceptedPrice.creditBani/100;
+    }
+    let hostLink:{eventId:string;revision:string}|null=null;
+    if(body.hostEventId){
+      const replay=turnoverReplay(db,user.id,String(body.hostEventId));if(replay)return {job:replay,replayed:true};
+      hostLink=validateTurnoverBooking(db,user.id,body,scheduledAt.toISOString(),durationMinutes,BUFFER_MINUTES);
+    }
+    assertCustomerCanCreate(db,user.id,'bookings');
+    if (creditUsed > 0) db.prepare("UPDATE users SET credit_balance = credit_balance - ? WHERE id = ?").run(creditUsed, user.id);
+    db.prepare(
+      `INSERT INTO jobs
+        (id, client_id, street, postal_code, city, floor, details, client_request_id, sqm, space_type, when_type,
+         scheduled_at, price_gross, credit_applied, duration_minutes, buffer_minutes, photos_count, mode,
+         express_60, express_60_fee, express_60_deadline, express_60_status, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting')`
+    ).run(id,user.id,street,postalCode ?? null,city,floor ?? null,typeof details === "string" ? details.trim() || null : null,requestId,sqm,spaceType,whenType,scheduledAt.toISOString(),priceGross,creditUsed,durationMinutes,bufferMinutes,ownedPhotoIds.length,jobMode,isExpress60?1:0,express60Fee,isExpress60?express60Deadline(new Date().toISOString()).toISOString():null,isExpress60?"pending":null);
+    if(body.entrance)db.prepare("INSERT INTO job_navigation(job_id,latitude,longitude,confirmed_at) VALUES(?,?,?,?)").run(id,body.entrance.lat,body.entrance.lng,new Date().toISOString());
+    if (card.stripeConfigured) saveJobCard(db,user.id,id,body.cardId);
+    db.prepare("UPDATE jobs SET pricing_snapshot=?, windows_sqm=? WHERE id=?").run(JSON.stringify(manualSnapshot??acceptedPrice??pricingSnapshot({spaceType,sqm,windowsSqm,expressFeeLei:express60Fee,creditLei:creditUsed})),windowsSqm,id);
+    if(manual){linkManualOfferJob(db,user.id,body.manualOfferId,id);if(assisted)db.prepare('INSERT INTO assisted_job_plans VALUES(?,?,?)').run(id,body.manualOfferId,body.assistedRevision);}
+    if(acceptedPrice)linkBookingQuote(db,user.id,acceptedPrice.quoteId,id);
+    let executionScope=jobMode;
+    if(manual){const category=db.prepare('SELECT a.payload FROM assessment_offer_jobs l JOIN assessment_offers o ON o.id=l.offer_id JOIN service_assessments a ON a.id=o.assessment_id WHERE l.job_id=?').get(id) as {payload:string};executionScope=JSON.parse(category.payload).category;}
+    freezeExecutionRules(db,id,executionScope);
+    if (ownedPhotoIds.length > 0) {
+      const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL AND NOT EXISTS(SELECT 1 FROM assessment_photos a WHERE a.photo_id=job_photos.id)");
+      for (const photoId of ownedPhotoIds) linkPhoto.run(id, photoId, user.id);
+    }
+    if(hostLink)db.prepare('INSERT INTO workspace_host_jobs VALUES(?,?,?,?)').run(id,hostLink.eventId,hostLink.revision,new Date().toISOString());
+    if(body.propertyId)linkPropertyJob(db,user.id,String(body.propertyId),id);
+    if(body.approvalId)consumeApproval(db,user.id,String(body.approvalId),id);
+    const linked=db.prepare("SELECT property_id FROM workspace_property_jobs WHERE job_id=?").get(id) as {property_id:string}|undefined;
+    if(linked){enforceOrganizationBooking(db,linked.property_id,id);enforcePropertyBudget(db,linked.property_id,id);snapshotInstructions(db,id,linked.property_id,user.id);}
+    return { job: db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow, replayed: false };
+  }).immediate();
+  } catch(e) { if(e instanceof CustomerRestrictionError || e instanceof MarginError || e instanceof ManagedPricingError || e instanceof AccessError || e instanceof OrganizationError || e instanceof WorkspaceError || e instanceof CardSetupError)return NextResponse.json({error:e.message},{status:e.status}); throw e; }
+  if (created.replayed) return NextResponse.json({ job: created.job, replayed: true });
+  const job = created.job;
 
-  // Alertă SMS către firmele eligibile din oraș (inclusiv localități extra
-  // acoperite de o firmă, dincolo de orașul ei de bază — vezi firmCoversCity)
-  // — interimar, cât timp aplicația mobilă nu e publicată (vezi comentariul
-  // din src/lib/sms.ts). Fire-and-forget: nu blocăm răspunsul pe durata trimiterii.
-  const now = new Date();
-  const matchingPhones = listAlertableFirms()
-    .filter(
-      (f) =>
-        firmCoversCity(f.coverage_city, f.coverage_cities_extra, city) &&
-        !(f.suspended_until && new Date(f.suspended_until) > now)
-    )
-    .map((f) => f.phone);
-  sendNewJobAlertSms(matchingPhones, { city, spaceType, sqm }).catch(() => {});
+  try {
+    const notificationIds=queueNewJobFirmPushes(db,{id:job.id,city,spaceType,sqm,targetFirmId:jobAssistedOperation(db,job.id)?.firmId});
+    if(notificationIds.length)after(()=>processPushOutbox(db,notificationIds));
+  } catch {
+    console.error("[push-outbox] enqueue_failed JOB_CREATED_FIRM_PUSH");
+  }
 
   return NextResponse.json({ job }, { status: 201 });
 }

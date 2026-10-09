@@ -1,0 +1,5 @@
+'use client';
+import {useEffect,useState} from 'react';
+import Link from 'next/link';
+type Notice={id:string;message:string;path:string;created_at:string};
+export function OperationalInbox(){const [items,setItems]=useState<Notice[]>([]);useEffect(()=>{let live=true;const load=async()=>{try{const r=await fetch('/api/workspace/notices');if(r.ok&&live)setItems((await r.json()).notices??[])}catch{}};void load();const timer=setInterval(()=>void load(),30000);return()=>{live=false;clearInterval(timer)}},[]);if(!items.length)return null;return <details className="my-3 rounded-lg border border-current/20 p-3 text-sm"><summary className="cursor-pointer font-bold">Actualizări · {items.length}</summary>{items.map(n=><div className="py-3 border-b border-current/20" key={n.id}><Link className="block" href={n.path}>{n.message}</Link><button className="underline text-xs mt-2" onClick={async()=>{const r=await fetch('/api/workspace/notices',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:n.id})});if(r.ok)setItems(xs=>xs.filter(x=>x.id!==n.id))}}>Marchează citită</button></div>)}</details>}

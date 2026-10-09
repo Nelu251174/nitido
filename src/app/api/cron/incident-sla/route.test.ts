@@ -1,0 +1,14 @@
+import {afterEach,beforeEach,expect,it,vi} from 'vitest';
+import {NextRequest} from 'next/server';
+const state=vi.hoisted(()=>({enabled:true,run:vi.fn()}));
+vi.mock('@/lib/db',()=>({db:{}}));
+vi.mock('@/lib/incidentSla',()=>({incidentSlaEnabled:()=>state.enabled,runIncidentSla:state.run}));
+import {POST} from './route';
+const secret='test-only-cron-secret-at-least-32-characters';
+const call=(supplied=secret)=>POST(new NextRequest('https://sandbox.nitido.ro/api/cron/incident-sla',{method:'POST',headers:{'x-cron-secret':supplied},body:'{"caseId":"forged","now":"2099-01-01"}'}));
+beforeEach(()=>{state.enabled=true;state.run.mockReset().mockReturnValue({enabled:true,scanned:3,created:1,cycleComplete:true});vi.stubEnv('CRON_SECRET',secret);});
+afterEach(()=>vi.unstubAllEnvs());
+it('requires explicit activation and an existing strong cron secret',async()=>{state.enabled=false;expect((await call()).status).toBe(503);state.enabled=true;for(const value of ['','short']){vi.stubEnv('CRON_SECRET',value);expect((await call()).status).toBe(503);}expect(state.run).not.toHaveBeenCalled();});
+it('rejects missing and incorrect secrets before running the worker',async()=>{expect((await call('')).status).toBe(401);expect((await call(secret+'invalid')).status).toBe(401);expect(state.run).not.toHaveBeenCalled();});
+it('uses server-owned case selection and time rather than caller data and disables caching',async()=>{const res=await call();expect(res.status).toBe(200);expect(res.headers.get('Cache-Control')).toBe('private, no-store');expect(await res.json()).toMatchObject({scanned:3,created:1});expect(state.run).toHaveBeenCalledTimes(1);expect(state.run.mock.calls[0]).toHaveLength(1);});
+it('returns a generic retryable failure without exposing internal SQL or secrets',async()=>{state.run.mockImplementation(()=>{throw Error('secret SQL');});const res=await call();expect(res.status).toBe(503);expect(await res.text()).not.toContain('secret');});

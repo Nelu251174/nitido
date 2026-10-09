@@ -1,11 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { JobRow } from "@/lib/types";
+import { isAdmin } from "@/lib/adminAuth";
+import { maskSmsRecipient } from "@/lib/notifications";
 
-// Panou minimal de administrare — spec secțiunea 3.3 / 8 (aprobare firme, rapoarte,
-// monitorizare no-show). Nu e un admin complet (fără autentificare), doar o fereastră
-// de verificare pentru acest MVP.
-export async function GET() {
+// Panou protejat prin sesiune admin, inclusiv excepțiile financiare restante.
+export async function GET(_req: NextRequest) {
+  void _req;
+  if (!(await isAdmin())) return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
   const jobs = db.prepare("SELECT * FROM jobs ORDER BY created_at DESC").all() as JobRow[];
   const firms = db
     .prepare(
@@ -14,7 +16,36 @@ export async function GET() {
        FROM firms JOIN users ON users.id = firms.user_id`
     )
     .all() as { id: string; name: string; verified: number }[];
-  const payments = db.prepare("SELECT * FROM payments ORDER BY created_at DESC").all();
+  const payments = db.prepare("SELECT id,job_id,amount_gross,commission_amount,amount_net,status,stripe_fee_amount,transfer_status,payout_status,refund_status,dispute_status,created_at FROM payments ORDER BY created_at DESC").all();
+  const webhookIssues=db.prepare("SELECT event_id,event_type,resource_id,status,attempts,last_error,received_at FROM stripe_webhook_inbox WHERE status IN ('received','failed','needs_review') ORDER BY received_at LIMIT 100").all();
+  const authorizationIssues=db.prepare("SELECT job_id,status,created_ms,stripe_payment_intent_id FROM payment_authorization_attempts WHERE status NOT IN ('requires_capture','succeeded') ORDER BY created_ms DESC LIMIT 100").all();
+  const recoveryRuns=db.prepare("SELECT CASE WHEN status='running' AND started_ms<=? THEN 'unconfirmed' ELSE status END AS status,started_ms,completed_ms,attempted,processed,deferred,failed FROM financial_recovery_runs ORDER BY started_ms DESC LIMIT 10").all(Date.now()-120000);
+  const recoveryParked=db.prepare(`SELECT i.kind,i.resource_id,i.attempts,i.last_error FROM financial_recovery_items i
+    WHERE i.parked=1 AND ((i.kind='event' AND EXISTS(SELECT 1 FROM stripe_webhook_inbox e WHERE e.event_id=i.resource_id AND e.status IN ('received','failed','needs_review')))
+      OR (i.kind='cancellation' AND EXISTS(SELECT 1 FROM payment_cancellation_requests c WHERE c.job_id=i.resource_id AND c.status!='processed')))
+    ORDER BY i.next_attempt_ms LIMIT 100`).all();
+  const cancellationIssues=db.prepare("SELECT job_id,status,last_error,created_at FROM payment_cancellation_requests WHERE status!='processed' ORDER BY created_at LIMIT 100").all();
+  const bankPayouts=db.prepare(`SELECT b.*, (SELECT u.name FROM firms f JOIN users u ON u.id=f.user_id WHERE f.stripe_account_id=b.account_id LIMIT 1) AS firm_name FROM stripe_bank_payouts b ORDER BY b.updated_at DESC LIMIT 100`).all();
+  const notifications = (db.prepare(`SELECT id,event_type,channel,recipient,status,attempt_count,last_error,created_at,sent_at
+    FROM notification_outbox ORDER BY created_at DESC LIMIT 100`).all() as {recipient:string;[key:string]:unknown}[])
+    .map(({recipient,...row})=>({...row,recipient_masked:maskSmsRecipient(recipient)}));
+  const pushNotifications=(db.prepare(`SELECT o.id,o.event_type,o.channel,o.recipient_user_id,o.status,o.attempt_count,o.last_error,o.created_at,o.sent_at,d.platform FROM push_notification_outbox o LEFT JOIN push_devices d ON d.id=o.device_token_id ORDER BY o.created_at DESC LIMIT 100`).all() as {recipient_user_id:string;[key:string]:unknown}[]).map(({recipient_user_id,...row})=>({...row,recipient_masked:`user:${recipient_user_id.slice(0,4)}•••${recipient_user_id.slice(-3)}`}));
+  const proofs = (db.prepare(`SELECT p.id,p.job_id,p.uploaded_by_firm_id,p.proof_type,p.status,p.created_at,p.validated_at
+    FROM job_photos p WHERE p.proof_type IN ('ARRIVAL','COMPLETION') ORDER BY p.created_at DESC`).all() as {id:string;[key:string]:unknown}[])
+    .map(proof=>({...proof,url:`/api/uploads/${proof.id}`}));
+  const reviews=db.prepare(`SELECT r.id,r.job_id,r.firm_id,r.stars,r.comment,r.moderation_status,r.created_at,
+    CASE WHEN j.status='completed'
+      AND EXISTS(SELECT 1 FROM payments p WHERE p.job_id=j.id AND p.status='captured')
+      AND EXISTS(SELECT 1 FROM job_photos p WHERE p.job_id=j.id AND p.uploaded_by_firm_id=r.firm_id AND p.proof_type='ARRIVAL' AND p.status='VALID' AND p.validated_at IS NOT NULL)
+      AND EXISTS(SELECT 1 FROM job_photos p WHERE p.job_id=j.id AND p.uploaded_by_firm_id=r.firm_id AND p.proof_type='COMPLETION' AND p.status='VALID' AND p.validated_at IS NOT NULL)
+      THEN 1 ELSE 0 END verified_job,
+    (SELECT COUNT(*) FROM review_reports rr WHERE rr.rating_id=r.id AND rr.status='open') report_count
+    FROM ratings r JOIN jobs j ON j.id=r.job_id
+    WHERE j.status='completed'
+      AND EXISTS(SELECT 1 FROM payments p WHERE p.job_id=j.id AND p.status='captured')
+      AND EXISTS(SELECT 1 FROM job_photos p WHERE p.job_id=j.id AND p.uploaded_by_firm_id=r.firm_id AND p.proof_type='ARRIVAL' AND p.status='VALID' AND p.validated_at IS NOT NULL)
+      AND EXISTS(SELECT 1 FROM job_photos p WHERE p.job_id=j.id AND p.uploaded_by_firm_id=r.firm_id AND p.proof_type='COMPLETION' AND p.status='VALID' AND p.validated_at IS NOT NULL)
+    ORDER BY r.created_at DESC`).all();
 
   // Statistici agregate — ca platforma să poată fi condusă din cifre reale,
   // nu doar liste brute. Nimic din ce nu poate fi calculat direct din datele
@@ -56,5 +87,5 @@ export async function GET() {
     topFirms,
   };
 
-  return NextResponse.json({ jobs, firms, payments, stats });
+  return NextResponse.json({ jobs, firms, payments, bankPayouts, authorizationIssues, webhookIssues, cancellationIssues, recoveryRuns, recoveryParked, notifications:[...pushNotifications,...notifications].sort((a,b)=>String((b as Record<string,unknown>).created_at).localeCompare(String((a as Record<string,unknown>).created_at))).slice(0,100), proofs, reviews, stats });
 }

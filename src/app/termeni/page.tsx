@@ -1,111 +1,40 @@
-import { LegalPage } from "@/components/LegalPage";
+import { publicPageMetadata } from "@/lib/publicSeo";
+export const metadata = publicPageMetadata("/termeni");
+import { InformationPage, type InfoSection } from "@/components/InformationPage";
+import { legalIdentityStatus } from "@/lib/legalConfig";
 
-import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Termeni și condiții",
-  description:
-    "Termenii și condițiile de utilizare a platformei Nitido — rolul platformei, conturi, plăți și responsabilități între clienți și firmele de curățenie.",
-};
-
-
-export default function TermeniPage() {
-  return (
-    <LegalPage title="Termeni și condiții" updated="16 august 2026">
-      <section>
-        <h2>1. Despre Nitido</h2>
-        <p>
-          Nitido este o platformă online (&quot;Platforma&quot;) care intermediază între persoane
-          fizice sau juridice care au nevoie de servicii de curățenie (&quot;Client&quot;) și
-          firme de curățenie înregistrate pe platformă (&quot;Firmă&quot;). Nitido nu prestează
-          servicii de curățenie și nu este parte în contractul de prestări servicii încheiat
-          între Client și Firmă — rolul platformei este de a facilita conectarea, comunicarea și
-          plata dintre cele două părți.
-        </p>
-      </section>
-
-      <section>
-        <h2>2. Contul de utilizator</h2>
-        <p>
-          Pentru a folosi Platforma, atât Clienții cât și Firmele trebuie să creeze un cont,
-          furnizând date reale și complete. Firmele trebuie să furnizeze suplimentar codul unic de
-          înregistrare (CUI) și zona de acoperire în care operează. Fiecare utilizator este
-          responsabil pentru confidențialitatea datelor de autentificare ale propriului cont.
-        </p>
-      </section>
-
-      <section>
-        <h2>3. Postarea și acceptarea lucrărilor</h2>
-        <p>
-          Clientul postează o lucrare specificând adresa, tipul de spațiu și suprafața. Prețul
-          este calculat automat și afișat înainte de confirmarea postării. Firmele eligibile din
-          zonă primesc o alertă instant; prima Firmă care acceptă preia lucrarea. Odată acceptată,
-          confirmarea implică angajamentul Firmei de a se prezenta la adresa și ora convenite.
-        </p>
-      </section>
-
-      <section>
-        <h2>4. Plata</h2>
-        <p>
-          Plata se procesează prin Stripe, procesator de plăți terț. La acceptarea lucrării, suma
-          este autorizată (rezervată) pe cardul Clientului, fără a fi debitată efectiv. Debitarea
-          are loc abia după confirmarea finalizării lucrării. Platforma reține un comision din
-          suma încasată de Firmă, ca remunerație pentru serviciul de intermediere; suma afișată
-          Firmei la acceptare reprezintă deja valoarea netă, după comision.
-        </p>
-      </section>
-
-      <section>
-        <h2>5. Anulare și neprezentare (no-show)</h2>
-        <p>
-          Dacă Firma nu confirmă prezența la locație în intervalul stabilit după ora programată,
-          Platforma marchează automat lucrarea ca neonorată, anulează rezervarea de plată (fără
-          nicio sumă reținută de la Client) și aplică un sistem de avertismente/suspendare
-          Firmei responsabile, proporțional cu numărul de abateri.
-        </p>
-      </section>
-
-      <section>
-        <h2>6. Evaluări</h2>
-        <p>
-          După finalizarea unei lucrări, Clientul poate evalua Firma printr-un rating public.
-          Evaluările reflectă exclusiv opinia Clientului și nu reprezintă o poziție a Platformei.
-        </p>
-      </section>
-
-      <section>
-        <h2>7. Limitarea răspunderii</h2>
-        <p>
-          Nitido acționează exclusiv ca intermediar tehnic între Client și Firmă. Calitatea,
-          execuția și orice eventuale daune rezultate din prestarea efectivă a serviciului de
-          curățenie sunt responsabilitatea exclusivă a Firmei care a acceptat lucrarea. Nitido nu
-          garantează și nu răspunde pentru rezultatul serviciilor prestate de Firme.
-        </p>
-      </section>
-
-      <section>
-        <h2>8. Date cu caracter personal</h2>
-        <p>
-          Prelucrarea datelor cu caracter personal este descrisă în{" "}
-          <a href="/confidentialitate" className="text-aqua-deep underline">
-            Politica de confidențialitate
-          </a>
-          .
-        </p>
-      </section>
-
-      <section>
-        <h2>9. Modificarea termenilor</h2>
-        <p>
-          Acești termeni pot fi actualizați periodic. Continuarea folosirii Platformei după o
-          actualizare reprezintă acceptarea noilor termeni.
-        </p>
-      </section>
-
-      <section>
-        <h2>10. Contact</h2>
-        <p>Pentru întrebări legate de acești termeni, ne poți scrie la contact@nitido.ro.</p>
-      </section>
-    </LegalPage>
-  );
-}
+export default function Page(){const legal=legalIdentityStatus();const sections:InfoSection[]=[
+  {title:"1. Domeniul documentului",paragraphs:["Acești termeni reglementează accesul și utilizarea platformei NITIDO.RO de către clienți și firme.","Citește aceste reguli împreună cu descrierea serviciului și rezumatul afișat înainte de confirmarea unei rezervări. Condițiile unei lucrări concrete depind de serviciul, opțiunile și programarea selectate. Pentru NITIDO Pro, activarea portofoliului și serviciile se stabilesc separat, în urma evaluării și a condițiilor contractuale convenite."]},
+  {title:"2. Rolul NITIDO.RO",paragraphs:["NITIDO.RO este intermediar tehnic între clienți și firme. Nu execută serviciul de curățenie și nu înlocuiește obligațiile prestatorului.","Platforma pune la dispoziție conturile, publicarea solicitărilor, selecția sau alocarea firmei și evidența etapelor. Firma alocată organizează și execută intervenția. Descrierea acestui rol nu limitează obligațiile legale proprii ale platformei și nici drepturile pe care clientul le are față de prestator."]},
+  {title:"3. Definiții",items:["Client: utilizatorul care publică o lucrare.","Firmă: prestatorul înregistrat care poate accepta lucrări.","Lucrare: solicitarea de servicii publicată în platformă.","Alocare: confirmarea firmei câștigătoare de către server."]},
+  {title:"4. Eligibilitate și conturi",paragraphs:["Utilizatorii trebuie să aibă capacitatea legală necesară și să folosească un cont propriu, securizat.","Rolul ales trebuie să corespundă modului de utilizare. Reprezentantul unei firme trebuie să poată acționa în numele acesteia. Păstrează parola și linkurile de recuperare confidențiale; dacă observi utilizarea neautorizată a contului, schimbă parola și sesizează suportul cu detaliile relevante."]},
+  {title:"5. Obligația datelor reale",paragraphs:["Numele, datele de contact, CUI-ul, zonele și informațiile lucrării trebuie să fie reale, actuale și suficiente.","Actualizează informațiile care se schimbă și verifică adresa și programarea înainte de publicare. Datele incorecte pot împiedica alocarea, accesul la locație sau comunicarea. Nu introduce informații despre terți fără un motiv legat de serviciu și fără dreptul de a le comunica."]},
+  {title:"6. Contul Client",paragraphs:["Clientul poate publica și urmări numai propriile lucrări și răspunde pentru corectitudinea informațiilor furnizate.","Clientul descrie serviciul solicitat, verifică suma și asigură accesul necesar la spațiu. Particularitățile care pot afecta intervenția trebuie comunicate înainte de executare. O cerință adăugată în observații nu se consideră automat inclusă în preț dacă depășește serviciul rezervat."]},
+  {title:"7. Contul Firmă",paragraphs:["Firma răspunde pentru datele societății, zonele declarate, disponibilitate și executarea lucrărilor acceptate.","Înainte de a candida sau accepta, firma verifică dacă are personalul, echipamentele și timpul necesar. Ea răspunde pentru organizarea echipei și pentru respectarea obligațiilor profesionale și fiscale care îi revin. Datele clientului se folosesc numai pentru scopurile autorizate ale lucrării."]},
+  {title:"8. Verificarea firmei",paragraphs:["CUI-ul este verificat ca format și, când serviciul este disponibil, față de datele ANAF. Numai confirmarea unei firme active permite statusul verificat.","Statutul verificat descrie verificările efectuate și informațiile confirmate la momentul respectiv. El nu reprezintă certificarea tuturor angajaților, confirmarea unei asigurări sau garantarea fiecărei intervenții. Clientul trebuie să citească și descrierea serviciului, profilul și istoricul disponibil."]},
+  {title:"9. Postarea unei lucrări",paragraphs:["Clientul completează formularul și verifică datele și prețul înainte de publicare.","Publicarea trimite solicitarea în circuitul platformei, dar nu confirmă singură existența unei firme disponibile. Clientul trebuie să verifice ulterior selecția sau alocarea. Dacă apare o eroare, verifică lista lucrărilor înainte să repeți publicarea, pentru a evita solicitările duplicate."]},
+  {title:"10. Informațiile lucrării",paragraphs:["Pot include tipul spațiului, suprafața, localitatea, adresa, programarea, observațiile și fotografiile necesare.","Descrierea trebuie să permită evaluarea realistă a intervenției. Menționează restricțiile de acces și situațiile speciale, fără să publici inutil date sensibile. Fotografiile trebuie să fie relevante și să poată fi folosite legal în contextul rezervării."]},
+  {title:"11. Regula de alocare",paragraphs:["La Standard, clientul alege dintre firmele candidate. La Express, prima acceptare eligibilă confirmată alocă lucrarea. Sistemul validează starea și condițiile aplicabile, inclusiv plata necesară.","La Standard, candidatura unei firme nu îi conferă lucrarea înainte de selecția clientului și confirmarea alocării. La Express, notificarea nu reprezintă acceptare. În ambele fluxuri, verifică în cont firma responsabilă și eventualele cerințe de plată înainte de a considera rezervarea confirmată."]},
+  {title:"12. Obligațiile firmei după Accept",paragraphs:["Acceptarea confirmată obligă firma să consulte detaliile, să se prezinte conform programării și să actualizeze corect statusul.","Firma pregătește intervenția pe baza informațiilor primite și semnalează din timp impedimentele. Confirmările de sosire și finalizare trebuie să reflecte situația reală. Este interzisă folosirea unor dovezi de la alte lucrări sau declararea unei etape care nu a avut loc."]},
+  {title:"13. Adresa și confidențialitatea",paragraphs:["Înainte de alocare, adresa exactă rămâne protejată. După alocare este furnizată numai firmei câștigătoare pentru executare.","Accesul la informațiile necesare execuției nu permite reutilizarea lor pentru marketing, distribuirea neautorizată sau contactarea abuzivă. Participanții trebuie să limiteze comunicarea la ceea ce este necesar. Codurile de acces și instrucțiunile sensibile nu se publică în descrieri generale."]},
+  {title:"14. Prețuri",paragraphs:["Prețul clientului este calculat din regulile active și afișat înainte de publicare. Modificările comerciale trebuie comunicate înainte de aplicare.","Grila standard ține cont de tipul spațiului și suprafață, iar opțiunile selectate pot adăuga costuri distincte. Verifică totalul și componentele sale înainte de publicare. O estimare generală nu reprezintă ofertă pentru servicii speciale care necesită evaluare separată."]},
+  {title:"15. Plata",paragraphs:["Providerul și serverul controlează autorizarea și capturarea. Plata poate fi autorizată la acceptare și capturată după finalizare; un eșec nu poate produce o confirmare falsă.","Autorizarea și încasarea sunt operațiuni diferite. Starea din cont trebuie citită împreună cu informațiile băncii; o sumă blocată temporar poate apărea înaintea încasării. Nu transmite date complete de card prin mesaje. Pentru o operațiune neclară, solicită verificarea pe baza identificatorului lucrării."]},
+  {title:"16. Anulare",paragraphs:["Anularea depinde de starea lucrării și se face numai prin fluxurile autorizate. Efectele financiare urmează rezultatul real al providerului.","Verifică opțiunile și informațiile afișate pentru rezervarea ta înainte de confirmarea anulării. Dacă acțiunea nu este disponibilă sau efectul financiar nu este clar, contactează suportul. Aceste reguli operaționale nu înlătură drepturile obligatorii ale consumatorului; o solicitare trebuie analizată potrivit situației și legislației aplicabile."]},
+  {title:"17. No-show",paragraphs:["Neprezentarea firmei poate fi înregistrată, poate anula autorizarea aplicabilă și poate genera strike-uri sau suspendare.","Semnalează neprezentarea indicând programarea, ora la care ai observat problema și comunicările relevante. Nu declara un incident pentru a modifica artificial istoricul firmei ori plata. Consecințele se stabilesc pe baza situației verificate și a regulilor aplicabile, nu doar a unei afirmații."]},
+  {title:"18. Finalizarea",paragraphs:["Finalizarea trebuie confirmată în fluxul lucrării. Capturarea plății și pașii ulteriori depind de starea oficială.","Dovezile și confirmările cerute de aplicație trebuie să fie asociate intervenției respective. Dacă există diferențe privind rezultatul serviciului, documentează-le și contactează suportul. Afișarea unei stări operaționale nu elimină dreptul de a formula o reclamație referitoare la o problemă reală."]},
+  {title:"19. Rating și recenzii",paragraphs:["Evaluarea este asociată unei lucrări reale. Conținutul trebuie să fie sincer, relevant și să nu încalce drepturile altora.","Descrie experiența efectivă, cu informații utile despre serviciu, comunicare și punctualitate. Evită amenințările, acuzațiile fără context și divulgarea datelor personale. O sesizare privind o recenzie poate fi analizată, dar trimiterea ei nu implică ștergerea automată a evaluării."]},
+  {title:"20. Fotografii și conținut",paragraphs:["Utilizatorul trebuie să încarce numai conținut relevant asupra căruia are drepturi și să evite date personale inutile.","Prin încărcare, conținutul este utilizat în scopul gestionării și documentării lucrării, potrivit accesului permis în platformă. Evită acte, fețe sau informații care nu ajută la descrierea intervenției. Dacă ai încărcat din greșeală date sensibile, cere ajutor și indică lucrarea afectată."]},
+  {title:"21. Notificări",paragraphs:["Platforma poate folosi SMS, email sau mesaje în cont pentru evenimente tranzacționale. Notificarea nu înlocuiește starea oficială din sistem.","Livrarea poate depinde de furnizor, rețea și setările dispozitivului. Verifică detaliile rezervării în cont chiar dacă un mesaj întârzie sau nu ajunge. Nu considera un SMS o confirmare separată a unei plăți și verifică solicitările suspecte prin datele de contact publicate pe site."]},
+  {title:"22. Asistentul AI",paragraphs:["AI-ul este consultativ. Nu poate aloca lucrări, modifica plăți, conturi, verificări sau date administrative.","Răspunsurile sunt orientative și pot necesita clarificări. Pentru o problemă concretă, verifică informațiile din cont și contactează suportul uman. Nu furniza parole, coduri de autentificare, date complete ale cardului ori informații despre alte persoane care nu sunt necesare întrebării."]},
+  {title:"23. Conduită interzisă",items:["Acces neautorizat sau eludarea permisiunilor","Date false, fraudă sau manipularea statusurilor","Hărțuire, conținut ilegal ori folosirea abuzivă a datelor","Atacuri asupra disponibilității sau securității platformei"]},
+  {title:"24. Suspendare și restricții",paragraphs:["Conturile pot fi restricționate pentru încălcări, abuz, risc de securitate, no-show-uri sau obligații legale, proporțional cu situația.","Dacă nu poți folosi o funcție, citește mesajul afișat și contactează suportul pentru clarificări. Trimite identificatorul contului sau lucrării și contextul relevant. O restricție nu trebuie ocolită prin conturi duplicate, date false sau utilizarea contului altei persoane."]},
+  {title:"25. Fraudă și abuz",paragraphs:["Evenimentele suspecte pot fi analizate, blocate și păstrate ca dovezi în limitele legii.","Sunt relevante, de exemplu, accesul fără drept, manipularea dovezilor, tentativele de plată frauduloasă și folosirea neautorizată a datelor. Dacă observi un incident, raportează-l fără a încerca să accesezi informații care nu îți aparțin. Păstrarea dovezilor se face numai în limitele aplicabile."]},
+  {title:"26. Proprietate intelectuală",paragraphs:["Marca, interfața și software-ul NITIDO.RO nu pot fi copiate sau exploatate fără autorizare. Utilizatorii păstrează drepturile asupra conținutului propriu.","Accesul la platformă îți permite utilizarea funcțiilor pentru scopurile descrise, nu redistribuirea software-ului ori prezentarea mărcii ca fiind proprie. Pentru materialele încărcate, ai responsabilitatea de a deține drepturile necesare. Solicitările privind utilizări neautorizate pot fi trimise echipei."]},
+  {title:"27. Disponibilitatea platformei",paragraphs:["Pot exista mentenanță, întreruperi sau erori. NITIDO.RO nu promite disponibilitate neîntreruptă.","Dacă o pagină nu răspunde, verifică starea operațiunii înainte de a o repeta, mai ales când este vorba despre rezervări sau plăți. Păstrează mesajul de eroare și contactează suportul dacă situația persistă. Nu presupune că o întrerupere anulează automat o programare existentă."]},
+  {title:"28. Servicii terțe",paragraphs:["Plățile, SMS-urile, infrastructura și funcțiile AI pot depinde de furnizori terți și de termenii acestora.","Un serviciu extern poate solicita pași suplimentari sau poate avea timpi proprii de procesare. Aceste dependențe nu justifică transmiterea parolelor ori codurilor bancare către suport. Pentru informații despre datele comunicate furnizorilor, consultă și politica de confidențialitate."]},
+  {title:"29. Răspundere",paragraphs:["Firma răspunde pentru prestarea serviciului. NITIDO.RO răspunde pentru propriile obligații tehnice în limitele permise de lege și nu exclude drepturile obligatorii ale consumatorilor.","Orice problemă privind executarea trebuie descrisă în raport cu serviciul rezervat și dovezile disponibile. Nu este promisă o despăgubire automată sau o acoperire de asigurare nespecificată. Analiza unei reclamații trebuie să țină cont de obligațiile părților și de normele obligatorii aplicabile."]},
+  {title:"30. Forță majoră",paragraphs:["Obligațiile pot fi afectate de evenimente externe imprevizibile și inevitabile, în condițiile legii aplicabile.","Partea afectată trebuie să comunice situația relevantă pentru rezervare și să permită clarificarea consecințelor. O dificultate obișnuită de organizare nu devine automat un asemenea eveniment. Încadrarea și efectele se apreciază potrivit circumstanțelor și normelor aplicabile."]},
+  {title:"31. Modificarea termenilor",paragraphs:["Versiunile actualizate vor fi publicate cu o dată de actualizare. Schimbările materiale trebuie comunicate adecvat.","Actualizarea editorială a acestei pagini este datată 24 septembrie 2026. Verifică descrierea și condițiile prezentate la momentul rezervării tale. Publicarea unei versiuni noi nu justifică modificarea retroactivă arbitrară a prețului unei lucrări deja confirmate."]},
+  {title:"32. Lege și litigii",paragraphs:["Se aplică legea română, fără afectarea drepturilor imperative. Părțile vor încerca soluționarea amiabilă înaintea instanței competente.","Pentru o sesizare, transmite identificatorul lucrării, descrierea problemei, dovezile relevante și soluția solicitată. Contactarea suportului nu îți limitează accesul la autoritățile competente sau la instanță. Nu trimite documente ori date personale fără legătură cu reclamația."]},
+  {title:"33. Contact și identitate juridică",paragraphs:[legal.productionReady?`Operator: ${legal.values.LEGAL_ENTITY_NAME}; înregistrare: ${legal.values.LEGAL_ENTITY_REGISTRATION}; adresă: ${legal.values.LEGAL_ENTITY_ADDRESS}; contact: ${legal.values.LEGAL_CONTACT_EMAIL}.`:"Datele de identificare juridică ale operatorului nu sunt completate integral pe această pagină. Solicită aceste informații la support@nitido.ro înainte de a încheia o relație contractuală. Denumirea NITIDO.RO reprezintă marca platformei și nu înlocuiește identificarea entității juridice."]},
+];return <InformationPage eyebrow="TERMENI ȘI CONDIȚII" title="Regulile de utilizare a platformei NITIDO.RO" intro="Reguli pentru conturi, rezervări, executarea serviciilor, plăți și sesizări. Citește-le împreună cu informațiile afișate pentru serviciul ales. Actualizare editorială: 24 septembrie 2026." cta={{label:"Cere o clarificare despre termeni",href:"/contact"}} sections={sections}/>}

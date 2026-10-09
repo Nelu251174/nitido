@@ -1,0 +1,22 @@
+import Link from "next/link";
+import {HomeLogoLink} from "@/components/HomeLogoLink";
+import {PhoneAppPromo} from "@/components/StoreBadges";
+import {HeaderAuthButtons} from "@/components/HeaderAuthButtons";
+import {ProLink} from "@/components/pro/ProLink";
+import {MobileMenu} from "@/components/MobileMenu";
+import {CITIES} from "@/lib/cities";
+
+export const FOOTER_LINK_GROUPS = [
+  { title: "Produs", links: [...(process.env.NEXT_PUBLIC_NITIDO_PRO_PUBLIC==='true'?[["NITIDO Pro", "/nitido-pro"]]:[]),["Cum funcționează", "/cum-functioneaza"], ["Încredere & Siguranță", "/incredere"], ["Pentru clienți", "/pentru-clienti"], ["Pentru firme", "/pentru-firme"], ["Înscrie-ți firma", "/inscrie-firma"], ["Prețuri", "/preturi"]] },
+  { title: "Clienți", links: [["Configurează curățenia", "/rezervare"], ["Urmărește starea lucrării", "/urmarire-live"], ["Siguranță", "/siguranta"]] },
+  { title: "Companie", links: [["Despre noi", "/despre-noi"], ["Contact", "/contact"], ["Cariere", "/cariere"]] },
+  { title: "Legal", links: [["Termeni și condiții", "/termeni"], ["Confidențialitate", "/confidentialitate"], ["Cookie-uri", "/cookie-uri"]] },
+] as const;
+
+export function SiteHeader({home=false}:{home?:boolean}) {
+  return <header className={`design-header ${home?'design-header-home':''}`}><div className="design-container design-header-inner"><div><HomeLogoLink/><span className="design-logo-caption">O casă mai curată. O viață mai bună.</span></div><nav className="design-desktop-nav" aria-label="Navigare principală"><Link href="/#servicii">Servicii</Link><Link href="/cum-functioneaza">Cum funcționează</Link><Link href="/pentru-firme">Pentru firme</Link><Link href="/despre-noi">Despre noi</Link><Link href="/contact#asistent-ai">Asistent AI</Link></nav><div className="design-header-actions"><HeaderAuthButtons/><MobileMenu/></div></div>{process.env.NEXT_PUBLIC_NITIDO_PRO_PUBLIC === "true" && <div className="design-mobile-pro-entry"><ProLink/></div>}</header>;
+}
+
+export function SiteFooter() {
+  return <footer className="bg-[#111827] text-white"><div className="v2-container grid grid-cols-5 gap-8 py-14 v2-mobile-two"><div><Link href="/" className="text-xl font-bold">NITIDO<span className="text-[var(--nitido-brand-on-dark)]">.RO</span></Link><p className="mt-4 text-sm leading-6 text-[#8b958f]">Rezervă curățenia, compară firmele candidate la Standard și urmărește lucrarea în cont. Pentru activități recurente în portofolii de proprietăți, descoperă NITIDO Pro.</p></div>{FOOTER_LINK_GROUPS.map(group=><div key={group.title}><h2 className="text-sm font-bold">{group.title}</h2>{group.links.map(([label,href])=><Link className="mt-3 block text-sm text-[#8b958f] hover:text-white" href={href} key={href}>{label}</Link>)}</div>)}</div><PhoneAppPromo/><div className="border-t border-[#2a332c]"><div className="v2-container py-6"><h2 className="text-sm font-bold text-white">Curățenie pe orașe</h2><div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">{CITIES.map(c=><Link className="text-sm text-[#8b958f] hover:text-white" href={`/curatenie/${c.slug}`} key={c.slug}>Curățenie {c.name}</Link>)}</div></div></div><div className="border-t border-[#2a332c]"><div className="v2-container flex justify-between py-5 text-xs text-[#8b958f]"><span>© 2026 NITIDO.RO</span><span className="flex flex-wrap gap-x-3 gap-y-2"><a href="mailto:support@nitido.ro" className="hover:text-white">support@nitido.ro</a></span></div></div></footer>;
+}

@@ -1,0 +1,24 @@
+import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
+import {NextRequest} from 'next/server';
+const state=vi.hoisted(()=>({admin:vi.fn(),limit:vi.fn(),reconcile:vi.fn(),construct:vi.fn(),get:vi.fn()}));
+vi.mock('@/lib/adminAuth',()=>({isAdmin:state.admin}));
+vi.mock('@/lib/db',()=>({db:{prepare:()=>({get:state.get})}}));
+vi.mock('@/lib/security',()=>({consumeRateLimit:state.limit}));
+vi.mock('@/lib/paymentCancellation',()=>({reconcilePaymentCancellation:state.reconcile}));
+vi.mock('stripe',()=>({default:class{constructor(){state.construct();}}}));
+import {POST} from './route';
+const call=(origin='https://nitido.test',body:unknown={jobId:'job_one'})=>POST(new NextRequest('https://nitido.test/api/admin/payment-cancellation',{method:'POST',headers:{origin,authorization:'Bearer untrusted'},body:JSON.stringify(body)}));
+beforeEach(()=>{vi.resetAllMocks();vi.stubEnv('STRIPE_SECRET_KEY','rk_test_fixture');vi.stubEnv('NEXT_PUBLIC_SITE_URL','https://sandbox.nitido.test');vi.stubEnv('NITIDO_ENABLE_BEARER_AUTH','true');state.admin.mockResolvedValue(true);state.limit.mockReturnValue(true);state.reconcile.mockResolvedValue(undefined);state.get.mockReturnValue({status:'processed'});});
+afterEach(()=>vi.unstubAllEnvs());
+describe('admin cancellation recovery boundary',()=>{
+ it('requires an admin session',async()=>{state.admin.mockResolvedValue(false);expect((await call()).status).toBe(401);expect(state.construct).not.toHaveBeenCalled();});
+ it.each(['https://other.test',''])('rejects a foreign or missing origin even with an arbitrary Bearer header',async origin=>{expect((await call(origin)).status).toBe(403);expect(state.reconcile).not.toHaveBeenCalled();});
+ it('accepts the configured HTTPS reverse-proxy origin',async()=>{expect((await call('https://sandbox.nitido.test')).status).toBe(200);});
+ it.each(['sk_live_fixture','rk_live_fixture',''])('blocks non-sandbox configuration',async key=>{vi.stubEnv('STRIPE_SECRET_KEY',key);expect((await call()).status).toBe(503);expect(state.construct).not.toHaveBeenCalled();});
+ it('validates IDs before provider access',async()=>{expect((await call('https://nitido.test',{jobId:'../../other'})).status).toBe(400);expect(state.construct).not.toHaveBeenCalled();});
+ it('limits expensive reconciliation reads',async()=>{state.limit.mockReturnValue(false);expect((await call()).status).toBe(429);expect(state.reconcile).not.toHaveBeenCalled();});
+ it('returns confirmed state and enforces sandbox-only resource validation',async()=>{const res=await call();expect(res.headers.get('cache-control')).toBe('private, no-store');expect(await res.json()).toEqual({status:'processed'});expect(state.reconcile).toHaveBeenCalledWith(expect.anything(),'job_one',expect.anything(),{sandboxOnly:true});});
+ it('does not leak provider error details',async()=>{state.reconcile.mockRejectedValue(Error('private key details'));const res=await call();expect(res.status).toBe(409);expect(JSON.stringify(await res.json())).not.toContain('private key details');});
+ it('requires an existing unresolved request for a terminal job',async()=>{state.get.mockReturnValue(undefined);expect((await call()).status).toBe(409);expect(state.construct).not.toHaveBeenCalled();expect(state.reconcile).not.toHaveBeenCalled();});
+ it('keeps an unknown intent pending rather than reporting a release',async()=>{state.get.mockReturnValue({status:'pending'});expect(await (await call()).json()).toEqual({status:'pending'});});
+});

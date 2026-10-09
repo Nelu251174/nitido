@@ -1,0 +1,5 @@
+'use client';
+import {WINDOWS_RATE_LEI,WINDOWS_MAX_SQM,validWindowsSqm} from '@/lib/pricing';
+export function WindowsExtra({value,onChange}:{value:number;onChange:(n:number)=>void}){
+ return <fieldset className="design-panel my-4"><legend className="font-bold">Spălare geamuri · serviciu separat</legend><label className="block">Suprafața geamurilor, m²<input className="block w-full rounded-lg border p-3 mt-2" type="number" min={0} max={WINDOWS_MAX_SQM} step={1} inputMode="numeric" value={value===0?'':value} onChange={e=>onChange(e.target.value===''?0:Number(e.target.value))}/></label><p className="text-sm mt-2">{WINDOWS_RATE_LEI} lei/m². Măsoară lățime × înălțime pentru fiecare geam, o singură dată, și rotunjește totalul în sus. Ambele fețe accesibile și ramele sunt incluse în acest extra.</p><p className="text-sm mt-2">0 m² = fără spălare de geamuri. Geamurile la înălțime, inaccesibile sau cu resturi de constructor necesită evaluare.</p>{!validWindowsSqm(value)&&<p role="alert">Introdu un număr întreg între 0 și {WINDOWS_MAX_SQM} m².</p>}</fieldset>;
+}

@@ -1,0 +1,68 @@
+import { executionAccess } from "@/lib/collaborationAccess";
+import fs from "fs";
+import path from "path";
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
+import { db, getFirmByUserId } from "@/lib/db";
+import { isAdmin } from "@/lib/adminAuth";
+
+const UPLOAD_DIR = path.join(process.cwd(), "data", "uploads");
+const CONTENT_TYPES: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+};
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const user = await getCurrentUser(req);
+  const admin = await isAdmin('operations');
+  if (!user && !admin) return NextResponse.json({ error: "Autentificare necesară" }, { status: 401 });
+
+  const { id } = await params;
+  const photo = db.prepare(
+    `SELECT p.filename, p.owner_user_id, p.proof_type,
+            j.id AS job_id, j.client_id, j.accepted_firm_id, j.status AS job_status, j.city AS job_city
+     FROM job_photos p LEFT JOIN jobs j ON j.id = p.job_id WHERE p.id = ?`
+  ).get(id) as
+    | {
+        filename: string;
+        job_id: string | null;
+        owner_user_id: string | null;
+        proof_type: string;
+        client_id: string | null;
+        accepted_firm_id: string | null;
+        job_status: string | null;
+        job_city: string | null;
+      }
+    | undefined;
+  if (!photo) return NextResponse.json({ error: "Imagine inexistentă" }, { status: 404 });
+
+  const firm = user?.role === "firma" ? getFirmByUserId(user.id) : null;
+  const authorized =
+    admin ||
+    (user?.role === "client" && ((!photo.job_id && photo.owner_user_id === user.id) || photo.client_id === user.id)) ||
+    Boolean(firm && photo.accepted_firm_id === firm.id) ||
+    Boolean(user && photo.job_id && executionAccess(db,user.id,photo.job_id));
+  if (!authorized) return NextResponse.json({ error: "Acces interzis" }, { status: 403 });
+
+  if (path.basename(photo.filename) !== photo.filename) {
+    return NextResponse.json({ error: "Imagine invalidă" }, { status: 400 });
+  }
+  const filePath = path.join(UPLOAD_DIR, photo.filename);
+  if (!fs.existsSync(filePath)) return NextResponse.json({ error: "Imagine indisponibilă" }, { status: 404 });
+  const contentType = CONTENT_TYPES[path.extname(photo.filename).toLowerCase()];
+  if (!contentType) return NextResponse.json({ error: "Format invalid" }, { status: 400 });
+
+  return new NextResponse(new Uint8Array(fs.readFileSync(filePath)), {
+    headers: {
+      "Content-Type": contentType,
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}

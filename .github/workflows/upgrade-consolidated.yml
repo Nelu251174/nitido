@@ -1,0 +1,55 @@
+name: NITIDO consolidated upgrade verification
+on:
+  push:
+    branches: [feat/nitido-upgrade-consolidation, feat/nitido-crm-checklist-controls, feat/nitido-pro-property-checklists, feat/nitido-internal-operations, codex/nitido-v11-completion, codex/nitido-operational-completion]
+  pull_request:
+    branches: [fix/nitido-pro-notification-access, feat/nitido-upgrade-consolidation, feat/nitido-crm-checklist-controls, feat/nitido-pro-property-checklists, feat/nitido-internal-operations, main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nitido-upgrade-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        timezone: [UTC, Europe/Bucharest]
+    env:
+      TZ: ${{ matrix.timezone }}
+      NITIDO_SEED_DEMO: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:upgrade:consolidated
+      - run: node --test scripts/*.test.mjs
+      - run: npx next typegen
+      - run: npx tsc --noEmit
+      - if: matrix.timezone == 'UTC'
+        env:
+          NITIDO_PRO_ENABLED: 'true'
+          NEXT_PUBLIC_NITIDO_PRO_PUBLIC: 'true'
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build -- --webpack
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck

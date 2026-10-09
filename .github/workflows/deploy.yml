@@ -1,0 +1,44 @@
+name: Deploy la Coolify
+
+# Robot de publicare: la fiecare push pe branch-ul live, declanșează automat
+# deploy-ul în Coolify. Poate fi pornit și manual (workflow_dispatch) — ex. de
+# către asistent, prin API GitHub. Astfel nu mai e nevoie de apăsat „Deploy".
+on:
+  push:
+    branches: [feat/design-handoff-website-mobile-v2]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Declanșează deploy Coolify
+        env:
+          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          if [ -z "$COOLIFY_WEBHOOK" ]; then
+            echo "::error::Lipsește secretul COOLIFY_WEBHOOK. Adaugă-l în Settings → Secrets → Actions."
+            exit 1
+          fi
+
+          # API-ul Coolify de deploy cere metoda POST. Afișăm codul HTTP și răspunsul
+          # (fără a expune secretele) ca să vedem clar rezultatul.
+          resp=$(curl -sS -w $'\n%{http_code}' --location --request POST \
+            "$COOLIFY_WEBHOOK" \
+            --header "Authorization: Bearer $COOLIFY_TOKEN" \
+            --header "Accept: application/json" || true)
+
+          code=$(printf '%s' "$resp" | tail -n1)
+          body=$(printf '%s' "$resp" | sed '$d')
+
+          echo "== Cod HTTP: $code =="
+          echo "== Răspuns server: =="
+          echo "$body"
+
+          if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
+            echo "✅ Deploy declanșat cu succes în Coolify."
+          else
+            echo "::error::Serverul a respins cererea (HTTP $code). Vezi răspunsul de mai sus."
+            exit 1
+          fi

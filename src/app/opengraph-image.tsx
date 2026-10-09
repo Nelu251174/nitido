@@ -1,47 +1,38 @@
-import { ImageResponse } from "next/og";
+import React from 'react';
+import { ImageResponse } from 'next/og';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
-// Imaginea care apare la share pe WhatsApp / Facebook / LinkedIn. Fără ea,
-// link-urile Nitido apăreau fără thumbnail. Generată dinamic, în brandul Nitido.
-// Notă: next/og (Satori) cere display:flex explicit pe orice element cu mai
-// mulți copii — de aceea fiecare container e flex.
-export const alt = "Nitido — Marketplace de curățenie în România";
+export const alt = 'NITIDO.RO — Curățenie în România';
 export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
+export const contentType = 'image/png';
 
+// Local approved fonts cover Romanian glyphs without Google's fallback fetch.
+const inter = readFileSync(join(process.cwd(), 'node_modules/@fontsource/inter/files/inter-latin-700-normal.woff'));
+const interExtended = readFileSync(join(process.cwd(), 'node_modules/@fontsource/inter/files/inter-latin-ext-700-normal.woff'));
+
+// Shared brand image: no request data, provider promises or demonstration metrics.
 export default function OgImage() {
   return new ImageResponse(
-    (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          padding: "80px",
-          background: "linear-gradient(135deg, #0f1e27 0%, #142530 60%, #0e3b39 100%)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", fontSize: 44, fontWeight: 800 }}>
-          <span style={{ color: "white" }}>Nit</span>
-          <span style={{ color: "#17b8a6" }}>ido</span>
+    <div style={{ width: '100%', height: '100%', display: 'flex', padding: 56, background: '#F7F3EC', fontFamily: 'Inter, Inter Extended' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', width: '100%', padding: 52, background: '#FFFFFF', border: '1px solid #DED8CE', borderRadius: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'center', fontSize: 48, fontWeight: 700, letterSpacing: -2 }}>
+          <span style={{ color: '#111827' }}>NITIDO</span>
+          <span style={{ color: '#009E60' }}>.RO</span>
         </div>
-
-        <div style={{ display: "flex", flexDirection: "column", marginTop: 40, maxWidth: 940 }}>
-          <div style={{ display: "flex", fontSize: 66, fontWeight: 800, color: "white", lineHeight: 1.15 }}>
-            Postezi lucrarea.
-          </div>
-          <div style={{ display: "flex", fontSize: 66, fontWeight: 800, lineHeight: 1.15 }}>
-            <span style={{ color: "#17b8a6" }}>Prima firmă</span>
-            <span style={{ color: "white", marginLeft: 16 }}>care acceptă o ia.</span>
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', fontSize: 82, fontWeight: 700, lineHeight: 1.12, letterSpacing: -3 }}>
+          <span style={{ color: '#111827' }}>Curățenie fără</span>
+          <span style={{ color: '#009E60' }}>complicații.</span>
         </div>
-
-        <div style={{ display: "flex", marginTop: 36, fontSize: 30, color: "rgba(255,255,255,0.65)" }}>
-          Marketplace de curățenie · România · Preț fix, plată securizată
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 24, borderTop: '1px solid #DED8CE', fontSize: 26, color: '#52616A' }}>
+          <span>Servicii de curățenie în România</span>
+          <span style={{ color: '#007A4A', fontWeight: 700 }}>nitido.ro</span>
         </div>
       </div>
-    ),
-    { ...size }
+    </div>,
+    { ...size, fonts: [
+      { name: 'Inter', data: inter, weight: 700, style: 'normal' },
+      { name: 'Inter Extended', data: interExtended, weight: 700, style: 'normal' },
+    ] },
   );
 }

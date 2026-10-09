@@ -8,14 +8,28 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
-RUN npm ci
+# Managed build proxies can supply their CA as a temporary BuildKit secret.
+# A regular Coolify build does not require this secret; TLS remains enabled.
+RUN --mount=type=secret,id=proxy_ca \
+  if [ -f /run/secrets/proxy_ca ]; then \
+    NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca npm ci --strict-ssl=true; \
+  else \
+    npm ci --strict-ssl=true; \
+  fi
 
 FROM node:22-bookworm-slim AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# Public values are compiled by Next.js; production must receive its own values.
+# Secret keys must never be passed as build arguments.
+ARG NEXT_PUBLIC_SITE_URL
+ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+ARG NEXT_PUBLIC_NITIDO_PRO_PUBLIC=false
+ENV NEXT_PUBLIC_NITIDO_PRO_PUBLIC=$NEXT_PUBLIC_NITIDO_PRO_PUBLIC
 RUN npm run build
+RUN node scripts/pro-build-migration.mjs
 
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
@@ -26,9 +40,20 @@ RUN groupadd --system --gid 1001 nodejs \
   && useradd --system --uid 1001 --gid nodejs nextjs
 
 # Output standalone: server minimal + node_modules necesare, fără sursă/devDependencies.
-COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/recurring-runner.mjs ./scripts/recurring-runner.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/financial-recovery-runner.mjs ./scripts/financial-recovery-runner.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/notification-recovery-runner.mjs ./scripts/notification-recovery-runner.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/healthcheck.mjs ./scripts/healthcheck.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/verify-database-backup.mjs ./scripts/verify-database-backup.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/recovery.mjs ./scripts/recovery.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/release-preparation.mjs ./scripts/release-preparation.mjs
+
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/pro-migrate.mjs ./scripts/pro-migrate.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/pro-runner.mjs ./scripts/pro-runner.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/src/lib/pro/schema.mjs ./src/lib/pro/schema.mjs
 
 # Directoare persistente — legate ca volume în docker-compose.yml, ca baza de
 # date SQLite și pozele încărcate să supraviețuiască la redeploy.

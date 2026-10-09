@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "syntheticOnly": true,
+  "database": "/tmp/nitido-pro-migration-validation/synthetic-v13.sqlite",
+  "packagedBuild": "scripts/pro-build-migration.mjs",
+  "packagedRunner": "scripts/pro-migrate.mjs",
+  "schema13To14": true,
+  "originalTablesPreserved": 27,
+  "weeklyRuleUnchanged": true,
+  "historicalWorkChecklistAndPhotosUnchanged": true,
+  "dailyRulePreservedOnRerun": true,
+  "migrationMarkers": [
+    11,
+    12,
+    13,
+    14
+  ],
+  "oldSchedulerOnlyWeekly": true,
+  "legacyDailyResumeGuard": true,
+  "idempotentMigration": true,
+  "foreignKeys": "ok",
+  "integrity": "ok",
+  "sharedSchemaMjsUnchanged": true,
+  "copiedSourceHash": "d44260052cc16379cfe08af437b5679d26e10fcd9b988cc9e44bb72faa60f0ee",
+  "firstMigration": "",
+  "secondMigration": ""
+}

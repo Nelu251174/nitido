@@ -1,0 +1,18 @@
+import {afterEach,beforeEach,it,expect,vi} from 'vitest';
+import Database from 'better-sqlite3';
+import {NextRequest} from 'next/server';
+const state=vi.hoisted(()=>({db:null as Database.Database|null,actor:null as string|null,origin:true,audit:vi.fn()}));
+vi.mock('@/lib/db',()=>({get db(){return state.db!;}}));
+vi.mock('@/lib/adminAuth',()=>({getAdminActorId:async()=>state.actor,auditAdminAction:state.audit}));
+vi.mock('@/lib/security',()=>({hasTrustedMutationOrigin:()=>state.origin}));
+import {MARGIN_POLICY_SCHEMA} from '@/lib/marginPolicy';
+import {GET,POST} from './route';
+const body=()=>({revision:0,minBani:2000,minBasisPoints:null,reason:'Prag aprobat',actorId:'forged'});
+const req=(b:unknown)=>new NextRequest('https://sandbox.nitido.ro/api/admin/margin-policy',{method:'POST',body:JSON.stringify(b)});
+beforeEach(()=>{state.db=new Database(':memory:');state.db.exec('CREATE TABLE assessment_offers(id TEXT PRIMARY KEY,assessment_id TEXT,estimate_revision INTEGER,status TEXT);'+MARGIN_POLICY_SCHEMA);state.actor='verified';state.origin=true;state.audit.mockReset();vi.stubEnv('NITIDO_MANUAL_OFFERS_SANDBOX','true');vi.stubEnv('NEXT_PUBLIC_SITE_URL','https://sandbox.nitido.ro');vi.stubEnv('STRIPE_SECRET_KEY','sk_test_example');});
+afterEach(()=>{state.db!.close();vi.unstubAllEnvs();});
+it('protects configuration and reports with verified admin authentication',async()=>{state.actor=null;expect((await GET()).status).toBe(401);expect((await POST(req(body()))).status).toBe(401);});
+it('blocks cross-origin and production mutations',async()=>{state.origin=false;expect((await POST(req(body()))).status).toBe(403);state.origin=true;vi.stubEnv('NEXT_PUBLIC_SITE_URL','https://nitido.ro');expect((await POST(req(body()))).status).toBe(403);});
+it('uses the verified actor and excludes caching',async()=>{expect((await POST(req(body()))).status).toBe(200);const r=await GET();expect(r.headers.get('Cache-Control')).toBe('private, no-store');expect(await r.json()).toMatchObject({policy:{revision:1,actor_id:'verified',min_bani:2000},exceptions:[]});expect(state.audit).toHaveBeenCalled();});
+it('rejects concurrent edits, malformed and oversized inputs',async()=>{await POST(req(body()));expect((await POST(req(body()))).status).toBe(409);expect((await POST(req([]))).status).toBe(400);expect((await POST(req('x'.repeat(5001)))).status).toBe(413);});
+it('rolls back the policy if admin audit fails',async()=>{state.audit.mockImplementation(()=>{throw Error('private failure');});const r=await POST(req(body()));expect(r.status).toBe(500);expect(await r.text()).not.toContain('private failure');expect(state.db!.prepare('SELECT * FROM margin_policies').all()).toEqual([]);});

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { auditAdminAction, isAdmin } from "@/lib/adminAuth";
 
 /**
  * Golește tot istoricul de activitate al platformei — lucrări, poze de
@@ -11,18 +12,23 @@ import { db } from "@/lib/db";
  * explicit din panoul de admin (nu se poate declanșa accidental).
  */
 export async function POST(req: NextRequest) {
+  if (!(await isAdmin())) return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
-  if (body?.confirm !== "STERGE") {
+  if (body?.confirm !== true) {
     return NextResponse.json(
-      { error: "Confirmare lipsă — trimite { confirm: 'STERGE' }" },
+      { error: "Confirmarea explicită este obligatorie" },
       { status: 400 }
     );
   }
 
   const result = db.transaction(() => {
+    const notificationsDeleted = db.prepare("DELETE FROM notification_outbox").run();
+    db.prepare("DELETE FROM workflow_audit_log").run();
     const photosDeleted = db.prepare("DELETE FROM job_photos").run();
     const paymentsDeleted = db.prepare("DELETE FROM payments").run();
+    db.prepare("DELETE FROM review_reports").run();
     db.prepare("DELETE FROM ratings").run();
+    db.prepare("DELETE FROM strikes").run();
     const jobsCount = db.prepare("DELETE FROM jobs").run();
 
     // Firme + client demo, inserate automat la prima pornire — identificabile
@@ -50,9 +56,11 @@ export async function POST(req: NextRequest) {
       jobs: jobsCount.changes,
       payments: paymentsDeleted.changes,
       photos: photosDeleted.changes,
+      notifications: notificationsDeleted.changes,
       demoFirmsRemoved: demoFirmUserIds.length,
     };
   })();
 
+  auditAdminAction("history.reset", null, result);
   return NextResponse.json({ ok: true, ...result });
 }

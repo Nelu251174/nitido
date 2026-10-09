@@ -1,0 +1,3 @@
+import * as ImagePicker from "expo-image-picker";import * as Location from "expo-location";
+export async function chooseProofPhoto(){const permission=await ImagePicker.requestCameraPermissionsAsync();if(!permission.granted)throw new Error("Permisiunea pentru cameră este necesară pentru dovada foto.");const result=await ImagePicker.launchCameraAsync({mediaTypes:["images"],quality:.8,allowsEditing:false});return result.canceled?null:result.assets[0]}
+export async function requestJobLocation(){const result=await Location.requestForegroundPermissionsAsync();if(result.status!=="granted")throw new Error("Permisiunea de locație este necesară numai pentru traseul lucrării active.");return Location.getCurrentPositionAsync({accuracy:Location.Accuracy.Balanced})}

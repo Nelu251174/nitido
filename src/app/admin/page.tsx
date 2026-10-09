@@ -1,8 +1,25 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import {AdminRoleWorkspace} from '@/components/AdminRoleWorkspace';
+import {AdminStaff} from '@/components/AdminStaff';
+import type {AdminIdentity} from '@/lib/adminRolesShared';
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Logo, Card, Button } from "@/components/ui";
+import {AdminMarginPolicy} from "@/components/AdminMarginPolicy";
+import {AdminPricing} from "@/components/AdminPricing";
+import {AdminServiceCatalog} from "@/components/AdminServiceCatalog";
+import {AdminExecutionTemplates} from "@/components/AdminExecutionTemplates";
+import {AdminCustomers} from "@/components/AdminCustomers";
+import {AdminOperationalReport} from "@/components/AdminOperationalReport";
+import {AdminProviderScore} from "@/components/AdminProviderScore";
+import {AdminIncidentReviews} from "@/components/AdminIncidentReviews";
+import {AdminAssessments} from "@/components/AdminAssessments";
+import {AdminOperations} from "@/components/AdminOperations";
+import {FinancialRecoveryStatus,type RecoveryRun,type RecoveryParked} from "@/components/FinancialRecoveryStatus";
+import {CancellationRecovery} from "@/components/CancellationRecovery";
+import {PayoutReconciliation} from "@/components/PayoutReconciliation";
+import {BoardSidebar} from "@/components/BoardSidebar";
+import { Logo, Card, Button, inputClass } from "@/components/ui";
 import { JobRow } from "@/lib/types";
 
 interface FirmRow {
@@ -25,7 +42,35 @@ interface PaymentRow {
   commission_amount: number;
   amount_net: number;
   status: string;
+  stripe_fee_amount: number|null;
+  transfer_status: string;
+  payout_status: string;
+  refund_status: string;
+  dispute_status: string;
 }
+
+interface CancellationIssue {job_id:string;status:string;created_at:string}
+interface WebhookIssue {event_id:string;event_type:string;resource_id:string|null;status:string;attempts:number;received_at:string}
+interface AuthorizationIssue {job_id:string;status:string;created_ms:number;stripe_payment_intent_id:string|null}
+const authorizationLabels:Record<string,string>={reconciliation_required:"Reconciliere obligatorie",pending:"Verificare în curs",unknown:"Rezultat neconfirmat",requires_action:"Confirmare necesară de la client",requires_payment_method:"Card necesar",canceled:"Autorizare anulată sau expirată",processing:"Procesare Stripe"};
+
+interface BankPayoutRow {account_id:string;payout_id:string;amount_minor:number;currency:string;status:string;arrival_date:number;firm_name:string|null}
+const payoutLabels:Record<string,string>={paid:"Confirmat de Stripe",failed:"Eșuat",pending:"În așteptare",in_transit:"În curs",canceled:"Anulat"};
+function payoutAmount(p:BankPayoutRow){const formatter=new Intl.NumberFormat("ro-RO",{style:"currency",currency:p.currency.toUpperCase()});return formatter.format(p.amount_minor/10**(formatter.resolvedOptions().maximumFractionDigits??2));}
+
+interface NotificationRow {
+  id: string;
+  event_type: string;
+  recipient_masked: string;
+  status: string;
+  attempt_count: number;
+  last_error: string | null;
+  created_at: string;
+  channel?:string;
+  platform?:string|null;
+}
+interface ProofRow { id:string; job_id:string; uploaded_by_firm_id:string; proof_type:"ARRIVAL"|"COMPLETION"; status:string; created_at:string; validated_at:string|null; url:string }
+interface ReviewRow { id:string;job_id:string;firm_id:string;stars:number;comment:string|null;moderation_status:string;created_at:string;report_count:number;verified_job:number }
 
 interface AdminStats {
   totalJobs: number;
@@ -43,16 +88,69 @@ export default function AdminPage() {
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [firms, setFirms] = useState<FirmRow[]>([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [authorizationIssues,setAuthorizationIssues]=useState<AuthorizationIssue[]>([]);
+  const [recoveryRuns,setRecoveryRuns]=useState<RecoveryRun[]>([]);
+  const [recoveryParked,setRecoveryParked]=useState<RecoveryParked[]>([]);
+  const [cancellationIssues,setCancellationIssues]=useState<CancellationIssue[]>([]);
+  const [webhookIssues,setWebhookIssues]=useState<WebhookIssue[]>([]);
+  const [bankPayouts,setBankPayouts]=useState<BankPayoutRow[]>([]);
+  const [notifications, setNotifications] = useState<NotificationRow[]>([]);
+  const [proofs, setProofs] = useState<ProofRow[]>([]);
+  const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [estimatorOptions, setEstimatorOptions] = useState<{ key: string; label: string; enabled: boolean }[]>([]);
+  const [estimatorLabels, setEstimatorLabels] = useState<Record<string, string>>({});
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminCode,setAdminCode]=useState('');
+  const [adminFactor,setAdminFactor]=useState<'totp'|'recovery'>('totp');
+  const [adminLoginBusy,setAdminLoginBusy]=useState(false);
+  const adminLoginRunning=useRef(false);
+  const [identity,setIdentity]=useState<AdminIdentity|null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
+    const me=await fetch('/api/admin/auth/me',{cache:'no-store'});
+    if(!me.ok){setAuthenticated(false);setIdentity(null);return;}
+    const session=await me.json();setIdentity(session.identity);setAuthenticated(true);
+    if(session.identity.role!=='super_admin')return;
     const res = await fetch("/api/admin/overview");
+    if (res.status === 401) {
+      setAuthenticated(false);
+      return;
+    }
     const data = await res.json();
+    setAuthenticated(true);
     setJobs(data.jobs);
     setFirms(data.firms);
     setPayments(data.payments);
+    setBankPayouts(data.bankPayouts??[]);
+    setRecoveryRuns(data.recoveryRuns??[]);
+    setRecoveryParked(data.recoveryParked??[]);
+    setCancellationIssues(data.cancellationIssues??[]);
+    setWebhookIssues(data.webhookIssues??[]);
+    setAuthorizationIssues(data.authorizationIssues??[]);
+    setNotifications(data.notifications ?? []);
+    setProofs(data.proofs ?? []);
+    setReviews(data.reviews ?? []);
     setStats(data.stats ?? null);
+    try {
+      const estRes = await fetch("/api/admin/estimator");
+      if (estRes.ok) setEstimatorOptions((await estRes.json()).options ?? []);
+    } catch {
+      /* nu blocăm panoul dacă estimatorul nu se încarcă */
+    }
   }, []);
+
+  async function saveEstimator(key: string, patch: { label?: string; enabled?: boolean }) {
+    await fetch("/api/admin/estimator", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, ...patch }),
+    });
+    await refresh();
+  }
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- prima citire + polling pe interval
@@ -60,6 +158,25 @@ export default function AdminPage() {
     const t = setInterval(refresh, 3000);
     return () => clearInterval(t);
   }, [refresh]);
+
+  useEffect(() => {
+    if (authenticated !== true) return;
+    let frame = 0;
+    const scrollToSection = () => {
+      cancelAnimationFrame(frame);
+      const id = window.location.hash.slice(1);
+      if (!["firme", "lucrari", "calitate", "plati", "catalog", "evaluari", "incidente", "performanta", "clienti"].includes(id)) return;
+      frame = requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: "start" }));
+    };
+    scrollToSection();
+    window.addEventListener("hashchange", scrollToSection);
+    window.addEventListener("popstate", scrollToSection);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("hashchange", scrollToSection);
+      window.removeEventListener("popstate", scrollToSection);
+    };
+  }, [authenticated]);
 
   async function triggerNoShow(jobId: string) {
     await fetch(`/api/jobs/${jobId}/no-show`, {
@@ -69,6 +186,7 @@ export default function AdminPage() {
     });
     refresh();
   }
+  async function moderateReview(id:string,status:"published"|"under_review"|"hidden") { await fetch(`/api/admin/reviews/${id}/moderate`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status})}); await refresh(); }
 
   const [recheckState, setRecheckState] = useState<Record<string, string>>({});
 
@@ -93,12 +211,7 @@ export default function AdminPage() {
   const [resetMessage, setResetMessage] = useState<string | null>(null);
 
   async function resetHistory() {
-    const typed = window.prompt(
-      'Această acțiune șterge PERMANENT toate lucrările, plățile și evaluările de pe platformă ' +
-        '(rămân conturile reale de client/firmă, doar activitatea). Nu se poate anula.\n\n' +
-        'Scrie STERGE ca să confirmi:'
-    );
-    if (typed !== "STERGE") return;
+    if (!window.confirm("Ștergi permanent istoricul de activitate? Acțiunea nu poate fi anulată.")) return;
 
     setResetting(true);
     setResetMessage(null);
@@ -106,7 +219,7 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/reset-history", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirm: "STERGE" }),
+        body: JSON.stringify({ confirm: true }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Eroare la ștergere");
@@ -121,14 +234,50 @@ export default function AdminPage() {
     }
   }
 
+  async function adminLogin(event: React.FormEvent) {
+    event.preventDefault();
+    if(adminLoginRunning.current)return;
+    adminLoginRunning.current=true;setAdminLoginBusy(true);setAuthError(null);
+    try{
+      const res=await fetch('/api/admin/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:adminEmail,password:adminPassword,code:adminCode.trim(),method:adminFactor})});
+      const data=await res.json();
+      if(!res.ok){setAuthError(data.error??'Autentificare eșuată');return;}
+      setAdminPassword('');await refresh();
+    }catch{setAuthError('Răspuns neconfirmat. Reîncarcă pagina; dacă autentificarea este cerută din nou, folosește un cod nou.');}
+    finally{setAdminCode('');adminLoginRunning.current=false;setAdminLoginBusy(false);}
+  }
+
+  if (authenticated !== true) {
+    return (
+      <div className="min-h-screen mesh-light flex items-center justify-center p-6">
+        <Card className="w-full max-w-md p-8">
+          <Logo href="/admin" />
+          <h1 className="font-display text-2xl font-bold mt-6">Administrare</h1>
+          <form onSubmit={adminLogin} className="mt-6 space-y-4">
+            <input className="w-full rounded-xl border border-line p-3" type="email" autoComplete="username" required value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} aria-label="Email admin" placeholder="Email admin" />
+            <input className="w-full rounded-xl border border-line p-3" type="password" autoComplete="current-password" required value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} aria-label="Parolă admin" placeholder="Parolă" />
+            <label className="block text-sm font-medium" htmlFor="admin-mfa-code">{adminFactor==='totp'?'Cod din aplicația de autentificare':'Cod de recuperare'}</label>
+            <input id="admin-mfa-code" className="w-full rounded-xl border border-line p-3" type={adminFactor==='recovery'?'password':'text'} inputMode={adminFactor==='totp'?'numeric':'text'} autoComplete={adminFactor==='totp'?'one-time-code':'off'} required maxLength={adminFactor==='totp'?6:32} pattern={adminFactor==='totp'?'[0-9]{6}':'[a-fA-F0-9]{32}'} value={adminCode} onChange={e=>setAdminCode(e.target.value)} />
+            <button type="button" className="text-sm underline" disabled={adminLoginBusy} onClick={()=>{setAdminFactor(adminFactor==='totp'?'recovery':'totp');setAdminCode('');setAuthError(null);}}>{adminFactor==='totp'?'Folosesc un cod de recuperare':'Revin la aplicația de autentificare'}</button>
+            <p className="text-xs text-muted">Fiecare cod poate fi folosit o singură dată. Codurile de recuperare se păstrează separat de parolă.</p>
+            {authError && <p role="alert" className="text-coral text-sm">{authError}</p>}
+            <Button type="submit" disabled={adminLoginBusy} className="w-full">{adminLoginBusy?'Se verifică…':'Autentificare'}</Button>
+          </form>
+        </Card>
+      </div>
+    );
+  }
+
+  if(identity&&identity.role!=='super_admin')return <div className="admin-role-shell"><AdminRoleWorkspace identity={identity}/></div>;
   return (
-    <div className="min-h-screen mesh-light">
+    <div className="board-page board-admin"><BoardSidebar role="admin"/>
       <header className="glass sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Logo />
+          <Logo href="/admin" />
           <div className="flex items-center gap-4 text-sm font-display font-bold text-muted">
-            <Link href="/client" className="hover:text-ink">Client</Link>
-            <Link href="/firma" className="hover:text-ink">Firmă</Link>
+            <Link href="/admin" className="hover:text-ink">Operațiuni</Link>
+            <a href="/admin#firme" className="hover:text-ink">Administrare firme</a>
+            <a href="/admin#calitate" className="hover:text-ink">Calitate și recenzii</a>
             <button
               onClick={resetHistory}
               disabled={resetting}
@@ -141,16 +290,16 @@ export default function AdminPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-10 space-y-10">
+<header className="mb-8"><p className="v2-eyebrow">NITIDO CONTROL</p><h1 className="workspace-title">Centrul de operațiuni</h1><p className="text-muted">Lucrări, firme și excepții care necesită intervenție.</p></header><div className="workspace-metrics"><Card><p className="text-sm text-muted">Lucrări în așteptare</p><b className="text-3xl">{jobs.filter(j=>j.status==="waiting").length}</b></Card><Card><p className="text-sm text-muted">Plăți de verificat</p><b className="text-3xl">{payments.filter(p=>["failed","pending"].includes(p.status)).length}</b></Card><Card><p className="text-sm text-muted">Notificări nereușite</p><b className="text-3xl">{notifications.filter(n=>n.status==="failed").length}</b></Card></div>
+
+        <AdminStaff/>
+        <AdminOperations jobs={jobs} payments={payments}/>
         {resetMessage && (
           <div className="bg-aqua/10 border border-aqua text-aqua-deep text-xs rounded-lg px-4 py-2.5 -mt-4">
             {resetMessage}
           </div>
         )}
-        <p className="text-xs text-muted -mt-4">
-          Panou minim de administrare / verificare — utilizat și pentru a demonstra fluxul de
-          no-show (secțiunea 5b din spec), care în producție ar fi declanșat automat de un
-          scheduler, nu manual.
-        </p>
+
 
         {stats && (
           <section>
@@ -192,7 +341,35 @@ export default function AdminPage() {
           </section>
         )}
 
-        <section>
+        <section id="evaluari"><AdminAssessments/></section>
+        <AdminIncidentReviews/>
+        <AdminOperationalReport/>
+        <AdminProviderScore canManage/>
+        <AdminCustomers/>
+        <section id="catalog">
+          <AdminServiceCatalog/>
+          <AdminExecutionTemplates/>
+          <AdminPricing/>
+          <AdminMarginPolicy/>
+          <h2 className="font-display font-bold text-ink mb-3">ESTIMATOR LIVE — tipuri afișate clientului</h2>
+          <Card>
+            <p className="text-xs text-muted mb-3">Controlezi ce vede clientul în calculatorul de preț de pe prima pagină: schimbi eticheta unui tip sau îl ascunzi/afișezi. Prețul rămâne calculat din tariful oficial.</p>
+            <div className="space-y-2">
+              {estimatorOptions.map((o) => (
+                <div key={o.key} className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted w-24">{o.key}</span>
+                  <input className={`${inputClass} flex-1 min-w-40`} value={estimatorLabels[o.key] ?? o.label} onChange={(e) => setEstimatorLabels((s) => ({ ...s, [o.key]: e.target.value }))} />
+                  <Button variant="outline" onClick={() => saveEstimator(o.key, { label: estimatorLabels[o.key] ?? o.label })}>Salvează</Button>
+                  <Button variant="outline" onClick={() => saveEstimator(o.key, { enabled: !o.enabled })}>{o.enabled ? "Ascunde" : "Afișează"}</Button>
+                  <span className={`text-xs font-bold ${o.enabled ? "text-aqua-deep" : "text-muted"}`}>{o.enabled ? "vizibil" : "ascuns"}</span>
+                </div>
+              ))}
+              {estimatorOptions.length === 0 && <p className="text-sm text-muted">Se încarcă opțiunile…</p>}
+            </div>
+          </Card>
+        </section>
+
+        <section id="lucrari">
           <h2 className="font-display font-bold text-ink mb-3">Lucrări ({jobs.length})</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-xs bg-white border border-line rounded-xl overflow-hidden">
@@ -227,6 +404,13 @@ export default function AdminPage() {
         </section>
 
         <section>
+          <h2 className="font-display font-bold text-ink mb-3">Dovezi foto operaționale</h2>
+          <div className="overflow-x-auto"><table className="w-full text-xs bg-white border border-line rounded-xl overflow-hidden"><thead className="bg-mist text-muted"><tr><th className="text-left px-3 py-2">Job</th><th className="text-left px-3 py-2">Firmă</th><th className="text-left px-3 py-2">Tip</th><th className="text-left px-3 py-2">Status</th><th className="text-left px-3 py-2">Încărcată</th><th className="text-left px-3 py-2">Validată</th><th className="text-left px-3 py-2">Dovadă</th></tr></thead><tbody>{proofs.map(p=><tr key={p.id} className="border-t border-line"><td className="px-3 py-2">{p.job_id}</td><td className="px-3 py-2">{p.uploaded_by_firm_id}</td><td className="px-3 py-2">{p.proof_type}</td><td className="px-3 py-2">{p.status}</td><td className="px-3 py-2">{p.created_at}</td><td className="px-3 py-2">{p.validated_at ?? "—"}</td><td className="px-3 py-2"><a className="font-bold text-aqua-deep underline" href={p.url} target="_blank" rel="noreferrer">Vezi fotografia</a></td></tr>)}</tbody></table></div>
+        </section>
+
+        <section id="calitate"><h2 className="font-display font-bold text-ink mb-3">Moderare recenzii</h2><div className="space-y-3">{reviews.map(review=><Card key={review.id}><div className="flex flex-wrap justify-between gap-3"><div><b>{review.stars} / 5 · Lucrare verificată</b><p className="text-xs text-muted">Job {review.job_id} · Firmă {review.firm_id} · {review.report_count} raportări</p></div><span className="text-xs font-bold text-aqua-deep">{review.moderation_status}</span></div>{review.comment&&<p className="mt-3 text-sm text-muted">{review.comment}</p>}<div className="mt-3 flex gap-2"><Button variant="outline" onClick={()=>moderateReview(review.id,"published")}>Publică/restaurează</Button><Button variant="outline" onClick={()=>moderateReview(review.id,"under_review")}>Analizează</Button><Button variant="outline" onClick={()=>moderateReview(review.id,"hidden")}>Ascunde</Button></div></Card>)}{reviews.length===0&&<p className="text-sm text-muted">Nu există recenzii.</p>}</div></section>
+
+        <section id="firme">
           <h2 className="font-display font-bold text-ink mb-3">Firme</h2>
           <div className="grid md:grid-cols-3 gap-3">
             {firms.map((f) => (
@@ -272,7 +456,7 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <section>
+        <section id="plati">
           <h2 className="font-display font-bold text-ink mb-3">Plăți</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-xs bg-white border border-line rounded-xl overflow-hidden">
@@ -283,6 +467,10 @@ export default function AdminPage() {
                   <th className="text-left px-3 py-2">Comision</th>
                   <th className="text-left px-3 py-2">Net firmă</th>
                   <th className="text-left px-3 py-2">Status</th>
+                  <th className="text-left px-3 py-2">Taxă Stripe</th>
+                  <th className="text-left px-3 py-2">Transfer</th>
+                  <th className="text-left px-3 py-2">Payout</th>
+                  <th className="text-left px-3 py-2">Refund / dispută</th>
                 </tr>
               </thead>
               <tbody>
@@ -293,9 +481,45 @@ export default function AdminPage() {
                     <td className="px-3 py-2">{p.commission_amount} lei</td>
                     <td className="px-3 py-2">{p.amount_net} lei</td>
                     <td className="px-3 py-2">{p.status}</td>
+                    <td className="px-3 py-2">{p.stripe_fee_amount == null ? "Necunoscută" : `${(p.stripe_fee_amount/100).toFixed(2)} lei`}</td>
+                    <td className="px-3 py-2">{p.transfer_status}</td>
+                    <td className="px-3 py-2">{p.payout_status}</td>
+                    <td className="px-3 py-2">{p.refund_status} / {p.dispute_status}</td>
                   </tr>
                 ))}
               </tbody>
+            </table>
+          </div>
+        </section>
+        <FinancialRecoveryStatus runs={recoveryRuns} parked={recoveryParked}/>
+        <section aria-label="Anulări de plată neconfirmate">
+          <h2 className="font-semibold mb-2">Anulări de plată neconfirmate</h2>
+          <p className="text-sm text-muted mb-3">Rezervările de mai jos trebuie verificate înainte de închiderea financiară. Anularea lucrării nu confirmă singură eliberarea banilor.</p>
+          {!cancellationIssues.length?<p className="text-sm text-muted">Nu sunt cereri restante înregistrate.</p>:<div className="overflow-x-auto"><table className="workspace-table"><thead><tr><th>Lucrare</th><th>Stare</th><th>Solicitată la</th><th>Recuperare</th></tr></thead><tbody>{cancellationIssues.map(c=><tr key={c.job_id}><td>{c.job_id}</td><td>{c.status==='pending'?'Autorizare încă neidentificată':'Necesită reconciliere'}</td><td>{c.created_at}</td><td><CancellationRecovery jobId={c.job_id} onRecovered={refresh}/></td></tr>)}</tbody></table></div>}
+        </section>
+
+        <section aria-label="Notificări Stripe de verificat">
+          <h2 className="font-display font-bold text-ink mb-3">Notificări Stripe de verificat</h2>
+          <p className="text-sm text-muted mb-3">Erorile pot fi retrimise din Stripe. Resursele neasociate necesită verificarea referinței înainte de retrimitere.</p>
+          {!webhookIssues.length?<p className="text-sm text-muted">Nu sunt notificări restante înregistrate.</p>:<div className="overflow-x-auto"><table className="workspace-table"><thead><tr><th>Eveniment</th><th>Resursă</th><th>Stare</th><th>Încercări</th></tr></thead><tbody>{webhookIssues.map(e=><tr key={e.event_id}><td className="break-all">{e.event_type}<small>{e.event_id}</small></td><td className="break-all">{e.resource_id??'Neidentificată'}</td><td>{e.status==='failed'?'Sincronizare eșuată':e.status==='received'?'Procesare neconfirmată':'Necesită reconciliere'}</td><td>{e.attempts}</td></tr>)}</tbody></table></div>}
+        </section>
+        <section aria-label="Autorizări de verificat">
+          <h2 className="font-display font-bold text-ink mb-3">Autorizări de plată de verificat</h2>
+          <p className="text-sm text-muted mb-3">Cererile cu rezultat neclar trebuie reconciliate înainte de o nouă blocare pe card.</p>
+          {authorizationIssues.length===0?<p className="text-sm text-muted">Nu sunt înregistrate solicitări care necesită verificare.</p>:<div className="overflow-x-auto"><table className="w-full text-sm bg-white border border-line"><thead className="bg-mist text-muted"><tr><th className="text-left p-3">Lucrare</th><th className="text-left p-3">Stare</th><th className="text-left p-3">Solicitată la</th><th className="text-left p-3">Referință Stripe</th></tr></thead><tbody>{authorizationIssues.map(a=><tr key={a.job_id} className="border-t border-line"><td className="p-3 break-all">{a.job_id}</td><td className="p-3">{authorizationLabels[a.status]??"Necesită verificare"}</td><td className="p-3">{new Date(a.created_ms).toLocaleString("ro-RO",{timeZone:"Europe/Bucharest"})}</td><td className="p-3 break-all">{a.stripe_payment_intent_id??"Încă neconfirmată"}</td></tr>)}</tbody></table></div>}
+        </section>
+        <section aria-label="Viramente bancare Stripe">
+          <h2 className="font-display font-bold text-ink mb-3">Viramente bancare către firme</h2>
+          <p className="text-sm text-muted mb-3">Un virament poate cumula mai multe lucrări. Asocierea sumelor cu fiecare lucrare necesită reconciliere financiară.</p>
+          {bankPayouts.length===0?<p className="text-sm text-muted">Încă nu sunt înregistrate notificări de virament bancar.</p>:<div className="overflow-x-auto"><table className="w-full text-sm bg-white border border-line"><thead className="bg-mist text-muted"><tr><th className="text-left p-3">Firmă</th><th className="text-left p-3">Sumă</th><th className="text-left p-3">Stare</th><th className="text-left p-3">Sosire estimată</th><th className="text-left p-3">Referință Stripe</th><th className="text-left p-3">Reconciliere</th></tr></thead><tbody>{bankPayouts.map(p=><tr key={`${p.account_id}:${p.payout_id}`} className="border-t border-line"><td className="p-3">{p.firm_name??"Firmă neidentificată"}</td><td className="p-3 whitespace-nowrap">{payoutAmount(p)}</td><td className="p-3">{payoutLabels[p.status]??"Necesită verificare"}</td><td className="p-3">{new Date(p.arrival_date*1000).toLocaleDateString("ro-RO",{timeZone:"Europe/Bucharest"})}</td><td className="p-3 break-all">{p.payout_id}</td><td className="p-3"><PayoutReconciliation accountId={p.account_id} payoutId={p.payout_id}/></td></tr>)}</tbody></table></div>}
+        </section>
+        <section>
+          <h2 className="font-display font-bold text-ink mb-3">Notificări push și SMS</h2>
+          <p className="text-sm text-muted mb-3">Mesajele întrerupte înainte de trimitere pot fi reluate. Pentru mesajele cu rezultat necunoscut, verifică livrarea la furnizor înainte de a retrimite.</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs bg-white border border-line rounded-xl overflow-hidden">
+              <thead className="bg-mist text-muted"><tr><th className="text-left px-3 py-2">Eveniment</th><th className="text-left px-3 py-2">Canal</th><th className="text-left px-3 py-2">Destinatar</th><th className="text-left px-3 py-2">Status</th><th className="text-left px-3 py-2">Încercări</th><th className="text-left px-3 py-2">Creat</th><th className="text-left px-3 py-2">Diagnostic</th></tr></thead>
+              <tbody>{notifications.map((n)=><tr key={n.id} className="border-t border-line"><td className="px-3 py-2">{n.event_type}</td><td className="px-3 py-2">{n.channel}{n.platform?` · ${n.platform}`:""}</td><td className="px-3 py-2">{n.recipient_masked}</td><td className="px-3 py-2">{n.status}</td><td className="px-3 py-2">{n.attempt_count}</td><td className="px-3 py-2">{n.created_at}</td><td className="px-3 py-2">{n.last_error ?? "—"}</td></tr>)}</tbody>
             </table>
           </div>
         </section>

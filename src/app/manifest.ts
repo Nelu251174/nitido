@@ -1,20 +1,27 @@
 import type { MetadataRoute } from "next";
 
-// Manifest PWA — permite instalarea Nitido pe ecranul de start pe telefon,
-// cu iconiță și culori de brand, fără magazin de aplicații.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Nitido — Marketplace de curățenie",
-    short_name: "Nitido",
-    description:
-      "Postezi o lucrare de curățenie, firmele verificate din zonă primesc alertă instant.",
+    id: "/",
+    name: "NITIDO.RO — Marketplace de curățenie",
+    short_name: "NITIDO",
+    description: "Marketplace românesc pentru servicii de curățenie — postezi o lucrare, firmele verificate din zonă o preiau.",
     start_url: "/",
+    scope: "/",
     display: "standalone",
-    background_color: "#142530",
-    theme_color: "#17b8a6",
+    orientation: "portrait",
     lang: "ro",
+    categories: ["business", "productivity", "lifestyle"],
+    background_color: "#F4F3EE",
+    theme_color: "#1B8A4C",
     icons: [
-      { src: "/favicon.ico", sizes: "any", type: "image/x-icon" },
+      { src: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    ],
+    shortcuts: [
+      { name: "Postează o lucrare", short_name: "Postează", url: "/signup?role=client" },
+      { name: "Pentru firme", short_name: "Firme", url: "/signup?role=firma" },
     ],
   };
 }

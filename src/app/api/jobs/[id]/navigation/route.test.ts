@@ -1,0 +1,17 @@
+import {beforeEach,it,expect,vi} from 'vitest';
+import {NextRequest} from 'next/server';
+const m=vi.hoisted(()=>({user:vi.fn(),access:vi.fn(),get:vi.fn()}));
+vi.mock('@/lib/auth',()=>({getCurrentUser:m.user}));
+vi.mock('@/lib/db',()=>({db:{prepare:(sql:string)=>({get:()=>m.get(sql)})}}));
+vi.mock('@/lib/collaborationAccess',()=>({executionAccess:m.access}));
+import {GET} from './route';
+const req=new NextRequest('https://www.nitido.ro/api/jobs/job/navigation');
+const ctx={params:Promise.resolve({id:'job'})};
+const job={client_id:'owner',status:'accepted',street:'Strada 1',city:'Brașov',postal_code:'500001'};
+beforeEach(()=>{vi.clearAllMocks();m.user.mockResolvedValue({id:'firm',role:'firma'});m.access.mockReturnValue(null);m.get.mockImplementation(sql=>sql.includes('FROM jobs')?job:{lat:45.65,lng:25.6});});
+it('requires login and never reads coordinates anonymously',async()=>{m.user.mockResolvedValue(null);expect((await GET(req,ctx)).status).toBe(401);expect(m.get).not.toHaveBeenCalled();});
+it('does not reveal pin or direction to unrelated firms',async()=>{expect((await GET(req,ctx)).status).toBe(403);expect(m.get).toHaveBeenCalledTimes(1);});
+it('returns confirmed coordinates for assigned execution access, without caching',async()=>{m.access.mockReturnValue({firm_id:'f'});const r=await GET(req,ctx);expect(r.status).toBe(200);expect(r.headers.get('Cache-Control')).toBe('private, no-store');const d=await r.json();expect(d.hasPin).toBe(true);expect(new URL(d.url).searchParams.get('destination')).toBe('45.65,25.6');});
+it('honors revoked or reassigned execution access on the next request',async()=>{m.access.mockReturnValue({firm_id:'f'});expect((await GET(req,ctx)).status).toBe(200);m.access.mockReturnValue(null);expect((await GET(req,ctx)).status).toBe(403);});
+it.each(['waiting','cancelled','no_show'])('blocks firm navigation when status is %s',async status=>{m.access.mockReturnValue({firm_id:'f'});m.get.mockReturnValue({...job,status});expect((await GET(req,ctx)).status).toBe(403);});
+it('owner can read own destination and old jobs fall back to address',async()=>{m.user.mockResolvedValue({id:'owner',role:'client'});m.get.mockImplementation(sql=>sql.includes('FROM jobs')?job:undefined);const d=await(await GET(req,ctx)).json();expect(d.hasPin).toBe(false);expect(new URL(d.url).searchParams.get('destination')).toBe('Strada 1, Brașov, 500001');});

@@ -1,41 +1,48 @@
-# dependencies
-/node_modules
+node_modules/
+mobile/node_modules/
+mobile/.expo/
+mobile/.expo-export-check/
+.next/
+data/
+public/uploads/
+*.log
+.env
+.env.local
+mobile/google-services.json
+mobile/GoogleService-Info.plist
+mobile/*.p8
+mobile/*.p12
+mobile/*.mobileprovision
+mobile/*.jks
+mobile/*.keystore
+mobile/credentials.json
+mobile/.eas/
+
+# --- Capacitor / mobil: artefacte de build (NU codul proiectului) ---
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties
+/android/.idea/
+/android/captures/
+/android/app/src/main/assets/public/
+/android/app/src/main/assets/capacitor.config.json
+/android/app/src/main/assets/capacitor.plugins.json
+/ios/App/Pods/
+/ios/App/build/
+/ios/DerivedData/
+/ios/App/App/public/
+/ios/App/App/capacitor.config.json
+.DS_Store
+
+# Preserve main protections for local credentials and generated artifacts.
 /.pnp
 .pnp.*
-
-# next.js
-/.next/
 /out/
-next-env.d.ts
-
-# production build
-/build
-
-# baza de date locala SQLite + poze incarcate (date reale, nu se versioneaza)
-/data/
-/public/uploads/
-
-# testing
-/coverage
-
-# misc
-.DS_Store
+/build/
+/coverage/
 *.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (cheile Stripe/Twilio nu ajung niciodata in git)
-.env
 .env*.local
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# vercel / typescript
-.vercel
+/.vercel/
 *.tsbuildinfo
+next-env.d.ts

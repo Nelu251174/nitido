@@ -1,0 +1,24 @@
+import {beforeEach,afterEach,it,expect,vi} from 'vitest';
+import Database from 'better-sqlite3';
+import {NextRequest} from 'next/server';
+const state=vi.hoisted(()=>({db:null as Database.Database|null}));
+vi.mock('@/lib/db',async original=>({...await original<typeof import('@/lib/db')>(),get db(){return state.db!;},getFirmByUserId:()=>({id:'f',verified:1,coverage_city:'Constanța',coverage_cities_extra:null})}));
+vi.mock('@/lib/auth',()=>({getCurrentUser:async()=>({id:'u',role:'firma'})}));
+import {initializeDatabase} from '@/lib/db';
+import {canPreviewOpportunity} from '@/lib/opportunityEligibility';
+import type {JobRow} from '@/lib/types';
+import {GET} from './[id]/route';
+const job=()=>state.db!.prepare('SELECT * FROM jobs WHERE id=?').get('j') as JobRow;
+const read=()=>GET(new NextRequest('https://sandbox.nitido.ro/api/jobs/j'),{params:Promise.resolve({id:'j'})});
+beforeEach(()=>{
+ state.db=new Database(':memory:');state.db.pragma('foreign_keys=ON');initializeDatabase(state.db);
+ state.db.exec("INSERT INTO users(id,role,name) VALUES('c','client','Client'),('u','firma','Firma');INSERT INTO firms(id,user_id,verified,coverage_city) VALUES('f','u',1,'Constanța');INSERT INTO jobs(id,client_id,street,city,sqm,space_type,when_type,scheduled_at,price_gross,duration_minutes,status) VALUES('j','c','PRIVATE ADDRESS','Constanța',75,'apartament','scheduled','2099-10-03T07:00:00.000Z',550,150,'waiting');");
+});
+afterEach(()=>state.db!.close());
+it('allows an eligible preview and excludes private fields',async()=>{const res=await read();expect(res.status).toBe(200);const body=await res.json();expect(body.job.id).toBe('j');expect(body.job.street).toBeUndefined();expect(body.job.client_id).toBeUndefined();expect(body.job.photos).toBeUndefined();});
+it.each(['2099-12-01T00:00:00Z','invalid date'])('rejects active or invalid suspension %s on direct access',async value=>{state.db!.prepare('UPDATE firms SET suspended_until=?').run(value);expect((await read()).status).toBe(403);});
+it('allows an expired suspension',()=>{state.db!.exec("UPDATE firms SET suspended_until='2020-01-01T00:00:00Z'");expect(canPreviewOpportunity(state.db!,'f',job())).toBe(true);});
+it.each(["verified=0","coverage_city='Iași'"])('rejects ineligible firm %s',async update=>{state.db!.exec('UPDATE firms SET '+update);expect((await read()).status).toBe(403);});
+it.each(["'2099-10-03T08:00:00.000Z'",'NULL'])('rejects occupied or unknown capacity %s',async timing=>{state.db!.exec(`INSERT INTO jobs(id,client_id,street,city,sqm,space_type,when_type,scheduled_at,price_gross,duration_minutes,status,accepted_firm_id) VALUES('occupied','c','Other','Constanța',75,'apartament','scheduled',${timing},550,150,'accepted','f')`);expect((await read()).status).toBe(403);});
+it('does not reserve capacity when previewing',async()=>{await read();expect(job().status).toBe('waiting');expect(job().accepted_firm_id).toBeNull();expect(state.db!.prepare('SELECT * FROM workspace_assignments').all()).toEqual([]);});
+it('preserves allocated history access despite suspension',async()=>{state.db!.exec("UPDATE firms SET suspended_until='2099-12-01';UPDATE jobs SET status='accepted',accepted_firm_id='f'");const res=await read();expect(res.status).toBe(200);expect((await res.json()).job.street).toBe('PRIVATE ADDRESS');});

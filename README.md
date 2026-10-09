@@ -1,3 +1,7 @@
+# NITIDO v3
+
+Redesignul și modulele noi sunt documentate în [implementare și limite](docs/NITIDO-V3-IMPLEMENTATION.md). Aceasta este sursa de stare pentru modificarea v3; descrierea MVP de mai jos este istorică și conține informații depășite.
+
 # Nitido — MVP funcțional
 
 Implementare reală (nu doar demo static) a specificației din `nitidospecprogramator.md`,

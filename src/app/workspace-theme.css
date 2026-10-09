@@ -1,0 +1,182 @@
+/* Cream workspace requested for the sandbox review. Layout and brand actions stay shared. */
+:is(.operations-layout, .board-page, .approved-client, .pro-app) {
+  --workspace-cream: #f7f3ec;
+  --workspace-rail: #f1ece3;
+  --mist: var(--workspace-cream);
+  --line: #ded8ce;
+  --muted: #52616a;
+  color-scheme: light;
+  color: var(--ink);
+}
+
+:is(.operations-layout.role-client, .operations-layout.role-firma,
+    .operations-layout.screen-business, .operations-layout.screen-calendar,
+    .board-page.board-firm, .board-page.board-admin, .approved-client,
+    .operations-layout, .pro-app) {
+  background: var(--workspace-cream);
+}
+
+:is(.operations-layout.role-client, .operations-layout.role-firma,
+    .operations-layout.screen-business, .operations-layout.screen-calendar,
+    .board-page.board-firm, .board-page.board-admin, .approved-client,
+    .operations-layout, .pro-shell) > aside {
+  background: var(--workspace-rail, #f1ece3);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+:is(.operations-layout.role-client, .operations-layout.role-firma,
+    .operations-layout.screen-business, .operations-layout.screen-calendar,
+    .board-page.board-firm, .board-page.board-admin, .approved-client) > aside
+  :is(a, button, summary, .design-wordmark) {
+  color: var(--ink);
+}
+
+:is(.operations-layout.role-client, .operations-layout.role-firma,
+    .operations-layout.screen-business, .operations-layout.screen-calendar,
+    .board-page.board-firm, .board-page.board-admin, .approved-client) > aside
+  :is(.text-muted, .text-xs, .sidebar-user span, .board-role, .board-help,
+      .professional-nav p, .professional-nav small, .board-sidebar-note p) {
+  color: var(--muted);
+}
+
+:is(.operations-layout.role-client, .operations-layout.role-firma,
+    .operations-layout.screen-business, .operations-layout.screen-calendar,
+    .board-page.board-firm, .board-page.board-admin, .approved-client) > aside
+  :is(.design-wordmark span, .design-wordmark span span, a.font-display span, .text-aqua) {
+  color: var(--nitido-brand-dark);
+}
+
+:is(.operations-layout.role-client, .operations-layout.role-firma,
+    .operations-layout.screen-business, .operations-layout.screen-calendar,
+    .board-page.board-firm, .board-page.board-admin, .approved-client) > aside
+  :is(.workspace-nav, .operations-section-nav) a {
+  color: var(--ink);
+}
+
+:is(.operations-layout.role-client, .operations-layout.role-firma,
+    .operations-layout.screen-business, .operations-layout.screen-calendar,
+    .board-page.board-firm, .board-page.board-admin, .approved-client) > aside
+  :is(.workspace-nav, .operations-section-nav) a:is(:hover, [aria-current=page]) {
+  background: var(--nitido-brand-soft);
+  color: var(--nitido-brand-dark);
+  border-left-color: var(--nitido-brand-dark);
+}
+
+:is(.operations-layout.role-client, .operations-layout.role-firma,
+    .operations-layout.screen-business, .operations-layout.screen-calendar,
+    .board-page.board-firm, .board-page.board-admin, .approved-client) > aside
+  :is(.workspace-menu-toggle, .board-sidebar-note, button[aria-label=Meniu], nav.hidden) {
+  background: #fff;
+  color: var(--ink);
+  border-color: var(--line);
+}
+.approved-client > aside nav.hidden button { color: var(--ink); }
+
+:is(.operations-layout.role-client, .operations-layout.role-firma,
+    .operations-layout.screen-business, .operations-layout.screen-calendar,
+    .board-page.board-firm, .board-page.board-admin, .approved-client) > aside
+  :is(a, button, summary):focus-visible {
+  outline: 2px solid var(--nitido-brand-dark);
+  outline-offset: 3px;
+}
+
+:is(.operations-layout, .board-page, .approved-client, .pro-app)
+  :is(.board-topbar, .operations-topbar) {
+  background: #fffdf9;
+  border-color: var(--line);
+  color: var(--muted);
+}
+.board-page > header { background: #fffdf9; border-color: var(--line); }
+
+.assisted-journey {
+  margin: 20px 0;
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fffdf9;
+  color: var(--ink);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.assisted-journey h2 { font-size: clamp(20px, 2vw, 26px); font-weight: 700; line-height: 1.35; margin: 8px 0 12px; }
+.assisted-journey p { line-height: 1.75; max-width: 85ch; }
+.assisted-journey details { margin-top: 18px; }
+.assisted-journey summary { cursor: pointer; color: var(--nitido-brand-dark); font-weight: 600; padding-block: 12px; min-height: 44px; }
+.assisted-journey summary:focus-visible { outline: 2px solid var(--nitido-brand-dark); outline-offset: 3px; }
+.assisted-journey ol { list-style: decimal; padding-left: 24px; display: grid; gap: 20px; margin: 18px 0; }
+.assisted-journey li::marker { color: var(--nitido-brand-dark); font-weight: 700; }
+.assisted-journey h3 { font-weight: 700; margin-bottom: 5px; }
+.assisted-journey li p { color: var(--muted); }
+.assisted-journey .v2-btn { margin-top: 14px; white-space: normal; text-align: center; }
+.assisted-entry { display: flex; align-items: center; gap: 24px; justify-content: space-between; }
+.assisted-entry > div { min-width: 0; }
+.assisted-entry > a { flex-shrink: 0; max-width: 260px; }
+@media(max-width: 760px) {
+  .assisted-entry { display: block; }
+  .assisted-entry > a { width: 100%; max-width: none; }
+}
+
+/* Expanded navigation scrolls inside its own surface; account controls stay visible. */
+@media (min-width: 761px) {
+  :is(.approved-client > aside, .operations-layout > .operations-sidebar, .board-page > .board-sidebar) {
+    position: sticky;
+    top: var(--app-safe-top, 0px);
+    height: calc(100vh - var(--app-safe-top, 0px));
+    height: calc(100dvh - var(--app-safe-top, 0px));
+    max-height: calc(100vh - var(--app-safe-top, 0px));
+    max-height: calc(100dvh - var(--app-safe-top, 0px));
+    overflow: auto;
+    align-self: start;
+  }
+  :is(.approved-client > aside, .operations-layout > .operations-sidebar, .board-page > .board-sidebar) > .workspace-nav {
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--nitido-brand-dark) transparent;
+    padding: 4px;
+    margin-inline: -4px;
+    align-content: start;
+  }
+  :is(.approved-client > aside, .operations-layout > .operations-sidebar, .board-page > .board-sidebar) > .workspace-nav > * {
+    flex-shrink: 0;
+  }
+  :is(.approved-client > aside, .operations-layout > .operations-sidebar, .board-page > .board-sidebar) .workspace-nav a {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+.workspace-toolbar.portfolio-toolbar { align-items: end; flex-wrap: wrap; }
+.portfolio-toolbar > label { display: grid; gap: 6px; width: min(100%, 320px); }
+.portfolio-toolbar > label > select { width: 100%; min-height: 44px; margin: 0; }
+.portfolio-toolbar > .v2-btn { min-height: 44px; margin: 0; white-space: normal; text-align: center; }
+.portfolio-toolbar > p { flex-basis: 100%; }
+@media (max-width: 760px) {
+  .portfolio-toolbar > label, .portfolio-toolbar > .v2-btn { width: 100%; }
+}
+
+/* Keep the approved cream visible on child surfaces as well as the page root. */
+:is(.operations-layout, .board-page, .approved-client, .pro-app) {
+  --workspace-surface: #fbf7ef;
+}
+:is(.operations-layout, .board-page, .approved-client) > main,
+.operations-layout > .operations-main,
+.pro-app .pro-shell > main {
+  background: var(--workspace-cream);
+}
+:is(.operations-layout, .board-page, .approved-client, .pro-app)
+  :is(.design-panel, .v2-card, .property-card, .empty-workspace, .team-calendar,
+      .offer-comparison-card, .assisted-journey, .board-topbar, .operations-topbar,
+      .mobile-workspace-nav) {
+  background: var(--workspace-surface);
+}
+:is(.operations-layout, .board-page, .approved-client) > header,
+:is(.operations-layout, .board-page, .approved-client) > aside
+  :is(.workspace-menu-toggle, .board-sidebar-note, button[aria-label=Meniu], nav.hidden) {
+  background: var(--workspace-surface);
+}

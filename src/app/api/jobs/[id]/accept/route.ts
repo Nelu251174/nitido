@@ -1,51 +1,30 @@
-import { NextRequest, NextResponse } from "next/server";
-import { db, getUserById } from "@/lib/db";
+import {hasTrustedMutationOrigin} from "@/lib/security";
+import {firmJobView} from "@/lib/firmJobView";
+import { after, NextRequest, NextResponse } from "next/server";
+import { db, getFirmByUserId } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
 import { acceptJobAtomic } from "@/lib/acceptJob";
-import { sendJobAcceptedSms } from "@/lib/sms";
+import { markExpress60Met } from "@/lib/express60";
+import {processPushOutbox,queueAcceptedClientPush} from "@/lib/push";
 import { JobRow } from "@/lib/types";
 
-/**
- * Mecanismul central al platformei — spec secțiunea 5: "primul care apasă câștigă".
- * Logica atomică efectivă e în src/lib/acceptJob.ts (partajată cu testele).
- *
- * Notă tehnică (spec, secțiunea 5): trebuie mecanism de blocare la nivel de bază de
- * date ca să nu poată 2 firme accepta simultan aceeași lucrare. Aici se rezolvă cu un
- * UPDATE condiționat, atomic: `WHERE id = ? AND status = 'waiting'`. better-sqlite3
- * execută acest statement sincron — nu există fereastră în care alt request să se
- * strecoare între citire și scriere. Verificat live cu 3 firme lovind același job
- * simultan (vezi README) — exact una câștigă, celelalte primesc 409.
- */
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const body = await req.json().catch(() => ({}));
-  const firmId = body?.firmId as string | undefined;
-
-  if (!firmId) {
-    return NextResponse.json({ error: "firmId lipsă" }, { status: 400 });
-  }
-
-  const result = await acceptJobAtomic(db, id, firmId);
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error, code: "ALREADY_TAKEN" }, { status: result.status });
-  }
-
-  const updated = db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow;
-
-  // SMS instant către client — "firma X a acceptat lucrarea ta". Fire-and-forget,
-  // nu blocăm răspunsul (același model ca la /arrived și la postarea unei lucrări noi).
-  const firmForSms = db
-    .prepare(`SELECT u.name FROM firms f JOIN users u ON u.id = f.user_id WHERE f.id = ?`)
-    .get(firmId) as { name: string } | undefined;
-  const clientForSms = getUserById(updated.client_id);
-  sendJobAcceptedSms({
-    clientPhone: clientForSms?.phone ?? null,
-    firmName: firmForSms?.name ?? "O firmă",
-    street: updated.street,
-    city: updated.city,
-  }).catch(() => {});
-
-  return NextResponse.json({ job: updated });
+export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>}){
+  const user=await getCurrentUser(req);
+  if(!user||user.role!=="firma") return NextResponse.json({error:"Trebuie să fii autentificat ca firmă"},{status:401});
+  if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:"Origine nepermisă"},{status:403});
+  const firm=getFirmByUserId(user.id);
+  if(!firm) return NextResponse.json({error:"Profilul firmei nu a fost găsit"},{status:403});
+  const {id}=await params;
+  // Acceptarea directă („primul care apasă") e permisă DOAR pe lucrările Express.
+  // Lucrările Standard se preiau prin ofertă (POST /api/jobs/[id]/offers) + selecția clientului.
+  const jobMode=db.prepare("SELECT mode FROM jobs WHERE id = ?").get(id) as {mode:string}|undefined;
+  if(jobMode&&jobMode.mode!=="express") return NextResponse.json({error:"Această lucrare se preia prin ofertă, nu prin acceptare directă",code:"NOT_EXPRESS"},{status:409});
+  const result=await acceptJobAtomic(db,id,firm.id);
+  if(!result.ok) return NextResponse.json({error:result.error,code:result.code??"ACCEPT_FAILED"},{status:result.status});
+  // Express 60: o firmă a preluat lucrarea → garanția de 60 min e respectată.
+  markExpress60Met(db,id);
+  const updated=db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow;
+  try{const ids=queueAcceptedClientPush(db,id);if(ids.length)after(()=>processPushOutbox(db,ids));}
+  catch{console.error("[push-outbox] enqueue_failed JOB_ACCEPTED_CLIENT_PUSH");}
+  return NextResponse.json({job:updated?firmJobView(updated):updated});
 }

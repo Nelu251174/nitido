@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "candidateSha": "356fadeaa8eecf0797f73ba8c9b494a5dac69269",
+  "ci": {
+    "sha": "356fadeaa8eecf0797f73ba8c9b494a5dac69269",
+    "status": "pass",
+    "evidence": [
+      "https://github.com/Nelu251174/nitido/actions/runs/34755113480"
+    ]
+  },
+  "gates": [
+    {
+      "id": "staging_configuration",
+      "sha": "356fadeaa8eecf0797f73ba8c9b494a5dac69269",
+      "status": "fail",
+      "owner": "",
+      "checkedAt": null,
+      "evidence": [
+        "Server preflight 2026-09-13: sandbox admin TOTP and recovery configuration missing"
+      ]
+    },
+    {
+      "id": "stripe_sandbox_lifecycle",
+      "sha": "356fadeaa8eecf0797f73ba8c9b494a5dac69269",
+      "status": "pending",
+      "owner": "",
+      "checkedAt": null,
+      "evidence": []
+    },
+    {
+      "id": "physical_devices",
+      "sha": "356fadeaa8eecf0797f73ba8c9b494a5dac69269",
+      "status": "pending",
+      "owner": "",
+      "checkedAt": null,
+      "evidence": []
+    },
+    {
+      "id": "authenticated_dashboards",
+      "sha": "356fadeaa8eecf0797f73ba8c9b494a5dac69269",
+      "status": "pending",
+      "owner": "",
+      "checkedAt": null,
+      "evidence": []
+    },
+    {
+      "id": "financial_reconciliation",
+      "sha": "356fadeaa8eecf0797f73ba8c9b494a5dac69269",
+      "status": "pending",
+      "owner": "",
+      "checkedAt": null,
+      "evidence": []
+    },
+    {
+      "id": "infrastructure_restore",
+      "sha": "356fadeaa8eecf0797f73ba8c9b494a5dac69269",
+      "status": "partial",
+      "owner": "",
+      "checkedAt": null,
+      "evidence": [
+        "/root/nitido-release-backups/20260913T115036Z/nitido.db",
+        "/root/nitido-restore-drills/20260913T115239Z/report.json",
+        "Current candidate starts on copied production database; 23 pre-existing table fingerprints unchanged; off-site and photo restore still unverified"
+      ]
+    },
+    {
+      "id": "production_approval",
+      "sha": "356fadeaa8eecf0797f73ba8c9b494a5dac69269",
+      "status": "pass",
+      "owner": "Nelu Tofan",
+      "checkedAt": "2026-09-13T11:54:03.755917+00:00",
+      "evidence": [
+        "Explicit production update authorization in conversation on 2026-09-13"
+      ]
+    }
+  ]
+}

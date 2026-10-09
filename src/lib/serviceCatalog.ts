@@ -1,0 +1,23 @@
+import type {Database} from 'better-sqlite3';
+export const CATALOG_CATEGORIES=[['maintenance','Întreținere'],['general','Curățenie generală'],['renovation','După renovare'],['moving','Mutare'],['office','Birouri'],['host','Pregătire proprietăți turistice']] as const;
+export interface CatalogDefinition {includes:string;excludes:string;equipment:string;cities:string;minSqm:number;maxSqm:number;durationMinutes:number|null;extras:{name:string;unit:'aparat'|'mp'|'set'|'ora';rateBani:number|null}[]}
+export interface CatalogDraft {key:string;label:string;version:number;definition:CatalogDefinition;updatedAt:string}
+export const CATALOG_SCHEMA=`CREATE TABLE IF NOT EXISTS service_catalog_drafts(key TEXT PRIMARY KEY,label TEXT NOT NULL,version INTEGER NOT NULL,definition TEXT NOT NULL,updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP); CREATE TABLE IF NOT EXISTS service_catalog_history(key TEXT NOT NULL,version INTEGER NOT NULL,definition TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(key,version));`;
+export function initializeCatalog(db:Database){db.exec(CATALOG_SCHEMA);const definition=JSON.stringify({includes:'',excludes:'',equipment:'',cities:'',minSqm:10,maxSqm:1000,durationMinutes:null,extras:[]});const insert=db.prepare('INSERT OR IGNORE INTO service_catalog_drafts(key,label,version,definition) VALUES(?,?,0,?)');db.transaction(()=>{for(const [key,label] of CATALOG_CATEGORIES)insert.run(key,label,definition)})();}
+export class CatalogError extends Error{constructor(message:string,public status=400){super(message)}}
+export function validateCatalog(value:unknown):CatalogDefinition{
+ if(!value||typeof value!=='object'||Array.isArray(value))throw new CatalogError('Definiție invalidă');
+ const d=value as Record<string,unknown>;
+ const txt=(key:string)=>{if(typeof d[key]!=='string'||(d[key] as string).length>3000)throw new CatalogError('Textele pot avea maximum 3000 de caractere');return (d[key] as string).trim()};
+ if(!Number.isInteger(d.minSqm)||!Number.isInteger(d.maxSqm)||Number(d.minSqm)<1||Number(d.maxSqm)>100000||Number(d.maxSqm)<Number(d.minSqm))throw new CatalogError('Limitele suprafeței nu sunt valide');
+ if(d.durationMinutes!==null&&(!Number.isInteger(d.durationMinutes)||Number(d.durationMinutes)<1||Number(d.durationMinutes)>10080))throw new CatalogError('Durata nu este validă');
+ if(!Array.isArray(d.extras)||d.extras.length>30)throw new CatalogError('Maximum 30 de extraopțiuni');
+ const names=new Set<string>();
+ const extras=d.extras.map((e:unknown)=>{if(!e||typeof e!=='object')throw new CatalogError('Extraopțiune invalidă');const x=e as Record<string,unknown>;if(typeof x.name!=='string'||!x.name.trim()||x.name.length>100||!['aparat','mp','set','ora'].includes(String(x.unit)))throw new CatalogError('Denumirea sau unitatea extraopțiunii nu este validă');const normalized=x.name.trim().toLocaleLowerCase('ro');if(names.has(normalized))throw new CatalogError('Extraopțiune duplicată');names.add(normalized);if(x.rateBani!==null&&(!Number.isSafeInteger(x.rateBani)||Number(x.rateBani)<0||Number(x.rateBani)>100000000))throw new CatalogError('Tariful trebuie exprimat în bani întregi');return {name:x.name.trim(),unit:x.unit as 'aparat'|'mp'|'set'|'ora',rateBani:x.rateBani as number|null}});
+ return {includes:txt('includes'),excludes:txt('excludes'),equipment:txt('equipment'),cities:txt('cities'),minSqm:Number(d.minSqm),maxSqm:Number(d.maxSqm),durationMinutes:d.durationMinutes as number|null,extras};
+}
+export function catalogDrafts(db:Database):CatalogDraft[]{return (db.prepare('SELECT key,label,version,definition,updated_at FROM service_catalog_drafts ORDER BY key').all() as {key:string;label:string;version:number;definition:string;updated_at:string}[]).map(r=>({key:r.key,label:r.label,version:r.version,definition:JSON.parse(r.definition),updatedAt:r.updated_at}));}
+export function saveCatalogDraft(db:Database,key:string,version:number,value:unknown){
+ const definition=validateCatalog(value);if(!Number.isInteger(version)||version<0)throw new CatalogError('Versiune invalidă');
+ return db.transaction(()=>{const row=db.prepare('SELECT version FROM service_catalog_drafts WHERE key=?').get(key) as {version:number}|undefined;if(!row)throw new CatalogError('Categorie inexistentă',404);if(row.version!==version)throw new CatalogError('Catalogul a fost modificat între timp. Reîncarcă înainte de salvare.',409);const json=JSON.stringify(definition);db.prepare('INSERT INTO service_catalog_history(key,version,definition) VALUES(?,?,?)').run(key,version+1,json);db.prepare('UPDATE service_catalog_drafts SET version=?,definition=?,updated_at=CURRENT_TIMESTAMP WHERE key=?').run(version+1,json,key);return version+1})();
+}

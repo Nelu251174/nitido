@@ -1,0 +1,6 @@
+import {NextRequest,NextResponse} from "next/server";
+import {getCurrentUser} from "@/lib/auth";
+import {db,newId} from "@/lib/db";
+
+const validToken=(value:string)=>value.length>=20&&value.length<=4096&&!/[\s<>]/.test(value);
+export async function POST(req:NextRequest){const user=await getCurrentUser(req);if(!user)return NextResponse.json({error:"Autentificare necesară"},{status:401});const body=await req.json().catch(()=>null) as {platform?:unknown;deviceToken?:unknown}|null;if(!body||(body.platform!=="IOS"&&body.platform!=="ANDROID")||typeof body.deviceToken!=="string"||!validToken(body.deviceToken))return NextResponse.json({error:"Token push invalid"},{status:400});const existing=db.prepare("SELECT user_id FROM push_devices WHERE device_token=?").get(body.deviceToken) as {user_id:string}|undefined;if(existing&&existing.user_id!==user.id)return NextResponse.json({error:"Tokenul este deja asociat altui cont"},{status:409});db.prepare(`INSERT INTO push_devices(id,user_id,platform,device_token) VALUES(?,?,?,?) ON CONFLICT(device_token) DO UPDATE SET platform=excluded.platform,push_enabled=1,revoked_at=NULL,updated_at=datetime('now'),last_seen_at=datetime('now')`).run(newId("device"),user.id,body.platform,body.deviceToken);return NextResponse.json({ok:true});}

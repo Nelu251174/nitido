@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-
-export const viewport: Viewport = {
-  themeColor: "#142530",
-  colorScheme: "light",
-};
+import "./approved-design.css";
+import "./mobile-layout.css";
+import "./pro.css";
+import "./workspace-theme.css";
+import "@fontsource-variable/instrument-sans";
+import { WebAlerts } from "@/components/WebAlerts";
+import { PwaProvider } from "@/components/PwaProvider";
 
 const sora = localFont({
   src: [
@@ -28,14 +30,37 @@ const inter = localFont({
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://nitido.ro";
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  applicationName: "NITIDO.RO",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "NITIDO",
+  },
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192x192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icons/icon-512x512.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: ["/favicon.ico"],
+  },
   title: {
-    default: "Nitido — Marketplace de curățenie în România",
-    template: "%s — Nitido",
+    default: "NITIDO.RO — Marketplace de curățenie în România",
+    template: "%s — NITIDO.RO",
   },
   description:
-    "Postezi o lucrare de curățenie, firmele verificate din zona ta primesc alertă instant și prima care acceptă o preia. Preț fix afișat de la început, plată securizată prin Stripe.",
+    "Configurezi curățenia, verifici prețul și urmărești rezervarea în cont. Standard îți permite să alegi firma; Express depinde de disponibilitatea firmelor eligibile.",
   keywords: [
     "curățenie apartament",
     "firme de curățenie",
@@ -46,48 +71,37 @@ export const metadata: Metadata = {
     "marketplace curățenie",
     "curățenie la cerere",
   ],
-  applicationName: "Nitido",
-  alternates: { canonical: "/" },
   robots: {
     index: true,
     follow: true,
     googleBot: { index: true, follow: true, "max-image-preview": "large" },
   },
-  // Verificarea Google Search Console se activează setând variabila de mediu
-  // GOOGLE_SITE_VERIFICATION (codul din metoda „HTML tag" din GSC) — fără
-  // nicio schimbare de cod, doar redeploy.
-  verification: process.env.GOOGLE_SITE_VERIFICATION
-    ? { google: process.env.GOOGLE_SITE_VERIFICATION }
-    : undefined,
+  verification: { google: process.env.GOOGLE_SITE_VERIFICATION || "XxNx5futiiSwAO_b8yrGXtVThkI7ixVwpziOFhW9uT8" },
   openGraph: {
-    title: "Nitido — Marketplace de curățenie în România",
+    title: "NITIDO.RO — Marketplace de curățenie în România",
     description:
-      "Postezi o lucrare de curățenie, firmele verificate din zona ta primesc alertă instant. Preț fix, plată securizată.",
+      "Postezi o lucrare de curățenie, firmele eligibile din zona ta pot vedea cererea. Preț fix, plată securizată.",
     url: SITE_URL,
-    siteName: "Nitido",
+    siteName: "NITIDO.RO",
     locale: "ro_RO",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Nitido — Marketplace de curățenie în România",
+    title: "NITIDO.RO — Marketplace de curățenie în România",
     description:
-      "Postezi o lucrare de curățenie, firmele din zonă primesc alertă instant. Preț fix, plată securizată.",
+      "Postezi o lucrare de curățenie, firmele eligibile din zonă pot vedea cererea. Preț fix, plată securizată.",
   },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ro" className={`${sora.variable} ${inter.variable} h-full antialiased`}>
-      <head>
-        {/* Contorul de vizite al panoului nostru de administrare (NEXUS), pe
-            serverul nostru. Trimite doar pagina deschisă, de unde a venit omul
-            și numele site-ului. Fără cookie-uri, fără nume, fără e-mail; adresa
-            IP nu se păstrează. `defer`: se încarcă după pagină; dacă panoul e
-            oprit, site-ul merge exact la fel. Declarat în /confidentialitate. */}
-        <script defer src="https://nexus.nexuscompany.ro/b.js" data-site="nitido.ro" />
-      </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <PwaProvider />
+        <WebAlerts />
+      </body>
     </html>
   );
 }

@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "candidateSha": "REPLACE_WITH_FINAL_COMMIT_SHA",
+  "ci": {
+    "sha": "REPLACE_WITH_FINAL_COMMIT_SHA",
+    "status": "pending",
+    "evidence": []
+  },
+  "gates": [
+    {
+      "id": "staging_configuration",
+      "sha": "REPLACE_WITH_FINAL_COMMIT_SHA",
+      "status": "pending",
+      "owner": "",
+      "checkedAt": null,
+      "evidence": []
+    },
+    {
+      "id": "stripe_sandbox_lifecycle",
+      "sha": "REPLACE_WITH_FINAL_COMMIT_SHA",
+      "status": "pending",
+      "owner": "",
+      "checkedAt": null,
+      "evidence": []
+    },
+    {
+      "id": "physical_devices",
+      "sha": "REPLACE_WITH_FINAL_COMMIT_SHA",
+      "status": "pending",
+      "owner": "",
+      "checkedAt": null,
+      "evidence": []
+    },
+    {
+      "id": "authenticated_dashboards",
+      "sha": "REPLACE_WITH_FINAL_COMMIT_SHA",
+      "status": "pending",
+      "owner": "",
+      "checkedAt": null,
+      "evidence": []
+    },
+    {
+      "id": "financial_reconciliation",
+      "sha": "REPLACE_WITH_FINAL_COMMIT_SHA",
+      "status": "pending",
+      "owner": "",
+      "checkedAt": null,
+      "evidence": []
+    },
+    {
+      "id": "infrastructure_restore",
+      "sha": "REPLACE_WITH_FINAL_COMMIT_SHA",
+      "status": "pending",
+      "owner": "",
+      "checkedAt": null,
+      "evidence": []
+    },
+    {
+      "id": "production_approval",
+      "sha": "REPLACE_WITH_FINAL_COMMIT_SHA",
+      "status": "pending",
+      "owner": "",
+      "checkedAt": null,
+      "evidence": []
+    }
+  ]
+}

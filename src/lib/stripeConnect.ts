@@ -1,67 +1,47 @@
-import type { Database } from "better-sqlite3";
-import Stripe from "stripe";
+import type Stripe from "stripe";
+import type {Database} from "better-sqlite3";
+import {getStripeClient} from "@/lib/payments";
 
-/**
- * Onboarding Stripe Connect pentru firme — piesa care lipsea din fluxul de plăți
- * (vezi payments.ts: destination charge cu application_fee are nevoie de
- * `firms.stripe_account_id`). Aici creăm contul Connect al firmei (tip Express,
- * onboarding găzduit de Stripe) și link-ul de onboarding.
- *
- * Feature-flag pe `STRIPE_SECRET_KEY`, exact ca payments.ts: fără cheie, funcția
- * semnalează `configured: false` și restul aplicației rămâne pe stub — nimic nu
- * se strică dacă cheia nu e încă setată în producție.
- */
+type FirmConnectRow={id:string;verified:number;stripe_account_id:string|null;stripe_account_status:string;stripe_transfers_capability:string;name:string;email:string|null;phone:string|null};
 
-function getStripeClient(): Stripe | null {
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) return null;
-  return new Stripe(key);
+export function getFirmConnectRow(db:Database,userId:string):FirmConnectRow|undefined{
+  return db.prepare(`SELECT f.id,f.verified,f.stripe_account_id,f.stripe_account_status,f.stripe_transfers_capability,u.name,u.email,u.phone FROM firms f JOIN users u ON u.id=f.user_id WHERE f.user_id=?`).get(userId) as FirmConnectRow|undefined;
 }
 
-type OnboardingResult =
-  | { configured: false }
-  | { configured: true; url: string; accountId: string };
-
-function getFirmStripeAccountId(db: Database, firmId: string): string | null {
-  const row = db
-    .prepare("SELECT stripe_account_id FROM firms WHERE id = ?")
-    .get(firmId) as { stripe_account_id: string | null } | undefined;
-  return row?.stripe_account_id ?? null;
+export async function createOrReuseRecipientAccount(db:Database,userId:string):Promise<string>{
+  const firm=getFirmConnectRow(db,userId);
+  if(!firm)throw new Error("FIRM_NOT_FOUND");
+  if(!firm.verified)throw new Error("FIRM_NOT_VERIFIED");
+  if(firm.stripe_account_id)return firm.stripe_account_id;
+  const stripe=getStripeClient();
+  if(!stripe)throw new Error("STRIPE_NOT_CONFIGURED");
+  const account=await stripe.v2.core.accounts.create({
+    display_name:firm.name,contact_email:firm.email??undefined,contact_phone:firm.phone??undefined,
+    dashboard:"express",identity:{country:"RO",entity_type:"company"},
+    defaults:{currency:"ron",locales:["ro-RO"],responsibilities:{fees_collector:"application",losses_collector:"application"}},
+    configuration:{recipient:{capabilities:{stripe_balance:{stripe_transfers:{requested:true}}}}},
+    metadata:{nitido_firm_id:firm.id},
+  },{idempotencyKey:`nitido-connect-account-${firm.id}`});
+  db.prepare("UPDATE firms SET stripe_account_id=?,stripe_account_status='onboarding',stripe_transfers_capability='pending' WHERE id=? AND stripe_account_id IS NULL").run(account.id,firm.id);
+  return account.id;
 }
 
-/**
- * Creează (sau reutilizează) contul Connect al firmei și întoarce un link de
- * onboarding găzduit de Stripe. `baseUrl` e originul aplicației (ex.
- * https://nitido.ro), folosit pentru URL-urile de retur.
- */
-export async function createConnectOnboardingLink(
-  db: Database,
-  firmId: string,
-  baseUrl: string
-): Promise<OnboardingResult> {
-  const stripe = getStripeClient();
-  if (!stripe) return { configured: false };
+export async function createOnboardingLink(db:Database,userId:string,baseUrl:string):Promise<string>{
+  const accountId=await createOrReuseRecipientAccount(db,userId);
+  const stripe=getStripeClient();
+  if(!stripe)throw new Error("STRIPE_NOT_CONFIGURED");
+  const link=await stripe.v2.core.accountLinks.create({account:accountId,use_case:{type:"account_onboarding",account_onboarding:{configurations:["recipient"],collection_options:{fields:"eventually_due",future_requirements:"include"},refresh_url:`${baseUrl}/api/stripe/connect/onboarding`,return_url:`${baseUrl}/firma?stripe=returned`}}});
+  return link.url;
+}
 
-  let accountId = getFirmStripeAccountId(db, firmId);
+export async function readRecipientCapability(accountId:string,stripe:Stripe|null=getStripeClient()){
+  if(!stripe)throw new Error("STRIPE_NOT_CONFIGURED");
+  const account=await stripe.v2.core.accounts.retrieve(accountId,{include:["configuration.recipient","requirements"]});
+  const capability=account.configuration?.recipient?.capabilities?.stripe_balance?.stripe_transfers?.status??"inactive";
+  return {status:capability==="active"?"ready":"restricted",capability};
+}
 
-  if (!accountId) {
-    const account = await stripe.accounts.create({
-      type: "express",
-      country: "RO",
-      // Necesar pentru destination charges cu application_fee (vezi payments.ts).
-      capabilities: { transfers: { requested: true } },
-      metadata: { firmId },
-    });
-    accountId = account.id;
-    db.prepare("UPDATE firms SET stripe_account_id = ? WHERE id = ?").run(accountId, firmId);
-  }
-
-  const link = await stripe.accountLinks.create({
-    account: accountId,
-    refresh_url: `${baseUrl}/firma?stripe=refresh`,
-    return_url: `${baseUrl}/firma?stripe=return`,
-    type: "account_onboarding",
-  });
-
-  return { configured: true, url: link.url, accountId };
+export async function refreshRecipientCapability(db:Database,accountId:string):Promise<void>{
+  const {status,capability}=await readRecipientCapability(accountId);
+  db.prepare("UPDATE firms SET stripe_account_status=?,stripe_transfers_capability=? WHERE stripe_account_id=?").run(status,capability,accountId);
 }

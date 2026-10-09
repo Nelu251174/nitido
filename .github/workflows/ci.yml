@@ -1,0 +1,92 @@
+name: Verificare & Securitate
+
+# Doi roboți care lucrează singuri, la fiecare modificare de cod:
+#  1) Robot de verificare — build + teste + lint. Dacă ceva e stricat, iese ROȘU
+#     și NU lăsăm modificarea să ajungă pe site.
+#  2) Robot de securitate — scanează vulnerabilitățile din librării și RAPORTEAZĂ.
+#     (Nu blochează; doar avertizează, ca să știm ce e de reparat.)
+on:
+  push:
+    branches: [feat/design-handoff-website-mobile-v2, claude/nitido-access-42s4fz]
+  pull_request:
+    branches: [feat/design-handoff-website-mobile-v2]
+  workflow_dispatch:
+
+jobs:
+  verificare:
+    name: Robot verificare (build + teste + lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalează dependențele
+        run: npm ci
+      - name: Lint
+        run: npx eslint
+      - name: Teste (vitest)
+        run: npx vitest run
+      - name: Probă izolată backup și restaurare
+        run: node --test scripts/recovery.test.mjs scripts/release-preparation.test.mjs
+      - name: Verifică executabilul de recurență
+        run: node --test scripts/recurring-runner.test.mjs
+      - name: Verifică poarta de lansare și preflight staging
+        run: node --test scripts/release-gate.test.mjs
+      - name: Verifică executabilul recuperării financiare
+        run: node --test scripts/financial-recovery-runner.test.mjs
+      - name: Verifică executabilul recuperării notificărilor
+        run: node --test scripts/notification-recovery-runner.test.mjs
+      - name: Verifică healthcheck HTTP și SQLite
+        run: node --test scripts/healthcheck.test.mjs
+      - name: Verifică înrolarea MFA offline
+        run: node --test scripts/admin-mfa-provision.test.mjs
+      - name: Build
+        env:
+          STRIPE_SECRET_KEY: sk_test_ci_dummy
+          NEXT_PUBLIC_SITE_URL: https://nitido.ro
+        run: npx next build
+
+  securitate:
+    name: Robot securitate (vulnerabilități)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalează dependențele
+        run: npm ci
+      - name: Verifică interpretarea raportului de securitate
+        run: node --test scripts/audit-report.test.mjs
+      - name: Scanează dependențele website și mobile
+        run: node scripts/audit-report.mjs
+
+  mobile:
+    name: Aplicație mobilă (teste + TypeScript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - name: Instalează dependențele mobile
+        run: npm ci
+      - name: Teste mobile
+        run: npm test
+      - name: Verificare TypeScript mobil
+        run: npm run typecheck
+      - name: Exportă pachetele mobile iOS și Android
+        env:
+          EXPO_OFFLINE: "1"
+          EXPO_NO_TELEMETRY: "1"
+          EXPO_PUBLIC_NITIDO_API_BASE_URL: https://sandbox.nitido.ro
+        run: npx expo export --platform ios --platform android --output-dir /tmp/nitido-mobile-export --max-workers 2

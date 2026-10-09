@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "scope": "Offline synthetic release/rollback preparation, not infrastructure acceptance",
+  "candidateSha": "97938ad4f58f7d5a890cae0c1cc7dbd00dceec0f",
+  "remoteCalls": 0,
+  "manifestVersion": 2,
+  "uploadRoots": [
+    "public/uploads",
+    "data/uploads",
+    "data/pro-uploads"
+  ],
+  "baselineRestore": "all row fingerprints and all upload bytes equal",
+  "migrationVersions": [
+    11,
+    12,
+    13,
+    14
+  ],
+  "migrationIdempotent": true,
+  "existingMarketplaceProRowsPreserved": true,
+  "frozenWorkSnapshotsPreserved": true,
+  "sourceUnchanged": true,
+  "rollback": "new isolated restore of post-release v14 state; post-release row and Pro upload preserved",
+  "checks": {
+    "postReleaseRowPreserved": true,
+    "postReleasePrivateUploadPreserved": true,
+    "oldBackupNeverOverwritesCurrentState": true
+  },
+  "createdAt": "2026-10-09T09:17:46.028Z"
+}
