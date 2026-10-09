@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import DatabaseCtor from "better-sqlite3";
 import type { Database } from "better-sqlite3";
-import { SCHEMA_SQL } from "./db";
+import { initializeDatabase } from "./db";
 import { setBusinessProfile, getBusinessProfile, executionReport } from "./business";
 
 function makeTestDb(): Database {
   const db = new DatabaseCtor(":memory:");
-  db.exec(SCHEMA_SQL);
+  initializeDatabase(db);
   return db;
 }
 

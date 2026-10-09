@@ -2,12 +2,12 @@ import {SmsProviderError} from "./sms";
 import { beforeEach,describe,expect,it } from "vitest";
 import DatabaseCtor from "better-sqlite3";
 import type { Database } from "better-sqlite3";
-import { SCHEMA_SQL } from "./db";
+import { initializeDatabase } from "./db";
 import { acceptJobAtomic } from "./acceptJob";
 import {queueAcceptedClientPush} from "./push";
 import { eligibleSmsRecipients,processSmsOutbox,queueJobArrivedClientSms,queueJobCreatedFirmAlerts } from "./notifications";
 
-function setup():Database{const db=new DatabaseCtor(":memory:");db.exec(SCHEMA_SQL);db.prepare("INSERT INTO users(id,role,name,phone) VALUES ('client','client','Ana','0721000000')").run();for(const [id,city,verified,phone] of [["a","București",1,"0722000001"],["b","Brașov",1,"0722000002"],["c","București",0,"0722000003"]] as const){db.prepare("INSERT INTO users(id,role,name,phone) VALUES (?, 'firma', ?, ?)").run(`u_${id}`,`Firma ${id}`,phone);db.prepare("INSERT INTO firms(id,user_id,coverage_city,verified) VALUES (?,?,?,?)").run(`f_${id}`,`u_${id}`,city,verified);}return db;}
+function setup():Database{const db=new DatabaseCtor(":memory:");initializeDatabase(db);db.prepare("INSERT INTO users(id,role,name,phone) VALUES ('client','client','Ana','0721000000')").run();for(const [id,city,verified,phone] of [["a","București",1,"0722000001"],["b","Brașov",1,"0722000002"],["c","București",0,"0722000003"]] as const){db.prepare("INSERT INTO users(id,role,name,phone) VALUES (?, 'firma', ?, ?)").run(`u_${id}`,`Firma ${id}`,phone);db.prepare("INSERT INTO firms(id,user_id,coverage_city,verified) VALUES (?,?,?,?)").run(`f_${id}`,`u_${id}`,city,verified);}return db;}
 function job(db:Database,id="job",status="waiting"){db.prepare(`INSERT INTO jobs(id,client_id,street,city,sqm,space_type,when_type,price_gross,duration_minutes,status) VALUES (?,'client','Strada Secretă 99','București',70,'apartament','asap',500,120,?)`).run(id,status);}
 
 describe("SMS outbox",()=>{let db:Database;beforeEach(()=>{db=setup();});

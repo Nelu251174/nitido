@@ -56,3 +56,19 @@ Inventarul exact al modificărilor față de o versiune se obține din diff-ul G
 - `operationalReport`, `AdminOperationalReport`: cohortele și definițiile indicatorilor, filtre serviciu/cod poștal, necunoscute explicite.
 - `incidentResolution*`, API și componentă; `VisitCare`: rezoluții, dovezi de finalizare, permisiuni și afișare publică fără note interne.
 - `INTERNAL-ROLES-PHOTOS-AND-RESOLUTIONS.md`: configurare, migrare, limite și acceptanță.
+
+## Completarea v1.1 din 09.10.2026, după PR #85
+
+- `customerAccess.ts`, API Customers, `AdminCustomers`: delegare CRM și redacție financiară.
+- `pro/internalAccess.ts`, API Pro, `Workspace`: allowlist implicit interzis pentru rolurile interne, autor nominal, replay autorizat, UI după drepturi.
+- Pro schema/core și `pro-migrate.mjs`: migrare 14, recurență daily, pauză/reluare/end_date; compatibilitate cu vechiul runner.
+- `providerInvitations.ts`, schema și hooks notificări/ofertare/alocare: jurnal deduplicat și atomic al invitațiilor trimise confirmate, fără backfill fictiv.
+- `operationalReport`, `AdminOperationalReport`: KPI ale brief-ului și acoperire/date incerte explicite.
+- `providerScore{Shared,Schema,Report}.ts`, `providerScore.ts`, API și `AdminProviderScore`: politică versionată în observare, fără alocare automată.
+- `ids.ts`, `db.ts`, `proofOfWork.ts`: eliminarea ciclului de import observat în testele push.
+- `firmAvailability.ts`: respingerea duratelor/bufferelor negative înainte de agregare, două cazuri de regresie.
+- Fixture-uri și teste existente: inițializare reală și contracte actuale; fără modificări ale codului Stripe.
+- `package.json`, workflow consolidat: toată suita Vitest în UTC/București, toate scripturile, TypeScript și build.
+- `CatalogFirmCapacity.tsx`: corecție de overflow a controalelor native date/time, fără schimbarea aspectului.
+- `qa-local-browser.mjs`: browser izolat cu MFA reală pentru cele patru roluri; nu modifică mediile instalate.
+- Documentele de completare și brieful integral: trasabilitate, administrare, QA și limite de publicare.

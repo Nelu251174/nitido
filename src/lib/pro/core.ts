@@ -1135,11 +1135,15 @@ export function collection(
   }
   if (kind === "recurring") {
     requireRole(db, p, orgId, ["owner", "manager", "operator"]);
+    const cadences = dailyRecurringReady(db);
     return (
       db
-        .prepare("SELECT * FROM pro_recurring_rules WHERE organization_id=?")
-        .all(orgId) as { property_id: string }[]
-    ).filter((x) => roleScope(x.property_id, ["owner", "manager", "operator"]));
+        .prepare(`SELECT r.*${cadences ? ",c.frequency AS cadence_frequency,c.active AS cadence_active" : ""}
+          FROM pro_recurring_rules r${cadences ? " LEFT JOIN pro_recurring_cadences c ON c.rule_id=r.id" : ""}
+          WHERE r.organization_id=?`)
+        .all(orgId) as { property_id: string; frequency: string; active: number; cadence_frequency?: string; cadence_active?: number }[]
+    ).filter((x) => roleScope(x.property_id, ["owner", "manager", "operator"]))
+      .map(({ cadence_frequency, cadence_active, ...r }) => ({ ...r, frequency: cadence_frequency ?? r.frequency, active: cadence_active ?? r.active }));
   }
   fail("Listă inexistentă.", 404);
 }
@@ -1219,6 +1223,21 @@ function recurringInstant(day: string, hour: number): string {
   try { return hostLocalInstant(day, hour); }
   catch { throw new ProError("Data sau ora programării nu există în calendarul României."); }
 }
+function dailyRecurringReady(db: Database) {
+  return !!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='pro_recurring_cadences'").get();
+}
+/** Caller must enforce the same property permissions and audit as the existing pause command. */
+export function setRecurringActive(db: Database, id: string, active: boolean) {
+  if (dailyRecurringReady(db) && db.prepare("SELECT 1 FROM pro_recurring_cadences WHERE rule_id=?").get(id)) {
+    db.prepare("UPDATE pro_recurring_cadences SET active=? WHERE rule_id=?").run(active ? 1 : 0, id);
+  } else {
+    db.prepare("UPDATE pro_recurring_rules SET active=? WHERE id=?").run(active ? 1 : 0, id);
+  }
+}
+export function pausePropertyRecurring(db: Database, propertyId: string) {
+  db.prepare("UPDATE pro_recurring_rules SET active=0 WHERE property_id=?").run(propertyId);
+  if (dailyRecurringReady(db)) db.prepare("UPDATE pro_recurring_cadences SET active=0 WHERE rule_id IN (SELECT id FROM pro_recurring_rules WHERE property_id=?)").run(propertyId);
+}
 export function createRecurring(
   db: Database,
   p: Principal,
@@ -1230,34 +1249,44 @@ export function createRecurring(
     "operator",
   ]);
   const frequency = text(b.frequency, "Frecvență");
-  if (!["weekly", "biweekly", "monthly"].includes(frequency))
+  if (!["daily", "weekly", "biweekly", "monthly"].includes(frequency))
     fail("Frecvență invalidă.");
+  if (frequency === "daily" && !dailyRecurringReady(db))
+    fail("Recurența zilnică așteaptă migrarea tehnică.", 503);
   const day = text(b.start_date, "Data");
   const hour = int(b.hour, "Ora", 0, 23);
   const firstInstant = recurringInstant(day, hour);
   if (Date.parse(firstInstant) < Date.now()) fail("Data sau ora este în trecut.");
+  const endDate = b.end_date === undefined || b.end_date === null || b.end_date === "" ? null : text(b.end_date, "Ultima zi");
+  if (endDate !== null && (bookingDateKey(endDate) !== endDate || endDate < day))
+    fail("Ultima zi trebuie să fie o dată validă, după sau în prima zi.");
   const service = text(b.service, "Serviciu");
-  if (!(service in SERVICES) || service === "cleaning_turnover")
+  if (!Object.hasOwn(SERVICES, service) || service === "cleaning_turnover")
     fail("Turnover se programează manual.");
   const id = randomUUID();
-  db.prepare(
-    "INSERT INTO pro_recurring_rules(id,organization_id,property_id,title,service,frequency,next_date,anchor_day,hour,duration,estimate,created_by) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
-  ).run(
-    id,
-    prop.organization_id,
-    prop.id,
-    text(b.title, "Titlu"),
-    service,
-    frequency,
-    day,
-    Number(day.slice(-2)),
-    hour,
-    int(b.duration, "Durată", 15, 720),
-    int(b.estimate, "Cost"),
-    p.id,
-  );
-  audit(db, p, prop.organization_id, id, "recurring.created");
-  return { id };
+  return db.transaction(() => {
+    db.prepare(
+      "INSERT INTO pro_recurring_rules(id,organization_id,property_id,title,service,frequency,next_date,anchor_day,hour,duration,estimate,created_by,end_date,active) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+    ).run(
+      id,
+      prop.organization_id,
+      prop.id,
+      text(b.title, "Titlu"),
+      service,
+      frequency === "daily" ? "weekly" : frequency,
+      day,
+      Number(day.slice(-2)),
+      hour,
+      int(b.duration, "Durată", 15, 720),
+      int(b.estimate, "Cost"),
+      p.id,
+      endDate,
+      frequency === "daily" ? 0 : 1,
+    );
+    if (frequency === "daily") db.prepare("INSERT INTO pro_recurring_cadences(rule_id,frequency,active) VALUES(?,'daily',1)").run(id);
+    audit(db, p, prop.organization_id, id, "recurring.created", { frequency, start_date: day, end_date: endDate });
+    return { id };
+  })();
 }
 export function runRecurring(db: Database, stamp = Date.now()) {
   return db
@@ -1265,9 +1294,13 @@ export function runRecurring(db: Database, stamp = Date.now()) {
       let generated = 0,
         missed = 0;
       const horizon = bucharestDateKey(new Date(stamp + 14 * 86400000));
+      const cadences = dailyRecurringReady(db);
       const rules = db
         .prepare(
-          "SELECT r.* FROM pro_recurring_rules r JOIN pro_organizations o ON o.id=r.organization_id JOIN pro_properties p ON p.id=r.property_id WHERE r.active=1 AND o.status='active' AND p.status='active'",
+          `SELECT r.*${cadences ? ",c.frequency AS cadence_frequency" : ""}
+            FROM pro_recurring_rules r JOIN pro_organizations o ON o.id=r.organization_id
+            JOIN pro_properties p ON p.id=r.property_id${cadences ? " LEFT JOIN pro_recurring_cadences c ON c.rule_id=r.id" : ""}
+            WHERE ${cadences ? "COALESCE(c.active,r.active)" : "r.active"}=1 AND o.status='active' AND p.status='active'`,
         )
         .all() as {
         id: string;
@@ -1276,6 +1309,7 @@ export function runRecurring(db: Database, stamp = Date.now()) {
         title: string;
         service: string;
         frequency: string;
+        cadence_frequency?: string;
         next_date: string;
         anchor_day: number;
         hour: number;
@@ -1348,7 +1382,7 @@ export function runRecurring(db: Database, stamp = Date.now()) {
             ).getUTCDate();
             d.setUTCDate(Math.min(r.anchor_day, last));
           } else
-            d.setUTCDate(d.getUTCDate() + (r.frequency === "weekly" ? 7 : 14));
+            d.setUTCDate(d.getUTCDate() + (r.cadence_frequency === "daily" ? 1 : r.frequency === "weekly" ? 7 : 14));
           day = d.toISOString().slice(0, 10);
         }
         db.prepare("UPDATE pro_recurring_rules SET next_date=? WHERE id=?").run(

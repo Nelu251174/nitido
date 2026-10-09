@@ -1,6 +1,7 @@
+import {PROVIDER_SCORE_SCHEMA} from './providerScoreSchema';
 import {INCIDENT_RESOLUTION_SCHEMA} from './incidentResolution';
 import {ADMIN_STAFF_SCHEMA} from './adminStaff';
-import {CUSTOMER_OPERATIONS_SCHEMA,INCIDENT_TRIAGE_SCHEMA,EXECUTION_TEMPLATES_SCHEMA} from './operationsSchema';
+import {CUSTOMER_OPERATIONS_SCHEMA,INCIDENT_TRIAGE_SCHEMA,EXECUTION_TEMPLATES_SCHEMA,PROVIDER_INVITATIONS_SCHEMA} from './operationsSchema';
 import {JOB_ACTUAL_COSTS_SCHEMA} from './jobActualCosts';
 import {ASSISTED_OPERATIONS_SCHEMA} from './assistedOperations';
 import {ASSESSMENT_PLAN_SCHEMA} from './assessmentPlan';
@@ -31,6 +32,8 @@ import { WORKSPACE_SCHEMA } from "@/lib/workspace";
 import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
+import { newId } from "./ids";
+export { newId } from "./ids";
 import { shouldSeedDemo } from "@/lib/authorization";
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -53,6 +56,8 @@ db.pragma("foreign_keys = ON");
 // cu aceeași schemă, izolată de fișierul de date reale.
 export const SCHEMA_SQL = `
 ${EXECUTION_TEMPLATES_SCHEMA}
+${PROVIDER_INVITATIONS_SCHEMA}
+${PROVIDER_SCORE_SCHEMA}
 ${SAVED_CARDS_SCHEMA}
 ${NOTIFICATION_CLAIM_SCHEMA}
 ${SELECTION_RECOVERY_SCHEMA}
@@ -618,9 +623,6 @@ db.exec(JOB_ACTUAL_COSTS_SCHEMA);
 
 initializeDatabase(db);
 
-export function newId(prefix: string): string {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
-}
 
 // --- Seed date demo (idempotent) ---------------------------------------
 // 1 client demo + 3 firme demo în Constanța, ca fluxurile client/firmă să

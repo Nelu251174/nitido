@@ -44,3 +44,17 @@ it('counts unconverted assessment requests in conversion denominator',()=>{
  expect(operationalReport(db,{...period,city:'București',service:'general'}).kpis.requests).toMatchObject({total:1,converted:0,percent:0,offerMedianMinutes:null});
  expect(operationalReport(db,{...period,city:'Cluj'}).kpis.requests).toMatchObject({total:0,percent:null});
 });
+it('calculates confirmed cancellation and no-show denominators from payment evidence, excluding provisional reservations',()=>{
+ for(const [id,status] of [['done','completed'],['cancelled-confirmed','cancelled'],['missed','no_show'],['cancelled-unconfirmed','cancelled'],['waiting','waiting'],['provisional','accepted']])job(id,undefined,status);
+ db.exec("UPDATE jobs SET accepted_at='2026-09-15T10:30:00Z' WHERE id='provisional'");
+ const payment=db.prepare("INSERT INTO payments(id,job_id,amount_gross,commission_amount,amount_net,status) VALUES(?,?,450,40,410,?)");payment.run('paid','done','captured');payment.run('cancelled-payment','cancelled-confirmed','cancelled');payment.run('no-show-payment','missed','cancelled');
+ const r=operationalReport(db,period);expect(r.kpis.brief.confirmation).toMatchObject({count:3,unconfirmedJobs:3});expect(r.kpis.brief.cancellation).toMatchObject({numerator:1,denominator:3});expect(r.kpis.brief.noShow).toMatchObject({numerator:1,denominator:3});expect(r.kpis.brief.allocation.samples).toBe(0);expect(r.kpis.brief.averagePaidOrder).toMatchObject({grossBani:45000,paidOrders:1,averageBani:45000});
+});
+it('separates paid gross amounts from completed service prices and retains refunded captures',()=>{
+ job('paid');job('unpaid');job('refunded');db.exec("INSERT INTO payments(id,job_id,amount_gross,commission_amount,amount_net,status) VALUES('p','paid',450,40,410,'captured'),('r','refunded',300,30,270,'refunded')");const r=operationalReport(db,period);expect(r.kpis.averageOrderBani).toBe(50000);expect(r.kpis.brief.averagePaidOrder).toMatchObject({grossBani:75000,paidOrders:2,averageBani:37500});
+});
+it('requires a documented completed remediation, counts complaint cases once, and distinguishes genuine recurring occurrences from returning customers',()=>{
+ job('original');job('remedy');job('repeat');job('not-fixed');db.exec("UPDATE jobs SET guarantee_of='original' WHERE id='remedy'");complaint('a','original');complaint('b','original');complaint('unresolved','not-fixed');review('confirmed','a','confirmed','2026-09-20');
+ db.exec("INSERT INTO incident_resolutions VALUES('resolution','a','remediation','completed','Test','remedy','admin','2026-09-21');INSERT INTO incident_resolutions VALUES('proposal','b','remediation','pending','Test',NULL,'admin','2026-09-21');INSERT INTO recurring_plans(id,client_id,frequency,street,city,sqm,space_type,hour,next_run_date) VALUES('plan','c','weekly','Test','București',80,'apartament',12,'2026-09-15');INSERT INTO recurring_occurrences(plan_id,occurrence_date,job_id,scheduled_at,schedule_generation) VALUES('plan','2026-09-15','repeat','2026-09-15T10:00:00Z',0)");
+ const r=operationalReport(db,period);expect(r.kpis.brief.remediation).toMatchObject({numerator:1,denominator:3});expect(r.kpis.brief.complaints).toMatchObject({numerator:2,denominator:4});expect(r.kpis.brief.recurrence).toMatchObject({numerator:1,denominator:4});expect(r.kpis.repeatOrders.numerator).toBe(3);
+});

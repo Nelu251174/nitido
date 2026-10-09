@@ -172,6 +172,11 @@ export default function Workspace({ path }: { path: string[] }) {
     category: "",
   });
   const [secret, setSecret] = useState("");
+  const internal = !!context?.internal_role;
+  const canManage = !internal || !!context?.internal_permissions?.manage;
+  const canOperate = !internal || !!context?.internal_permissions?.operations;
+  const canFinance = !internal || !!context?.internal_permissions?.finance;
+  const canSuper = !internal || !!context?.internal_permissions?.super_admin;
   async function read(url: string) {
     const r = await fetch("/api/pro/" + url, { cache: "no-store" }),
       d = await r.json();
@@ -220,8 +225,8 @@ export default function Workspace({ path }: { path: string[] }) {
           throw new Error(
             "Consola de activare este rezervată administratorului NITIDO.",
           );
-        next.leads = await read("leads");
-        if (org) next.partners = await read("partners" + q);
+        if (!context.internal_role || context.internal_permissions?.operations) next.leads = await read("leads");
+        if (org && (!context.internal_role || context.internal_permissions?.operations)) next.partners = await read("partners" + q);
       }
       if (section === "partener") next.rows = await read("partner");
       else if (org) {
@@ -239,7 +244,7 @@ export default function Workspace({ path }: { path: string[] }) {
           );
         } else if (["dashboard", "lucrari", "calendar"].includes(section)) {
           next.rows = await read("work-orders" + q);
-          if (section === "calendar") next.rules = await read("recurring" + q);
+          if (section === "calendar" && (!context.internal_role || context.internal_permissions?.manage)) next.rules = await read("recurring" + q);
         } else if (section === "tichete") next.rows = await read("tickets" + q);
         else if (section === "aprobari")
           next.rows = await read("approvals" + q);
@@ -333,7 +338,15 @@ export default function Workspace({ path }: { path: string[] }) {
       <div className="pro-shell">
         <nav className="pro-sidebar" aria-label="Navigație Pro">
           {nav
-            .filter(([k]) => k !== "operator" || context?.admin)
+            .filter(([k]) => {
+              if (k === "operator") return context?.admin && (!internal || canOperate || canManage || canSuper);
+              if (!internal) return true;
+              if (["echipa", "setari"].includes(k)) return canSuper;
+              if (k === "rapoarte") return !!context?.internal_permissions?.reports;
+              if (k === "calendar") return canManage;
+              if (k === "aprobari" || k === "partener") return false;
+              return true;
+            })
             .map(([k, l]) => (
               <Link
                 aria-current={section === k ? "page" : undefined}
@@ -493,7 +506,7 @@ export default function Workspace({ path }: { path: string[] }) {
                       pentru a configura operațiunile recurente.
                     </Empty>
                   )}
-                  <Form
+                  {canManage && <Form
                     title="Adaugă proprietate"
                     fields={[
                       field("name", "Nume intern"),
@@ -506,7 +519,7 @@ export default function Workspace({ path }: { path: string[] }) {
                     onSubmit={(b, r) =>
                       r("properties", { ...b, organization_id: org })
                     }
-                  />
+                  />}
                 </>
               )}
               {section === "proprietati" && w && (
@@ -520,7 +533,7 @@ export default function Workspace({ path }: { path: string[] }) {
                       </p>
                     )}
                   </div>
-                  <Form
+                  {canManage && <Form
                     title="Editează proprietatea"
                     fields={[
                       { ...field("name", "Nume"), value: w.name },
@@ -564,16 +577,16 @@ export default function Workspace({ path }: { path: string[] }) {
                     ]}
                     run={run}
                     onSubmit={(b, r) => r(`properties/${w.id}/update`, b)}
-                  />
-                  {w.checklist_configuration && <PropertyChecklists key={w.id} propertyId={w.id} configuration={w.checklist_configuration} run={run} />}
+                  />}
+                  {canManage && w.checklist_configuration && <PropertyChecklists key={w.id} propertyId={w.id} configuration={w.checklist_configuration} run={run} />}
                   <h2>Istoric lucrări</h2>
                   {workList(rows)}
-                  <Form
+                  {!internal && <Form
                     title="Salvează codul de acces"
                     fields={[field("secret", "Cod acces", "password")]}
                     run={run}
                     onSubmit={(b, r) => r(`properties/${w.id}/credential`, b)}
-                  />
+                  />}
                 </>
               )}
               {["lucrari", "calendar"].includes(section) &&
@@ -581,7 +594,7 @@ export default function Workspace({ path }: { path: string[] }) {
                 !detailId && (
                   <>
                     {workList(rows)}
-                    <Form
+                    {canManage && <Form
                       title="Programează lucrare"
                       fields={[
                         propField,
@@ -590,8 +603,8 @@ export default function Workspace({ path }: { path: string[] }) {
                       ]}
                       run={run}
                       onSubmit={(b, r) => r("work-orders", b)}
-                    />
-                    {section === "calendar" && (
+                    />}
+                    {section === "calendar" && canManage && (
                       <>
                         <Form
                           title="Adaugă regulă recurentă"
@@ -607,11 +620,13 @@ export default function Workspace({ path }: { path: string[] }) {
                               ),
                             ),
                             field("frequency", "Frecvență", "select", [
+                              ["daily", "Zilnic"],
                               ["weekly", "Săptămânal"],
                               ["biweekly", "La două săptămâni"],
                               ["monthly", "Lunar"],
                             ]),
                             field("start_date", "Prima zi", "date"),
+                            { ...field("end_date", "Ultima zi (opțional)", "date"), optional: true },
                             field("hour", "Ora locală, 0–23", "number"),
                             field("duration", "Durată, minute", "number"),
                             field("estimate", "Cost estimat, bani", "number"),
@@ -625,8 +640,9 @@ export default function Workspace({ path }: { path: string[] }) {
                             <div>
                               {r.title}
                               <small>
-                                Următoarea apariție: {r.next_date} ·{" "}
+                                {{ daily: "Zilnic", weekly: "Săptămânal", biweekly: "La două săptămâni", monthly: "Lunar" }[r.frequency as string]} · Următoarea apariție: {r.next_date} ·{" "}
                                 {r.active ? "Activă" : "În pauză"}
+                                {r.end_date && ` · Ultima zi: ${r.end_date}`}
                               </small>
                             </div>
                             <button
@@ -688,7 +704,7 @@ export default function Workspace({ path }: { path: string[] }) {
                     {w.review_note && (
                       <p className="pro-success">{w.review_note}</p>
                     )}
-                    {w.permissions.partner && (
+                    {(w.permissions.partner || (internal && canOperate && ["accepted", "in_progress", "submitted_for_review", "rework_requested"].includes(w.status))) && (
                       <div className="pro-actions">
                         <button
                           className="v2-btn v2-btn-secondary"
@@ -736,11 +752,11 @@ export default function Workspace({ path }: { path: string[] }) {
                         Începe lucrarea
                       </button>
                     )}
-                  <div className="pro-card mt-4">
+                  {w.checklist_json !== undefined && w.answers_json !== undefined && <div className="pro-card mt-4">
                     <h2>Checklist</h2>
                     <Checklist key={w.revision} work={w} run={run} />
-                  </div>
-                  <div className="pro-card mt-4">
+                  </div>}
+                  {canOperate && <div className="pro-card mt-4">
                     <h2>Dovezi foto</h2><p>Minimum la sosire: {w.photoRules?.arrivalMin??0}; minimum la finalizare: {w.photoRules?.completionMin??1}. La remediere sunt necesare fotografii noi, după redeschiderea execuției.</p>
                     <div className="pro-photos">
                       {w.media?.map((m: Row) => (
@@ -773,7 +789,7 @@ export default function Workspace({ path }: { path: string[] }) {
                         onDone={() => setTick((v) => v + 1)}
                       />
                     )}
-                  </div>
+                  </div>}
                   {w.permissions.partner && w.status === "in_progress" && (
                     <Form
                       title="Trimite spre verificare"
@@ -792,7 +808,7 @@ export default function Workspace({ path }: { path: string[] }) {
                       }
                     />
                   )}
-                  {w.permissions.manage && w.status === "scheduled" && (
+                  {(w.permissions.manage || (internal && canOperate)) && w.status === "scheduled" && (
                     <Form
                       title="Reprogramează lucrarea"
                       fields={[
@@ -855,7 +871,7 @@ export default function Workspace({ path }: { path: string[] }) {
                   {w.permissions.operator &&
                     w.status === "submitted_for_review" && (
                       <>
-                        <Form
+                        {canManage && <Form
                           title="Confirmă finalizarea"
                           fields={[
                             field("note", "Observații verificare", "textarea"),
@@ -867,7 +883,7 @@ export default function Workspace({ path }: { path: string[] }) {
                               revision: w.revision,
                             })
                           }
-                        />
+                        />}
                         <Form
                           title="Solicită remediere"
                           fields={[
@@ -924,7 +940,7 @@ export default function Workspace({ path }: { path: string[] }) {
                           onSubmit={(b, r) => r("approvals/" + a.id, b)}
                         />
                       ))}
-                  {w.permissions.manage &&
+                  {(w.permissions.manage || (internal && canOperate)) &&
                     !["completed", "cancelled"].includes(w.status) && (
                       <Form
                         title="Anulează lucrarea"
@@ -972,7 +988,7 @@ export default function Workspace({ path }: { path: string[] }) {
                       apărea aici.
                     </Empty>
                   )}
-                  <Form
+                  {canOperate && <Form
                     title="Deschide tichet"
                     fields={[
                       propField,
@@ -986,7 +1002,7 @@ export default function Workspace({ path }: { path: string[] }) {
                     ]}
                     run={run}
                     onSubmit={(b, r) => r("tickets", b)}
-                  />
+                  />}
                 </>
               )}
               {section === "tichete" && w && (
@@ -1003,13 +1019,13 @@ export default function Workspace({ path }: { path: string[] }) {
                         Deschide lucrarea și devizul asociat
                       </Link>
                     )}
-                    <Upload
+                    {canOperate && <Upload
                       entity="ticket_id"
                       id={w.id}
                       onDone={() => setTick((v) => v + 1)}
-                    />
+                    />}
                   </div>
-                  <Form
+                  {canOperate && <Form
                     title="Actualizează tichetul"
                     fields={[
                       field("status", "Status", "select", [
@@ -1023,8 +1039,8 @@ export default function Workspace({ path }: { path: string[] }) {
                     ]}
                     run={run}
                     onSubmit={(b, r) => r(`tickets/${w.id}/transition`, b)}
-                  />
-                  {!w.work_order_id && (
+                  />}
+                  {canManage && !w.work_order_id && (
                     <Form
                       title="Pregătește intervenția și devizul"
                       fields={serviceFields}
@@ -1156,7 +1172,7 @@ export default function Workspace({ path }: { path: string[] }) {
                             <td>{money(r.amount)}</td>
                             <td>
                               {r.status}
-                              <Form
+                              {canFinance && <Form
                                 title="Document extern"
                                 fields={[
                                   field("status", "Stare", "select", [
@@ -1167,7 +1183,7 @@ export default function Workspace({ path }: { path: string[] }) {
                                 ]}
                                 run={run}
                                 onSubmit={(b, send) => send("costs/" + r.id, b)}
-                              />
+                              />}
                             </td>
                           </tr>
                         ))}
@@ -1189,7 +1205,7 @@ export default function Workspace({ path }: { path: string[] }) {
                     run={run}
                     onSubmit={(b, r) => r("invites/accept", b)}
                   />
-                  {org && (
+                  {org && canSuper && (
                     <>
                       <h2>Invitații</h2>
                       {(data.invites ?? []).map((i: Row) => (
@@ -1276,7 +1292,7 @@ export default function Workspace({ path }: { path: string[] }) {
                       Calcul pe suma brută
                     </p>
                   </div>
-                  <Form
+                  {canSuper && <Form
                     title="Salvează politica de aprobare"
                     fields={[
                       {
@@ -1299,7 +1315,7 @@ export default function Workspace({ path }: { path: string[] }) {
                         separate_approver: b.separate === "yes",
                       })
                     }
-                  />
+                  />}
                 </>
               )}
               {section === "operator" && context.admin && (
@@ -1310,7 +1326,7 @@ export default function Workspace({ path }: { path: string[] }) {
                     contract/verificare reale. Datele financiare nu pot fi
                     aprobate de admin.
                   </p>
-                  <Form
+                  {canSuper && <Form
                     title="Creează organizație"
                     fields={[
                       field("name", "Denumire"),
@@ -1320,8 +1336,8 @@ export default function Workspace({ path }: { path: string[] }) {
                     ]}
                     run={run}
                     onSubmit={(b, r) => r("organizations", b)}
-                  />
-                  {org && (
+                  />}
+                  {org && canSuper && (
                     <Form
                       title="Activează portofoliul configurat"
                       fields={[]}
@@ -1329,7 +1345,7 @@ export default function Workspace({ path }: { path: string[] }) {
                       onSubmit={(b, r) => r("activate/" + org, b)}
                     />
                   )}
-                  <Form
+                  {canManage && <Form
                     title="Activează partener verificat"
                     fields={[
                       field("name", "Firma"),
@@ -1352,8 +1368,8 @@ export default function Workspace({ path }: { path: string[] }) {
                         services: [b.service],
                       })
                     }
-                  />
-                  {org && (
+                  />}
+                  {org && canSuper && (
                     <Form
                       title="Alocă operator NITIDO"
                       fields={[field("user_id", "ID cont operator")]}
@@ -1362,7 +1378,7 @@ export default function Workspace({ path }: { path: string[] }) {
                     />
                   )}
                   <h2>Parteneri</h2>
-                  {(data.partners ?? []).map((p: Row) => (
+                  {canManage && (data.partners ?? []).map((p: Row) => (
                     <Form
                       key={p.id}
                       title={p.name + " · " + p.status}
@@ -1385,7 +1401,7 @@ export default function Workspace({ path }: { path: string[] }) {
                       <p className="text-sm pro-muted">
                         {l.city} · {l.email} · {l.phone} · {l.status}
                       </p>
-                      <Form
+                      {canManage && <Form
                         title="Revizuiește cererea"
                         fields={[
                           field("status", "Decizie", "select", [
@@ -1398,7 +1414,7 @@ export default function Workspace({ path }: { path: string[] }) {
                         ]}
                         run={run}
                         onSubmit={(b, r) => r("leads/" + l.id, b)}
-                      />
+                      />}
                     </div>
                   ))}
                 </>

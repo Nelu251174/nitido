@@ -41,7 +41,7 @@ it("upgrades v11 additively and idempotently, preserving existing tables and row
   const existingWorks = old.prepare("SELECT * FROM pro_work_orders").all();
   migratePro(old); migratePro(old);
   expect(old.prepare("SELECT * FROM pro_work_orders").all()).toEqual(existingWorks);
-  expect(old.prepare("SELECT version FROM pro_schema_migrations ORDER BY version").all()).toEqual([{ version: 11 }, { version: 12 }, { version: 13 }]);
+  expect(old.prepare("SELECT version FROM pro_schema_migrations ORDER BY version").all()).toEqual([{ version: 11 }, { version: 12 }, { version: 13 }, { version: 14 }]);
   expect(old.prepare("SELECT value FROM marketplace_sentinel").get()).toEqual({ value: "preserved" });
   expect(old.prepare("SELECT id FROM users").get()).toEqual({ id: "marketplace-client" }); old.close();
 });

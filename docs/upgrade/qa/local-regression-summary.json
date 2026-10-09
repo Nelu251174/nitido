@@ -1,0 +1,62 @@
+{
+  "scope": "Local synthetic verification only; not hosted environment or live payments",
+  "baseCommit": "4c8315148504bc2edd98a5d9b155763db987b339",
+  "date": "2026-10-09",
+  "baseline": {
+    "tests": 1592,
+    "passed": 1510,
+    "failed": 82,
+    "additionalUncollectedSuite": "src/lib/push.test.ts"
+  },
+  "runs": {
+    "UTC": {
+      "success": true,
+      "numTotalTests": 1661,
+      "numPassedTests": 1661,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 298,
+      "files": 151
+    },
+    "Europe/Bucharest": {
+      "success": true,
+      "numTotalTests": 1661,
+      "numPassedTests": 1661,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 298,
+      "files": 151
+    }
+  },
+  "scripts": {
+    "tests": 38,
+    "passed": 38,
+    "failed": 0
+  },
+  "build": {
+    "command": "NITIDO_SEED_DEMO=false NITIDO_PRO_ENABLED=true NEXT_PUBLIC_NITIDO_PRO_PUBLIC=true NEXT_TELEMETRY_DISABLED=1 npx next build --webpack",
+    "exitCode": 0,
+    "typecheck": "passed",
+    "staticPages": 144
+  },
+  "lint": {
+    "files": 54,
+    "errors": 0,
+    "warnings": 0
+  },
+  "browser": {
+    "checks": 20,
+    "layouts": 60,
+    "pageErrors": 0,
+    "passed": true,
+    "buildId": "ozzIOUr4rE7_fxFObTJDE"
+  },
+  "mobile": {
+    "passed": true,
+    "tests": 122,
+    "files": 13,
+    "typecheck": "passed",
+    "devices": "unverified",
+    "storeDistribution": "not performed"
+  }
+}

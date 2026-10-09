@@ -1,3 +1,4 @@
+import {confirmInvitationWinner} from './providerInvitations';
 import type { Database } from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { authorizationMustStop } from './paymentCancellation';
@@ -58,6 +59,7 @@ export function recoverSelection(db: Database, jobId: string, clientId: string):
       db.prepare("UPDATE offers SET status='accepted',updated_at=datetime('now') WHERE id=?").run(proof.offer_id);
       db.prepare("UPDATE offers SET status='rejected',updated_at=datetime('now') WHERE job_id=? AND id!=? AND status='pending'").run(jobId, proof.offer_id);
       confirmSelectionReceipt(db, jobId, proof.claim_token);
+      confirmInvitationWinner(db,jobId,proof.firm_id,proof.claim_token);
       db.prepare("INSERT INTO workflow_audit_log(id,event_type,job_id,details) VALUES(?,'STANDARD_SELECTION_RECOVERED',?,?)").run(randomUUID(), jobId, JSON.stringify({ offerId: proof.offer_id, clientId }));
       return { ok: true, status: 200 };
     }).immediate();

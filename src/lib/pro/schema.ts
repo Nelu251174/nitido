@@ -58,11 +58,24 @@ CREATE TRIGGER pro_work_photo_no_update BEFORE UPDATE ON pro_work_photo_rules BE
 CREATE TRIGGER pro_work_photo_no_delete BEFORE DELETE ON pro_work_photo_rules BEGIN SELECT RAISE(ABORT,'photo snapshot retained'); END;
 INSERT INTO pro_schema_migrations VALUES(13,datetime('now'));
 `;
+/** Keep daily rules disabled for older schedulers; no existing rule is rewritten. */
+export const PRO_DAILY_SCHEMA = `
+CREATE TABLE pro_recurring_cadences(
+ rule_id TEXT PRIMARY KEY REFERENCES pro_recurring_rules(id),
+ frequency TEXT NOT NULL CHECK(frequency='daily'),
+ active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1))
+);
+CREATE TRIGGER pro_daily_legacy_inactive BEFORE UPDATE OF active ON pro_recurring_rules
+ WHEN NEW.active=1 AND EXISTS(SELECT 1 FROM pro_recurring_cadences WHERE rule_id=NEW.id)
+ BEGIN SELECT RAISE(ABORT,'Daily recurrence requires the revision 14 scheduler'); END;
+INSERT INTO pro_schema_migrations VALUES(14,datetime('now'));
+`;
 function migrateChecklists(db: Database) {
   db.transaction(() => {
     if (!db.prepare("SELECT 1 FROM pro_schema_migrations WHERE version=12").get())
       db.exec(PRO_CHECKLIST_SCHEMA);
     if (!db.prepare("SELECT 1 FROM pro_schema_migrations WHERE version=13").get()) db.exec(PRO_PHOTO_RULES_SCHEMA);
+    if (!db.prepare("SELECT 1 FROM pro_schema_migrations WHERE version=14").get()) db.exec(PRO_DAILY_SCHEMA);
   }).immediate();
 }
 export function migratePro(db: Database) {
@@ -85,7 +98,7 @@ export function migratePro(db: Database) {
   if (
     db
       .prepare(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name LIKE 'pro_%'",
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name GLOB 'pro_*'",
       )
       .get()
   ) {
@@ -93,5 +106,5 @@ export function migratePro(db: Database) {
       "Legacy Pro tables detected. Preserve a verified backup and reconcile their data before v1.1 migration. No table was deleted.",
     );
   }
-  db.transaction(() => { db.exec(PRO_SCHEMA); db.exec(PRO_CHECKLIST_SCHEMA); db.exec(PRO_PHOTO_RULES_SCHEMA); }).immediate();
+  db.transaction(() => { db.exec(PRO_SCHEMA); db.exec(PRO_CHECKLIST_SCHEMA); db.exec(PRO_PHOTO_RULES_SCHEMA); db.exec(PRO_DAILY_SCHEMA); }).immediate();
 }

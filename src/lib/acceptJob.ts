@@ -1,3 +1,4 @@
+import {confirmInvitationWinner} from './providerInvitations';
 import {jobAssistedOperation,reserveAssistedTeam} from './assistedOperations';
 import {MarginError} from './operationalMargin';
 import {recordSelectionConfirmation,confirmSelectionReceipt} from "./selectionRecovery";
@@ -84,6 +85,7 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
         db.prepare("UPDATE offers SET status='rejected',updated_at=datetime('now') WHERE job_id=? AND id!=? AND status='pending'").run(jobId, selection.offerId);
         confirmSelectionReceipt(db, jobId, claim);
       }
+      confirmInvitationWinner(db,jobId,firmId,claim);
       return { ok: true as const };
     }).immediate();
   } catch {

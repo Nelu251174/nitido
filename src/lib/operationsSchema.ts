@@ -44,3 +44,19 @@ CREATE INDEX IF NOT EXISTS incident_resolutions_case ON incident_resolutions(cas
 CREATE TRIGGER IF NOT EXISTS incident_resolutions_no_update BEFORE UPDATE ON incident_resolutions BEGIN SELECT RAISE(ABORT,'Resolution history immutable'); END;
 CREATE TRIGGER IF NOT EXISTS incident_resolutions_no_delete BEFORE DELETE ON incident_resolutions BEGIN SELECT RAISE(ABORT,'Resolution history retained'); END;
 `;
+
+export const PROVIDER_INVITATIONS_SCHEMA=`
+CREATE TABLE IF NOT EXISTS provider_invitation_campaigns(job_id TEXT PRIMARY KEY REFERENCES jobs(id),created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS provider_invitations(job_id TEXT NOT NULL REFERENCES provider_invitation_campaigns(job_id),firm_id TEXT NOT NULL REFERENCES firms(id),created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(job_id,firm_id));
+CREATE TABLE IF NOT EXISTS provider_invitation_deliveries(channel TEXT NOT NULL CHECK(channel IN ('push','sms')),outbox_id TEXT NOT NULL,job_id TEXT NOT NULL,firm_id TEXT NOT NULL,PRIMARY KEY(channel,outbox_id),FOREIGN KEY(job_id,firm_id) REFERENCES provider_invitations(job_id,firm_id));
+CREATE TABLE IF NOT EXISTS provider_invitation_events(id INTEGER PRIMARY KEY,job_id TEXT NOT NULL,firm_id TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('sent','offered','withdrawn','accepted','lost')),evidence TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY(job_id,firm_id) REFERENCES provider_invitations(job_id,firm_id),UNIQUE(job_id,firm_id,kind,evidence));
+CREATE INDEX IF NOT EXISTS provider_invitation_event_job ON provider_invitation_events(job_id,firm_id,kind);
+CREATE TRIGGER IF NOT EXISTS provider_campaign_no_update BEFORE UPDATE ON provider_invitation_campaigns BEGIN SELECT RAISE(ABORT,'Invitation campaign immutable'); END;
+CREATE TRIGGER IF NOT EXISTS provider_campaign_no_delete BEFORE DELETE ON provider_invitation_campaigns BEGIN SELECT RAISE(ABORT,'Invitation campaign retained'); END;
+CREATE TRIGGER IF NOT EXISTS provider_invitation_no_update BEFORE UPDATE ON provider_invitations BEGIN SELECT RAISE(ABORT,'Invitation immutable'); END;
+CREATE TRIGGER IF NOT EXISTS provider_invitation_no_delete BEFORE DELETE ON provider_invitations BEGIN SELECT RAISE(ABORT,'Invitation retained'); END;
+CREATE TRIGGER IF NOT EXISTS provider_delivery_no_update BEFORE UPDATE ON provider_invitation_deliveries BEGIN SELECT RAISE(ABORT,'Invitation delivery immutable'); END;
+CREATE TRIGGER IF NOT EXISTS provider_delivery_no_delete BEFORE DELETE ON provider_invitation_deliveries BEGIN SELECT RAISE(ABORT,'Invitation delivery retained'); END;
+CREATE TRIGGER IF NOT EXISTS provider_invitation_event_no_update BEFORE UPDATE ON provider_invitation_events BEGIN SELECT RAISE(ABORT,'Invitation event immutable'); END;
+CREATE TRIGGER IF NOT EXISTS provider_invitation_event_no_delete BEFORE DELETE ON provider_invitation_events BEGIN SELECT RAISE(ABORT,'Invitation event retained'); END;
+`;

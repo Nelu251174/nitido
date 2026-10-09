@@ -3,7 +3,7 @@ import Sqlite from 'better-sqlite3';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { SCHEMA_SQL } from './db';
+import { initializeDatabase } from './db';
 const provider = vi.hoisted(() => ({ authorize: vi.fn(), transfers: vi.fn(() => false) }));
 vi.mock('@/lib/payments', () => ({ authorizePayment: provider.authorize, connectTransfersEnabled: provider.transfers }));
 import { acceptJobAtomic } from './acceptJob';
@@ -19,7 +19,7 @@ beforeEach(() => {
   directory = mkdtempSync(join(tmpdir(), 'nitido-allocation-'));
   db = new Sqlite(join(directory, 'test.sqlite'), { timeout: 0 });
   db.pragma('journal_mode=WAL');
-  db.exec(SCHEMA_SQL);
+  initializeDatabase(db);
   other = new Sqlite(join(directory, 'test.sqlite'), { timeout: 0 });
   db.exec(`INSERT INTO users(id,role,name) VALUES('c','client','Client'),('u','firma','Firm'),('v','firma','Other');
     INSERT INTO firms(id,user_id,coverage_city,verified) VALUES('f','u','București',1),('g','v','București',1);`);
@@ -130,6 +130,11 @@ describe('allocation uses persisted timing and serializes firm-wide capacity', (
   it('does not treat corrupt or unknown existing timing as free capacity', async () => {
     occupy(); db.exec("UPDATE jobs SET scheduled_at=NULL WHERE id='a'");
     expect(await acceptJobAtomic(db, 'b', 'f')).toMatchObject({ ok: false, status: 409 });
+  });
+  it.each(['duration_minutes=-1', 'buffer_minutes=-1'])('does not normalize corrupt existing timing with team defaults: %s', async assignment => {
+    occupy(); db.exec(`UPDATE jobs SET ${assignment} WHERE id='a'`);
+    expect(await acceptJobAtomic(db, 'b', 'f')).toMatchObject({ ok: false, status: 409 });
+    expect(provider.authorize).not.toHaveBeenCalled();
   });
   it('preserves the first legacy ASAP job but blocks another overlapping or unknown booking', async () => {
     db.exec("UPDATE jobs SET scheduled_at=NULL,when_type='asap' WHERE id='a'");

@@ -4,12 +4,12 @@ import {initializeNotificationClaims} from "./notificationClaims";
 import {afterEach,beforeEach,describe,expect,it} from "vitest";
 import DatabaseCtor from "better-sqlite3";
 import type {Database} from "better-sqlite3";
-import {SCHEMA_SQL} from "./db";
+import {initializeDatabase,SCHEMA_SQL} from "./db";
 import {PushProviderError} from "./pushProviders";
 import fs from "node:fs";
 import {processPushOutbox,queueAcceptedClientPush,queueArrivedClientPush,queueCompletedClientPush,queueNewJobFirmPushes} from "./push";
 
-function setup():Database{const db=new DatabaseCtor(":memory:");db.exec(SCHEMA_SQL);db.exec(`INSERT INTO users(id,role,name,phone) VALUES('client','client','Ana','0721000000'),('ua','firma','Firma A','0722000001'),('ub','firma','Firma B','0722000002'),('uc','firma','Firma C','0722000003');INSERT INTO firms(id,user_id,coverage_city,verified) VALUES('fa','ua','București',1),('fb','ub','Brașov',1),('fc','uc','București',0);INSERT INTO jobs(id,client_id,street,city,sqm,space_type,when_type,price_gross,duration_minutes,status) VALUES('job','client','Strada Secretă 99','București',120,'apartament','asap',780,210,'waiting');`);return db;}
+function setup():Database{const db=new DatabaseCtor(":memory:");initializeDatabase(db);db.exec(`INSERT INTO users(id,role,name,phone) VALUES('client','client','Ana','0721000000'),('ua','firma','Firma A','0722000001'),('ub','firma','Firma B','0722000002'),('uc','firma','Firma C','0722000003');INSERT INTO firms(id,user_id,coverage_city,verified) VALUES('fa','ua','București',1),('fb','ub','Brașov',1),('fc','uc','București',0);INSERT INTO jobs(id,client_id,street,city,sqm,space_type,when_type,price_gross,duration_minutes,status) VALUES('job','client','Strada Secretă 99','București',120,'apartament','asap',780,210,'waiting');`);return db;}
 function device(db:Database,id:string,user:string,platform="ANDROID"){db.prepare("INSERT INTO push_devices(id,user_id,platform,device_token) VALUES(?,?,?,?)").run(id,user,platform,`${id}_abcdefghijklmnopqrstuvwxyz`);}
 describe("push primary with SMS fallback",()=>{let db:Database;beforeEach(()=>{db=setup();process.env.PUSH_ENABLED="true";process.env.SMS_FALLBACK_ENABLED="true";});afterEach(()=>{db.close();delete process.env.PUSH_ENABLED;delete process.env.SMS_FALLBACK_ENABLED;});
   it("queues only eligible firms and excludes exact address",()=>{device(db,"da","ua");const ids=queueNewJobFirmPushes(db,{id:"job",city:"București",spaceType:"apartament",sqm:120});expect(ids).toHaveLength(1);const row=db.prepare("SELECT recipient_user_id,title,message_body,data_json FROM push_notification_outbox").get() as Record<string,string>;expect(row.recipient_user_id).toBe("ua");expect(row.title).toBe("Lucrare nouă disponibilă");expect(row.message_body).not.toContain("Secretă");expect(row.data_json).not.toContain("Secretă");});

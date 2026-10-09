@@ -11,6 +11,7 @@ import {AdminServiceCatalog} from "@/components/AdminServiceCatalog";
 import {AdminExecutionTemplates} from "@/components/AdminExecutionTemplates";
 import {AdminCustomers} from "@/components/AdminCustomers";
 import {AdminOperationalReport} from "@/components/AdminOperationalReport";
+import {AdminProviderScore} from "@/components/AdminProviderScore";
 import {AdminIncidentReviews} from "@/components/AdminIncidentReviews";
 import {AdminAssessments} from "@/components/AdminAssessments";
 import {AdminOperations} from "@/components/AdminOperations";
@@ -343,6 +344,7 @@ export default function AdminPage() {
         <section id="evaluari"><AdminAssessments/></section>
         <AdminIncidentReviews/>
         <AdminOperationalReport/>
+        <AdminProviderScore canManage/>
         <AdminCustomers/>
         <section id="catalog">
           <AdminServiceCatalog/>

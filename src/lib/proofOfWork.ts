@@ -1,6 +1,6 @@
 import {jobPhotoRules,jobExecutionRules} from './executionTemplates';
 import type { Database } from "better-sqlite3";
-import { newId } from "@/lib/db";
+import { newId } from "@/lib/ids";
 
 export type WorkProofType = "ARRIVAL" | "COMPLETION";
 
