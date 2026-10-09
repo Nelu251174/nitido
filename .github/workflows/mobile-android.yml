@@ -13,10 +13,16 @@ on:
       - "android/**"
       - "mobile-shell/**"
       - "capacitor.config.ts"
+      - "package.json"
+      - "package-lock.json"
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout cod
         uses: actions/checkout@v4

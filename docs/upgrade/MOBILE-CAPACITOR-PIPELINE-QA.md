@@ -1,8 +1,17 @@
 # Audit pipeline Capacitor — 2026-10-09
 
 Auditul păstrează `ro.nitido.app`, workflowurile release existente și cheia upload.
-Nu a pornit cloud builds, nu a schimbat credențiale, nu a trimis builduri în magazine.
-Root coordonează ulterior CI gratuit existent pentru repositoryul public verificat.
+Auditul inițial nu a schimbat credențiale sau trimis builduri în magazine.
+Root a pornit ulterior verificările CI gratuite existente pentru repositoryul public verificat.
+
+## Primele builduri ale acestei etape
+
+Pentru candidatul `5ce7eff4b2fee70855db8c768ac6ba6eb9c2afaf`:
+
+- [Android](https://github.com/Nelu251174/nitido/actions/runs/37917890800), artifact `11610503051`: APK SHA256 `cc8988cd4de33f0513d9007f76c44fdb726923d3e0d677d33fcbf30e01db90d8`. Identitate corectă, target SDK 36, `allowBackup=false`, origine LIVE HTTPS cu cleartext dezactivat, fallback `index.html` și ambele pagini offline incluse. Semnătură debug v2, `zipalign -P16`, ELF LOAD și offsets ZIP 16KB pentru cele patru ABI: PASS.
+- [iOS](https://github.com/Nelu251174/nitido/actions/runs/37917955466), job `113778848309`: Xcode 26.6 build 17F113, SDK 26.5, `BUILD SUCCEEDED`. Compilare nesemnată, fără archive/export IPA sau upload. Rularea push duplicată este anulată de controlul concurenței; rularea PR a trecut.
+
+Prima regresie CI Expo a cerut corecția lockfile-ului. Probele native de mai sus nu sunt prezentate ca artefacte ale unui SHA ulterior; rezultatele pe candidatul final apar în [PR #88](https://github.com/Nelu251174/nitido/pull/88). Jobul separat de configurare primește doar șapte booleene evaluate de GitHub și consemnează disponibilitatea legăturilor de publicare în contextul lui. Nu citește valorile secretelor, nu verifică alte environments GitHub și nu autentifică magazinele.
 
 ## Probe descărcate și inspectate
 
@@ -38,8 +47,9 @@ Artefactele brute/private profile rămân în workspace separat, nu în git;
 ## Ce rămâne necunoscut/blocat
 
 Connectorul GitHub permite citirea rulărilor/joburilor/artifactelor, dar nu expune
-Secrets API sau inventarul credentialelor. Starea actuală a secretelor este
-**necunoscută**, nu confirmată absentă. La24 septembrie secretele Apple și upload key
+Secrets API sau inventarul credențialelor. Jobul de configurare poate verifica doar
+disponibilitatea în propriul context; validitatea și accesul curent rămân de probat.
+La 24 septembrie secretele Apple și upload key
 Android au funcționat; Play SA nu a permis uploadul (pas skipped). Nu s-au citit
 valorile secretelor. Configurația curentă verificată de root, revizia11, permite doar ANAF ca custom domain și package
 hosts; nu există credențiale cloud configurate, iar Coolify/store API prin shell

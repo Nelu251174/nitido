@@ -90,6 +90,28 @@ lucrării și la unmount, inclusiv dacă abonarea nativă rezolvă târziu.
 
 ## Dependențe
 
+### Instalare CI reproductibilă — Node 22 / npm 10
+
+La `5ce7eff`, `npm ci` cu Node 22.23.3 / npm 10.9.9 reproducea eroarea
+`Missing: react-native-worklets@0.10.4 from lock file`. Instalarea automată a peer-urilor
+opționale combinase Reanimated 4.6.0 (care cere Worklets 0.12.x) cu
+`expo-modules-core@57.0.14` (care acceptă Worklets până la 0.10.x).
+
+Proiectul existent folosește **Expo 57.0.18 / React Native 0.86.3**, păstrate neschimbate.
+Dependențele directe fixează acum **Reanimated 4.5.1 / Worklets 0.10.1**, exact perechea
+recomandată de `expo/bundledNativeModules.json`. Peer-urile ambelor pachete acceptă
+React Native 0.83–0.86; matricea Fabric include 0.86. Lockfile-ul a fost regenerat cu
+npm 10.9.9, fără `legacy-peer-deps`, omiterea peer-urilor sau alte ocoliri prin `.npmrc`.
+Numai aceste două versiuni de pachet s-au schimbat în arborele rezolvat.
+
+Într-o copie izolată fără `node_modules`, `npm ci` Node 22.23.3 / npm 10.9.9 a trecut,
+apoi 143/143 teste în UTC și București, TypeScript și exporturile Metro/Hermes
+iOS, Android și web au trecut. Instalarea locală npm 11 a păstrat identic lockfile-ul.
+`npm ls` nu raportează peer-uri invalide pentru această pereche; verificarea Expo offline
+o consideră actualizată (verificarea remote rămâne limitată de rețeaua mediului).
+Aceste probe nu constituie build EAS, semnare sau test pe dispozitiv. Probele sunt în
+`/workspace/nitido-qa-mobile-ci-results`.
+
 Override-urile compatibile instalate și fixate în lockfile sunt `shell-quote@1.11.0`,
 `brace-expansion@5.0.12`, `source-map-js@1.2.2`, `compression@1.8.2` și
 `xcode > uuid@11.1.1`. Pentru uuid s-au probat require CommonJS, `v4`/`validate`,

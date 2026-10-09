@@ -25,13 +25,49 @@ on:
       - 'scripts/MobileVerifyBundle.java'
 permissions:
   contents: read
-concurrency:
-  group: native-ios-qa-${{ github.head_ref || github.ref_name }}
-  cancel-in-progress: true
 jobs:
+  credential-configuration:
+    # Presence is setup metadata, not proof of current signing or store access.
+    # Pull requests do not check credentials: fork PRs do not receive secrets.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Report configured publishing bindings without exposing values
+        env:
+          APPLE_TEAM_ID_PRESENT: ${{ secrets.APPLE_TEAM_ID != '' }}
+          APP_STORE_CONNECT_KEY_ID_PRESENT: ${{ secrets.APP_STORE_CONNECT_KEY_ID != '' }}
+          APP_STORE_CONNECT_ISSUER_ID_PRESENT: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID != '' }}
+          APP_STORE_CONNECT_API_KEY_PRESENT: ${{ secrets.APP_STORE_CONNECT_API_KEY != '' }}
+          NITIDO_KEYSTORE_BASE64_PRESENT: ${{ secrets.NITIDO_KEYSTORE_BASE64 != '' }}
+          NITIDO_KEYSTORE_PASSWORD_PRESENT: ${{ secrets.NITIDO_KEYSTORE_PASSWORD != '' }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PRESENT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON != '' }}
+        run: |
+          python3 - <<'PY'
+          import os
+          keys = (
+              'APPLE_TEAM_ID',
+              'APP_STORE_CONNECT_KEY_ID',
+              'APP_STORE_CONNECT_ISSUER_ID',
+              'APP_STORE_CONNECT_API_KEY',
+              'NITIDO_KEYSTORE_BASE64',
+              'NITIDO_KEYSTORE_PASSWORD',
+              'GOOGLE_PLAY_SERVICE_ACCOUNT_JSON',
+          )
+          lines = ['## Publishing configuration', '', 'Availability in this push job context only; validity, current account permissions and other GitHub environments are not verified.', '', '| Binding | Available in this job |', '| --- | --- |']
+          for key in keys:
+              present = os.environ.get(key + '_PRESENT') == 'true'
+              print(f'{key}: available_in_job={str(present).lower()}')
+              lines.append(f'| {key} | {"yes" if present else "no"} |')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write('\n'.join(lines) + '\n')
+          PY
   compile:
     runs-on: macos-26
     timeout-minutes: 20
+    concurrency:
+      group: native-ios-qa-${{ github.head_ref || github.ref_name }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
