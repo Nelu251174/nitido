@@ -1,5 +1,20 @@
 apply plugin: 'com.android.application'
 
+// Store releases must preserve the existing upload key and use an explicit version.
+def isStoreRelease = gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
+if (isStoreRelease) {
+    ['NITIDO_KEYSTORE_PATH', 'NITIDO_KEYSTORE_PASSWORD', 'NITIDO_KEY_ALIAS', 'NITIDO_KEY_PASSWORD', 'NITIDO_VERSION_CODE'].each { key ->
+        if (!System.getenv(key)) throw new GradleException("Missing release configuration: " + key)
+    }
+    def versionName = System.getenv('NITIDO_VERSION_NAME') ?: '1.0'
+    if (!(versionName ==~ /[0-9]+\.[0-9]+(\.[0-9]+)?/)) throw new GradleException('Invalid Android release versionName')
+    def code = System.getenv('NITIDO_VERSION_CODE')
+    if (!(code ==~ /[1-9][0-9]*/) || new BigInteger(code) > 2100000000) {
+        throw new GradleException('Invalid Android release versionCode')
+    }
+}
+
+
 android {
     namespace = "ro.nitido.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +22,7 @@ android {
         applicationId "ro.nitido.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        // versionCode se poate injecta din robot (NITIDO_VERSION_CODE) ca să
-        // crească automat la fiecare upload în Play; implicit 1 pentru build local.
+        // Debug defaults to 1; release requires an explicit code, checked against store evidence before upload.
         def ciVersionCode = System.getenv("NITIDO_VERSION_CODE")
         def ciVersionName = System.getenv("NITIDO_VERSION_NAME")
         versionCode ciVersionCode ? ciVersionCode.toInteger() : 1

@@ -1,0 +1,53 @@
+{
+  "status": "draft_not_submitted",
+  "locale": "ro-RO",
+  "identity": {
+    "bundleId": "ro.nitido.app",
+    "androidPackage": "ro.nitido.app",
+    "legalDeveloperName": null,
+    "copyrightOwner": null
+  },
+  "apple": {
+    "name": "NITIDO — Curățenie",
+    "subtitle": "Rezervări de curățenie",
+    "keywords": "curatenie,apartament,casa,birou,rezervare,firme,servicii,Romania"
+  },
+  "google": {
+    "title": "NITIDO — Curățenie",
+    "shortDescription": "Configurează curățenia și urmărește firma și etapele rezervării."
+  },
+  "shared": {
+    "fullDescription": "NITIDO conectează clienții cu firme de curățenie și organizează rezervările într-un singur cont.\n\nPentru clienți:\n• Configurezi serviciul, suprafața și programarea.\n• Consulți suma afișată înainte de confirmare.\n• În Standard, consulți ofertele și alegi firma. Express depinde de disponibilitatea firmelor eligibile.\n• Urmărești starea rezervării și informațiile disponibile despre lucrare.\n• Comunici în contextul rezervării și consulți fotografiile asociate etapelor autorizate.\n• După finalizare, poți evalua serviciul prestat.\n\nPentru firme:\n• Completezi profilul și zonele de acoperire și parcurgi verificarea necesară.\n• Consulți lucrările eligibile și organizezi programările și echipa.\n• Documentezi sosirea și finalizarea conform cerințelor lucrării.\n\nAdresa exactă și fotografiile private sunt disponibile numai participanților autorizați. Locația pentru completarea rezervării este opțională; adresa poate fi introdusă manual.\n\nDisponibilitatea serviciilor și preluarea unei lucrări depind de localitate, programare și firmele eligibile. NITIDO nu garantează o firmă disponibilă instant pentru orice solicitare.\n\nSuport: support@nitido.ro\nInformații și condiții: https://nitido.ro",
+    "supportUrl": "https://nitido.ro/contact",
+    "privacyUrl": "https://nitido.ro/confidentialitate",
+    "marketingUrl": "https://nitido.ro",
+    "supportEmail": "support@nitido.ro",
+    "accountDeletionUrl": "https://nitido.ro/stergere-cont",
+    "accountDeletionAvailableLive": false,
+    "accountDeletionFulfillmentVerified": false
+  },
+  "review": {
+    "status": "needs_verified_accounts_and_target",
+    "customerCredentials": null,
+    "firmCredentials": null,
+    "reviewContactName": null,
+    "reviewContactPhone": null,
+    "verifiedBuildNumber": null
+  },
+  "excludedClaims": [
+    "Pro disponibil universal",
+    "prestator garantat instant",
+    "push verificat pe telefon",
+    "GPS de fundal sau urmărire live a deplasării",
+    "plăți reale verificate în această sesiune",
+    "App Store/Google Play deja publicat"
+  ],
+  "validatedLengths": {
+    "appleNameCharacters": 18,
+    "appleSubtitleCharacters": 22,
+    "appleKeywordsUtf8Bytes": 64,
+    "googleTitleCharacters": 18,
+    "googleShortCharacters": 64,
+    "fullDescriptionCharacters": 1191
+  }
+}

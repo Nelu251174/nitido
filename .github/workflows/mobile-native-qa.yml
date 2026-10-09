@@ -1,0 +1,54 @@
+name: Capacitor iOS unsigned compile QA
+on:
+  push:
+    branches: [codex/nitido-store-readiness]
+    paths:
+      - 'ios/**'
+      - 'android/**'
+      - 'capacitor.config.ts'
+      - 'mobile-shell/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/mobile-*.yml'
+      - 'scripts/mobile-*'
+      - 'scripts/MobileVerifyBundle.java'
+  pull_request:
+    paths:
+      - 'ios/**'
+      - 'android/**'
+      - 'capacitor.config.ts'
+      - 'mobile-shell/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/mobile-*.yml'
+      - 'scripts/mobile-*'
+      - 'scripts/MobileVerifyBundle.java'
+permissions:
+  contents: read
+concurrency:
+  group: native-ios-qa-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  compile:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: SDK provenance
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+      - name: Sync production shell
+        env:
+          NITIDO_NATIVE_SERVER_URL: https://nitido.ro
+        run: npx cap sync ios
+      - name: Compile only — no signing, archive or upload
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/ios-compile" \
+            CODE_SIGNING_ALLOWED=NO build

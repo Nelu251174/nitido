@@ -39,8 +39,8 @@ export function buildAuthorizedSupportContext(user: UserRow | null): string {
   const profile = db.prepare(`SELECT verified, coverage_city, rating_sum, rating_count, strikes_30d, strikes_90d,
     stripe_account_status,stripe_transfers_capability
     FROM firms WHERE id = ? AND user_id = ?`).get(firm.id, user.id);
-  const allocatedJobs = db.prepare(`SELECT j.id, j.city, j.space_type, j.status, j.scheduled_at, j.price_gross,
-    p.status AS payment_status,p.amount_net,p.transfer_status,p.payout_status,p.refund_status,p.dispute_status FROM jobs j LEFT JOIN payments p ON p.job_id = j.id
+  const allocatedJobs = db.prepare(`SELECT j.id, j.city, j.space_type, j.status, j.scheduled_at,
+    p.status AS payment_status,p.amount_net AS firm_payout,p.transfer_status,p.payout_status,p.refund_status,p.dispute_status FROM jobs j LEFT JOIN payments p ON p.job_id = j.id
     WHERE j.accepted_firm_id = ? ORDER BY j.created_at DESC LIMIT 10`).all(firm.id);
   return JSON.stringify({ account: { role: "firma", name: user.name }, ownFirmProfile: profile, ownAllocatedJobs: allocatedJobs });
 }

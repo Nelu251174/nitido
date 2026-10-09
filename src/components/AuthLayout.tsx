@@ -14,9 +14,9 @@ export function AuthLayout({ children }: { children: ReactNode }) {
     <div className="auth-layout min-h-screen flex">
       <div className="hidden md:flex md:w-[42%] lg:w-[38%] mesh-dark relative overflow-hidden flex-col justify-between p-10 lg:p-14">
         {/* pete de gradient animate, discret, fără să distragă */}
-        <div className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 rounded-full bg-aqua/25 blur-3xl animate-blob" />
-        <div className="pointer-events-none absolute top-1/3 -left-20 w-72 h-72 rounded-full bg-indigo/25 blur-3xl animate-blob-slow animate-blob-delay" />
-        <div className="pointer-events-none absolute bottom-0 right-0 w-64 h-64 rounded-full bg-coral/15 blur-3xl animate-blob-slow" />
+        <div aria-hidden="true" className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 rounded-full bg-aqua/25 blur-3xl animate-blob" />
+        <div aria-hidden="true" className="pointer-events-none absolute top-1/3 -left-20 w-72 h-72 rounded-full bg-indigo/25 blur-3xl animate-blob-slow animate-blob-delay" />
+        <div aria-hidden="true" className="pointer-events-none absolute bottom-0 right-0 w-64 h-64 rounded-full bg-coral/15 blur-3xl animate-blob-slow" />
 
         <Link href="/" className="font-display font-extrabold text-lg text-white inline-block w-fit relative">
           Nit<span className="text-gradient">ido</span>

@@ -1,0 +1,51 @@
+{
+  "scope": "Local synthetic QA; no main merge, actual host backup, deployment or store publication",
+  "sourceBaseSha": "19047e8e1276167f49e0095674c67e911179068e",
+  "checkoutModifiedDuringLocalChecks": true,
+  "finalWebBuildId": "zSoa4IIt7w7UsPV5Nn4F1",
+  "webUTC": {
+    "total": 1768,
+    "passed": 1768,
+    "failed": 0,
+    "pending": 0,
+    "files": 165,
+    "success": true
+  },
+  "webBucharest": {
+    "total": 1768,
+    "passed": 1768,
+    "failed": 0,
+    "pending": 0,
+    "files": 165,
+    "success": true
+  },
+  "node": {
+    "passed": 52,
+    "failed": 0
+  },
+  "mobileUTC": {
+    "total": 143,
+    "passed": 143,
+    "failed": 0,
+    "pending": 0,
+    "files": 18,
+    "success": true
+  },
+  "productionDependencyAudit": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "allWebDependencyAudit": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 5,
+    "critical": 0,
+    "total": 5
+  },
+  "ciFinalCandidate": "pending"
+}

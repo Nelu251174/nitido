@@ -180,3 +180,40 @@
   :is(.workspace-menu-toggle, .board-sidebar-note, button[aria-label=Meniu], nav.hidden) {
   background: var(--workspace-surface);
 }
+
+/* Accessible text keeps the approved green/cream backgrounds and geometry. */
+:root { --muted: #52616a; }
+:is(.design-button, .v2-btn-primary, .live-price-estimator .estimator-option-active,
+  .schedule-team-tabs button.active, .schedule-view-controls button[aria-pressed=true],
+  .payment-benefit-side) { color: #111827; }
+.pro-header-link { color: #111827 !important; }
+:is(.design-button, .v2-btn-primary):hover,
+.pro-header-link:is(:hover, [aria-current=page]) { color: #fff !important; }
+:is(.design-trust-row, .design-trust-strip) small,
+.design-trust-strip p,
+:is(.board-greeting p, .booking-muted, .booking-choice span,
+  .firm-team-row p, .team-execution-steps small) { color: #52616a; }
+:is(.board-greeting-note, .board-card-heading > a, .firm-team-row a,
+  .board-soft-button, .booking-wizard .booking-eyebrow, .booking-assessment-note a,
+  .step-number, .firm-opportunity-card > span) { color: var(--nitido-brand-dark); }
+:is(.approved-home, .approved-client, .board-firm, .operations-main, .booking-wizard)
+  :is([class*="text-[#64748b]"], [class*="text-[#6b756f]"],
+      [class*="text-[#7b847e]"], [class*="text-[#707a74]"]) { color: #52616a; }
+.approved-home a.text-aqua { color: var(--nitido-brand-dark); }
+.payment-benefit-side :is(p, li span, .v2-eyebrow) { color: #111827; }
+footer :is([class*="text-[#5f6b63]"], [class*="text-[#7b847e]"]) { color: #8b958f; }
+main [class*="text-[#7b847e]"] { color: #52616a; }
+:is(.board-firm .bg-aqua\/10, .board-firm .bg-aqua\/15) { color: #111827; }
+.firm-work-grid > * { min-width: 0; }
+.firm-opportunities .workspace-toolbar { flex-wrap: wrap; }
+.firm-opportunities .workspace-toolbar > * { max-width: 100%; }
+.firm-chart > div { min-width: 0; }
+.firm-chart b { white-space: normal; overflow-wrap: anywhere; }
+.design-panel[id^="care-"] input[type=file] {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+@media (max-width: 1200px) {
+  .firm-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

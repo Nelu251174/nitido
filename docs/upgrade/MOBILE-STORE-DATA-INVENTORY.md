@@ -1,0 +1,81 @@
+# Inventarul datelor pentru aplicațiile mobile și formularele magazinelor
+
+Audit de cod: 9 octombrie 2026. Document de lucru pentru App Privacy / Data Safety, nu declarație publicată sau atestare a unui binar semnat. Configurația LIVE, furnizorii activați, consolele Apple/Google și retenția efectivă nu sunt demonstrate prin acest audit. Nu include valori de secrete sau date ale utilizatorilor.
+
+## Produsele care trebuie declarate separat
+
+| Target | Implementare observată | Limita verificării |
+| --- | --- | --- |
+| Web și shell Capacitor | `capacitor.config.ts`: `ro.nitido.app`, site remote HTTPS `https://nitido.ro`; numai acest origin și `https://sandbox.nitido.ro` sunt acceptate; `cleartext:false`. Shell-ul folosește funcționalitățile web servite de backend. | O modificare de site poate modifica prelucrarea fără schimbarea binarului; formularele magazinelor trebuie să acopere funcțiile web accesibile în release. Configurația generată dintr-un build anterior nu dovedește targetul viitorului release. |
+| Expo / React Native | `mobile/package.json`, `mobile/app.json`, `mobile/app.config.ts`; același identificator `ro.nitido.app`, API prin `EXPO_PUBLIC_NITIDO_API_BASE_URL`. | Este un client separat. Nu combina permisiunile/configurația acestuia cu shell-ul Capacitor și nu promova două implementări diferite sub aceeași versiune fără stabilirea artefactului final. |
+
+Capacitor declară core/Android/iOS `^8.5.1`, App `^8.1.1`, Geolocation `^8.2.2`, Push Notifications `^8.1.2`. Legăturile native ale pluginurilor apar în `ios/App/CapApp-SPM/Package.swift` și `android/app/capacitor.build.gradle`. Expo declară SDK `~57.0.18`, React Native `0.86.3`, camera, image picker, location, notifications, secure store, device, linking și router. Versiunile declarate trebuie confruntate cu lockfile-ul și cu dependențele efectiv incluse în IPA/AAB; pachetul declarat nu demonstrează ce colectează un SDK într-un binar.
+
+## Date observate, scop și acces
+
+„Opțional” descrie acțiunea în produs; nu înlocuiește clasificarea magazinului. Datele salvate cu user/job/property/organization ID sunt legate de cont; simpla eliminare a numelui dintr-un payload nu le face anonime.
+
+| Categorie | Date și scop observate | Persistență / destinatari / dovezi |
+| --- | --- | --- |
+| Contact și cont | Nume, email, telefon, rol, user ID; autentificare, recuperare parolă, verificare email, notificări. Parolă bcrypt hash, nu parolă în clar. | SQLite `users`, `sessions`, tokenuri de reset/verificare; `src/lib/auth.ts`, `src/app/api/auth/*`. Telefonul/emailul pot ajunge la furnizorii tranzacționali configurați. |
+| Firma | CUI, date de profil, localități acoperite, website, statut verificare, incidente/rating și identificatori Stripe Connect. | `firms`, `src/app/api/account/firm`, `src/lib/cui.ts`; ANAF primește CUI și data solicitării pentru verificare. KYC/documentele solicitate de Stripe se trimit în fluxul Stripe, nu trebuie descrise ca documente colectate direct de NITIDO fără dovadă suplimentară. |
+| Adresă și serviciu | Adresă exactă, cod poștal/etaj/detalii acces, tip spațiu, suprafață, programare, status, preferințe, note și fotografie de context. | `jobs`, `workspace_properties`, Pro. Firma nealocată primește preview fără adresa exactă, fotografii sau identificator client; proprietarul, firma alocată și personalul autorizat au acces conform rolului. `src/lib/authorization.ts`, `/api/jobs`, `/api/jobs/[id]`. |
+| Locație | GPS de dispozitiv pentru localitate/adresă; marcaj opțional al intrării; în Expo, poziție de firmă în timpul unei lucrări `arrived`, activată explicit. Pot exista coordonate precise chiar dacă interfața afișează ulterior doar localitatea. | Coordonatele pentru reverse geocoding nu sunt salvate de fluxul NITIDO respectiv. Marcajul confirmat este salvat cu lucrarea. `job_live_locations` păstrează ultima poziție; GET o afișează doar dacă este recentă (2 minute) și lucrarea este activă. Pragul de afișare nu este un termen de ștergere din DB. DELETE de tracking elimină poziția curentă. `src/lib/bookingLocation.ts`, `/api/booking-address`, `EntrancePicker`, `/api/jobs/[id]/tracking`, `mobile/app/(firma)/active.tsx`. |
+| Fotografii și conținut | Fotografii de context, dovezi sosire/final, descrieri/evaluări, checklist, rapoarte, tichete/incidente și mesaje între participanți. | Fișiere private + metadate/hash/status în DB; acces autentificat, ownership și alocare. `job_photos`, `/api/uploads`, `/api/collaboration`, `workspace_messages`, `src/lib/pro/schema.ts` (`pro_media`). Cerințele foto sunt minimele versionate ale lucrării. Câmpurile libere pot conține incidental date sensibile; nu există dovadă că produsul solicită intenționat sănătate/biometrie. |
+| Financiare / istoric achiziții | Prețuri lei, bugete/costuri Pro în bani, sume tranzacționale, autorizare/captură/rambursare/transfer, card brand/last4/expirare/fingerprint și identificatori Stripe. | NITIDO nu stochează PAN/CVC în implementarea verificată. Formularul de card este Stripe Checkout HTTPS deschis separat; `src/lib/savedCards.ts`, `/api/payments/card`, `/api/payments/checkout`, `mobile/src/CardWallet.tsx`. Istoricul tranzacțional este tot o categorie financiară colectată, chiar fără PAN/CVC. Firma primește payout și stări permise, fără prețul clientului/comision. |
+| Colaborare / Pro | Responsabili, contacte organizație, apartenențe/roluri, adrese și instrucțiuni de acces ale proprietăților, bugete/aprobări, lucrări, inventar și recurențe/calendar. | `workspace_*`, `src/lib/pro/schema.ts`, API Pro. Rolurile Viewer/Financiar/Operator/Owner și accesul angajaților limitează câmpurile; nu declara toate datele disponibile tuturor membrilor. Calendarele importate pot conține date ale terților; documentează configurația surselor folosite în release. |
+| Identificatori de dispozitiv / notificări | Token APNS/FCM, platformă IOS/ANDROID, user ID asociat, preferințe/consimțământ push, provider message ID, outbox cu titlu/mesaj și job/message ID. | `push_devices`, `push_notification_outbox`, `/api/push/*`, `src/lib/pushProviders.ts`. Tokenul este identificator de instalare/dispozitiv asociat contului; nu este IDFA/AAID observat în cod. Mesajele push pot apărea pe ecranul blocat; payloadul nu trebuie descris ca „fără conținut”. |
+| Suport AI | Mesajele conversației și context autorizat: nume/rol, până la 10 lucrări proprii, oraș, programare, tip spațiu și stări financiare permise; profilul firmei proprii. | Dacă AI este activ/configurat, ultima întrebare merge la moderare OpenAI; conversația și contextul merg la Responses, cu `store:false` și safety identifier hash din user ID sau IP. Aceste setări nu demonstrează zero retenție la furnizor. `src/app/api/support/ai/route.ts`, `src/lib/supportAi.ts`. Ghidul local poate răspunde fără apel AI. |
+| Securitate / activitate | IP din proxy pentru rate limit, jurnal operațional/audit, referințe de sesiune, schimbări de rol, invitații, acțiuni/dovezi și cereri privind contul. | `src/lib/security.ts`, `admin_audit_log`, ledger-uri operaționale. Nu este observată o integrare generală de crash analytics; logurile infrastructurii și orice instrumentare adăugată în release trebuie confirmate separat. |
+
+## Furnizori și fluxuri externe observate
+
+| Furnizor | Date care pot ieși din dispozitiv / NITIDO | Activare și dovadă |
+| --- | --- | --- |
+| Stripe | Formular card, identificatori client/payment method, tranzacție, Connect/KYC solicitat de Stripe. | Configurație Stripe; `src/lib/clientPayments.ts`, `savedCards.ts`, rute Stripe/plăți. Nu schimba fluxul financiar pentru publicarea în magazine. |
+| APNS / Firebase Cloud Messaging | Token nativ, titlu/body notificare, event/job/message IDs. | Push opt-in + configurație provider; `src/lib/pushProviders.ts`. Expo folosește `getDevicePushTokenAsync`, nu serviciul Expo Push Token în codul verificat. FCM nu demonstrează prin sine activarea Firebase Analytics. |
+| Resend | Destinatar email, subiect și HTML tranzacțional. | `RESEND_API_KEY` + `RESEND_FROM`; `src/lib/email.ts`. |
+| Twilio | Număr destinatar, text SMS tranzacțional și metadate livrare. | Configurație și flag notificări; `src/lib/sms.ts`, `notifications.ts`. |
+| OpenAI | Date suport descrise mai sus. | `NITIDO_AI_ENABLED` + key; rută suport. Moderarea este un apel distinct. |
+| BigDataCloud | Coordonate GPS și IP al dispozitivului, fără date cont în payload; locație/localitate. | Apel direct browser, `credentials:'omit'`, `referrerPolicy:'no-referrer'`; `src/lib/bookingLocation.ts`. |
+| Google Maps | Coordonate la reverse geocoding prin server NITIDO; adresă/coordonate destinație la deschiderea navigării externe. | Configurație API address sau acțiune navigare; `/api/booking-address`, `mobile/src/firmOperations.ts`, `/api/jobs/[id]/navigation`. |
+| OpenStreetMap | IP al dispozitivului și coordonatele tile-urilor/zonei afișate. | Harta intrării opțională; `src/components/EntrancePicker.tsx`. |
+| ANAF | CUI și data verificării. | Profil/verificare firmă; `src/lib/cui.ts`. |
+| Hosting / backup / calendar | Date operaționale, DB/fișiere, loguri, solicitări către sursele calendar configurate. | Furnizorul, țara, contractele și configurația efectivă nu rezultă din acest audit. Nu declara stocare exclusiv România/SEE fără verificare. |
+
+Transferul către un furnizor nu se clasifică automat identic în Apple și Google. Excepția pentru service provider, legătura cu identitatea și folosirea pentru tracking trebuie stabilite pe baza condițiilor și configurației efective. Lista de mai sus nu este o dovadă că toți furnizorii sunt activați LIVE.
+
+## Permisiuni și stocare locală
+
+- Capacitor: Android manifest declară INTERNET, COARSE/FINE_LOCATION; permisiunea notificărilor poate fi adăugată de plugin în manifestul merged. iOS are descrieri cameră/locație și entitlement APNS production. Nu este declarat un mod de locație în fundal în configurația inspectată.
+- Web din shell: uploadul este ales de utilizator prin formular; funcțiile GPS trebuie să păstreze introducerea manuală. Trebuie verificat pe dispozitiv ce prompt nativ apare pentru camera/file picker și pentru refuzul locației.
+- Expo: camera/image-picker și foreground location pentru dovezi/lucrări. Configurația blochează microphone/RECORD_AUDIO și permisiunile Android READ_MEDIA_IMAGES/VIDEO; nu există o funcție de înregistrare audio/video observată. Nu declara acces nelimitat la galerie sau tracking în fundal. Verifică manifestul generat final, nu numai app.json.
+- Sesiunea web folosește cookie httpOnly, SameSite Lax, Secure în production, durata curentă 30 zile. Bearer mobil funcționează numai cu `NITIDO_ENABLE_BEARER_AUTH=true`; Expo păstrează tokenul în SecureStore cu `WHEN_UNLOCKED_THIS_DEVICE_ONLY`. Comentariul istoric din auth.ts care menționează AsyncStorage nu descrie implementarea Expo actuală.
+- Expo mai păstrează în SecureStore tokenul push și sesiunea temporară de adăugare card. Shell-ul Capacitor păstrează tokenul push în localStorage. Logout încearcă revocarea dispozitivului înainte de ștergerea sesiunii.
+- Android shell avea `allowBackup=true` la începutul auditului. Politica backup/excluderea cookie-urilor și tokenurilor trebuie verificată în patchul final și AAB. Expo secure-store declară configurarea excluderilor pentru Android backup; nu generaliza acest lucru asupra shell-ului Capacitor.
+- Nu a fost identificat în sursele first-party un IDFA/AAID, ATT request, pixel publicitar, analytics general sau SDK de reclame. Concluzie limitată la codul inspectat: nu reprezintă certificarea „tracking: no” pentru furnizori, binar și site LIVE. Manifestele SDK de confidențialitate, required-reason APIs, logs și toate dependențele transitive trebuie verificate în arhiva finală.
+
+## Draft pentru formulare — afirmații susținute și elemente de confirmat
+
+| Câmp / categorie | Propunere susținută de cod | Confirmare necesară înainte de submit |
+| --- | --- | --- |
+| App collects data / data collected | Da: contact, user ID, adresă, achiziții/tranzacții, photos/content, notificări/dispozitiv și date operaționale; locație în fluxurile descrise. | Selectarea subcategoriilor exacte diferă pe target și versiune. Nu folosi „No data collected”. |
+| Location | Coarse și posibil precise; facultativ GPS, intrare și tracking foreground firmă. | Datele precise nu pot fi omise doar pentru că scopul este aflarea orașului. Confirmă targetul Expo/Capacitor și datele transmise furnizorilor. |
+| Contact / identifiers | Nume, email, telefon și user ID legate de cont; token push legat de cont. | Clasificarea tokenului drept device identifier în formularul curent și toate datele SDK. |
+| Photos / messages / other user content | Da, după folosirea funcției; private, autorizate pe lucrare/proprietate. | Separă fotografii de mesaje/chat, suport și documente; nu promite că nu pot conține incidental date sensibile. |
+| Financial / purchase history | Da pentru istoricul tranzacțiilor, prețuri și card metadata. PAN/CVC sunt introduse în Stripe hosted flow. | Excepțiile formului pentru informația de plată introdusă în servicii externe trebuie analizate pentru release. |
+| Purposes | Funcționalitatea aplicației, administrare cont, servicii/plăți/notificări, suport, securitate. | Nu bifa advertising/marketing/analytics fără o funcție/furnizor concret; nu presupune că service provider are aceleași scopuri ca NITIDO. |
+| Linked to identity | Majoritatea datelor persistate au user/job/property/org ID și trebuie tratate ca legate de identitate. | Nu declara deidentified doar fiindcă nu se transmite numele. |
+| Tracking / data shared | Nu există dovadă first-party de advertising tracking. Există transferuri către destinatari și furnizori enumerați. | Definitivarea tracking și excepțiile de sharing cer SDK/archive/provider terms/configuration review. Nu înlocui această verificare cu o bifă automată „No”. |
+| Encryption in transit | API de producție și furnizorii enumerați folosesc HTTPS; shell-ul refuză origini neaprobate/cleartext. | Verify API Expo release, manifest merged, certificate/network behavior și sursele importurilor calendar. Nu extinde afirmația la toate configurațiile posibile. |
+| Deletion | Sunt implementate intake autentificat/versionat și preluare administrativă a cererii; mesajul spune explicit că datele/contul nu sunt încă șterse. | `src/lib/accountDeletion.ts` are numai requested/under_review, fără executor de ștergere. Nu declara autoștergere imediată/completed. Publicarea necesită un proces operațional efectiv și termene/obligații confirmate. |
+
+## Necunoscute care nu trebuie completate prin presupuneri
+
+Identitatea juridică folosește `LEGAL_ENTITY_NAME`, `LEGAL_ENTITY_REGISTRATION`, `LEGAL_ENTITY_ADDRESS`, `LEGAL_CONTACT_EMAIL`; `src/lib/legalConfig.ts` marchează lipsurile. Nu s-au citit valorile production. Pagina `/confidentialitate` recunoaște explicit lipsa unor termene exacte de păstrare; durata sesiunii sau limita de afișare tracking nu stabilește retenția fotografiilor, tranzacțiilor, conturilor ori backupurilor. Nu au fost verificate contractele/DPA, localizarea hostingului, retenția furnizorilor, purjarea backupurilor sau funcționarea procesului uman de ștergere. Aceste elemente rămân de confirmat de operator pentru formularele finale.
+
+## Contracte corectate în această etapă
+
+`GET /api/jobs/[id]` adaugă, numai utilizatorilor autorizați integral, `job.photoRules:{arrivalMin,completionMin}` și `job.executionRules:{scope,revision,items:[{key,label}]}`. Minimele/lista sunt snapshotul lucrării, nu template-ul de astăzi; legacy folosește fallbackul istoric. `proofs` include numai imagini VALID + validated_at ale firmei alocate curente; lista `photos` păstrează contextul clientului și dovezile valide curente. Preview-ul nealocat păstrează redacțiile. Cache răspunsului privat: `private, no-store`.
+
+Contextul suport AI pentru firmă exclude `price_gross`; include numai `firm_payout` și stările financiare permise. Clientul păstrează totalul propriilor lucrări. Testele contractuale folosesc SQLite reală, reguli înghețate urmate de o versiune nouă, dovezi ale unei firme istorice, alte conturi și preview nealocat. Aceste verificări demonstrează comportamentul codului local; integrarea, publicarea LIVE și acceptanța pe dispozitiv sunt etape distincte.

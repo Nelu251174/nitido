@@ -1,29 +1,41 @@
 name: Robot Google Play (semnat + upload)
 
-# Construiește varianta SEMNATĂ (.aab) a aplicației mobile NITIDO și o urcă
-# automat pe Google Play, pe canalul de TESTARE INTERNĂ.
-#
-# Pornire: creezi un tag care începe cu „play-" (ex. play-1, play-2, …).
-#   git tag play-1 && git push origin play-1
-# (sau manual din Actions, dacă workflow-ul e pe branch-ul implicit).
-#
-# Necesită aceste SECRETE în GitHub (Settings → Secrets and variables → Actions):
-#   NITIDO_KEYSTORE_BASE64          – cheia de semnare (.keystore) codată base64
-#   NITIDO_KEYSTORE_PASSWORD        – parola keystore-ului
-#   NITIDO_KEY_ALIAS                – alias-ul cheii (ex. nitido-upload)
-#   NITIDO_KEY_PASSWORD             – parola cheii
-#   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON – conținutul JSON al contului de serviciu Play
+# Signed builds preserve the existing upload key. Store upload requires fresh release evidence.
 on:
   workflow_dispatch:
+    inputs:
+      version_code:
+        description: Explicit versionCode above the current store maximum (empty uses workflow counter for build only)
+        type: string
+        default: ''
+      version_name:
+        type: string
+        default: '1.0'
+      track:
+        description: Internal testing or public production (production needs full device and metadata evidence)
+        type: choice
+        options: [internal, production]
+        default: internal
+      upload_internal:
+        description: Upload selected track after release gates (legacy input name retained)
+        type: boolean
+        default: false
+      evidence_json:
+        description: Fresh public release receipts JSON (no credentials; exact candidate SHA)
+        type: string
+        default: ''
   push:
     tags:
       - "play-*"
     branches:
       - "release-android"
 
+permissions:
+  contents: read
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout cod
         uses: actions/checkout@v4
@@ -31,8 +43,9 @@ jobs:
       - name: Verifică cheia de semnare
         env:
           KS: ${{ secrets.NITIDO_KEYSTORE_BASE64 }}
+          PASSWORD: ${{ secrets.NITIDO_KEYSTORE_PASSWORD }}
         run: |
-          if [ -z "$KS" ]; then
+          if [ -z "$KS" ] || [ -z "$PASSWORD" ]; then
             echo "::error::Lipsește NITIDO_KEYSTORE_BASE64. Adaugă cheia de semnare în Settings → Secrets → Actions."
             exit 1
           fi
@@ -56,8 +69,21 @@ jobs:
         with:
           packages: "platform-tools platforms;android-36"
 
+      - name: Resolve explicit release version
+        env:
+          REQUESTED: ${{ inputs.version_code }}
+        run: |
+          VERSION_CODE="${REQUESTED:-$GITHUB_RUN_NUMBER}"
+          [[ "$VERSION_CODE" =~ ^[1-9][0-9]*$ ]] && [ "$VERSION_CODE" -gt 18 ] || { echo 'Release code must exceed verified historical code18'; exit 1; }
+          echo "NITIDO_VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+
       - name: Decodează cheia de semnare
-        run: echo "${{ secrets.NITIDO_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/nitido-upload.keystore"
+        env:
+          KS: ${{ secrets.NITIDO_KEYSTORE_BASE64 }}
+        run: |
+          umask 077
+          printf '%s' "$KS" | base64 -d > "$RUNNER_TEMP/nitido-upload.keystore"
+
 
       - name: Sync Capacitor — producție
         env:
@@ -74,12 +100,41 @@ jobs:
           # aceeași parolă ca keystore-ul — așa OWNER adaugă doar 3 secrete.
           NITIDO_KEY_ALIAS: nitido-upload
           NITIDO_KEY_PASSWORD: ${{ secrets.NITIDO_KEYSTORE_PASSWORD }}
-          # versionCode crește automat cu numărul rulării, ca Play să-l accepte mereu.
-          NITIDO_VERSION_CODE: ${{ github.run_number }}
+          NITIDO_VERSION_NAME: ${{ inputs.version_name || '1.0' }}
         run: |
           cd android
           chmod +x ./gradlew
           ./gradlew bundleRelease --no-daemon --stacktrace
+
+      - name: Verify existing upload certificate and every signed bundle entry
+        run: java scripts/MobileVerifyBundle.java android/app/build/outputs/bundle/release/app-release.aab c71f2804154dc17dd1507a939bc7be281e34425f54b2245fc73d6ecd3993b224
+
+      - name: Verify API36 and native16KB artifact packaging
+        run: |
+          curl --fail --silent --show-error --location https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar --output "$RUNNER_TEMP/bundletool.jar"
+          echo "a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29  $RUNNER_TEMP/bundletool.jar" | sha256sum --check --status
+          python3 scripts/mobile-verify-android.py android/app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/bundletool.jar" "$NITIDO_VERSION_CODE"
+
+      - name: Prepare public release receipts
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_internal }}
+        env:
+          RELEASE_EVIDENCE: ${{ inputs.evidence_json }}
+        run: |
+          umask 077
+          printf '%s' "$RELEASE_EVIDENCE" > "$RUNNER_TEMP/mobile-release-evidence.json"
+
+      - name: Gate requested Play track upload
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_internal }}
+        env:
+          EVIDENCE: ${{ runner.temp }}/mobile-release-evidence.json
+          PLAY_TRACK: ${{ inputs.track || 'internal' }}
+        run: |
+          case "$PLAY_TRACK" in
+            internal) PURPOSE=beta ;;
+            production) PURPOSE=public ;;
+            *) echo "Unsupported Play track"; exit 1 ;;
+          esac
+          node scripts/mobile-release-gate.mjs "$EVIDENCE" android "$GITHUB_SHA" "$NITIDO_VERSION_CODE" "$PURPOSE"
 
       - name: Publică .aab-ul ca artefact
         uses: actions/upload-artifact@v4
@@ -97,14 +152,31 @@ jobs:
         run: |
           if [ -n "$SA" ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
 
+      - name: Verify current authenticated Play maximum (temporary edit deleted)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_internal && steps.sa.outputs.present == 'true' }}
+        env:
+          GOOGLE_PLAY_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          EVIDENCE: ${{ runner.temp }}/mobile-release-evidence.json
+        run: |
+          python3 -m pip install --quiet google-auth requests
+          python3 scripts/mobile-play-preflight.py
+
       # Se urcă pe Play DOAR dacă e configurat contul de serviciu. Fără el,
       # robotul tot produce .aab-ul semnat (ca artefact) — util înainte de setup.
-      - name: "Urcă pe Google Play (canal: testare internă)"
-        if: ${{ steps.sa.outputs.present == 'true' }}
+      - name: "Upload selected Google Play track"
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_internal && steps.sa.outputs.present == 'true' }}
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: ro.nitido.app
           releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
-          track: internal
+          track: ${{ inputs.track || 'internal' }}
           status: completed
+
+      - name: Refuse requested upload without current Play credentials
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_internal && steps.sa.outputs.present != 'true' }}
+        run: exit 1
+
+      - name: Remove temporary signing key
+        if: ${{ always() }}
+        run: rm -f "$RUNNER_TEMP/nitido-upload.keystore"

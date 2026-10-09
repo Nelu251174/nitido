@@ -1,5 +1,6 @@
 import {PROVIDER_SCORE_SCHEMA} from './providerScoreSchema';
 import {INCIDENT_SLA_ALERT_SCHEMA} from './incidentSlaSchema';
+import {ACCOUNT_DELETION_SCHEMA} from './accountDeletionSchema';
 import {INCIDENT_RESOLUTION_SCHEMA} from './incidentResolution';
 import {ADMIN_STAFF_SCHEMA} from './adminStaff';
 import {CUSTOMER_OPERATIONS_SCHEMA,INCIDENT_TRIAGE_SCHEMA,EXECUTION_TEMPLATES_SCHEMA,PROVIDER_INVITATIONS_SCHEMA} from './operationsSchema';
@@ -56,6 +57,7 @@ db.pragma("foreign_keys = ON");
 // Exportată separat ca teste (vitest) să poată crea o bază de date in-memory
 // cu aceeași schemă, izolată de fișierul de date reale.
 export const SCHEMA_SQL = `
+${ACCOUNT_DELETION_SCHEMA}
 ${EXECUTION_TEMPLATES_SCHEMA}
 ${PROVIDER_INVITATIONS_SCHEMA}
 ${PROVIDER_SCORE_SCHEMA}

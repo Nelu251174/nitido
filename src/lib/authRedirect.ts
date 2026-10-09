@@ -6,7 +6,7 @@ export function postAuthDestination(next:string|null,role:'client'|'firma'):stri
   const url=new URL(next,'https://nitido.invalid');
   if(url.origin!=='https://nitido.invalid')return fallback;
   const path=url.pathname;
-  if(path===fallback||path.startsWith(fallback+'/')||['/invitatie','/echipa','/colaborari'].includes(path))return path+url.search+url.hash;
+  if(path===fallback||path.startsWith(fallback+'/')||['/invitatie','/echipa','/colaborari','/stergere-cont'].includes(path))return path+url.search+url.hash;
  }catch{}
  return fallback;
 }

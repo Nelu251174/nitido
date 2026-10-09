@@ -1,7 +1,7 @@
 name: NITIDO consolidated upgrade verification
 on:
   push:
-    branches: [feat/nitido-upgrade-consolidation, feat/nitido-crm-checklist-controls, feat/nitido-pro-property-checklists, feat/nitido-internal-operations, codex/nitido-v11-completion, codex/nitido-operational-completion]
+    branches: [feat/nitido-upgrade-consolidation, feat/nitido-crm-checklist-controls, feat/nitido-pro-property-checklists, feat/nitido-internal-operations, codex/nitido-v11-completion, codex/nitido-operational-completion, codex/nitido-store-readiness]
   pull_request:
     branches: [fix/nitido-pro-notification-access, feat/nitido-upgrade-consolidation, feat/nitido-crm-checklist-controls, feat/nitido-pro-property-checklists, feat/nitido-internal-operations, main]
   workflow_dispatch:
@@ -53,3 +53,9 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run typecheck
+      - name: Bundle all mobile platforms without signing or submission
+        env:
+          EXPO_PUBLIC_NITIDO_API_BASE_URL: https://nitido.ro
+          EXPO_PUBLIC_EAS_PROJECT_ID: 3887c4e7-445a-4954-9d04-7c8adc8519f9
+          EXPO_NO_TELEMETRY: '1'
+        run: npx expo export --platform all --output-dir /tmp/nitido-mobile-export

@@ -509,6 +509,7 @@ export default function FirmaPage() {
             ):(
               <p className="mt-3 text-sm text-muted">Profilul tău e gol. Adaugă o descriere, serviciile și programul ca să câștigi încrederea clienților. <button type="button" onClick={openProfileEditor} className="text-ink font-bold underline">Completează profilul firmei</button>.</p>
             )}
+            <Link href="/stergere-cont" className="mt-4 inline-flex text-sm underline">Solicită ștergerea contului</Link>
           </section>
         )}
 

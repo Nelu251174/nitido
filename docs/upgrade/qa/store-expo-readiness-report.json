@@ -1,0 +1,190 @@
+{
+  "scope": "Expo alternative candidate; local synthetic checks, no signed build, store submit, device delivery, deployment or real data",
+  "tests": {
+    "total": 143,
+    "passed": 143,
+    "failed": 0
+  },
+  "typecheck": "passed",
+  "lint": "passed",
+  "expoConfig": "passed",
+  "expoProductionIntrospection": "passed",
+  "doctor": {
+    "passed": 19,
+    "total": 21,
+    "externalNetworkChecksBlocked": 2
+  },
+  "expoWebSmoke": {
+    "passed": true,
+    "scope": "Expo export React Native web with synthetic API mocks; no physical device, backend mutation or external delivery",
+    "checks": [
+      {
+        "name": "Authenticated client deletion needs explicit confirmation; cancel sends nothing",
+        "passed": true
+      },
+      {
+        "name": "Deletion sends only confirmation and shows request pending, not deleted",
+        "passed": true
+      },
+      {
+        "name": "Deletion failure remains retryable without a false success",
+        "passed": true
+      },
+      {
+        "name": "Firm account accepts an idempotent request in review",
+        "passed": true
+      },
+      {
+        "name": "Unauthenticated deletion cannot submit a request",
+        "passed": true
+      },
+      {
+        "name": "Password recovery normalizes email and shows generic API acknowledgment",
+        "passed": true
+      },
+      {
+        "name": "Privacy and terms controls exist with responsive layout",
+        "passed": true
+      }
+    ],
+    "layouts": [
+      {
+        "route": "/delete-account",
+        "width": 360,
+        "scrollWidth": 360,
+        "passed": true
+      },
+      {
+        "route": "/delete-account",
+        "width": 390,
+        "scrollWidth": 390,
+        "passed": true
+      },
+      {
+        "route": "/delete-account",
+        "width": 430,
+        "scrollWidth": 430,
+        "passed": true
+      },
+      {
+        "route": "/delete-account",
+        "width": 768,
+        "scrollWidth": 768,
+        "passed": true
+      },
+      {
+        "route": "/delete-account",
+        "width": 1024,
+        "scrollWidth": 1024,
+        "passed": true
+      },
+      {
+        "route": "/delete-account",
+        "width": 1440,
+        "scrollWidth": 1440,
+        "passed": true
+      },
+      {
+        "route": "/forgot-password",
+        "width": 360,
+        "scrollWidth": 360,
+        "passed": true
+      },
+      {
+        "route": "/forgot-password",
+        "width": 390,
+        "scrollWidth": 390,
+        "passed": true
+      },
+      {
+        "route": "/forgot-password",
+        "width": 430,
+        "scrollWidth": 430,
+        "passed": true
+      },
+      {
+        "route": "/forgot-password",
+        "width": 768,
+        "scrollWidth": 768,
+        "passed": true
+      },
+      {
+        "route": "/forgot-password",
+        "width": 1024,
+        "scrollWidth": 1024,
+        "passed": true
+      },
+      {
+        "route": "/forgot-password",
+        "width": 1440,
+        "scrollWidth": 1440,
+        "passed": true
+      },
+      {
+        "route": "/legal",
+        "width": 360,
+        "scrollWidth": 360,
+        "passed": true
+      },
+      {
+        "route": "/legal",
+        "width": 390,
+        "scrollWidth": 390,
+        "passed": true
+      },
+      {
+        "route": "/legal",
+        "width": 430,
+        "scrollWidth": 430,
+        "passed": true
+      },
+      {
+        "route": "/legal",
+        "width": 768,
+        "scrollWidth": 768,
+        "passed": true
+      },
+      {
+        "route": "/legal",
+        "width": 1024,
+        "scrollWidth": 1024,
+        "passed": true
+      },
+      {
+        "route": "/legal",
+        "width": 1440,
+        "scrollWidth": 1440,
+        "passed": true
+      }
+    ],
+    "pageErrors": []
+  },
+  "npmAudit": {
+    "info": 0,
+    "low": 0,
+    "moderate": 3,
+    "high": 20,
+    "critical": 0,
+    "total": 23
+  },
+  "bundles": [
+    {
+      "platform": "ios",
+      "name": "entry-638e3e59aebb70e9c77b8daee6d7a8f0.hbc",
+      "bytes": 3256511,
+      "sha256": "36718de5d2279339422a67daecd5e88e969ca7c91048c1469980213885b3971b"
+    },
+    {
+      "platform": "android",
+      "name": "entry-ebbc52a51deecb79e5f44adcf0d98242.hbc",
+      "bytes": 3560772,
+      "sha256": "3ed3adf45fa4336f37cba29f469581abe8b5197a8647ca8820767bbff1b7eb2b"
+    },
+    {
+      "platform": "web",
+      "name": "entry-5d374490459c11bae600a26888f35335.js",
+      "bytes": 1822952,
+      "sha256": "16d9c92f2b5597750630529b6de5ddcb4a0dfdef470cd22cb3679c1abdb11fc1"
+    }
+  ]
+}

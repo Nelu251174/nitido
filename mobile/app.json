@@ -17,7 +17,8 @@
       [
         "expo-secure-store",
         {
-          "configureAndroidBackup": true
+          "configureAndroidBackup": true,
+          "faceIDPermission": false
         }
       ],
       [
@@ -31,13 +32,22 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "NITIDO accesează fotografiile numai când alegi să le atașezi unei lucrări."
+          "photosPermission": "NITIDO accesează fotografiile numai când alegi să le atașezi unei lucrări.",
+          "cameraPermission": "NITIDO folosește camera numai când adaugi dovezi foto pentru o lucrare.",
+          "microphonePermission": false
         }
       ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "NITIDO folosește locația numai pentru lucrarea activă și pentru deschiderea traseului."
+          "locationWhenInUsePermission": "NITIDO folosește locația numai pentru lucrarea activă și pentru deschiderea traseului.",
+          "locationAlwaysPermission": false,
+          "locationAlwaysAndWhenInUsePermission": false,
+          "motionUsagePermission": false,
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false,
+          "isAndroidMotionActivityEnabled": false
         }
       ],
       [
@@ -55,13 +65,18 @@
       "icon": "./assets/icon-ios-1024.png",
       "buildNumber": "1",
       "bundleIdentifier": "ro.nitido.app",
+      "infoPlist": { "ITSAppUsesNonExemptEncryption": false },
       "associatedDomains": []
     },
     "android": {
       "package": "ro.nitido.app",
       "versionCode": 1,
       "blockedPermissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon-android-foreground.png",
