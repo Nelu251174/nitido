@@ -1,9 +1,6 @@
 import Link from "next/link";
-import type { Metadata } from "next";
-export const metadata: Metadata = {
-  title: "NITIDO Pro — Operațiuni pentru portofolii",
-  alternates: { canonical: "/nitido-pro" },
-};
+import { publicPageMetadata } from "@/lib/publicSeo";
+export const metadata = publicPageMetadata("/nitido-pro");
 const features = [
   [
     "Lucrări recurente",

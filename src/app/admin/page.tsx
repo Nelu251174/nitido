@@ -268,7 +268,7 @@ export default function AdminPage() {
     );
   }
 
-  if(identity&&identity.role!=='super_admin')return <AdminRoleWorkspace identity={identity}/>;
+  if(identity&&identity.role!=='super_admin')return <div className="admin-role-shell"><AdminRoleWorkspace identity={identity}/></div>;
   return (
     <div className="board-page board-admin"><BoardSidebar role="admin"/>
       <header className="glass sticky top-0 z-20">

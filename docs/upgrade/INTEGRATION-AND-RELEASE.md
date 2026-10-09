@@ -1,43 +1,64 @@
-# Integrare și lansare — candidat consolidat
+# Integrare și lansare — candidat NITIDO operațional
+
+Acesta este runbookul executat de agent prin conexiunile autorizate. Nu transferă utilizatorului comenzile de dezvoltare, migrare, backup sau publicare. Mandatul din conversație autorizează dezvoltarea și publicarea după verificări relevante, cu backup și posibilitate de revenire. Ștergerea datelor reale, cheltuielile noi și schimbările majore în afara brief-ului cer acord separat.
+
+## Sursa și integrarea verificate
+
+Ramura curentă este `codex/nitido-operational-completion`, continuare din PR #86 / `97938ad4f58f7d5a890cae0c1cc7dbd00dceec0f`. Commitul de reconciliere `dd74c22c0853262c63511a1d4a46359b6e474402` are părinții `97938ad` și `2101988542d989b46cb2c091922d16ddce334387`. El păstrează implementarea v1.1, istoria din main și protecțiile pentru fișiere locale; nu reintroduce Pro P0, analytics NEXUS sau endpointuri Stripe vechi. Detaliile sunt în `MAIN-RECONCILIATION.md`.
+
+Reconcilierea de istorie este inclusă în ramura candidatului. **Nu înseamnă integrarea noului cod în `origin/main`**, care la ultima verificare rămâne la `2101988542d989b46cb2c091922d16ddce334387`. Operațiile locale și modificările încă necommituitate nu sunt o livrare remote. Agentul identifică SHA-ul final după commit și validează exact acel arbore în CI înaintea promovării.
+
+Ramura de producție documentată anterior, `fix/windows-area-clear` / `9cbc59357c0a6b0aa29e91cdfb8d69c3de97ff35`, este strămoș al PR #85. Integrarea `59528ff` păstrează `docker-compose.production.yml`. Sursa efectiv instalată azi în Coolify rămâne neverificată; istoricul Git nu o dovedește.
+
+## Module și limite funcționale
+
+Pachetul continuă rolurile interne, regulile foto, KPI și rezoluțiile din PR #85, delegarea CRM/Pro, recurența zilnică și Provider Score în observare din PR #86. Extensiile operaționale sunt documentate în:
+
+- `INCIDENT-SLA-INTERNAL-ALERTS.md`: inbox și escaladări interne, dezactivate implicit până la activarea cronului.
+- `PRO-PORTFOLIO-DASHBOARD.md`: agregări server cu scope operațional/financiar separat, cohorte și calendar Europe/Bucharest; registrul Pro nu este presupus venit sau marjă NITIDO.
+- `ASSESSMENT-OPERATIONAL-QUALIFICATION.md`: pregătire operațională prospectivă, fără backfill. Nu certifică eligibilitatea comercială; conversia exactă pe cereri eligibile rămâne `null`.
+- `RELEASE-PREPARATION.md` și `BACKUP-RESTORE.md`: pregătire offline, backup complet v2 și restaurare izolată, distincte de acceptanța hostului.
+
+Designul cream și fluxurile existente rămân baza. Nu se activează distribuția după Provider Score sau valori comerciale/fiscale neaprobate ca efect secundar al lansării.
 
 ## Puncte de integrare Stripe
 
-Pachetul nu schimbă `payments`, autorizarea/capturarea, webhookurile, Connect, transferurile sau payouturile. Modulele existente rămân `payments.ts`, `authorizationAttempts.ts`, `paymentCancellation.ts`, `paymentConfirmation.ts`, `stripeInbox.ts` și rutele lor. Referințele de plată din fișa clientului sunt numai de citire; costul de procesare din calculul marjei trebuie documentat, nu presupus din suma capturată.
+Pachetul nu schimbă `payments`, autorizarea/capturarea, webhookurile, Connect, transferurile sau payouturile. Modulele existente rămân `payments.ts`, `authorizationAttempts.ts`, `paymentCancellation.ts`, `paymentConfirmation.ts`, `stripeInbox.ts` și rutele lor. Referințele de plată din fișa clientului sunt numai de citire; costul procesării din marjă se documentează, nu se presupune din suma capturată.
 
-Oferta acceptată păstrează propriul snapshot. Motorul administrabil nu recalculează tacit o comandă istorică înainte de plată. Schimbările de etichete, severitate sau termene nu inițiază operațiuni financiare. Testele de plată rulează cu integrări simulate; nu certifică 3DS, webhook, refund sau reconciliere în contul real.
+Oferta acceptată păstrează snapshotul. Motorul administrabil nu recalculează o comandă istorică înainte de plată. Schimbările de etichete, severitate sau termene și rularea SLA nu inițiază operațiuni financiare. Testele locale folosesc integrări simulate; nu certifică 3DS, webhook, refund sau reconciliere în contul real.
 
-Nu copia secrete din producție în sandbox. Nu activa chei live, Connect sau abonament Pro ca efect secundar al acestui upgrade. Regulile comerciale/fiscale și configurarea efectivă se verifică separat, conform amendamentelor brief-ului și `../NITIDO-RELEASE-GATE.md`.
+Agentul păstrează separarea test/live, cheile și conturile existente; nu copiază secrete de producție în sandbox și nu activează abonamente Pro. Regulile comerciale/fiscale și configurarea efectivă se verifică conform brief-ului și `../NITIDO-RELEASE-GATE.md`.
 
-## Pregătirea sandbox-ului
+## Ordinea operării în sandbox
 
-1. Folosește ramura `codex/nitido-v11-completion` și SHA-ul exact al PR-ului. Ea include părinții upgrade-ului; nu înlocui doar un fișier dintr-un pachet intermediar. Confirmă rezultatul CI pe același SHA.
-2. Identifică în Coolify aplicația **sandbox**, volumele ei și versiunea anterioară. Fă o copie coerentă și verifică restaurarea izolată conform `BACKUP-RESTORE.md` înainte de migrare. Backupul producției nu se deduce din cel al sandbox-ului sau invers.
-3. Păstrează separarea test/live și configurarea MFA. Activările deja existente sunt `NITIDO_MANAGED_PRICING_SANDBOX=true` și `NITIDO_MANUAL_OFFERS_SANDBOX=true`, numai împreună cu `NEXT_PUBLIC_SITE_URL=https://sandbox.nitido.ro` și fără secret Stripe live. Nu se înlocuiesc automat variabilele existente.
-4. Rulează migrarea Pro explicită până la revizia 14 conform `PRO-PROPERTY-CHECKLISTS.md`, `INTERNAL-ROLES-PHOTOS-AND-RESOLUTIONS.md` și `PRO-DAILY-RECURRENCE.md`; se păstrează istoricul checklisturilor, regulile foto și lucrările existente. Refuzul tabelelor legacy nu se ocolește cu DROP. Inițializarea Marketplace adaugă schema acestui pachet; noile tabele nu cer copierea datelor clienților în altă bază.
-5. După deploy verifică sănătatea containerului, SHA-ul servit și scenariile din `CONSOLIDATED-QA.md`. Verde/Success la build nu închide acceptanța funcțională.
+1. Agentul confirmă SHA-ul candidatului final, CI pe același SHA, identitatea aplicației sandbox și versiunea instalată. UUID-urile istorice din `RELEASE-PREPARATION.md` sunt numai repere până la reconfirmarea prin Coolify. Nu folosește Compose-ul producției pentru sandbox.
+2. Inventariază baza, volumele, cele trei rădăcini de fișiere și scriitorii activi. Oprește toate procesele care pot modifica DB sau uploadurile. Pregătește backupul v2 și restaurarea izolată conform `BACKUP-RESTORE.md`; păstrează dovezile pe infrastructură protejată. `--quiesced` nu dovedește singur oprirea scriitorilor.
+3. Păstrează configurațiile runtime specifice mediului, MFA și separarea Stripe test/live. Activările existente `NITIDO_MANAGED_PRICING_SANDBOX=true` și `NITIDO_MANUAL_OFFERS_SANDBOX=true` sunt valabile numai cu `NEXT_PUBLIC_SITE_URL=https://sandbox.nitido.ro` și fără secret Stripe live; nu se înlocuiesc automat variabilele existente.
+4. Verifică schema Pro reală înaintea migrării. Dacă există Pro P0/legacy, refuzul migrării v1.1 nu se ocolește prin DROP sau marcarea artificială a versiunii. Este necesară analiza datelor efective și o migrare fără pierdere a istoricului. Dacă schema este v1.1 recunoscută, agentul migrează întâi copia izolată, apoi ținta după verificări, până la revizia 14. Se păstrează checklisturile, regulile foto, lucrările și aprobările existente. Documente: `PRO-PROPERTY-CHECKLISTS.md`, `INTERNAL-ROLES-PHOTOS-AND-RESOLUTIONS.md`, `PRO-DAILY-RECURRENCE.md`.
+5. Inițializarea Marketplace adaugă prospectiv jurnalul pregătirii operaționale și schema SLA, fără a modifica deciziile sau datele istorice. Agentul instalează candidatul numai în aplicația identificată, verifică imaginea/SHA-ul servit, sănătatea containerului și scenariile din `CONSOLIDATED-QA.md`, inclusiv rolurile și noile panouri.
+6. Pentru SLA, activează separat `NITIDO_INCIDENT_SLA_ALERTS_ENABLED=true` și configurează schedulerul autorizat pentru `POST /api/cron/incident-sla`, cu `x-cron-secret` din secretul existent `CRON_SECRET` (minimum 32 de caractere). Nu schimbă termenele configurate și nu inventează o cadență comercială; consemnează programarea tehnică și execuțiile efective. Fără flag, secret și scheduler confirmate, automatizarea rămâne neactivată. Nu există transport extern email/SMS/WhatsApp nou.
+7. Repornește scriitorii existenți în mod controlat, verifică lipsa duplicărilor și consemnează rezultatele. „Success” la build nu închide acceptanța funcțională, iar existența endpointului nu dovedește un cron activ.
 
-Adresele funcționale după publicarea efectivă în sandbox sunt pagina principală, `/admin#performanta`, `/admin#clienti`, `/admin#incidente`, `/admin#catalog` (checklisturi), plus `/pro/proprietati` → fișa proprietății → „Checklisturi pentru această proprietate” și rutele Standard/Express/Pro existente. Aceste căi nu sunt dovada că noul commit este deja publicat.
+Căile de acceptanță includ `/admin#performanta`, `/admin#clienti`, `/admin#incidente`, evaluările și inboxul SLA, `/admin#catalog`, `/pro/dashboard`, `/pro/proprietati` și regulile foto/checklisturile proprietății, plus fluxurile Standard/Express/Pro existente. Aceste adrese nu sunt dovadă de publicare.
 
-## Promovare
+## Promovare și revenire
 
-Se promovează același candidat verificat, păstrând datele și configurațiile specifice mediului. Nu se folosește workflow-ul de deploy de producție pentru a testa branch-ul. `deploy.yml` și ramura lui existentă nu sunt schimbate în acest pachet.
+Agentul promovează același candidat verificat, după reconfirmarea aplicației LIVE, configurației, backupului complet și posibilității de revenire. `deploy.yml` și ținta webhookului generic nu se modifică pentru a testa un branch; un webhook cu țintă necunoscută nu este declanșat. Se păstrează configurațiile specifice mediului și volumul real; main, sandbox și LIVE se raportează separat.
 
-Aprobarea utilizatorului pentru executarea brief-ului există; nu este necesară repetarea ei pentru fiecare corecție. Totuși, nu se marchează drept PASS verificări neefectuate și nu se activează valori comerciale neaprobate. Condițiile tehnice deschise sunt cele din matricea brief-ului și poarta de lansare existentă. Dacă mediul nu poate fi accesat, starea este **neverificat**, nu „publicat cu succes”.
+Rollback-ul obișnuit revine la imaginea anterioară compatibilă, păstrând DB și fișierele actuale. Nu șterge tabelele sau evenimentele și nu suprascrie date noi cu un backup vechi. Dacă restaurarea datelor devine necesară, agentul oprește scriitorii, păstrează mai întâi starea curentă, restaurează într-un spațiu nou și reconciliază scrierile ulterioare înaintea comutării. Compatibilitatea imaginii vechi cu stările create după lansare se verifică efectiv.
+
+Dezactivarea SLA înseamnă flag `false` și oprirea schedulerului acestui endpoint, păstrând alertele, confirmările și auditul. Revenirea codului pentru pregătirea cererilor sau dashboard nu șterge jurnalele, lucrările, costurile sau snapshoturile.
+
+## Probe locale și acces efectiv — 09.10.2026
+
+Simulatorul de release a fost executat local în `/workspace/nitido-release-simulation-20261009`. Raportul `simulation-report.json` are `status=passed`, `remoteCalls=0`, manifest v2 cu toate cele trei rădăcini și migrări Pro 12→13→14 idempotente, păstrând rândurile și snapshoturile sintetice. Planul folosește SHA `97938ad`; instrumentele aveau modificări locale în lucru. Aceasta este dovadă a simulatorului și a recuperării locale, **nu dovadă de backup, migrare sau publicare pe host** și nici certificarea noului SHA final.
+
+GitHub este accesibil. Ultima încercare efectivă către Coolify a primit `CONNECT 403` înainte de autentificare; politica HTTP a mediului rămâne restricționată. Nu există sesiune/token Coolify sau secrete runtime configurate în acest mediu, nici un instrument expus agentului pentru a le configura. Nu se pretinde că autentificarea a fost încercată și respinsă: conexiunea este blocată înaintea ei.
+
+Intervenția utilizatorului, dacă accesul nu poate fi pregătit prin conexiunile existente, se limitează la conectarea/autorizarea securizată: permiterea domeniilor `coolify.nitido.ro`, `sandbox.nitido.ro`, `nitido.ro` și furnizarea prin configurarea mediului a sesiunii/tokenului cu drepturi pentru aplicațiile și volumele relevante. Agentul execută apoi operațiunile tehnice. Nu se solicită parole sau chei în chat/repository.
+
+Nu s-au confirmat backupul bazei reale, sursa instalată, migrarea pe host, un nou deploy sandbox/LIVE sau activarea cronului SLA. Rezultatele locale se consemnează în rapoartele QA; stările remote rămân neverificate până la acces și probe actuale.
 
 ## Mobil
 
-NITIDO folosește aplicația Capacitor existentă. Un update web nu dovedește încărcarea unui build nou în TestFlight sau Google Play. Folosește `../NITIDO-TESTFLIGHT-UPDATE.md` și ghidurile existente pentru App Store/Google Play; înregistrează separat numărul buildului, procesarea, grupul de testare și distribuția. Nu s-a efectuat această distribuție în pachetul curent.
-
-## Acces și handover
-
-Codul, testele, schema, scriptul și documentele sunt în `Nelu251174/nitido`, în ramura candidatului. Ownerul are nevoie de acces verificat la GitHub, Coolify/host, volume/backupuri, DNS, email, analytics și conturile Apple/Google relevante. Nu se pot deduce drepturile dintr-o captură sau din existența unui link. Nu sunt publicate credențiale în documente sau în commit.
-
-În sesiunea de implementare nu a fost disponibil acces operabil la Coolify și parcurgerea sandbox prin browser a fost blocată de politica instrumentului. Acea restricție nu a fost ocolită prin alt client. Nu a fost confirmată disponibilitatea unui nou build în magazine. Aceste limite explică lipsa dovezilor live, dar nu înlocuiesc lista lipsurilor de implementare din `BRIEF-EXECUTION-STATUS.md`.
-
-## Verificarea din 09.10.2026
-
-GitHub este accesibil. `main` rămâne la `2101988542d989b46cb2c091922d16ddce334387`; PR #85 rămâne baza `4c8315148504bc2edd98a5d9b155763db987b339`. Ramura de producție documentată anterior, `fix/windows-area-clear` / `9cbc59357c0a6b0aa29e91cdfb8d69c3de97ff35`, este strămoș al PR #85: `git rev-list --left-right --count` arată `0 37`. Integrarea precedentă `59528ff` păstrează `docker-compose.production.yml`; divergența descrisă în stări Work mai vechi nu mai descrie acest candidat. Sursa efectiv instalată azi rămâne neverificată.
-
-Coolify și domeniile publice NITIDO sunt blocate de politica HTTP a mediului; Coolify răspunde `CONNECT 403` înainte de autentificare. Nu există sesiune Coolify/token configurat în acest mediu. Nu s-a declanșat webhookul GitHub cu țintă necunoscută. Pentru publicare sunt necesare permiterea domeniilor `coolify.nitido.ro`, `sandbox.nitido.ro`, `nitido.ro` și o sesiune sau un token Coolify furnizat prin configurare securizată, cu acces la aplicațiile și volumele relevante. Nu se trimit secrete în chat sau repository.
-
-Rezultatele locale, migrările sintetice și verificările browser sunt în `V11-COMPLETION-QA.md` și `ENVIRONMENT-ACCEPTANCE.md`. Nu s-a executat merge în `main`, deploy sandbox/LIVE, migrare a bazei de pe host sau distribuție mobilă.
+NITIDO folosește aplicația Capacitor existentă. Un update web nu dovedește un build nou în TestFlight sau Google Play. Agentul folosește `../NITIDO-TESTFLIGHT-UPDATE.md` și ghidurile existente pentru App Store/Google Play și consemnează separat numărul buildului, procesarea și distribuția. Această distribuție nu a fost efectuată în sesiunea curentă.

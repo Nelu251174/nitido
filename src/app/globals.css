@@ -53,6 +53,19 @@ html { scroll-behavior: smooth; scroll-padding-top: 76px; }
 .v2-btn-primary { background:var(--nitido-action-color); color:white; }
 .v2-btn-primary:hover { background:var(--nitido-action-hover); }
 .v2-btn-secondary { background:white; color:#111827; border:1px solid #d8d7d0; }
+
+/* Admin panels must shrink inside the viewport; wide tables scroll locally. */
+.admin-role-shell { width:100%; min-width:0; }
+.admin-role-shell > main { width:100%; min-width:0; }
+:is(.admin-role-shell, .board-admin) :is(main > *, .design-panel, .admin-operations-grid > *, .admin-qualification, .admin-incident-triage) { min-width:0; max-width:100%; }
+.board-admin .admin-operations-grid > .design-panel > .overflow-x-auto { width:100%; min-width:0; max-width:100%; }
+:is(.admin-role-shell, .board-admin) :is(.admin-qualification, .admin-incident-triage) :is(form, label, dl > *) { min-width:0; }
+:is(.admin-role-shell, .board-admin) :is(input, select, textarea) { min-width:0; max-width:100%; }
+:is(.admin-role-shell, .board-admin) .admin-service-catalog :is(fieldset, .booking-fields, .booking-fields > label) { min-width:0; max-width:100%; }
+:is(.admin-role-shell, .board-admin) .admin-service-catalog .booking-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
+:is(.admin-role-shell, .board-admin) .v2-btn { min-width:0; max-width:100%; white-space:normal; overflow-wrap:anywhere; text-align:center; }
+:is(.admin-role-shell, .board-admin) .design-panel > .flex { flex-wrap:wrap; }
+:is(.admin-qualification, .admin-incident-triage) { overflow-wrap:anywhere; }
 .v2-eyebrow { font-size:12px; letter-spacing:.08em; text-transform:uppercase; font-weight:700; color:var(--nitido-brand-dark); }
 .v2-h2 { font-size:34px; line-height:1.1; letter-spacing:-.025em; font-weight:700; }
 .v2-shadow { box-shadow:0 18px 40px rgba(16,23,17,.16); }

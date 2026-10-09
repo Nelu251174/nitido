@@ -6,6 +6,13 @@ const nextConfig: NextConfig = {
   // Build lean pentru Docker — copiază doar fișierele necesare la runtime
   // (folosit de Dockerfile-ul din rădăcina proiectului).
   output: "standalone",
+  // The metadata route reads these local fonts at runtime; keep both in Docker.
+  outputFileTracingIncludes: {
+    "/opengraph-image": [
+      "./node_modules/@fontsource/inter/files/inter-latin-700-normal.woff",
+      "./node_modules/@fontsource/inter/files/inter-latin-ext-700-normal.woff",
+    ],
+  },
 
   // Account/session responses must not survive logout in an HTTP cache.
   // Apply to errors as well as successful cookie and bearer responses.

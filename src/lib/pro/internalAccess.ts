@@ -18,6 +18,7 @@ export function internalProAllowed(role: AdminRole, method: 'GET' | 'POST', segm
   if (segments.length > 3) return false;
   if (method === 'GET') {
     if (segments.length === 1 && ['context', 'notifications'].includes(kind)) return true;
+    if (kind === 'dashboard' && segments.length === 1) return true;
     if (kind === 'reports' && id === 'export' && !action) return p.reports;
     if (kind === 'costs' && !id) return p.reports;
     if (kind === 'work-orders') return action ? action === 'credential' && !!id && p.operations : true;

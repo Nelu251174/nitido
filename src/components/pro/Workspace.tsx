@@ -3,6 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
 import PropertyChecklists from "./PropertyChecklists";
+import PortfolioDashboard from "./PortfolioDashboard";
 import Image from "next/image";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { SERVICES, STATUS, money } from "@/lib/pro/shared";
@@ -170,6 +171,7 @@ export default function Workspace({ path }: { path: string[] }) {
     to: "",
     property: "",
     category: "",
+    property_page: "0",
   });
   const [secret, setSecret] = useState("");
   const internal = !!context?.internal_role;
@@ -242,7 +244,10 @@ export default function Workspace({ path }: { path: string[] }) {
           next.rows = (await read("work-orders" + q)).filter(
             (w: Row) => w.property_id === detailId,
           );
-        } else if (["dashboard", "lucrari", "calendar"].includes(section)) {
+        } else if (section === "dashboard") {
+          next.summary = await read("dashboard" + q);
+          next.rows = next.summary.attentionWork;
+        } else if (["lucrari", "calendar"].includes(section)) {
           next.rows = await read("work-orders" + q);
           if (section === "calendar" && (!context.internal_role || context.internal_permissions?.manage)) next.rules = await read("recurring" + q);
         } else if (section === "tichete") next.rows = await read("tickets" + q);
@@ -424,42 +429,7 @@ export default function Workspace({ path }: { path: string[] }) {
               )}
               {section === "dashboard" && org && (
                 <>
-                  <div className="pro-stats">
-                    {[
-                      [
-                        "Proprietăți active",
-                        (data.properties ?? []).filter(
-                          (x: Row) => x.status === "active",
-                        ).length,
-                        "/pro/proprietati",
-                      ],
-                      [
-                        "Lucrări programate",
-                        rows.filter((x) => x.status === "scheduled").length,
-                        "/pro/lucrari",
-                      ],
-                      [
-                        "În desfășurare",
-                        rows.filter((x) => x.status === "in_progress").length,
-                        "/pro/lucrari",
-                      ],
-                      [
-                        "Necesită aprobare",
-                        rows.filter((x) => x.financial_status === "pending")
-                          .length,
-                        "/pro/aprobari",
-                      ],
-                    ].map(([label, n, href]) => (
-                      <Link
-                        className="pro-stat"
-                        href={String(href)}
-                        key={String(label)}
-                      >
-                        <strong>{n}</strong>
-                        <span>{label}</span>
-                      </Link>
-                    ))}
-                  </div>
+                  {data.summary && <PortfolioDashboard report={data.summary} filters={range} properties={props} onChange={next => setRange({ ...next, property_page: next.property_page ?? "0" })} />}
                   <h2>Lucrări de urmărit</h2>
                   {workList(
                     rows

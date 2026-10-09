@@ -1,0 +1,2364 @@
+{
+  "scope": "Local isolated Next production server, synthetic SQLite, real MFA login; no hosting or device acceptance",
+  "started": "2026-10-09T09:12:06.255Z",
+  "checks": [
+    {
+      "name": "operator authenticates through password + TOTP",
+      "passed": true,
+      "details": {
+        "loginStatus": 200,
+        "identityRole": "operator"
+      }
+    },
+    {
+      "name": "operator admin permissions",
+      "passed": true,
+      "details": {
+        "workbench": 200,
+        "incident-alerts": 200,
+        "assessment-qualification?id=18d4762b-e0c0-4324-8831-d9303c9fcb5d": 200,
+        "overview": 401,
+        "execution-templates": 401,
+        "operational-report?from=2026-10-01&to=2026-10-09": 401
+      }
+    },
+    {
+      "name": "operator Pro internal read permissions",
+      "passed": true,
+      "details": {
+        "costStatus": 403,
+        "propertyAddressVisible": true
+      }
+    },
+    {
+      "name": "operator SLA inbox uses nominal roles, current deadlines and versioned acknowledgement",
+      "passed": true,
+      "details": {
+        "managementAckStatus": 403,
+        "providerAckStatus": 200,
+        "nominalActor": "qa-operator",
+        "replayed": true,
+        "caseStatus": "open"
+      }
+    },
+    {
+      "name": "operator verifies prospective plan qualification through real form with version checks",
+      "passed": true,
+      "details": {
+        "initialRevision": 0,
+        "savedRevision": 1,
+        "savedState": "ready",
+        "changedState": "pending",
+        "stale": true,
+        "staleSaveStatus": 409,
+        "nominalActor": "qa-operator",
+        "capacityReserved": false
+      }
+    },
+    {
+      "name": "operator Pro work detail renders its redacted payload",
+      "passed": true,
+      "details": {
+        "checklistVisible": true,
+        "estimateVisible": false
+      }
+    },
+    {
+      "name": "operator consolidated Pro dashboard and CSV preserve scope",
+      "passed": true,
+      "details": {
+        "propertyCount": 2,
+        "financial": false,
+        "period": {
+          "from": "2026-10-09",
+          "to": "2026-10-09",
+          "startsAt": "2026-10-08T21:00:00.000Z",
+          "endsBefore": "2026-10-09T21:00:00.000Z",
+          "timezone": "Europe/Bucharest"
+        },
+        "knownRegistryBani": null,
+        "unknownFinalCosts": null,
+        "statFont": 28,
+        "labelFont": 12,
+        "cardPadding": 24,
+        "cardBackground": "rgb(247, 243, 236)"
+      }
+    },
+    {
+      "name": "manager authenticates through password + TOTP",
+      "passed": true,
+      "details": {
+        "loginStatus": 200,
+        "identityRole": "manager"
+      }
+    },
+    {
+      "name": "manager admin permissions",
+      "passed": true,
+      "details": {
+        "workbench": 200,
+        "incident-alerts": 200,
+        "assessment-qualification?id=18d4762b-e0c0-4324-8831-d9303c9fcb5d": 200,
+        "overview": 401,
+        "execution-templates": 200,
+        "operational-report?from=2026-10-01&to=2026-10-09": 200
+      }
+    },
+    {
+      "name": "manager Pro internal read permissions",
+      "passed": true,
+      "details": {
+        "costStatus": 200,
+        "propertyAddressVisible": true
+      }
+    },
+    {
+      "name": "Manager photo rule editor persists revised synthetic policy",
+      "passed": true,
+      "details": {
+        "arrivalMin": 2,
+        "completionMin": 3
+      }
+    },
+    {
+      "name": "Manager configures Provider Score through real observation-only form on synthetic DB",
+      "passed": true,
+      "details": {
+        "path": "UI /admin → Provider Score; POST/GET /api/admin/provider-score",
+        "mode": "observation",
+        "automaticAllocation": false,
+        "syntheticWeightsOnly": true
+      }
+    },
+    {
+      "name": "manager SLA inbox uses nominal roles, current deadlines and versioned acknowledgement",
+      "passed": true,
+      "details": {
+        "managementAckStatus": 200,
+        "staleVersionStatus": 409,
+        "nominalActor": "qa-manager",
+        "caseRemainsOpen": true
+      }
+    },
+    {
+      "name": "manager verifies prospective plan qualification through real form with version checks",
+      "passed": true,
+      "details": {
+        "blockedRevision": 2,
+        "restoredRevision": 3,
+        "staleSaveStatus": 409,
+        "nominalActor": "qa-manager",
+        "cohortTotal": 1,
+        "cohortReady": 1,
+        "commercialConversion": null
+      }
+    },
+    {
+      "name": "manager Pro work detail renders its redacted payload",
+      "passed": true,
+      "details": {
+        "checklistVisible": true,
+        "estimateVisible": true
+      }
+    },
+    {
+      "name": "manager consolidated Pro dashboard and CSV preserve scope",
+      "passed": true,
+      "details": {
+        "propertyCount": 2,
+        "financial": true,
+        "period": {
+          "from": "2026-10-09",
+          "to": "2026-10-09",
+          "startsAt": "2026-10-08T21:00:00.000Z",
+          "endsBefore": "2026-10-09T21:00:00.000Z",
+          "timezone": "Europe/Bucharest"
+        },
+        "knownRegistryBani": 10000,
+        "unknownFinalCosts": 1,
+        "statFont": 28,
+        "labelFont": 12,
+        "cardPadding": 24,
+        "cardBackground": "rgb(247, 243, 236)"
+      }
+    },
+    {
+      "name": "Manager creates, pauses and resumes daily recurrence through Pro calendar UI",
+      "passed": true,
+      "details": {
+        "path": "UI /pro/calendar → POST /api/pro/recurring → POST /api/pro/recurring/:id (pause/resume) → GET /api/pro/recurring",
+        "frequency": "daily",
+        "pauseActive": 0,
+        "resumeActive": 1,
+        "generatedOccurrences": 0
+      }
+    },
+    {
+      "name": "finance authenticates through password + TOTP",
+      "passed": true,
+      "details": {
+        "loginStatus": 200,
+        "identityRole": "finance"
+      }
+    },
+    {
+      "name": "finance admin permissions",
+      "passed": true,
+      "details": {
+        "workbench": 200,
+        "incident-alerts": 401,
+        "assessment-qualification?id=18d4762b-e0c0-4324-8831-d9303c9fcb5d": 401,
+        "overview": 401,
+        "execution-templates": 401,
+        "operational-report?from=2026-10-01&to=2026-10-09": 200
+      }
+    },
+    {
+      "name": "finance Pro internal read permissions",
+      "passed": true,
+      "details": {
+        "costStatus": 200,
+        "propertyAddressVisible": false
+      }
+    },
+    {
+      "name": "finance Pro work detail renders its redacted payload",
+      "passed": true,
+      "details": {
+        "checklistVisible": false,
+        "estimateVisible": true
+      }
+    },
+    {
+      "name": "finance consolidated Pro dashboard and CSV preserve scope",
+      "passed": true,
+      "details": {
+        "propertyCount": 2,
+        "financial": true,
+        "period": {
+          "from": "2026-10-09",
+          "to": "2026-10-09",
+          "startsAt": "2026-10-08T21:00:00.000Z",
+          "endsBefore": "2026-10-09T21:00:00.000Z",
+          "timezone": "Europe/Bucharest"
+        },
+        "knownRegistryBani": 10000,
+        "unknownFinalCosts": 1,
+        "statFont": 28,
+        "labelFont": 12,
+        "cardPadding": 24,
+        "cardBackground": "rgb(247, 243, 236)"
+      }
+    },
+    {
+      "name": "super_admin authenticates through password + TOTP",
+      "passed": true,
+      "details": {
+        "loginStatus": 200,
+        "identityRole": "super_admin"
+      }
+    },
+    {
+      "name": "super_admin admin permissions",
+      "passed": true,
+      "details": {
+        "workbench": 200,
+        "incident-alerts": 200,
+        "assessment-qualification?id=18d4762b-e0c0-4324-8831-d9303c9fcb5d": 200,
+        "overview": 200,
+        "execution-templates": 200,
+        "operational-report?from=2026-10-01&to=2026-10-09": 200
+      }
+    },
+    {
+      "name": "super_admin Pro internal read permissions",
+      "passed": true,
+      "details": {
+        "costStatus": 200,
+        "propertyAddressVisible": true
+      }
+    },
+    {
+      "name": "super_admin Pro work detail renders its redacted payload",
+      "passed": true,
+      "details": {
+        "checklistVisible": true,
+        "estimateVisible": true
+      }
+    },
+    {
+      "name": "super_admin consolidated Pro dashboard and CSV preserve scope",
+      "passed": true,
+      "details": {
+        "propertyCount": 2,
+        "financial": true,
+        "period": {
+          "from": "2026-10-09",
+          "to": "2026-10-09",
+          "startsAt": "2026-10-08T21:00:00.000Z",
+          "endsBefore": "2026-10-09T21:00:00.000Z",
+          "timezone": "Europe/Bucharest"
+        },
+        "knownRegistryBani": 10000,
+        "unknownFinalCosts": 1,
+        "statFont": 28,
+        "labelFont": 12,
+        "cardPadding": 24,
+        "cardBackground": "rgb(247, 243, 236)"
+      }
+    },
+    {
+      "name": "Scoped Pro viewer cannot see other property, private address or finance",
+      "passed": true,
+      "details": {
+        "propertyCount": 1,
+        "hiddenStatus": 404,
+        "costStatus": 404
+      }
+    },
+    {
+      "name": "viewer consolidated Pro dashboard and CSV preserve scope",
+      "passed": true,
+      "details": {
+        "propertyCount": 1,
+        "financial": false,
+        "period": {
+          "from": "2026-10-09",
+          "to": "2026-10-09",
+          "startsAt": "2026-10-08T21:00:00.000Z",
+          "endsBefore": "2026-10-09T21:00:00.000Z",
+          "timezone": "Europe/Bucharest"
+        },
+        "knownRegistryBani": null,
+        "unknownFinalCosts": null,
+        "statFont": 28,
+        "labelFont": 12,
+        "cardPadding": 24,
+        "cardBackground": "rgb(247, 243, 236)"
+      }
+    },
+    {
+      "name": "owner consolidated Pro dashboard and CSV preserve scope",
+      "passed": true,
+      "details": {
+        "propertyCount": 2,
+        "financial": true,
+        "period": {
+          "from": "2026-10-09",
+          "to": "2026-10-09",
+          "startsAt": "2026-10-08T21:00:00.000Z",
+          "endsBefore": "2026-10-09T21:00:00.000Z",
+          "timezone": "Europe/Bucharest"
+        },
+        "knownRegistryBani": 10000,
+        "unknownFinalCosts": 1,
+        "statFont": 28,
+        "labelFont": 12,
+        "cardPadding": 24,
+        "cardBackground": "rgb(247, 243, 236)"
+      }
+    },
+    {
+      "name": "Pro Owner dashboard never receives internal margin",
+      "passed": true,
+      "details": {
+        "internalMarginVisible": false
+      }
+    }
+  ],
+  "layouts": [
+    {
+      "label": "public",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgba(0, 0, 0, 0)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "public",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgba(0, 0, 0, 0)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "public",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgba(0, 0, 0, 0)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "public",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgba(0, 0, 0, 0)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "public",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgba(0, 0, 0, 0)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "public",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgba(0, 0, 0, 0)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "operator-sla-qualification",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "operator-sla-qualification",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "operator-sla-qualification",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "operator-sla-qualification",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "operator-sla-qualification",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "operator-sla-qualification",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "operator",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "operator",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "operator",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "operator",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "operator",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "operator",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-operator",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-operator",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-operator",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-operator",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-operator",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-operator",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-operator",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 588
+        },
+        {
+          "tag": "THEAD",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 588
+        },
+        {
+          "tag": "TR",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 588
+        },
+        {
+          "tag": "TH",
+          "text": "Aprobări în așteptare",
+          "right": 424
+        },
+        {
+          "tag": "TH",
+          "text": "Recurente",
+          "right": 512
+        },
+        {
+          "tag": "TH",
+          "text": "Apariții de verificat",
+          "right": 588
+        },
+        {
+          "tag": "TBODY",
+          "text": "Proprietate interzisăActiv00000Proprietate permisăActiv21000",
+          "right": 588
+        },
+        {
+          "tag": "TR",
+          "text": "Proprietate interzisăActiv00000",
+          "right": 588
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-operator",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 588
+        },
+        {
+          "tag": "THEAD",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 588
+        },
+        {
+          "tag": "TR",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 588
+        },
+        {
+          "tag": "TH",
+          "text": "Aprobări în așteptare",
+          "right": 424
+        },
+        {
+          "tag": "TH",
+          "text": "Recurente",
+          "right": 512
+        },
+        {
+          "tag": "TH",
+          "text": "Apariții de verificat",
+          "right": 588
+        },
+        {
+          "tag": "TBODY",
+          "text": "Proprietate interzisăActiv00000Proprietate permisăActiv21000",
+          "right": 588
+        },
+        {
+          "tag": "TR",
+          "text": "Proprietate interzisăActiv00000",
+          "right": 588
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-operator",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 588
+        },
+        {
+          "tag": "THEAD",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 588
+        },
+        {
+          "tag": "TR",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 588
+        },
+        {
+          "tag": "TH",
+          "text": "Recurente",
+          "right": 512
+        },
+        {
+          "tag": "TH",
+          "text": "Apariții de verificat",
+          "right": 588
+        },
+        {
+          "tag": "TBODY",
+          "text": "Proprietate interzisăActiv00000Proprietate permisăActiv21000",
+          "right": 588
+        },
+        {
+          "tag": "TR",
+          "text": "Proprietate interzisăActiv00000",
+          "right": 588
+        },
+        {
+          "tag": "TD",
+          "text": "0",
+          "right": 512
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-operator",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-operator",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-operator",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "manager-sla-qualification",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "manager-sla-qualification",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "manager-sla-qualification",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "manager-sla-qualification",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "manager-sla-qualification",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "manager-sla-qualification",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "manager",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "manager",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "manager",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "manager",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "manager",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "manager",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-manager",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-manager",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-manager",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-manager",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-manager",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-manager",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-manager",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "THEAD",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TR",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TH",
+          "text": "Aprobări în așteptare",
+          "right": 424
+        },
+        {
+          "tag": "TH",
+          "text": "Recurente",
+          "right": 512
+        },
+        {
+          "tag": "TH",
+          "text": "Apariții de verificat",
+          "right": 588
+        },
+        {
+          "tag": "TH",
+          "text": "Cost în registru",
+          "right": 680
+        },
+        {
+          "tag": "TBODY",
+          "text": "Proprietate interzisăActiv0000090,00 RONProprietate permisăA",
+          "right": 680
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-manager",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "THEAD",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TR",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TH",
+          "text": "Aprobări în așteptare",
+          "right": 424
+        },
+        {
+          "tag": "TH",
+          "text": "Recurente",
+          "right": 512
+        },
+        {
+          "tag": "TH",
+          "text": "Apariții de verificat",
+          "right": 588
+        },
+        {
+          "tag": "TH",
+          "text": "Cost în registru",
+          "right": 680
+        },
+        {
+          "tag": "TBODY",
+          "text": "Proprietate interzisăActiv0000090,00 RONProprietate permisăA",
+          "right": 680
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-manager",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "THEAD",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TR",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TH",
+          "text": "Recurente",
+          "right": 512
+        },
+        {
+          "tag": "TH",
+          "text": "Apariții de verificat",
+          "right": 588
+        },
+        {
+          "tag": "TH",
+          "text": "Cost în registru",
+          "right": 680
+        },
+        {
+          "tag": "TBODY",
+          "text": "Proprietate interzisăActiv0000090,00 RONProprietate permisăA",
+          "right": 680
+        },
+        {
+          "tag": "TR",
+          "text": "Proprietate interzisăActiv0000090,00 RON",
+          "right": 680
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-manager",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-manager",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-manager",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "finance",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "finance",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "finance",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "finance",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "finance",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "finance",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-finance",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-finance",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-finance",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-finance",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-finance",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-finance",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-finance",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "THEAD",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TR",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TH",
+          "text": "Aprobări în așteptare",
+          "right": 424
+        },
+        {
+          "tag": "TH",
+          "text": "Recurente",
+          "right": 512
+        },
+        {
+          "tag": "TH",
+          "text": "Apariții de verificat",
+          "right": 588
+        },
+        {
+          "tag": "TH",
+          "text": "Cost în registru",
+          "right": 680
+        },
+        {
+          "tag": "TBODY",
+          "text": "Proprietate interzisăActiv0000090,00 RONProprietate permisăA",
+          "right": 680
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-finance",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "THEAD",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TR",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TH",
+          "text": "Aprobări în așteptare",
+          "right": 424
+        },
+        {
+          "tag": "TH",
+          "text": "Recurente",
+          "right": 512
+        },
+        {
+          "tag": "TH",
+          "text": "Apariții de verificat",
+          "right": 588
+        },
+        {
+          "tag": "TH",
+          "text": "Cost în registru",
+          "right": 680
+        },
+        {
+          "tag": "TBODY",
+          "text": "Proprietate interzisăActiv0000090,00 RONProprietate permisăA",
+          "right": 680
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-finance",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "THEAD",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TR",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TH",
+          "text": "Recurente",
+          "right": 512
+        },
+        {
+          "tag": "TH",
+          "text": "Apariții de verificat",
+          "right": 588
+        },
+        {
+          "tag": "TH",
+          "text": "Cost în registru",
+          "right": 680
+        },
+        {
+          "tag": "TBODY",
+          "text": "Proprietate interzisăActiv0000090,00 RONProprietate permisăA",
+          "right": 680
+        },
+        {
+          "tag": "TR",
+          "text": "Proprietate interzisăActiv0000090,00 RON",
+          "right": 680
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-finance",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-finance",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-finance",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "super_admin",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "LucrareProgramareStareTotalDetaliiConstanțaAdresă privată si",
+          "right": 615
+        },
+        {
+          "tag": "THEAD",
+          "text": "LucrareProgramareStareTotalDetalii",
+          "right": 615
+        },
+        {
+          "tag": "TR",
+          "text": "LucrareProgramareStareTotalDetalii",
+          "right": 615
+        },
+        {
+          "tag": "TH",
+          "text": "Stare",
+          "right": 397
+        },
+        {
+          "tag": "TH",
+          "text": "Total",
+          "right": 505
+        },
+        {
+          "tag": "TH",
+          "text": "Detalii",
+          "right": 615
+        },
+        {
+          "tag": "TBODY",
+          "text": "ConstanțaAdresă privată sinteticăCât mai curândFinalizată500",
+          "right": 615
+        },
+        {
+          "tag": "TR",
+          "text": "ConstanțaAdresă privată sinteticăCât mai curândFinalizată500",
+          "right": 615
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "super_admin",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "LucrareProgramareStareTotalDetaliiConstanțaAdresă privată si",
+          "right": 615
+        },
+        {
+          "tag": "THEAD",
+          "text": "LucrareProgramareStareTotalDetalii",
+          "right": 615
+        },
+        {
+          "tag": "TR",
+          "text": "LucrareProgramareStareTotalDetalii",
+          "right": 615
+        },
+        {
+          "tag": "TH",
+          "text": "Stare",
+          "right": 397
+        },
+        {
+          "tag": "TH",
+          "text": "Total",
+          "right": 505
+        },
+        {
+          "tag": "TH",
+          "text": "Detalii",
+          "right": 615
+        },
+        {
+          "tag": "TBODY",
+          "text": "ConstanțaAdresă privată sinteticăCât mai curândFinalizată500",
+          "right": 615
+        },
+        {
+          "tag": "TR",
+          "text": "ConstanțaAdresă privată sinteticăCât mai curândFinalizată500",
+          "right": 615
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "super_admin",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "LucrareProgramareStareTotalDetaliiConstanțaAdresă privată si",
+          "right": 615
+        },
+        {
+          "tag": "THEAD",
+          "text": "LucrareProgramareStareTotalDetalii",
+          "right": 615
+        },
+        {
+          "tag": "TR",
+          "text": "LucrareProgramareStareTotalDetalii",
+          "right": 615
+        },
+        {
+          "tag": "TH",
+          "text": "Total",
+          "right": 505
+        },
+        {
+          "tag": "TH",
+          "text": "Detalii",
+          "right": 615
+        },
+        {
+          "tag": "TBODY",
+          "text": "ConstanțaAdresă privată sinteticăCât mai curândFinalizată500",
+          "right": 615
+        },
+        {
+          "tag": "TR",
+          "text": "ConstanțaAdresă privată sinteticăCât mai curândFinalizată500",
+          "right": 615
+        },
+        {
+          "tag": "TD",
+          "text": "500,00 RON",
+          "right": 505
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "super_admin",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "LucrareProgramareStareTotalDetaliiConstanțaAdresă privată si",
+          "right": 857
+        },
+        {
+          "tag": "THEAD",
+          "text": "LucrareProgramareStareTotalDetalii",
+          "right": 857
+        },
+        {
+          "tag": "TR",
+          "text": "LucrareProgramareStareTotalDetalii",
+          "right": 857
+        },
+        {
+          "tag": "TH",
+          "text": "Detalii",
+          "right": 857
+        },
+        {
+          "tag": "TBODY",
+          "text": "ConstanțaAdresă privată sinteticăCât mai curândFinalizată500",
+          "right": 857
+        },
+        {
+          "tag": "TR",
+          "text": "ConstanțaAdresă privată sinteticăCât mai curândFinalizată500",
+          "right": 857
+        },
+        {
+          "tag": "TD",
+          "text": "Vezi ",
+          "right": 857
+        },
+        {
+          "tag": "BUTTON",
+          "text": "Vezi ",
+          "right": 841
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "super_admin",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "super_admin",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-super_admin",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-super_admin",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-super_admin",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-super_admin",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-super_admin",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-super_admin",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-super_admin",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "THEAD",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TR",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TH",
+          "text": "Aprobări în așteptare",
+          "right": 424
+        },
+        {
+          "tag": "TH",
+          "text": "Recurente",
+          "right": 512
+        },
+        {
+          "tag": "TH",
+          "text": "Apariții de verificat",
+          "right": 588
+        },
+        {
+          "tag": "TH",
+          "text": "Cost în registru",
+          "right": 680
+        },
+        {
+          "tag": "TBODY",
+          "text": "Proprietate interzisăActiv0000090,00 RONProprietate permisăA",
+          "right": 680
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-super_admin",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "THEAD",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TR",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TH",
+          "text": "Aprobări în așteptare",
+          "right": 424
+        },
+        {
+          "tag": "TH",
+          "text": "Recurente",
+          "right": 512
+        },
+        {
+          "tag": "TH",
+          "text": "Apariții de verificat",
+          "right": 588
+        },
+        {
+          "tag": "TH",
+          "text": "Cost în registru",
+          "right": 680
+        },
+        {
+          "tag": "TBODY",
+          "text": "Proprietate interzisăActiv0000090,00 RONProprietate permisăA",
+          "right": 680
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-super_admin",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "THEAD",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TR",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TH",
+          "text": "Recurente",
+          "right": 512
+        },
+        {
+          "tag": "TH",
+          "text": "Apariții de verificat",
+          "right": 588
+        },
+        {
+          "tag": "TH",
+          "text": "Cost în registru",
+          "right": 680
+        },
+        {
+          "tag": "TBODY",
+          "text": "Proprietate interzisăActiv0000090,00 RONProprietate permisăA",
+          "right": 680
+        },
+        {
+          "tag": "TR",
+          "text": "Proprietate interzisăActiv0000090,00 RON",
+          "right": 680
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-super_admin",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-super_admin",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-super_admin",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-viewer",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-viewer",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-viewer",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-viewer",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-viewer",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "pro-viewer",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-viewer",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 588
+        },
+        {
+          "tag": "THEAD",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 588
+        },
+        {
+          "tag": "TR",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 588
+        },
+        {
+          "tag": "TH",
+          "text": "Aprobări în așteptare",
+          "right": 424
+        },
+        {
+          "tag": "TH",
+          "text": "Recurente",
+          "right": 512
+        },
+        {
+          "tag": "TH",
+          "text": "Apariții de verificat",
+          "right": 588
+        },
+        {
+          "tag": "TBODY",
+          "text": "Proprietate permisăActiv21000",
+          "right": 588
+        },
+        {
+          "tag": "TR",
+          "text": "Proprietate permisăActiv21000",
+          "right": 588
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-viewer",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 588
+        },
+        {
+          "tag": "THEAD",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 588
+        },
+        {
+          "tag": "TR",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 588
+        },
+        {
+          "tag": "TH",
+          "text": "Aprobări în așteptare",
+          "right": 424
+        },
+        {
+          "tag": "TH",
+          "text": "Recurente",
+          "right": 512
+        },
+        {
+          "tag": "TH",
+          "text": "Apariții de verificat",
+          "right": 588
+        },
+        {
+          "tag": "TBODY",
+          "text": "Proprietate permisăActiv21000",
+          "right": 588
+        },
+        {
+          "tag": "TR",
+          "text": "Proprietate permisăActiv21000",
+          "right": 588
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-viewer",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 588
+        },
+        {
+          "tag": "THEAD",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 588
+        },
+        {
+          "tag": "TR",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 588
+        },
+        {
+          "tag": "TH",
+          "text": "Recurente",
+          "right": 512
+        },
+        {
+          "tag": "TH",
+          "text": "Apariții de verificat",
+          "right": 588
+        },
+        {
+          "tag": "TBODY",
+          "text": "Proprietate permisăActiv21000",
+          "right": 588
+        },
+        {
+          "tag": "TR",
+          "text": "Proprietate permisăActiv21000",
+          "right": 588
+        },
+        {
+          "tag": "TD",
+          "text": "0",
+          "right": 512
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-viewer",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-viewer",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-viewer",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-owner",
+      "width": 360,
+      "scrollWidth": 360,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "THEAD",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TR",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TH",
+          "text": "Aprobări în așteptare",
+          "right": 424
+        },
+        {
+          "tag": "TH",
+          "text": "Recurente",
+          "right": 512
+        },
+        {
+          "tag": "TH",
+          "text": "Apariții de verificat",
+          "right": 588
+        },
+        {
+          "tag": "TH",
+          "text": "Cost în registru",
+          "right": 680
+        },
+        {
+          "tag": "TBODY",
+          "text": "Proprietate interzisăActiv0000090,00 RONProprietate permisăA",
+          "right": 680
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-owner",
+      "width": 390,
+      "scrollWidth": 390,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "THEAD",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TR",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TH",
+          "text": "Aprobări în așteptare",
+          "right": 424
+        },
+        {
+          "tag": "TH",
+          "text": "Recurente",
+          "right": 512
+        },
+        {
+          "tag": "TH",
+          "text": "Apariții de verificat",
+          "right": 588
+        },
+        {
+          "tag": "TH",
+          "text": "Cost în registru",
+          "right": 680
+        },
+        {
+          "tag": "TBODY",
+          "text": "Proprietate interzisăActiv0000090,00 RONProprietate permisăA",
+          "right": 680
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-owner",
+      "width": 430,
+      "scrollWidth": 430,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [
+        {
+          "tag": "TABLE",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "THEAD",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TR",
+          "text": "ProprietateStareLucrăriFinalizateAprobări în așteptareRecure",
+          "right": 680
+        },
+        {
+          "tag": "TH",
+          "text": "Recurente",
+          "right": 512
+        },
+        {
+          "tag": "TH",
+          "text": "Apariții de verificat",
+          "right": 588
+        },
+        {
+          "tag": "TH",
+          "text": "Cost în registru",
+          "right": 680
+        },
+        {
+          "tag": "TBODY",
+          "text": "Proprietate interzisăActiv0000090,00 RONProprietate permisăA",
+          "right": 680
+        },
+        {
+          "tag": "TR",
+          "text": "Proprietate interzisăActiv0000090,00 RON",
+          "right": 680
+        }
+      ],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-owner",
+      "width": 768,
+      "scrollWidth": 753,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-owner",
+      "width": 1024,
+      "scrollWidth": 1009,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    },
+    {
+      "label": "dashboard-owner",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "mainBackground": "rgb(247, 243, 236)",
+      "offenders": [],
+      "uncontainedOverflowCount": 0,
+      "uncontainedOffenders": [],
+      "passed": true
+    }
+  ],
+  "pageErrors": [],
+  "developmentRetries": [],
+  "buildId": "OqRZN5ykbLZwD0UQ0Rxqn",
+  "migrations": [
+    11,
+    12,
+    13,
+    14
+  ],
+  "finished": "2026-10-09T09:12:58.676Z",
+  "passed": true
+}

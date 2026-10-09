@@ -26,7 +26,7 @@ export const PUBLIC_SEO_PAGES = {
     "description": "Află cum se calculează prețul curățeniei în funcție de spațiu și suprafață. Verifică estimarea și suma afișată înainte de rezervare."
   },
   "/incredere": {
-    "title": "Înceedere și verificarea firmelor",
+    "title": "Încredere și verificarea firmelor",
     "description": "Cum funcționează verificarea firmelor, recenziile asociate lucrărilor și măsurile de încredere din platforma NITIDO."
   },
   "/siguranta": {
@@ -43,7 +43,7 @@ export const PUBLIC_SEO_PAGES = {
   },
   "/contact": {
     "title": "Contact și suport",
-    "description": "Contactează NITIDO pentru întrebări despre cont, rezervări și servicii de curățenie. Suport telefonic, email și asistent AI."
+    "description": "Contactează NITIDO pentru întrebări despre cont, rezervări și servicii de curățenie. Suport prin email și asistent AI."
   },
   "/cariere": {
     "title": "Cariere la NITIDO",
@@ -62,16 +62,39 @@ export const PUBLIC_SEO_PAGES = {
     "description": "Consultă informațiile despre cookie-urile folosite pentru autentificare și funcționarea platformei NITIDO."
   },
   "/nitido-pro": {
-    "title": "NITIDO Pro pentru proprietăți",
+    "title": "NITIDO Pro — Operațiuni pentru portofolii",
     "description": "Program pilot pentru operațiuni recurente pe portofolii de proprietăți în Constanța, Mamaia și Mamaia-Sat."
   },
-  "/parteneri-pro": {
+  "/nitido-pro/aplica": {
+    "title": "Evaluarea portofoliului NITIDO Pro",
+    "description": "Descrie proprietățile, zonele și serviciile recurente necesare pentru evaluarea eligibilității portofoliului în programul pilot NITIDO Pro."
+  },
+  "/nitido-pro/parteneri": {
     "title": "Partener NITIDO Pro",
     "description": "Aplică pentru rețeaua de echipe care livrează lucrări recurente documentate în programul pilot NITIDO Pro."
   }
 } as const;
 
 export function publicPageMetadata(path: keyof typeof PUBLIC_SEO_PAGES): Metadata {
- const {title,description}=PUBLIC_SEO_PAGES[path];
- return {title,description,alternates:{canonical:path},openGraph:{title,description,url:path,type:"website",locale:"ro_RO",siteName:"NITIDO.RO"},twitter:{card:"summary_large_image",title,description}};
+  const { title, description } = PUBLIC_SEO_PAGES[path];
+  return {
+    title,
+    description,
+    alternates: { canonical: path },
+    openGraph: {
+      title,
+      description,
+      url: path,
+      type: "website",
+      locale: "ro_RO",
+      siteName: "NITIDO.RO",
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "NITIDO.RO — Servicii de curățenie în România" }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ["/opengraph-image"],
+    },
+  };
 }

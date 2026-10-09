@@ -1,0 +1,70 @@
+{
+  "scope": "Local isolated and synthetic; no main merge, host backup or deployment",
+  "web": {
+    "utc": {
+      "numTotalTests": 1743,
+      "numPassedTests": 1743,
+      "numFailedTests": 0,
+      "success": true,
+      "files": 160
+    },
+    "bucharest": {
+      "numTotalTests": 1743,
+      "numPassedTests": 1743,
+      "numFailedTests": 0,
+      "success": true,
+      "files": 160
+    }
+  },
+  "node": {
+    "passed": 44,
+    "failed": 0
+  },
+  "mobile": {
+    "passed": 122,
+    "failed": 0,
+    "files": 13,
+    "typecheck": true
+  },
+  "build": {
+    "compiler": "webpack",
+    "exitCode": 0,
+    "pages": 148,
+    "buildId": "OqRZN5ykbLZwD0UQ0Rxqn",
+    "fontFilesIncluded": true
+  },
+  "eslint": {
+    "files": 39,
+    "warnings": 0,
+    "errors": 0
+  },
+  "browser": {
+    "passed": true,
+    "checks": 31,
+    "layouts": 108,
+    "pageErrors": 0,
+    "buildId": "OqRZN5ykbLZwD0UQ0Rxqn"
+  },
+  "publicHttp": {
+    "proPublicTrue": 8,
+    "proPublicFalseSeparateBuild": 5,
+    "opengraphDimensions": [
+      1200,
+      630
+    ],
+    "passed": true
+  },
+  "docker": {
+    "passed": true,
+    "imageId": "sha256:9e9aac72b38731c8c9db8a5473506a0cfbba99b6829842ecf50d9abaf794a74c",
+    "runtimeUid": 1001,
+    "nativeSqlite": true,
+    "opengraphDimensions": [
+      1200,
+      630
+    ],
+    "recoverySimulation": true,
+    "externalNetwork": false,
+    "helperTestsNode22Passed": 9
+  }
+}

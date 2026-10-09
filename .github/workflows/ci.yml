@@ -29,7 +29,7 @@ jobs:
       - name: Teste (vitest)
         run: npx vitest run
       - name: Probă izolată backup și restaurare
-        run: node --test scripts/recovery.test.mjs
+        run: node --test scripts/recovery.test.mjs scripts/release-preparation.test.mjs
       - name: Verifică executabilul de recurență
         run: node --test scripts/recurring-runner.test.mjs
       - name: Verifică poarta de lansare și preflight staging

@@ -1,4 +1,5 @@
 import {PROVIDER_SCORE_SCHEMA} from './providerScoreSchema';
+import {INCIDENT_SLA_ALERT_SCHEMA} from './incidentSlaSchema';
 import {INCIDENT_RESOLUTION_SCHEMA} from './incidentResolution';
 import {ADMIN_STAFF_SCHEMA} from './adminStaff';
 import {CUSTOMER_OPERATIONS_SCHEMA,INCIDENT_TRIAGE_SCHEMA,EXECUTION_TEMPLATES_SCHEMA,PROVIDER_INVITATIONS_SCHEMA} from './operationsSchema';
@@ -482,6 +483,7 @@ export function initializeDatabase(db: Database.Database): void {
   CREATE INDEX IF NOT EXISTS reschedule_authorization_cleanup ON reschedule_authorizations(cleanup_status,retry_after_ms);`);
   db.exec(VISIT_CARE_SCHEMA);
   db.exec(INCIDENT_TRIAGE_SCHEMA);
+  db.exec(INCIDENT_SLA_ALERT_SCHEMA);
   db.exec(INCIDENT_RESOLUTION_SCHEMA);
   db.exec(CUSTOMER_OPERATIONS_SCHEMA);
   db.exec(JOB_NAVIGATION_SCHEMA);
@@ -612,11 +614,15 @@ db.exec(JOB_ACTUAL_COSTS_SCHEMA);
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_ratings_one_per_job ON ratings(job_id)");
 
   // Seed ESTIMATOR LIVE (opțiunile implicite) — doar dacă tabelul e gol.
-  if ((db.prepare("SELECT COUNT(*) c FROM estimator_options").get() as { c: number }).c === 0) {
-    const seedEstimator = db.prepare("INSERT INTO estimator_options (key, label, enabled, sort_order) VALUES (?, ?, 1, ?)");
-    ([["apartament", "Apartament"], ["casa", "Casă / Vilă"], ["birou", "Birou"], ["altul", "Altul"]] as const)
-      .forEach(([key, label], i) => seedEstimator.run(key, label, i));
-  }
+  // Build workers share a fresh database: lock before checking the seed state.
+  // Preserve administrator configuration, including a partial option list.
+  db.transaction(() => {
+    if ((db.prepare("SELECT COUNT(*) c FROM estimator_options").get() as { c: number }).c === 0) {
+      const seedEstimator = db.prepare("INSERT INTO estimator_options (key, label, enabled, sort_order) VALUES (?, ?, 1, ?)");
+      ([["apartament", "Apartament"], ["casa", "Casă / Vilă"], ["birou", "Birou"], ["altul", "Altul"]] as const)
+        .forEach(([key, label], i) => seedEstimator.run(key, label, i));
+    }
+  }).immediate();
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_client_request ON jobs(client_id, client_request_id) WHERE client_request_id IS NOT NULL");
 
 }

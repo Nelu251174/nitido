@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getAdminIdentity } from "@/lib/adminAuth";
 import type { AdminRole } from "@/lib/adminRolesShared";
 import { internalProAllowed, internalProPermissions, internalProView } from "@/lib/pro/internalAccess";
+import { portfolioReport } from "@/lib/pro/portfolioReport";
 import { hasTrustedMutationOrigin, constantTimeEqual } from "@/lib/security";
 import { emailIsVerified } from "@/lib/emailVerification";
 import { emailConfigured, sendEmail } from "@/lib/email";
@@ -86,7 +87,9 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       to: req.nextUrl.searchParams.get("to") ?? "",
       property: req.nextUrl.searchParams.get("property") ?? "",
       category: req.nextUrl.searchParams.get("category") ?? "",
+      property_page: req.nextUrl.searchParams.get("property_page") ?? "",
     };
+    if (kind === "dashboard" && !id) return respond(portfolioReport(db, p, org, filters));
     if (kind === "context")
       return respond({
         organizations: pro.listOrganizations(db, p),

@@ -9,6 +9,7 @@ import {
 import { CHECKLISTS, SERVICES } from "./shared";
 import { hostLocalInstant } from "../hostScheduleShared";
 import {bucharestDateKey,bookingDateKey} from "../scheduling";
+import { proReportPeriod, proReportTimestamp } from "./reportPeriod";
 export type Principal = { id: string; admin?: boolean };
 export type Role =
   "owner" | "manager" | "approver" | "viewer" | "contact" | "operator";
@@ -1097,20 +1098,21 @@ export function collection(
   }
   if (kind === "costs") {
     requireRole(db, p, orgId, ["owner", "manager", "operator"]);
-    for (const d of [filters.from, filters.to])
-      if (d && (!/^\d{4}-\d{2}-\d{2}$/.test(d) || bookingDateKey(d) !== d)) fail("Perioadă invalidă.");
-    if(filters.from && filters.to && filters.from > filters.to) fail("Perioadă inversată.");
+    let period;
+    try { period = proReportPeriod(filters.from, filters.to); }
+    catch (e) { fail(e instanceof Error ? e.message : "Perioadă invalidă."); }
+    const costTime = proReportTimestamp('c.created_at');
     const rows =
       db
         .prepare(
-          "SELECT c.*,p.name property_name FROM pro_cost_entries c LEFT JOIN pro_properties p ON p.id=c.property_id WHERE c.organization_id=? AND (?='' OR substr(c.created_at,1,10)>=?) AND (?='' OR substr(c.created_at,1,10)<=?) AND (?='' OR c.property_id=?) AND (?='' OR c.category=?) ORDER BY c.created_at DESC,c.id DESC",
+          `SELECT c.*,p.name property_name FROM pro_cost_entries c LEFT JOIN pro_properties p ON p.id=c.property_id WHERE c.organization_id=? AND (? IS NULL OR ${costTime}>=julianday(?)) AND (? IS NULL OR ${costTime}<julianday(?)) AND (?='' OR c.property_id=?) AND (?='' OR c.category=?) ORDER BY c.created_at DESC,c.id DESC`,
         )
         .iterate(
           orgId,
-          filters.from ?? "",
-          filters.from ?? "",
-          filters.to ?? "",
-          filters.to ?? "",
+          period.startsAt,
+          period.startsAt,
+          period.endsBefore,
+          period.endsBefore,
           filters.property ?? "",
           filters.property ?? "",
           filters.category ?? "",

@@ -19,6 +19,29 @@ function legacyDatabase() {
 }
 
 describe('shared database initialization', () => {
+  it('rolls back the whole default option seed when one insertion fails', () => {
+    const db = new Database(':memory:');
+    try {
+      initializeDatabase(db);
+      db.exec("DELETE FROM estimator_options; CREATE TRIGGER refuse_option BEFORE INSERT ON estimator_options WHEN NEW.key='birou' BEGIN SELECT RAISE(ABORT,'synthetic seed failure'); END;");
+      expect(() => initializeDatabase(db)).toThrow('synthetic seed failure');
+      expect(db.prepare('SELECT COUNT(*) n FROM estimator_options').get()).toEqual({n:0});
+      db.exec('DROP TRIGGER refuse_option');
+      initializeDatabase(db);
+      expect(db.prepare('SELECT COUNT(*) n FROM estimator_options').get()).toEqual({n:4});
+    } finally { db.close(); }
+  });
+
+  it('preserves a partial administrator option list instead of reseeding it', () => {
+    const db = new Database(':memory:');
+    try {
+      initializeDatabase(db);
+      db.exec("DELETE FROM estimator_options WHERE key<>'casa'; UPDATE estimator_options SET label='Locuință personalizată',enabled=0,sort_order=91;");
+      initializeDatabase(db);
+      expect(db.prepare('SELECT * FROM estimator_options').all()).toEqual([{key:'casa',label:'Locuință personalizată',enabled:0,sort_order:91}]);
+    } finally { db.close(); }
+  });
+
   it('upgrades the legacy occurrence key without losing visits or published prices', () => {
     const db = legacyDatabase();
     try {
