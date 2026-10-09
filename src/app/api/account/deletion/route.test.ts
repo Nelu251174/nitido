@@ -1,0 +1,23 @@
+import {beforeEach,afterEach,it,expect,vi} from 'vitest';
+import Database from 'better-sqlite3';
+import {NextRequest} from 'next/server';
+import {initializeDatabase} from '@/lib/db';
+const state=vi.hoisted(()=>({db:null as unknown as Database.Database,user:'c' as string|null,rate:true}));
+vi.mock('@/lib/db',async original=>({...await original<typeof import('@/lib/db')>(),get db(){return state.db;}}));
+vi.mock('@/lib/auth',()=>({getCurrentUser:async()=>state.user?{id:state.user}:null}));
+vi.mock('@/lib/security',async original=>({...await original<typeof import('@/lib/security')>(),consumeRateLimit:()=>state.rate}));
+import {GET,POST} from './route';
+const send=(body:unknown={confirmation:'DELETE_ACCOUNT'},headers:Record<string,string>={origin:'https://nitido.ro'})=>POST(new NextRequest('https://nitido.ro/api/account/deletion',{method:'POST',headers,body:typeof body==='string'?body:JSON.stringify(body)}));
+const read=()=>GET(new NextRequest('https://nitido.ro/api/account/deletion'));
+beforeEach(()=>{state.db=new Database(':memory:');state.db.pragma('foreign_keys=ON');initializeDatabase(state.db);state.db.exec("INSERT INTO users(id,role,name) VALUES('c','client','Client'),('f','firma','Provider')");state.user='c';state.rate=true;vi.stubEnv('NITIDO_ENABLE_BEARER_AUTH','false');vi.stubEnv('NEXT_PUBLIC_SITE_URL','https://nitido.ro');});
+afterEach(()=>{state.db.close();vi.unstubAllEnvs();});
+it('requires authentication for reads, writes and even an idempotent replay',async()=>{state.user=null;expect((await read()).status).toBe(401);expect((await send()).status).toBe(401);state.user='c';expect((await send()).status).toBe(201);state.user=null;expect((await send()).status).toBe(401);});
+it('uses authenticated account, requires exact confirmation and returns no other account fields',async()=>{
+ for(const body of [{},[],null,42,{confirmation:true},{confirmation:'DELETE_ACCOUNT',userId:'f'},'{'])expect((await send(body)).status).toBe(400);
+ const response=await send();expect(response.status).toBe(201);expect(response.headers.get('Cache-Control')).toBe('private, no-store');const data=await response.json();expect(data.request).toMatchObject({status:'requested',revision:1});expect(data.request).not.toHaveProperty('userId');expect(data.request).not.toHaveProperty('email');expect((await send()).status).toBe(200);
+ state.user='f';expect((await (await read()).json()).request).toBeNull();expect(state.db.prepare('SELECT user_id FROM account_deletion_requests').all()).toEqual([{user_id:'c'}]);
+});
+it('rejects cookie writes with missing or foreign origin and does not trust a disabled supplied bearer',async()=>{for(const headers of ([{},{origin:'https://evil.test'},{authorization:'Bearer fake',origin:'https://evil.test'}] as Record<string,string>[]))expect((await send({confirmation:'DELETE_ACCOUNT'},headers)).status).toBe(403);expect(state.db.prepare('SELECT * FROM account_deletion_requests').all()).toEqual([]);});
+it('accepts originless mobile writes only after enabled validated bearer authentication',async()=>{vi.stubEnv('NITIDO_ENABLE_BEARER_AUTH','true');expect((await send({confirmation:'DELETE_ACCOUNT'},{authorization:'Bearer validated-session'})).status).toBe(201);state.user=null;expect((await send({confirmation:'DELETE_ACCOUNT'},{authorization:'Bearer invalid-session'})).status).toBe(401);});
+it('bounds the actual streamed body even without content-length, and enforces authenticated rate limits',async()=>{expect((await send('x'.repeat(2049))).status).toBe(413);expect((await send({confirmation:'DELETE_ACCOUNT'},{origin:'https://nitido.ro','content-length':'3000'})).status).toBe(413);state.rate=false;expect((await send()).status).toBe(429);expect((await read()).status).toBe(429);expect(state.db.prepare('SELECT * FROM account_deletion_requests').all()).toEqual([]);});
+it('does not report acceptance or leave an orphan request when audit fails',async()=>{state.db.exec("CREATE TRIGGER reject_request BEFORE INSERT ON admin_audit_log WHEN NEW.action='account.deletion_requested' BEGIN SELECT RAISE(ABORT,'Audit failed');END;");expect((await send()).status).toBe(503);expect((await (await read()).json()).request).toBeNull();});

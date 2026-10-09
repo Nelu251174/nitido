@@ -1,7 +1,7 @@
 name: Robot TestFlight (iOS)
 
 # Construiește varianta iOS a aplicației NITIDO (Capacitor) pe o mașină macOS
-# din cloud și o urcă pe TestFlight. Semnare automată prin cheia API App Store
+# din cloud. Upload TestFlight este explicit și condiționat de dovezi. Semnare automată prin cheia API App Store
 # Connect (fără certificate manuale).
 #
 # Pornire: push pe branch-ul „release-ios" (sau manual din Actions).
@@ -13,16 +13,39 @@ name: Robot TestFlight (iOS)
 #   APP_STORE_CONNECT_API_KEY         – conținutul fișierului .p8 (text simplu, lipit direct)
 on:
   workflow_dispatch:
+    inputs:
+      build_number:
+        description: Explicit integer above the current authenticated Apple build maximum
+        type: string
+        default: ''
+      marketing_version:
+        type: string
+        default: '1.0'
+      upload_testflight:
+        description: Upload to App Store Connect for TestFlight after release gates (not public App Store submission)
+        type: boolean
+        default: false
+      evidence_json:
+        description: Fresh public release receipts JSON (no credentials; exact candidate SHA)
+        type: string
+        default: ''
   push:
     branches:
       - "release-ios"
 
+permissions:
+  contents: read
 jobs:
   ios:
     # Nucleul Capacitor (framework precompilat) e construit cu Swift 6.2, deci
     # avem nevoie de un Xcode recent. macos-14 vine cu Xcode 15.4 (Swift 5.10),
     # care nu poate citi framework-ul → simboluri „lipsă" false (reject/getString).
     runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
     steps:
       - name: Checkout cod
         uses: actions/checkout@v4
@@ -59,30 +82,34 @@ jobs:
           npx cap sync ios
           node -e 'const c=require("./ios/App/App/capacitor.config.json");if(c.appId!=="ro.nitido.app"||c.server.url!=="https://nitido.ro")throw Error("Invalid TestFlight target");'
 
+      - name: Resolve release versions and verify installed SDK
+        env:
+          REQUESTED: ${{ inputs.build_number }}
+          MARKETING: ${{ inputs.marketing_version || '1.0' }}
+        run: |
+          BUILD_NUMBER="${REQUESTED:-$GITHUB_RUN_NUMBER}"
+          [[ "$BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]] && [ "$BUILD_NUMBER" -gt 12 ] || { echo 'Build must exceed verified historical Apple build12'; exit 1; }
+          [[ "$MARKETING" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || exit 1
+          echo "NITIDO_IOS_BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+          echo "NITIDO_MARKETING_VERSION=$MARKETING" >> "$GITHUB_ENV"
+          echo "ASC_KEY_PATH=$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
       - name: Pregătește cheia API App Store Connect
         env:
           ASC_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
         run: |
-          mkdir -p ~/private_keys
-          printf '%s' "$ASC_KEY" > ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+          umask 077
+          mkdir -p "$HOME/private_keys"
+          printf '%s' "$ASC_KEY" > "$ASC_KEY_PATH"
 
-      - name: Verifică autentificarea Apple (preflight rapid)
-        env:
-          KID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          ISS: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      - name: Authenticate exact Apple app and current build maximum
         run: |
-          python3 -m pip install --quiet --break-system-packages pyjwt cryptography 2>/dev/null || python3 -m pip install --quiet pyjwt cryptography
-          export KEYPATH="$HOME/private_keys/AuthKey_${KID}.p8"
-          TOKEN=$(python3 -c 'import os,time,jwt; print(jwt.encode({"iss":os.environ["ISS"],"iat":int(time.time()),"exp":int(time.time())+600,"aud":"appstoreconnect-v1"}, open(os.environ["KEYPATH"]).read(), algorithm="ES256", headers={"kid":os.environ["KID"],"typ":"JWT"}))')
-          CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $TOKEN" "https://api.appstoreconnect.apple.com/v1/apps?limit=1")
-          echo "App Store Connect auth -> HTTP $CODE"
-          if [ "$CODE" != "200" ]; then
-            echo "::error::Cheia API NU se autentifica (HTTP $CODE). De verificat: Key ID din care ai descarcat .p8-ul, continutul complet al .p8, Issuer ID, rolul Admin si ca ai asteptat ~2 min sa se activeze cheia."
-            exit 1
-          fi
-          echo "Autentificare Apple OK."
+          python3 -m pip install --quiet --break-system-packages pyjwt cryptography
+          python3 scripts/mobile-apple-preflight.py
 
-      - name: Archive (semnare automată)
+      - name: Archive without a development device profile
         run: |
           xcodebuild -project ios/App/App.xcodeproj \
             -scheme App \
@@ -90,15 +117,26 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
             -allowProvisioningUpdates \
-            -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8 \
-            -authenticationKeyID "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
-            -authenticationKeyIssuerID "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" \
-            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CODE_SIGN_STYLE=Automatic \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            CURRENT_PROJECT_VERSION="$NITIDO_IOS_BUILD_NUMBER" \
+            MARKETING_VERSION="$NITIDO_MARKETING_VERSION" \
             clean archive
+
+      - name: Preserve push entitlement for distribution export
+        run: |
+          # The unsigned archive has no signing entitlement blob. Seed its
+          # declared push capability with an intermediate ad-hoc signature so
+          # Xcode's distribution export preserves it. This is not the IPA's
+          # final signature: export uses the existing Apple distribution identity.
+          codesign --force --sign - \
+            --entitlements ios/App/App/App.entitlements \
+            "$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app"
 
       - name: Creează ExportOptions.plist
         run: |
@@ -109,23 +147,54 @@ jobs:
           <dict>
             <key>method</key><string>app-store-connect</string>
             <key>destination</key><string>export</string>
-            <key>teamID</key><string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
             <key>signingStyle</key><string>automatic</string>
             <key>uploadSymbols</key><true/>
           </dict>
           </plist>
           PLIST
 
-      - name: Exportă .ipa
+      # App Store distribution signing happens during export. An automatically
+      # signed archive would first request a development profile and registered
+      # devices, which this distribution-only team does not have. The exported
+      # IPA still has to pass the signature and provisioning checks below.
+      - name: Export and sign App Store IPA
         run: |
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
             -exportPath "$RUNNER_TEMP/export" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
             -allowProvisioningUpdates \
-            -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8 \
-            -authenticationKeyID "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
-            -authenticationKeyIssuerID "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      - name: Verify exported IPA signature and provisioning
+        run: |
+          IPA_FILES=("$RUNNER_TEMP"/export/*.ipa)
+          [ "${#IPA_FILES[@]}" -eq 1 ] || exit 1
+          python3 scripts/mobile-verify-ios.py "${IPA_FILES[0]}" "$NITIDO_IOS_BUILD_NUMBER" "$NITIDO_MARKETING_VERSION"
+
+      - name: Prepare public release receipts
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_testflight }}
+        env:
+          RELEASE_EVIDENCE: ${{ inputs.evidence_json }}
+        run: |
+          umask 077
+          printf '%s' "$RELEASE_EVIDENCE" > "$RUNNER_TEMP/mobile-release-evidence.json"
+
+      - name: Refresh Apple store state before requested upload
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_testflight }}
+        env:
+          EVIDENCE: ${{ runner.temp }}/mobile-release-evidence.json
+          VERIFY_UPLOAD_EVIDENCE: 'true'
+        run: python3 scripts/mobile-apple-preflight.py
+
+      - name: Gate actual TestFlight upload
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_testflight }}
+        env:
+          EVIDENCE: ${{ runner.temp }}/mobile-release-evidence.json
+        run: node scripts/mobile-release-gate.mjs "$EVIDENCE" ios "$GITHUB_SHA" "$NITIDO_IOS_BUILD_NUMBER" beta
 
       - name: Publică .ipa ca artefact
         uses: actions/upload-artifact@v4
@@ -135,8 +204,13 @@ jobs:
           if-no-files-found: error
 
       - name: Urcă pe TestFlight
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_testflight }}
         run: |
           IPA=$(ls "$RUNNER_TEMP"/export/*.ipa | head -1)
           xcrun altool --upload-app -f "$IPA" --type ios \
-            --apiKey "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
-            --apiIssuer "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID"
+
+      - name: Remove temporary Apple API key
+        if: ${{ always() }}
+        run: rm -f "$ASC_KEY_PATH"

@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { clientCanReadJob, firmCanReadFullJob } from "@/lib/authorization";
 import { canPreviewOpportunity } from "@/lib/opportunityEligibility";
 import { calcNetForFirm } from "@/lib/pricing";
+import { jobExecutionRules, jobPhotoRules } from "@/lib/executionTemplates";
 
 export async function GET(
   req: NextRequest,
@@ -44,8 +45,8 @@ export async function GET(
       AND EXISTS(SELECT 1 FROM job_photos p WHERE p.job_id=ratings.job_id AND p.uploaded_by_firm_id=ratings.firm_id AND p.proof_type='ARRIVAL' AND p.status='VALID' AND p.validated_at IS NOT NULL)
       AND EXISTS(SELECT 1 FROM job_photos p WHERE p.job_id=ratings.job_id AND p.uploaded_by_firm_id=ratings.firm_id AND p.proof_type='COMPLETION' AND p.status='VALID' AND p.validated_at IS NOT NULL)`).get(id,user.id) as {rating:number;reviewText:string|null}|undefined:undefined;
   const payment=db.prepare("SELECT status paymentStatus,amount_net firmPayout,transfer_status transferStatus,payout_status payoutStatus,refund_status refundStatus,dispute_status disputeStatus FROM payments WHERE job_id=?").get(id) as {paymentStatus:string;firmPayout:number;transferStatus:string;payoutStatus:string;refundStatus:string;disputeStatus:string}|undefined;
-  const photos=db.prepare("SELECT id FROM job_photos WHERE job_id=? AND status='VALID'").all(id) as {id:string}[];
-  const proofs=db.prepare("SELECT id,proof_type type,created_at createdAt FROM job_photos WHERE job_id=? AND proof_type IN ('ARRIVAL','COMPLETION') AND status='VALID' AND validated_at IS NOT NULL").all(id) as {id:string;type:"ARRIVAL"|"COMPLETION";createdAt:string}[];
+  const photos=db.prepare("SELECT id FROM job_photos WHERE job_id=? AND status='VALID' AND (proof_type='CLIENT_CONTEXT' OR (uploaded_by_firm_id=? AND validated_at IS NOT NULL))").all(id,job.accepted_firm_id) as {id:string}[];
+  const proofs=db.prepare("SELECT id,proof_type type,created_at createdAt FROM job_photos WHERE job_id=? AND uploaded_by_firm_id=? AND proof_type IN ('ARRIVAL','COMPLETION') AND status='VALID' AND validated_at IS NOT NULL").all(id,job.accepted_firm_id) as {id:string;type:"ARRIVAL"|"COMPLETION";createdAt:string}[];
   const safeFinancial=payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null;
-  return NextResponse.json({ job:{...(user.role==="firma"?firmJobView(job):job),...(user.role==="client"?{selectionRecovery:selectionRecoveryState(db,id,user.id)}:{}),photos:photos.map(photo=>`/api/uploads/${photo.id}`),proofs:proofs.map(proof=>({...proof,url:`/api/uploads/${proof.id}`})),ownReview:ownReview?{...ownReview,badge:"Recenzie verificată"}:null,financial:safeFinancial,...(user.role==="firma"&&payment?{firm_payout:payment.firmPayout}:{})}, firmName });
+  return NextResponse.json({ job:{...(user.role==="firma"?firmJobView(job):job),...(user.role==="client"?{selectionRecovery:selectionRecoveryState(db,id,user.id)}:{}),photoRules:jobPhotoRules(db,id),executionRules:jobExecutionRules(db,id),photos:photos.map(photo=>`/api/uploads/${photo.id}`),proofs:proofs.map(proof=>({...proof,url:`/api/uploads/${proof.id}`})),ownReview:ownReview?{...ownReview,badge:"Recenzie verificată"}:null,financial:safeFinancial,...(user.role==="firma"&&payment?{firm_payout:payment.firmPayout}:{})}, firmName }, {headers:{'Cache-Control':'private, no-store'}});
 }

@@ -601,6 +601,7 @@ export default function ClientPage() {
                 </div>
               </div>
             )}
+            <Link href="/stergere-cont" className="mt-4 inline-flex text-sm underline">Solicită ștergerea contului</Link>
           </section>
         )}
         {!job && !showBooking && cardConfigured && (
