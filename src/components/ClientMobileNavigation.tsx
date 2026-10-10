@@ -27,7 +27,7 @@ export function ClientMobileNavigation() {
           ? pathname === item.href || pathname.startsWith(`${item.href}/`)
           : pathname === "/client" && hash === (item.target ? `#${item.target}` : "");
         return (
-          <Link key={item.label} href={item.href} scroll={false} aria-current={active ? "page" : undefined}
+          <Link key={item.label} href={item.href} aria-current={active ? "page" : undefined}
             onClick={event => {
               if (pathname !== "/client" || item.target === null || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
               event.preventDefault();
