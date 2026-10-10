@@ -137,12 +137,30 @@ def inspect():
         item = public(info, ["appStoreState", "appStoreAgeRating", "brazilAgeRating", "kidsAgeBand"])
         item["localizations"] = [{"id": x["id"], "locale": x["attributes"].get("locale"), "missingFields": [k for k in ["name", "subtitle", "privacyPolicyUrl"] if not x["attributes"].get(k)]}
             for x in rows(ip + "/appInfoLocalizations?limit=200")]
-        item["ageRatingProvided"] = bool(optional(ip + "/ageRatingDeclaration"))
+        age = optional(ip + "/ageRatingDeclaration")
+        item["ageRatingProvided"] = bool(age)
+        if age:
+            age_attributes = age.get("attributes", {})
+            item["ageDeclarationId"] = age["id"]
+            item["ageUnsetFields"] = sorted(k for k, value in age_attributes.items() if value is None)
+            item["ageMessagingDeclared"] = age_attributes.get("messagingAndChat") is True
+            item["ageUserContentDeclared"] = age_attributes.get("userGeneratedContent") is True
+            item["ageAdultOverrideDeclared"] = age_attributes.get("ageRatingOverrideV2") == "EIGHTEEN_PLUS"
         for key in ["primaryCategory", "secondaryCategory"]:
             item[key + "Provided"] = bool(optional(ip + "/" + key))
         report["appInfos"].append(item)
-    report["availabilityProvided"] = bool(optional("/v1/apps/" + APP_ID + "/appAvailabilityV2"))
-    report["priceScheduleProvided"] = bool(optional("/v1/apps/" + APP_ID + "/appPriceSchedule"))
+    availability = optional("/v1/apps/" + APP_ID + "/appAvailabilityV2")
+    if availability:
+        report["availabilityProvided"] = True
+        territories = optional("/v2/appAvailabilities/" + availability["id"] + "/territoryAvailabilities")
+        report["availableTerritoryCount"] = sum(t.get("attributes", {}).get("available") is True for t in territories or [])
+    else:
+        report["availabilityProvided"] = False
+        report["legacyAvailabilityProvided"] = bool(optional("/v1/apps/" + APP_ID + "/appAvailability"))
+    price = optional("/v1/apps/" + APP_ID + "/appPriceSchedule")
+    report["priceScheduleProvided"] = bool(price)
+    if price:
+        report["manualPriceCount"] = len(optional("/v1/appPriceSchedules/" + price["id"] + "/manualPrices") or [])
     report["betaReview"] = review(optional("/v1/apps/" + APP_ID + "/betaAppReviewDetail"))
     return report
 
