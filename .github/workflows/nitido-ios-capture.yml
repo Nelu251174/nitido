@@ -1,0 +1,33 @@
+name: NITIDO App Store native public screenshots
+on:
+  push:
+    branches: [codex/nitido-ios-release-preparation]
+    paths:
+      - .github/workflows/nitido-ios-capture.yml
+      - scripts/store-ios-capture.py
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: macos-26
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx cap sync ios
+        env:
+          NITIDO_NATIVE_SERVER_URL: https://nitido.ro
+      - name: Capture public screens on iPhone and iPad simulators
+        env:
+          CAPTURE_OUTPUT: ${{ runner.temp }}/nitido-app-store-captures
+        run: python3 scripts/store-ios-capture.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nitido-app-store-native-captures
+          path: ${{ runner.temp }}/nitido-app-store-captures
+          if-no-files-found: error
