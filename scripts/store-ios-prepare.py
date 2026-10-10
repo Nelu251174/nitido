@@ -141,7 +141,8 @@ def inspect():
         for key in ["primaryCategory", "secondaryCategory"]:
             item[key + "Provided"] = bool(optional(ip + "/" + key))
         report["appInfos"].append(item)
-    report["availabilityProvided"] = bool(optional("/v2/apps/" + APP_ID + "/appAvailability"))
+    report["availabilityProvided"] = bool(optional("/v1/apps/" + APP_ID + "/appAvailabilityV2"))
+    report["priceScheduleProvided"] = bool(optional("/v1/apps/" + APP_ID + "/appPriceSchedule"))
     report["betaReview"] = review(optional("/v1/apps/" + APP_ID + "/betaAppReviewDetail"))
     return report
 
