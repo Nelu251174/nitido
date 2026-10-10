@@ -1,4 +1,4 @@
-name: NITIDO iOS release preparation (no public release)
+name: NITIDO iOS App Store preparation (no submission)
 on:
   push:
     branches: [codex/nitido-ios-release-preparation]
@@ -20,7 +20,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install pyjwt cryptography
-      - name: Prepare existing draft with manual release and verify status flags
+      - name: Prepare age declaration and release after Apple approval; verify status flags
         env:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}

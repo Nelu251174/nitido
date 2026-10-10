@@ -75,7 +75,7 @@ def inspect():
     versions = rows("/v1/apps/" + APP_ID + "/appStoreVersions?limit=200")
     builds = rows("/v1/builds?filter%5Bapp%5D=" + APP_ID + "&limit=200")
     if os.environ.get("PREPARE_DRAFT") == "true":
-        # This path never submits for review, publishes, or creates a new app/build.
+        # Preparing AFTER_APPROVAL is not a submission or a public release.
         draft = next(v for v in versions if v["id"] == "bdad9f9b-8f05-40ae-84d2-a6682f387d0c")
         assert draft["attributes"]["appStoreState"] == "PREPARE_FOR_SUBMISSION"
         assert draft["attributes"]["versionString"] == "1.0"
@@ -84,7 +84,7 @@ def inspect():
         assert build["attributes"]["processingState"] == "VALID" and not build["attributes"].get("expired")
         vp = "/v1/appStoreVersions/" + draft["id"]
         request(vp, "PATCH", {"data": {"type": "appStoreVersions", "id": draft["id"],
-            "attributes": {"releaseType": "MANUAL", "copyright": "2026 ATP SPEDITION SL"}}})
+            "attributes": {"releaseType": "AFTER_APPROVAL", "copyright": "2026 ATP SPEDITION SL"}}})
         request(vp + "/relationships/build", "PATCH", {"data": {"type": "builds", "id": build["id"]}})
         metadata = json.loads(pathlib.Path("docs/store/METADATA-RO.json").read_text())
         for loc in rows(vp + "/appStoreVersionLocalizations?limit=200"):
@@ -100,6 +100,25 @@ def inspect():
         for info in infos:
             if info["attributes"]["appStoreState"] != "PREPARE_FOR_SUBMISSION":
                 continue
+            assert info["id"] == "74864fe5-1911-4de4-876a-7b1286c3d73f"
+            age = request("/v1/appInfos/" + info["id"] + "/ageRatingDeclaration")["data"]
+            # Physical cleaning marketplace: job photos and participant chat exist.
+            # No arbitrary override: Apple calculates the rating from these answers.
+            age_attributes = {key: False for key in [
+                "advertising", "ageAssurance", "gambling", "healthOrWellnessTopics",
+                "lootBox", "parentalControls", "socialMedia", "socialMediaAgeRestricted",
+                "unrestrictedWebAccess"]}
+            age_attributes.update({key: "NONE" for key in [
+                "alcoholTobaccoOrDrugUseOrReferences", "contests", "gamblingSimulated",
+                "gunsOrOtherWeapons", "horrorOrFearThemes", "matureOrSuggestiveThemes",
+                "medicalOrTreatmentInformation", "profanityOrCrudeHumor",
+                "sexualContentGraphicAndNudity", "sexualContentOrNudity",
+                "violenceCartoonOrFantasy", "violenceRealistic",
+                "violenceRealisticProlongedGraphicOrSadistic"]})
+            age_attributes.update({"messagingAndChat": True, "userGeneratedContent": True,
+                "ageRatingOverrideV2": "NONE"})
+            request("/v1/ageRatingDeclarations/" + age["id"], "PATCH", {"data": {
+                "type": "ageRatingDeclarations", "id": age["id"], "attributes": age_attributes}})
             for loc in rows("/v1/appInfos/" + info["id"] + "/appInfoLocalizations?limit=200"):
                 if loc["attributes"]["locale"] == "ro":
                     request("/v1/appInfoLocalizations/" + loc["id"], "PATCH", {"data": {
@@ -146,6 +165,7 @@ def inspect():
             item["ageMessagingDeclared"] = age_attributes.get("messagingAndChat") is True
             item["ageUserContentDeclared"] = age_attributes.get("userGeneratedContent") is True
             item["ageAdultOverrideDeclared"] = age_attributes.get("ageRatingOverrideV2") == "EIGHTEEN_PLUS"
+            item["ageRatingOverrideV2"] = age_attributes.get("ageRatingOverrideV2")
         for key in ["primaryCategory", "secondaryCategory"]:
             item[key + "Provided"] = bool(optional(ip + "/" + key))
         report["appInfos"].append(item)
