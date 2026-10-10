@@ -9,7 +9,6 @@ import urllib.parse
 import urllib.request
 
 import jwt
-from cryptography.hazmat.primitives import serialization
 
 APP_ID = "6810752486"
 BUNDLE_ID = "ro.nitido.app"
@@ -21,12 +20,6 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def inspect():
-    if os.environ.get("REVIEW_ENCRYPTION_KEY_ONLY") == "true":
-        # Public encryption material only. Private signing material never leaves CI.
-        import base64
-        key = serialization.load_pem_private_key(os.environ["ASC_PRIVATE_KEY"].encode(), password=None)
-        return {"reviewEncryptionPublicKey": base64.b64encode(key.public_key().public_bytes(
-            serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)).decode()}
     token = jwt.encode(
         {"iss": os.environ["ASC_ISSUER_ID"], "iat": int(time.time()),
          "exp": int(time.time()) + 1200, "aud": "appstoreconnect-v1"},
