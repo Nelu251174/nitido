@@ -41,6 +41,7 @@ import { PROPERTY_TYPE_LABELS } from "@/lib/jobTypeLabels";
 import { SCAN_ROOMS, scanRoomLabel } from "@/lib/nitidoScan";
 import { EXPRESS_60_FEE_LEI } from "@/lib/express60";
 import { AppRatingCard } from "@/components/AppRatingCard";
+import { CLIENT_NAVIGATION_EVENT, isClientDashboardTarget } from "@/lib/clientNavigation";
 
 const DAY_NAMES = ["Dum", "Lun", "Mar", "Mie", "Joi", "Vin", "Sâm"];
 
@@ -117,6 +118,7 @@ export default function ClientPage() {
   const requestRef=useRef<{payload:string;id:string;quoteId?:string}|null>(null);
   const [showBooking,setShowBooking]=useState(false);
   const [historyFilter,setHistoryFilter]=useState("");
+  const [pendingNavigation,setPendingNavigation]=useState<{target:string}|null>(null);
   const [cardConfigured,setCardConfigured]=useState(false);
   const [entrance,setEntrance]=useState<Entrance|null>(null);
   const [street, setStreet] = useState("");
@@ -162,6 +164,44 @@ export default function ClientPage() {
     if (loading) return;
     if (!user || user.role !== "client") router.replace(`/login?next=${encodeURIComponent(window.location.pathname+window.location.search+window.location.hash)}`);
   }, [loading, user, router]);
+
+  useEffect(() => {
+    function navigate(target: string) {
+      if (!isClientDashboardTarget(target)) return;
+      setJob(null);
+      setFirmName(null);
+      setShowBooking(false);
+      setPendingNavigation({target});
+    }
+    const fromLocation = () => navigate(window.location.hash.slice(1));
+    const fromTab = (event: Event) => {
+      const target = (event as CustomEvent<unknown>).detail;
+      if (typeof target === "string") navigate(target);
+    };
+    // A deep link can arrive before authentication has finished loading.
+    if (window.location.hash) fromLocation();
+    window.addEventListener(CLIENT_NAVIGATION_EVENT, fromTab);
+    window.addEventListener("hashchange", fromLocation);
+    window.addEventListener("popstate", fromLocation);
+    return () => {
+      window.removeEventListener(CLIENT_NAVIGATION_EVENT, fromTab);
+      window.removeEventListener("hashchange", fromLocation);
+      window.removeEventListener("popstate", fromLocation);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!pendingNavigation || loading || user?.role !== "client") return;
+    // Wait for React to mount sections hidden by a booking form or job detail.
+    const frame = window.requestAnimationFrame(() => {
+      if (pendingNavigation.target) {
+        document.getElementById(pendingNavigation.target)?.scrollIntoView({behavior:"instant",block:"start"});
+      } else {
+        window.scrollTo({top:0,behavior:"instant"});
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [pendingNavigation, loading, user?.role]);
 
   useEffect(() => {
     if(user?.role!=="client")return;
@@ -545,8 +585,6 @@ export default function ClientPage() {
     );
   }
 
-  const scrollToId = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-
   return (
     <div className="approved-client min-h-screen bg-[#f7f9fc] flex max-[760px]:block">
       <aside className="w-[236px] shrink-0 bg-white border-r border-[#e2e8f0] p-5 flex flex-col sticky top-0 h-screen max-[760px]:w-full max-[760px]:h-auto max-[760px]:relative max-[760px]:border-r-0 max-[760px]:border-b max-[760px]:p-4">
@@ -568,7 +606,7 @@ export default function ClientPage() {
         <div className={`client-content-grid ${showBooking&&!job?"with-detail":""}`}>
         <div className="min-w-0">
         {myJobs.filter(j=>j.status==="waiting"&&["requires_action","requires_confirmation"].includes(j.authorizationStatus??"")).map(j=><section key={j.id} className="v2-card p-5 mb-4"><h2 className="font-bold">Confirmarea cardului este necesară</h2><p className="text-sm text-muted mt-2">{j.city} · {j.sqm} m². Banca solicită confirmarea autorizării pentru această lucrare.</p><Link href={`/client/plata/${encodeURIComponent(j.id)}`} className="inline-block mt-3 font-bold text-aqua-deep underline">Confirmă prin bancă</Link></section>)}
-        {!job&&!showBooking&&myJobs.length>0&&<section id="sec-lucrari" className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold">Rezervările tale recente</h2><span className="text-xs text-[#6b756f]">{myJobs.length} total</span></div><input aria-label="Caută rezervări" className={`${inputClass} mt-3`} value={historyFilter} onChange={e=>setHistoryFilter(e.target.value)} placeholder="Caută rezervare sau status…"/><div className="mt-3 divide-y divide-[#e2e8f0]">{myJobs.filter(item=>`${item.city} ${item.street} ${JOB_STATUS[item.status]}`.toLowerCase().includes(historyFilter.toLowerCase())).map(item=><button key={item.id} onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[var(--nitido-brand-soft)] flex items-center justify-center text-[var(--nitido-brand-dark)] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate">{item.space_type} · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm} m² · {JOB_STATUS[item.status]}</span></span><b className="text-sm">{item.price_gross} lei</b></button>)}</div></section>}
+        {!job&&!showBooking&&<section id="sec-lucrari" className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold">Rezervările tale recente</h2><span className="text-xs text-[#6b756f]">{myJobs.length} total</span></div>{myJobs.length===0?<div className="mt-4"><p className="text-sm text-muted">Nu ai rezervări încă.</p><button type="button" className="v2-btn v2-btn-primary mt-4" onClick={goToForm}>Configurează o rezervare</button></div>:<><input aria-label="Caută rezervări" className={`${inputClass} mt-3`} value={historyFilter} onChange={e=>setHistoryFilter(e.target.value)} placeholder="Caută rezervare sau status…"/><div className="mt-3 divide-y divide-[#e2e8f0]">{myJobs.filter(item=>`${item.city} ${item.street} ${JOB_STATUS[item.status]}`.toLowerCase().includes(historyFilter.toLowerCase())).map(item=><button key={item.id} onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[var(--nitido-brand-soft)] flex items-center justify-center text-[var(--nitido-brand-dark)] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate">{item.space_type} · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm} m² · {JOB_STATUS[item.status]}</span></span><b className="text-sm">{item.price_gross} lei</b></button>)}</div></>}</section>}
         {!job && !showBooking && <RecurringSection defaults={{ street, postalCode, city, floor, sqm, spaceType }} />}
         {!job && !showBooking && <BusinessSection />}
         {!job && !showBooking && user?.referral_code && (
@@ -1038,7 +1076,6 @@ export default function ClientPage() {
         {(!job&&showBooking)&&<aside className="space-y-4"><div className="v2-card p-6"><h2 className="text-xl font-bold">Pregătește rezervarea</h2><p className="text-sm text-muted leading-6 mt-3">Completează spațiul, adresa și programul. Verifică prețul înainte de publicare.</p></div><Link href="/client/proprietati" className="v2-card p-5 block"><b>Proprietățile tale</b><p className="text-sm text-muted mt-2">Salvează adresele pentru rezervările viitoare.</p></Link></aside>}
         </div>
       </main>
-      <nav className="mobile-workspace-nav" aria-label="Navigare rapidă"><button onClick={()=>{setShowBooking(false);resetToForm();window.scrollTo(0,0)}}>Acasă</button><button onClick={()=>scrollToId("sec-lucrari")}>Rezervări</button><Link href="/client/mesaje">Mesaje</Link><button onClick={()=>scrollToId("sec-cont")}>Cont</button></nav>
     </div>
   );
 }
