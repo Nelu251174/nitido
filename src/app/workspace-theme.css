@@ -217,3 +217,46 @@ main [class*="text-[#7b847e]"] { color: #52616a; }
 @media (max-width: 1200px) {
   .firm-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Keep the shared client tabs attached to the viewport across all client routes. */
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+  .client-mobile-layout {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+  .client-mobile-navigation {
+    display: grid;
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 80;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    padding: 8px max(8px, env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+    border-top: 1px solid #d8d7d0;
+    background: #fbf7ef;
+  }
+  .client-mobile-navigation > a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 48px;
+    padding: 8px 4px;
+    border-radius: 10px;
+    color: #087b56;
+    font-size: 13px;
+    line-height: 1.4;
+    text-align: center;
+    touch-action: manipulation;
+  }
+  .client-mobile-navigation > a[aria-current="page"] {
+    background: #e7f2e9;
+    font-weight: 700;
+  }
+  .client-mobile-navigation > a:focus-visible {
+    outline: 2px solid #087b56;
+    outline-offset: -2px;
+  }
+  .client-mobile-layout :is(#sec-lucrari, #sec-cont) {
+    scroll-margin-top: 16px;
+  }
+}
