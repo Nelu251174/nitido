@@ -74,6 +74,43 @@ def inspect():
     assert app["attributes"]["bundleId"] == BUNDLE_ID
     versions = rows("/v1/apps/" + APP_ID + "/appStoreVersions?limit=200")
     builds = rows("/v1/builds?filter%5Bapp%5D=" + APP_ID + "&limit=200")
+    if os.environ.get("PREPARE_DRAFT") == "true":
+        # This path never submits for review, publishes, or creates a new app/build.
+        draft = next(v for v in versions if v["id"] == "bdad9f9b-8f05-40ae-84d2-a6682f387d0c")
+        assert draft["attributes"]["appStoreState"] == "PREPARE_FOR_SUBMISSION"
+        assert draft["attributes"]["versionString"] == "1.0"
+        build = next(b for b in builds if b["id"] == "5118fe93-f0c9-45ca-994c-90eef0bf4ad7")
+        assert build["attributes"]["version"] == "16"
+        assert build["attributes"]["processingState"] == "VALID" and not build["attributes"].get("expired")
+        vp = "/v1/appStoreVersions/" + draft["id"]
+        request(vp, "PATCH", {"data": {"type": "appStoreVersions", "id": draft["id"],
+            "attributes": {"releaseType": "MANUAL", "copyright": "2026 ATP SPEDITION SL"}}})
+        request(vp + "/relationships/build", "PATCH", {"data": {"type": "builds", "id": build["id"]}})
+        metadata = json.loads(pathlib.Path("docs/store/METADATA-RO.json").read_text())
+        for loc in rows(vp + "/appStoreVersionLocalizations?limit=200"):
+            if loc["attributes"]["locale"] != "ro":
+                continue
+            request("/v1/appStoreVersionLocalizations/" + loc["id"], "PATCH", {"data": {
+                "type": "appStoreVersionLocalizations", "id": loc["id"], "attributes": {
+                    "description": metadata["shared"]["fullDescription"],
+                    "keywords": metadata["apple"]["keywords"],
+                    "supportUrl": metadata["shared"]["supportUrl"],
+                    "marketingUrl": metadata["shared"]["marketingUrl"]}}})
+        infos = rows("/v1/apps/" + APP_ID + "/appInfos?limit=200")
+        for info in infos:
+            if info["attributes"]["appStoreState"] != "PREPARE_FOR_SUBMISSION":
+                continue
+            for loc in rows("/v1/appInfos/" + info["id"] + "/appInfoLocalizations?limit=200"):
+                if loc["attributes"]["locale"] == "ro":
+                    request("/v1/appInfoLocalizations/" + loc["id"], "PATCH", {"data": {
+                        "type": "appInfoLocalizations", "id": loc["id"], "attributes": {
+                            "name": metadata["apple"]["name"], "subtitle": metadata["apple"]["subtitle"],
+                            "privacyPolicyUrl": metadata["shared"]["privacyUrl"]}}})
+            categories = rows("/v1/appCategories?limit=200")
+            assert any(c["id"] == "LIFESTYLE" for c in categories)
+            request("/v1/appInfos/" + info["id"], "PATCH", {"data": {"type": "appInfos", "id": info["id"],
+                "relationships": {"primaryCategory": {"data": {"type": "appCategories", "id": "LIFESTYLE"}}}}})
+        versions = rows("/v1/apps/" + APP_ID + "/appStoreVersions?limit=200")
     report = {"app": public(app, ["bundleId", "contentRightsDeclaration"]),
         "builds": [public(b, ["version", "processingState", "expired", "usesNonExemptEncryption"]) for b in builds],
         "versions": [], "appInfos": [], "optionalApiErrors": errors}
