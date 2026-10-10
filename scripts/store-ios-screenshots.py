@@ -1,4 +1,4 @@
-"""Upload only inspected public native captures to the existing manual Apple draft."""
+"""Upload only inspected public native captures to the existing Apple draft."""
 import hashlib
 import io
 import json
@@ -42,7 +42,7 @@ def upload():
     assert api("/v1/apps/" + APP)["data"]["attributes"]["bundleId"] == "ro.nitido.app"
     version = api("/v1/appStoreVersions/" + VERSION)["data"]
     assert version["attributes"]["appStoreState"] == "PREPARE_FOR_SUBMISSION"
-    assert version["attributes"]["releaseType"] == "MANUAL"
+    assert version["attributes"]["releaseType"] in ("MANUAL", "AFTER_APPROVAL")
     assert api("/v1/appStoreVersions/" + VERSION + "/build")["data"]["attributes"]["version"] == "16"
     assert api("/v1/appStoreVersionLocalizations/" + LOCALIZATION)["data"]["attributes"]["locale"] == "ro"
     root = pathlib.Path(os.environ["CAPTURE_INPUT"])
