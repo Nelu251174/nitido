@@ -25,9 +25,13 @@ function WebAlertsSession(){
  useEffect(()=>{if(!account)return;const timer=setTimeout(()=>setControls(false),15000);return()=>clearTimeout(timer)},[account?.userId,controlsRevision]);
  useEffect(()=>{if(!hint)return;const timer=setTimeout(()=>setHint(""),15000);return()=>clearTimeout(timer)},[hint]);
  useEffect(()=>{if(!toast)return;const timer=setTimeout(()=>setToast(null),30000);return()=>clearTimeout(timer)},[toast]);
- const sound=useRef<AudioContext|null>(null),lastSound=useRef(0),soundEnabled=useRef(false);
+ const sound=useRef<AudioContext|null>(null),lastSound=useRef(0),soundEnabled=useRef(false),tones=useRef<OscillatorNode[]>([]);
  function chime(force=false){const ctx=sound.current;if(!ctx||ctx.state!=='running'||(!force&&Date.now()-lastSound.current<3000))return;lastSound.current=Date.now();
-  for(const offset of [0,.42]){const oscillator=ctx.createOscillator(),gain=ctx.createGain();oscillator.connect(gain);gain.connect(ctx.destination);const at=ctx.currentTime+offset;oscillator.frequency.setValueAtTime(740,at);oscillator.frequency.setValueAtTime(980,at+.16);gain.gain.setValueAtTime(.001,at);gain.gain.linearRampToValueAtTime(.28,at+.02);gain.gain.exponentialRampToValueAtTime(.001,at+.36);oscillator.start(at);oscillator.stop(at+.38);oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};}
+  // Replace an active preview so repeated test clicks cannot stack loud tones.
+  for(const tone of tones.current){try{tone.stop();}catch{}}tones.current=[];
+  // Two ascending three-note phrases, near full scale with a click-free envelope.
+  // Notes never overlap; device/browser volume still controls the final loudness.
+  for(const [offset,frequency] of [[0,880],[.26,1174.66],[.52,1567.98],[.94,880],[1.2,1174.66],[1.46,1567.98]]){const oscillator=ctx.createOscillator(),gain=ctx.createGain();oscillator.type='triangle';oscillator.connect(gain);gain.connect(ctx.destination);const at=ctx.currentTime+offset;oscillator.frequency.setValueAtTime(frequency,at);gain.gain.setValueAtTime(0,at);gain.gain.linearRampToValueAtTime(.95,at+.012);gain.gain.setValueAtTime(.95,at+.17);gain.gain.linearRampToValueAtTime(0,at+.23);oscillator.start(at);oscillator.stop(at+.24);tones.current.push(oscillator);oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();tones.current=tones.current.filter(tone=>tone!==oscillator);};}
  }
  async function testSound(){try{sound.current??=new AudioContext();await sound.current.resume();if(sound.current.state!=='running')throw Error();chime(true);setHint('Sunet de test redat. Dacă nu îl auzi, verifică volumul calculatorului și dacă fila este dezactivată audio.');}catch{setHint('Sunetul este blocat de browser. Permite redarea audio pentru NITIDO și reîncearcă.');}}
 
