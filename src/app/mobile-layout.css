@@ -22,6 +22,8 @@ header.sticky, aside.sticky, .board-sidebar { top: var(--app-safe-top); }
   .approved-home img { max-width: 100%; }
   .design-home-bottom { padding-inline: max(10px, env(safe-area-inset-left, 0px)) max(10px, env(safe-area-inset-right, 0px)); }
   .board-page, .operations-layout, .approved-client { width: 100%; min-width: 0; }
+  /* iOS zooms focused controls below 16px, leaving the page panned sideways. */
+  .approved-client :is(input, select, textarea) { font-size: 16px; }
   .board-page > main, .operations-main, .approved-client > main,
   .firm-work-grid, .firm-summary, .firm-summary > *, .workspace-metrics > *,
   .section-heading > *, .board-page > header > div > * { min-width: 0; max-width: 100%; }
