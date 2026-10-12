@@ -2,6 +2,7 @@
 
 import {AdminRoleWorkspace} from '@/components/AdminRoleWorkspace';
 import {AdminStaff} from '@/components/AdminStaff';
+import {AdminAccountDeletion} from '@/components/AdminAccountDeletion';
 import type {AdminIdentity} from '@/lib/adminRolesShared';
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
@@ -293,6 +294,7 @@ export default function AdminPage() {
 <header className="mb-8"><p className="v2-eyebrow">NITIDO CONTROL</p><h1 className="workspace-title">Centrul de operațiuni</h1><p className="text-muted">Lucrări, firme și excepții care necesită intervenție.</p></header><div className="workspace-metrics"><Card><p className="text-sm text-muted">Lucrări în așteptare</p><b className="text-3xl">{jobs.filter(j=>j.status==="waiting").length}</b></Card><Card><p className="text-sm text-muted">Plăți de verificat</p><b className="text-3xl">{payments.filter(p=>["failed","pending"].includes(p.status)).length}</b></Card><Card><p className="text-sm text-muted">Notificări nereușite</p><b className="text-3xl">{notifications.filter(n=>n.status==="failed").length}</b></Card></div>
 
         <AdminStaff/>
+        <AdminAccountDeletion/>
         <AdminOperations jobs={jobs} payments={payments}/>
         {resetMessage && (
           <div className="bg-aqua/10 border border-aqua text-aqua-deep text-xs rounded-lg px-4 py-2.5 -mt-4">

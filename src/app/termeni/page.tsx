@@ -2,8 +2,9 @@ import { publicPageMetadata } from "@/lib/publicSeo";
 export const metadata = publicPageMetadata("/termeni");
 import { InformationPage, type InfoSection } from "@/components/InformationPage";
 import { legalIdentityStatus } from "@/lib/legalConfig";
+import { connection } from "next/server";
 
-export default function Page(){const legal=legalIdentityStatus();const sections:InfoSection[]=[
+export default async function Page(){await connection();const legal=legalIdentityStatus();const sections:InfoSection[]=[
   {title:"1. Domeniul documentului",paragraphs:["Acești termeni reglementează accesul și utilizarea platformei NITIDO.RO de către clienți și firme.","Citește aceste reguli împreună cu descrierea serviciului și rezumatul afișat înainte de confirmarea unei rezervări. Condițiile unei lucrări concrete depind de serviciul, opțiunile și programarea selectate. Pentru NITIDO Pro, activarea portofoliului și serviciile se stabilesc separat, în urma evaluării și a condițiilor contractuale convenite."]},
   {title:"2. Rolul NITIDO.RO",paragraphs:["NITIDO.RO este intermediar tehnic între clienți și firme. Nu execută serviciul de curățenie și nu înlocuiește obligațiile prestatorului.","Platforma pune la dispoziție conturile, publicarea solicitărilor, selecția sau alocarea firmei și evidența etapelor. Firma alocată organizează și execută intervenția. Descrierea acestui rol nu limitează obligațiile legale proprii ale platformei și nici drepturile pe care clientul le are față de prestator."]},
   {title:"3. Definiții",items:["Client: utilizatorul care publică o lucrare.","Firmă: prestatorul înregistrat care poate accepta lucrări.","Lucrare: solicitarea de servicii publicată în platformă.","Alocare: confirmarea firmei câștigătoare de către server."]},

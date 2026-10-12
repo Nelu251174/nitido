@@ -28,7 +28,14 @@
     },
     "production": {
       "channel": "production",
-      "autoIncrement": true
+      "environment": "production",
+      "distribution": "store",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_NITIDO_API_BASE_URL": "https://nitido.ro",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "3887c4e7-445a-4954-9d04-7c8adc8519f9"
+      },
+      "android": { "buildType": "app-bundle" }
     }
   },
   "submit": {

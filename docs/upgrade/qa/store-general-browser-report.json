@@ -1,0 +1,892 @@
+{
+  "scope": "Isolated production browser; temporary synthetic SQLite; external requests blocked; no deployment or payment",
+  "sourceSha": "19047e8e1276167f49e0095674c67e911179068e",
+  "sourceDirty": true,
+  "started": "2026-10-09T10:21:11.631Z",
+  "checks": [
+    {
+      "name": "public /",
+      "passed": true,
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "name": "public /login",
+      "passed": true,
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "name": "public /signup",
+      "passed": true,
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "name": "public /reset-parola",
+      "passed": true,
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "name": "public /rezervare",
+      "passed": true,
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "name": "public /contact",
+      "passed": true,
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "name": "public /nitido-pro",
+      "passed": true,
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "name": "public /nitido-pro/aplica",
+      "passed": true,
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "name": "public /nitido-pro/parteneri",
+      "passed": true,
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "name": "public /stergere-cont",
+      "passed": true,
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "name": "public /confidentialitate",
+      "passed": true,
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "name": "public /termeni",
+      "passed": true,
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "name": "anonymous private APIs are protected",
+      "passed": true,
+      "details": {
+        "/api/jobs": 401,
+        "/api/collaboration": 401,
+        "/api/pro/context": 401,
+        "/api/admin/auth/me": 401
+      }
+    },
+    {
+      "name": "anonymous client redirect preserves safe next path",
+      "passed": true,
+      "details": {
+        "destination": "/login"
+      }
+    },
+    {
+      "name": "client password login with web cookie and mobile token",
+      "passed": true,
+      "details": {
+        "cookieHttpOnly": true,
+        "cookieSecure": true,
+        "sameSite": "Lax",
+        "bearerParity": true
+      }
+    },
+    {
+      "name": "client job and collaboration scope",
+      "passed": true,
+      "details": {
+        "collaborationJobs": 0,
+        "marketplaceJobs": 1
+      }
+    },
+    {
+      "name": "client workspace /client",
+      "passed": true,
+      "details": {
+        "url": "/client"
+      }
+    },
+    {
+      "name": "client workspace /client/proprietati",
+      "passed": true,
+      "details": {
+        "url": "/client/proprietati"
+      }
+    },
+    {
+      "name": "client workspace /client/mesaje",
+      "passed": true,
+      "details": {
+        "url": "/client/mesaje"
+      }
+    },
+    {
+      "name": "client deletion intake confirms a request without deleting data",
+      "passed": true,
+      "details": {
+        "status": "requested",
+        "replayed": true,
+        "dataPreserved": true,
+        "foreignOrigin": 403
+      }
+    },
+    {
+      "name": "client foreign-origin mutation refused",
+      "passed": true,
+      "details": {
+        "status": 403
+      }
+    },
+    {
+      "name": "client logout invalidates cookie session",
+      "passed": true,
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "name": "firm password login with web cookie and mobile token",
+      "passed": true,
+      "details": {
+        "cookieHttpOnly": true,
+        "cookieSecure": true,
+        "sameSite": "Lax",
+        "bearerParity": true
+      }
+    },
+    {
+      "name": "firm job and collaboration scope",
+      "passed": true,
+      "details": {
+        "collaborationJobs": 1,
+        "marketplaceJobs": 1
+      }
+    },
+    {
+      "name": "firm workspace /firma",
+      "passed": true,
+      "details": {
+        "url": "/firma"
+      }
+    },
+    {
+      "name": "firm workspace /firma/echipe",
+      "passed": true,
+      "details": {
+        "url": "/firma/echipe"
+      }
+    },
+    {
+      "name": "firm workspace /firma/calendar",
+      "passed": true,
+      "details": {
+        "url": "/firma/calendar"
+      }
+    },
+    {
+      "name": "firm deletion intake confirms a request without deleting data",
+      "passed": true,
+      "details": {
+        "status": "requested",
+        "replayed": true,
+        "dataPreserved": true,
+        "foreignOrigin": 403
+      }
+    },
+    {
+      "name": "firm foreign-origin mutation refused",
+      "passed": true,
+      "details": {
+        "status": 403
+      }
+    },
+    {
+      "name": "firm logout invalidates cookie session",
+      "passed": true,
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "name": "worker password login with web cookie and mobile token",
+      "passed": true,
+      "details": {
+        "cookieHttpOnly": true,
+        "cookieSecure": true,
+        "sameSite": "Lax",
+        "bearerParity": true
+      }
+    },
+    {
+      "name": "worker job and collaboration scope",
+      "passed": true,
+      "details": {
+        "collaborationJobs": 1,
+        "marketplaceJobs": 0
+      }
+    },
+    {
+      "name": "worker workspace /echipa",
+      "passed": true,
+      "details": {
+        "url": "/echipa"
+      }
+    },
+    {
+      "name": "worker foreign-origin mutation refused",
+      "passed": true,
+      "details": {
+        "status": 403
+      }
+    },
+    {
+      "name": "worker logout invalidates cookie session",
+      "passed": true,
+      "details": {
+        "status": 200
+      }
+    },
+    {
+      "name": "outsider password login with web cookie and mobile token",
+      "passed": true,
+      "details": {
+        "cookieHttpOnly": true,
+        "cookieSecure": true,
+        "sameSite": "Lax",
+        "bearerParity": true
+      }
+    },
+    {
+      "name": "outsider job and collaboration scope",
+      "passed": true,
+      "details": {
+        "collaborationJobs": 0,
+        "marketplaceJobs": 0
+      }
+    },
+    {
+      "name": "outsider foreign-origin mutation refused",
+      "passed": true,
+      "details": {
+        "status": 403
+      }
+    },
+    {
+      "name": "outsider logout invalidates cookie session",
+      "passed": true,
+      "details": {
+        "status": 200
+      }
+    }
+  ],
+  "pages": [
+    {
+      "label": "-",
+      "url": "/",
+      "title": "Firme de curățenie în România",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "-login",
+      "url": "/login",
+      "title": "NITIDO.RO — Marketplace de curățenie în România",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "-signup",
+      "url": "/signup",
+      "title": "NITIDO.RO — Marketplace de curățenie în România",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "-reset-parola",
+      "url": "/reset-parola",
+      "title": "NITIDO.RO — Marketplace de curățenie în România",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "-rezervare",
+      "url": "/rezervare",
+      "title": "Configurează curățenia — NITIDO.RO",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "-contact",
+      "url": "/contact",
+      "title": "Contact și suport — NITIDO.RO",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "-nitido-pro",
+      "url": "/nitido-pro",
+      "title": "NITIDO Pro — Operațiuni pentru portofolii — NITIDO.RO",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "-nitido-pro-aplica",
+      "url": "/nitido-pro/aplica",
+      "title": "Evaluarea portofoliului NITIDO Pro — NITIDO.RO",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "-nitido-pro-parteneri",
+      "url": "/nitido-pro/parteneri",
+      "title": "Partener NITIDO Pro — NITIDO.RO",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "-stergere-cont",
+      "url": "/stergere-cont",
+      "title": "Ștergerea contului NITIDO — NITIDO.RO",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "-confidentialitate",
+      "url": "/confidentialitate",
+      "title": "Politica de confidențialitate — NITIDO.RO",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "-termeni",
+      "url": "/termeni",
+      "title": "Termeni și condiții — NITIDO.RO",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "client-client",
+      "url": "/client",
+      "title": "NITIDO.RO — Marketplace de curățenie în România",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "client-client-proprietati",
+      "url": "/client/proprietati",
+      "title": "NITIDO.RO — Marketplace de curățenie în România",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "client-client-mesaje",
+      "url": "/client/mesaje",
+      "title": "NITIDO.RO — Marketplace de curățenie în România",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "client-deletion-request",
+      "url": "/stergere-cont",
+      "title": "Ștergerea contului NITIDO — NITIDO.RO",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "firm-firma",
+      "url": "/firma",
+      "title": "NITIDO.RO — Marketplace de curățenie în România",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "firm-firma-echipe",
+      "url": "/firma/echipe",
+      "title": "NITIDO.RO — Marketplace de curățenie în România",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "firm-firma-calendar",
+      "url": "/firma/calendar",
+      "title": "NITIDO.RO — Marketplace de curățenie în România",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "firm-deletion-request",
+      "url": "/stergere-cont",
+      "title": "Ștergerea contului NITIDO — NITIDO.RO",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "worker-echipa",
+      "url": "/echipa",
+      "title": "NITIDO.RO — Marketplace de curățenie în România",
+      "accessibility": [],
+      "layouts": [
+        {
+          "width": 360,
+          "scrollWidth": 360,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 768,
+          "scrollWidth": 753,
+          "offenders": [],
+          "passed": true
+        },
+        {
+          "width": 1440,
+          "scrollWidth": 1425,
+          "offenders": [],
+          "passed": true
+        }
+      ]
+    }
+  ],
+  "pageErrors": [],
+  "consoleErrors": [
+    {
+      "label": "public",
+      "error": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "label": "public",
+      "error": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "label": "client",
+      "error": "Failed to load resource: the server responded with a status of 502 (Bad Gateway)"
+    }
+  ],
+  "httpErrors": [
+    {
+      "label": "public",
+      "path": "/api/account/deletion",
+      "status": 401
+    },
+    {
+      "label": "public",
+      "path": "/api/workspace/alerts",
+      "status": 401
+    },
+    {
+      "label": "client",
+      "path": "/api/payments/card",
+      "status": 502
+    }
+  ],
+  "buildId": "zSoa4IIt7w7UsPV5Nn4F1",
+  "finished": "2026-10-09T10:21:52.322Z",
+  "functionalPassed": true,
+  "layoutPassed": true,
+  "accessibilityPassed": true,
+  "passed": true
+}

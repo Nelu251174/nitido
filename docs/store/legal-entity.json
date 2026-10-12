@@ -1,0 +1,19 @@
+{
+  "operator": "ATP SPEDITION SL",
+  "country": "ES",
+  "taxIdentifier": {
+    "type": "NIF",
+    "value": "B21732383"
+  },
+  "registeredAndFiscalAddress": "AVDA BLASCO IBAÑEZ, OTR 36, PUERTA 19, 46970 ALAQUÀS, VALENCIA, Spania",
+  "contactEmail": "support@nitido.ro",
+  "evidence": {
+    "source": "Owner-supplied TARJETA CIF ATP SPEDITION, S.L. (3).pdf",
+    "issuer": "Agencia Estatal de Administración Tributaria",
+    "documentDate": "2025-04-24",
+    "definitiveNifDate": "2025-03-31",
+    "ownerInstructionDate": "2026-10-09",
+    "emailSource": "Existing published NITIDO support contact; no email appears on the NIF card",
+    "externalRegistryVerification": "not performed"
+  }
+}

@@ -12,6 +12,7 @@ const config: CapacitorConfig = {
   server: {
     url: serverUrl,
     cleartext: false,
+    errorPath: serverUrl === "https://sandbox.nitido.ro" ? "offline-sandbox.html" : "index.html",
   },
   backgroundColor: "#f4f3ee",
   plugins: { PushNotifications: { presentationOptions: ['sound', 'banner', 'list'] } },

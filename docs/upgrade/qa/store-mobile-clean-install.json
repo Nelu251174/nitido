@@ -1,0 +1,70 @@
+{
+  "passed": true,
+  "node": "v22.23.3",
+  "npm": "10.9.9",
+  "expo": "57.0.18",
+  "reactNative": "0.86.3",
+  "pair": {
+    "reanimated": "4.5.1",
+    "worklets": "0.10.1"
+  },
+  "expoRecommendedPair": {
+    "reanimated": "4.5.1",
+    "worklets": "0.10.1"
+  },
+  "fabricCompatibility": {
+    "react-native": [
+      "0.83",
+      "0.84",
+      "0.85",
+      "0.86"
+    ],
+    "react-native-worklets": [
+      "0.10.x"
+    ]
+  },
+  "workletsCompatibility": {
+    "react-native": [
+      "0.83",
+      "0.84",
+      "0.85",
+      "0.86"
+    ]
+  },
+  "cleanNode22Npm10Ci": "passed",
+  "tests": {
+    "UTC": {
+      "passed": 143,
+      "total": 143
+    },
+    "EuropeBucharest": {
+      "passed": 143,
+      "total": 143
+    }
+  },
+  "typecheck": "passed",
+  "validPeerTree": true,
+  "lockSha256": "d3d467f3021eec71bf44008ef5a28899bbd15068e44ce4d4c072fca303005d3f",
+  "bypassNpmrc": false,
+  "bundles": [
+    {
+      "platform": "ios",
+      "file": "entry-19c8c6a1787ed17ed2805137211a4847.hbc",
+      "bytes": 3251661,
+      "sha256": "d68b3dc4584f79ab642412a04928dd20bc4c2a5be849076018bd165c21d4dffb"
+    },
+    {
+      "platform": "android",
+      "file": "entry-0a618eea1778aced79b28ff4fa27b0b3.hbc",
+      "bytes": 3557716,
+      "sha256": "06d90219d72aa632dd43debb0946b195fb5051bc9d55af913c2ffc53967cb4a9"
+    },
+    {
+      "platform": "web",
+      "file": "entry-e07003234c467dbccd7bc4f4e6813d9f.js",
+      "bytes": 1825815,
+      "sha256": "377cda77b05b9d64732416653da0921513f571729d6b0877976b23add6ccc04c"
+    }
+  ],
+  "scope": "Isolated clean npm install, tests, typecheck and Hermes/Metro exports; no native build/signing/device or store publication"
+}

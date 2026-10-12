@@ -1,5 +1,12 @@
 # NITIDO — Development Build Readiness
 
+**Actualizare 9 octombrie 2026:** candidata principală pentru continuarea publicării este
+aplicația Capacitor existentă; Expo rămâne alternativa React Native. Identitatea comună
+`ro.nitido.app` este păstrată. Exporturile Expo iOS/Android/web și verificările locale nu
+reprezintă builduri semnate sau probe fizice. Auditul actual și restanțele sunt documentate
+în [STORE_RELEASE_READINESS.md](STORE_RELEASE_READINESS.md). Secțiunea din 14 septembrie
+de mai jos descrie verificarea istorică a proiectului Expo.
+
 ## Identitate aprobată de OWNER
 
 - iOS Bundle Identifier: `ro.nitido.app`
@@ -15,7 +22,8 @@ Identitatea proiectului este conectată în cod. Aceasta nu confirmă semnarea, 
 - Web local: `http://localhost:8081`.
 - Telefon pe LAN controlat: backend accesibil prin IP-ul LAN al calculatorului; `localhost` ar indica telefonul, nu calculatorul.
 - Development/staging real: URL HTTPS accesibil dispozitivului în `EXPO_PUBLIC_NITIDO_API_BASE_URL`.
-- Production: URL HTTPS separat, aprobat și configurat în profilul de mediu EAS; nu se hardcodează în sursă.
+- Production Expo: `https://nitido.ro`, configurat explicit în profilul EAS production.
+  Configul refuză un API absent sau sandbox pentru acest profil.
 
 ## Configurație externă necesară
 
@@ -38,7 +46,7 @@ Identitatea proiectului este conectată în cod. Aceasta nu confirmă semnarea, 
 ### Expo / EAS
 
 - Cont/organizație Expo aprobată.
-- Proiect legat prin `eas init` și Project ID real.
+- Proiect legat și Project ID real verificat: `3887c4e7-445a-4954-9d04-7c8adc8519f9`.
 - `EXPO_PUBLIC_EAS_PROJECT_ID` poate conține numai UUID-ul public al proiectului.
 
 ## Deep links pregătite
@@ -64,16 +72,29 @@ Execută aceeași matrice pe un dispozitiv compact și unul modern/large:
 13. Recenzie verificată după finalizare și blocarea duplicatului.
 14. AI Support, răspuns lung, retry/offline și rol corect.
 15. Rețea lentă/offline pentru quote, Accept, upload și completion; fără duplicate.
+16. Serviciu cu minimum două fotografii: toate cerințele și checklistul specific rămân
+    identice snapshotului serverului; nu se substituie template-ul curent.
+17. Finalizare în timpul pornirii GPS: watcher-ul întârziat se închide; nu trimite locații
+    către următoarea lucrare.
+18. Recuperarea parolei: răspuns generic, indisponibilitate email, resetare prin link HTTPS,
+    apoi autentificare cu noua parolă.
+19. Confidențialitate/termeni și cerere ștergere: confirmare, anulare, retry/idempotency,
+    stare în analiză, fără mesaj fals de ștergere efectivă.
 
-## Comenzi — nu trimit aplicația în store
+## Runbook tehnic al agentului — fără submit implicit
 
-```powershell
-cd C:\Users\User\nitido\mobile
+```sh
+cd mobile
 eas build --profile development --platform ios
 eas build --profile development --platform android
 ```
 
-Profilele `preview` și `production` sunt pregătite în `eas.json`, dar nu se execută și nu se face `eas submit` înainte de aprobarea OWNER.
+Identificatorii și mandatul de pregătire/publicare sunt deja confirmate; nu este necesar
+un nou pas de aprobare a lor. Pentru executarea acestor operațiuni, agentul verifică mai
+întâi credențialele proiectului/platformei, fișierul Firebase pentru Android, semnarea și
+dispozitivele de test. Candidatul principal pentru magazine este Capacitor, iar comenzile
+de mai sus descriu builduri Expo alternative. Comanda de build nu face submit implicit;
+se corelează artefactul semnat cu probele fizice și candidatul ales înainte de submit.
 
 ## Profil de test conectat — 14 septembrie 2026
 

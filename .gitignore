@@ -46,3 +46,5 @@ mobile/.eas/
 /.vercel/
 *.tsbuildinfo
 next-env.d.ts
+__pycache__/
+*.py[cod]

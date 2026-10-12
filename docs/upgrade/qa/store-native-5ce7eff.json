@@ -1,0 +1,73 @@
+{
+  "scope": "First candidate native CI and static artifact checks; no store signing, device QA, deployment or publication",
+  "android": {
+    "sourceSha": "5ce7eff4b2fee70855db8c768ac6ba6eb9c2afaf",
+    "runId": 37917890800,
+    "artifactId": 11610503051,
+    "apkSha256": "cc8988cd4de33f0513d9007f76c44fdb726923d3e0d677d33fcbf30e01db90d8",
+    "appId": "ro.nitido.app",
+    "targetSdk": 36,
+    "allowBackup": false,
+    "server": {
+      "url": "https://nitido.ro",
+      "cleartext": false,
+      "errorPath": "index.html"
+    },
+    "offlineFallbackPresent": true,
+    "debugSignatureV2": true,
+    "zipalign16KB": true,
+    "libraries": [
+      {
+        "name": "lib/arm64-v8a/libdatastore_shared_counter.so",
+        "zipOffset": 4947968,
+        "loadAlignments": [
+          16384,
+          16384,
+          16384
+        ]
+      },
+      {
+        "name": "lib/armeabi-v7a/libdatastore_shared_counter.so",
+        "zipOffset": 4964352,
+        "loadAlignments": [
+          16384,
+          16384
+        ]
+      },
+      {
+        "name": "lib/x86/libdatastore_shared_counter.so",
+        "zipOffset": 4980736,
+        "loadAlignments": [
+          16384,
+          16384
+        ]
+      },
+      {
+        "name": "lib/x86_64/libdatastore_shared_counter.so",
+        "zipOffset": 4997120,
+        "loadAlignments": [
+          16384,
+          16384
+        ]
+      }
+    ],
+    "scope": "debug APK static artifact verification only, not signed store release or physical device QA"
+  },
+  "ios": {
+    "xcode": "26.6",
+    "sdk": "26.5",
+    "compileSucceeded": true,
+    "signed": false,
+    "provenance": [
+      "2026-10-09T10:31:14.5978730Z Xcode 26.6",
+      "2026-10-09T10:31:14.5980880Z Build version 17F113",
+      "2026-10-09T10:31:17.6961470Z 26.5",
+      "2026-10-09T10:32:52.9384290Z ** BUILD SUCCEEDED **"
+    ],
+    "runId": 37917955466,
+    "jobId": 113778848309,
+    "headSha": "5ce7eff4b2fee70855db8c768ac6ba6eb9c2afaf",
+    "sourceCandidateSha": "5ce7eff4b2fee70855db8c768ac6ba6eb9c2afaf",
+    "scope": "unsigned compile only; no archive/export, IPA signing or upload"
+  }
+}

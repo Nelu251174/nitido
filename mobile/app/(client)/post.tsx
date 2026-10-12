@@ -83,7 +83,7 @@ export default function PostJob() {
     let selected: { uri: string; fileName?: string | null; mimeType?: string | null; fileSize?: number | null } | null = null;
     try {
       const picker = await import("expo-image-picker");
-      const permission = camera ? await picker.requestCameraPermissionsAsync() : await picker.requestMediaLibraryPermissionsAsync();
+      const permission = camera ? await picker.requestCameraPermissionsAsync() : {granted:true};
       if (!permission.granted) throw new Error(camera ? "Permite accesul la cameră pentru a face fotografia." : "Permite accesul la fotografii pentru a alege imaginea.");
       const result = camera ? await picker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.8 }) : await picker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
       if (result.canceled) return;

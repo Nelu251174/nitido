@@ -20,13 +20,13 @@ Identificatorii finali aprobați sunt `ro.nitido.app` pentru iOS și Android. Pr
 
 Sursa canonică aprobată rămâne `../public/icons/icon-512x512.png`: pătratul verde rotunjit cu un singur „N” alb. Derivatele mecanice, fără redesenare, sunt în `assets/`: icon iOS/store 1024 px fără transparență, foreground adaptive Android și icon monocrom pentru notificări. Splash-ul folosește aceeași identitate, fără branding Expo.
 
-Buildurile de dezvoltare folosesc `expo-dev-client`; Expo Go nu este mediul final pentru Camera, SecureStore, Location și Notifications. Comenzile pregătite sunt `eas build --profile development --platform ios` și `eas build --profile development --platform android`, dar nu trebuie executate înainte de aprobarea identificatorilor și legarea proiectului EAS.
+Buildurile de dezvoltare folosesc `expo-dev-client`; Expo Go nu este mediul final pentru Camera, SecureStore, Location și Notifications. Identificatorii și proiectul sunt conectați; semnarea și probele pe telefon rămân de verificat. Comenzile `eas build --profile development --platform ios/android` produc builduri externe și nu au fost executate în auditul local.
 
 Firebase Android așteaptă `mobile/google-services.json`, ignorat de Git. APNs se configurează în EAS/Apple Developer; cheia `.p8`, certificatele și profilele nu se salvează în repository. Vezi `DEVICE_BUILD_READINESS.md` pentru checklistul complet.
 
 ## Permisiuni
 
-- Camera/fotografiile sunt cerute numai în fluxul de atașare/dovadă.
+- Camera este cerută numai în fluxul de atașare/dovadă. Galeria folosește selectorul sistemului pentru imaginea aleasă, fără acces larg la bibliotecă.
 - Locația foreground este cerută numai pentru traseul lucrării active; nu există tracking permanent sau background.
 - Notificările sunt cerute după explicația din setări, apoi tokenul este înregistrat la `/api/push/register`.
 
@@ -38,4 +38,6 @@ Client: Home, postare (10 pași), lucrări/detaliu/timeline/hartă/mesaje/plată
 
 Firmă: feed/alertă/preview/Accept, lucrare activă, hartă, dovezi ARRIVAL/COMPLETION, finalizare, încasări, istoric, rating/recenzii, verificare, zone, Stripe Connect, setări și suport.
 
-Ecranele de fundație nu simulează succesul operațiunilor: fiecare CTA critic trebuie conectat la răspunsul API înainte de următorul sprint de device testing.
+Operațiunile folosesc răspunsurile backendului și nu simulează succesul. Cerințele foto și checklisturile folosesc snapshotul lucrării, recuperarea parolei folosește API-ul existent, iar ștergerea contului înregistrează explicit o cerere, fără a pretinde că datele au fost șterse.
+
+Vezi [STORE_RELEASE_READINESS.md](STORE_RELEASE_READINESS.md) pentru auditul actual, exporturi, alertele de dependențe și probele lipsă. Candidatul principal pentru magazine rămâne **Capacitor**; Expo este alternativa cu aceeași identitate aprobată. Expo nu are încă spațiul NITIDO Pro din web.
