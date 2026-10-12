@@ -1,0 +1,33 @@
+{
+  "platform": "ios",
+  "appId": "ro.nitido.app",
+  "sourceSha": "7480c0462e75a85fd7819ed5be86963071eb388f",
+  "verifiedAt": "2026-10-12T16:55:57.547260+00:00",
+  "store": {
+    "verified": false,
+    "receipt": "Filled only after fresh authenticated Apple inspection"
+  },
+  "live": {
+    "sourceSha": "7480c0462e75a85fd7819ed5be86963071eb388f",
+    "origin": "https://nitido.ro",
+    "verified": true,
+    "receipt": "Coolify production deployment xuvg9bkbcwg8euqs58ix0qzl finished healthy; HTTPS and 20 hosted browser checks passed on exact candidate, including simulated iPhone/iPad Capacitor bridges",
+    "backup": {
+      "verified": true,
+      "receipt": "Coherent production backup and exclusive restore gidbo7q7fz8rdxrkxw8qsy0c; full preview pb2c0klti1atrmbbrxhufuqo; additive real migration evzkinlircj822qflwllcz7c; historical restore evidence recorded 2026-10-09, not a new backup. SQLite schema, migration code and production Compose/volume configuration are unchanged from that verified release."
+    }
+  },
+  "ci": {
+    "sourceSha": "7480c0462e75a85fd7819ed5be86963071eb388f",
+    "verified": true,
+    "receipt": "Native signed build run38279163659 and unsigned compile38279177163 passed; 34 focused tests and TypeScript passed on exact source"
+  },
+  "signing": {
+    "verified": false,
+    "receipt": "Verified again immediately before upload"
+  },
+  "compatibility": {
+    "verified": false,
+    "receipt": "Verified again from signed artifact before upload"
+  }
+}
