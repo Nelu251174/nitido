@@ -1,0 +1,35 @@
+{
+  "platform": "ios",
+  "appId": "ro.nitido.app",
+  "sourceSha": "be6b421015739dcbcc67eaa2234fd9fcb8ec7dc4",
+  "verifiedAt": "2026-10-09T18:35:05.830850+00:00",
+  "store": {
+    "verified": false,
+    "receipt": "Filled only after current authenticated Apple inspection in CI"
+  },
+  "live": {
+    "sourceSha": "be6b421015739dcbcc67eaa2234fd9fcb8ec7dc4",
+    "origin": "https://nitido.ro",
+    "verified": true,
+    "receipt": "Coolify exact-source deployment kyuqs6gtmrqj0ubijotsmhb6 and public HTTPS acceptance; rechecked 2026-10-09T18:35:05.830850+00:00",
+    "backup": {
+      "verified": true,
+      "receipt": "Coherent production backup and exclusive restore gidbo7q7fz8rdxrkxw8qsy0c; full preview pb2c0klti1atrmbbrxhufuqo; additive real migration evzkinlircj822qflwllcz7c"
+    }
+  },
+  "ci": {
+    "sourceSha": "be6b421015739dcbcc67eaa2234fd9fcb8ec7dc4",
+    "verified": true,
+    "receipt": "GitHub Actions native run37971466646 and consolidated CI37957420729; exact source verified again in upload job"
+  },
+  "signing": {
+    "verified": true,
+    "receipt": "Existing distribution identity preserved in run37971466646; strict signed IPA verification repeated before upload"
+  },
+  "compatibility": {
+    "verified": true,
+    "receipt": "SDK26.5, App Store profile and production APNs passed run37971466646; verification repeated before upload",
+    "xcodeMajor": 26,
+    "iosSdkMajor": 26
+  }
+}
