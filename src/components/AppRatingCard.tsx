@@ -1,11 +1,17 @@
-import { appStoreLinks } from "@/lib/appStore";
+"use client";
+
+import { appStoreLinks, storeLinksForPlatform } from "@/lib/appStore";
+import { useAppPlatform } from "@/lib/useAppPlatform";
 
 // Butonul „RATING aplicație": invită utilizatorul să evalueze NITIDO în
 // magazine. Se activează automat când linkurile din env sunt setate
 // (NEXT_PUBLIC_APP_STORE_URL / NEXT_PUBLIC_PLAY_STORE_URL). Până atunci afișează
 // starea „în curând" — gata de lansare, fără schimbare de cod.
 export function AppRatingCard({ compact = false }: { compact?: boolean } = {}) {
-  const links = appStoreLinks();
+  const platform = useAppPlatform();
+  const links = storeLinksForPlatform(appStoreLinks(), platform);
+  // No cross-store or coming-soon promotion in an installed app.
+  if (platform === "unknown" || (platform !== "web" && !links.live)) return null;
   return (
     <div className={`rounded-2xl border border-line bg-white ${compact ? "p-3.5" : "p-5"}`}>
       <div className="flex items-center gap-1 text-[#f5a623] text-base leading-none" aria-hidden="true">

@@ -1,4 +1,7 @@
+"use client";
+
 import { appStoreLinks } from "@/lib/appStore";
+import { useAppPlatform } from "@/lib/useAppPlatform";
 
 // Insignele oficiale App Store și Google Play, desenate ca SVG inline (nu ca
 // imagini externe) — ca să fie clare pe orice ecran și să nu depindă de fișiere
@@ -67,6 +70,9 @@ export function GooglePlayBadge({ className = "" }: { className?: string }) {
  * clicabile; până atunci apar cu eticheta „ÎN CURÂND".
  */
 export function PhoneAppPromo() {
+  const platform = useAppPlatform();
+  if (platform !== "web") return null;
+
   const links = appStoreLinks();
   const badgeClass = "h-[46px] w-auto";
   return (

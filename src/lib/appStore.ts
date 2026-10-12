@@ -31,3 +31,14 @@ export function appStoreLinks(): AppStoreLinks {
     process.env.NEXT_PUBLIC_PLAY_STORE_URL
   );
 }
+
+/** Native rating links must only point to the current device's store. */
+export function storeLinksForPlatform(
+  links: AppStoreLinks,
+  platform: "web" | "ios" | "android" | "unknown"
+): AppStoreLinks {
+  return resolveAppStoreLinks(
+    platform === "web" || platform === "ios" ? links.appStore : null,
+    platform === "web" || platform === "android" ? links.playStore : null
+  );
+}

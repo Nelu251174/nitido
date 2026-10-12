@@ -32,6 +32,9 @@ on:
   push:
     branches:
       - "release-ios"
+      # Prepare a signed replacement for the 2.3.10 review rejection.
+      # Push builds archive only; TestFlight upload remains explicitly gated.
+      - "codex/ios-review-metadata"
 
 permissions:
   contents: read
@@ -84,7 +87,7 @@ jobs:
 
       - name: Resolve release versions and verify installed SDK
         env:
-          REQUESTED: ${{ inputs.build_number }}
+          REQUESTED: ${{ inputs.build_number || (github.ref_name == 'codex/ios-review-metadata' && '17') || '' }}
           MARKETING: ${{ inputs.marketing_version || '1.0' }}
         run: |
           BUILD_NUMBER="${REQUESTED:-$GITHUB_RUN_NUMBER}"

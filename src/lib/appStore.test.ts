@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveAppStoreLinks } from "./appStore";
+import { resolveAppStoreLinks, storeLinksForPlatform } from "./appStore";
 
 describe("appStore — linkuri magazine pentru butonul de evaluare", () => {
   it("fără niciun link → pre-lansare (live=false)", () => {
@@ -26,5 +26,23 @@ describe("appStore — linkuri magazine pentru butonul de evaluare", () => {
     expect(links.live).toBe(true);
     expect(links.appStore).toBe("https://apps.apple.com/x");
     expect(links.playStore).toBe("https://play.google.com/store/apps/details?id=ro.nitido");
+  });
+});
+
+describe("platform-specific store links", () => {
+  const links = resolveAppStoreLinks("https://apps.apple.com/app/nitido", "https://play.google.com/store/apps/details?id=ro.nitido.app");
+
+  it("iPhone and iPad only offer the Apple store, even when both are configured", () => {
+    expect(storeLinksForPlatform(links, "ios")).toEqual({appStore:links.appStore,playStore:null,live:true});
+    expect(storeLinksForPlatform(resolveAppStoreLinks(null, links.playStore), "ios").live).toBe(false);
+  });
+
+  it("Android only offers its store", () => {
+    expect(storeLinksForPlatform(links, "android")).toEqual({appStore:null,playStore:links.playStore,live:true});
+  });
+
+  it("the browser retains both stores, but an unidentified client offers neither", () => {
+    expect(storeLinksForPlatform(links, "web")).toEqual(links);
+    expect(storeLinksForPlatform(links, "unknown")).toEqual({appStore:null,playStore:null,live:false});
   });
 });
