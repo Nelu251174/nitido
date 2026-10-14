@@ -1,4 +1,6 @@
 "use client";
+import {UiDate} from '@/components/UiDate';
+
 import {UiText,UiTemplate} from '@/components/UiText';
 import { useState } from "react";
 import { CHECKLISTS, SERVICES } from "@/lib/pro/shared";
@@ -43,7 +45,7 @@ function Editor({ propertyId, template, run }: { propertyId: string; template: T
   }
   return <>
     <p className="mt-3">{template.revision ? <UiTemplate text={"Versiunea publicată: {p0}"} values={[template.revision]}/> : <UiText text={"Listă standard, încă nepersonalizată"}/>}</p>
-    {template.created_at && <p><UiText text={"Publicată la "}/>{new Date(template.created_at).toLocaleString("ro-RO")} · {template.reason}</p>}
+    {template.created_at && <p><UiText text={"Publicată la "}/>{<UiDate value={new Date(template.created_at)} kind="dateTime"/>} · {template.reason}</p>}
     <form className="mt-3" onSubmit={async e => {
       e.preventDefault(); setBusy(true); setError("");
       try {
@@ -69,7 +71,7 @@ function Editor({ propertyId, template, run }: { propertyId: string; template: T
     {history && <div className="mt-3">
       {!history.rows.length && <p><UiText text={"Nu există încă versiuni personalizate publicate."}/></p>}
       {history.rows.map(row => <details key={row.revision} className="mt-3">
-        <summary><UiText text={"Versiunea "}/>{row.revision} · {new Date(row.created_at!).toLocaleString("ro-RO")}</summary>
+        <summary><UiText text={"Versiunea "}/>{row.revision} · {<UiDate value={new Date(row.created_at!)} kind="dateTime"/>}</summary>
         <p>{row.reason}</p><p><UiText text={"Autor: "}/>{row.actor}</p>
         {row.photoRules && <p><UiText text={"Fotografii minime: "}/>{row.photoRules.arrivalMin}<UiText text={" înainte și "}/>{row.photoRules.completionMin}<UiText text={" la finalizare."}/></p>}
         <ol className="list-decimal pl-5">{row.items.map((item, i) => <li key={i}>{item}</li>)}</ol>

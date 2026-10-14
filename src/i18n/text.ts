@@ -16,3 +16,7 @@ export function translateText(catalog: UiCatalog, source: string): string {
   // JSX fragments need their spaces when adjacent to numbers or names.
   return `${source.match(/^\s*/)?.[0] ?? ''}${translated}${source.match(/\s*$/)?.[0] ?? ''}`;
 }
+/** Runtime values are substituted after translation and never sent to a provider. */
+export function translateTemplate(catalog:UiCatalog,source:string,values:readonly (string|number)[]):string {
+  return translateText(catalog,source).replace(/\{p(\d+)\}/g,(slot,index)=>values[Number(index)]===undefined?slot:String(values[Number(index)]));
+}

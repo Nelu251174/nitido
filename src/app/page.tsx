@@ -1,4 +1,5 @@
-import {localizeMetadata} from '@/i18n/server';
+import {localizeMetadata,getUiText} from '@/i18n/server';
+import {getLocale} from 'next-intl/server';
 import {UiText,UiElement} from '@/components/UiText';
 import { publicPageMetadata } from "@/lib/publicSeo";
 const sourceMetadata = publicPageMetadata("/");
@@ -21,12 +22,13 @@ const services=[
  {title:"Curățenie birouri",text:"Un spațiu de lucru curat, pregătit pentru echipa ta.",image:"about-professionals-v3.webp",type:"birou"},
  {title:"Proprietăți și gazde",text:"Organizează curățenia înaintea următorilor oaspeți.",image:"approved-living-room.webp",type:"casa"},
 ];
-export default function Home(){
+export default async function Home(){
+ const [t,locale]=await Promise.all([getUiText(),getLocale()]);
  const trust=getPublicTrustSnapshot(db);
  const reviewCount=trust.firms.reduce((sum,f)=>sum+f.review_count,0);
  const average=reviewCount?trust.firms.reduce((sum,f)=>sum+(f.average_rating??0)*f.review_count,0)/reviewCount:null;
- const reviewLabel=average===null?"Fără evaluări încă":`${average.toLocaleString("ro-RO",{minimumFractionDigits:1,maximumFractionDigits:1})} / 5`;
- const reviewDetail=reviewCount?`${reviewCount.toLocaleString("ro-RO")} ${reviewCount===1?"recenzie verificată":"recenzii verificate"}`:"După lucrări finalizate";
+ const reviewLabel=average===null?t("Fără evaluări încă"):`${average.toLocaleString(locale,{minimumFractionDigits:1,maximumFractionDigits:1})} / 5`;
+ const reviewDetail=reviewCount?`${reviewCount.toLocaleString(locale)} ${t(reviewCount===1?"recenzie verificată":"recenzii verificate")}`:t("După lucrări finalizate");
  return <div className="approved-home"><SiteHeader home/><main id="main-content"><PublicSiteStructuredData/>
  <section className="design-hero">
   <div className="design-hero-image"><Image src="/design-v2/approved-living-room.webp" alt="Living luminos cu canapea crem, plante și o masă rotundă din lemn" fill priority sizes="(max-width:760px) 50vw, 65vw"/><span className="design-photo-badge"><UiText text={"Case mai curate."}/><br/><UiText text={"Oameni mai fericiți."}/><i>—</i></span></div>

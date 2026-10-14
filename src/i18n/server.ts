@@ -1,11 +1,11 @@
 import 'server-only';
 import type {Metadata} from 'next';
 import {getLocale, getMessages} from 'next-intl/server';
-import {translateText, type UiCatalog} from './text';
+import {translateText,translateTemplate, type UiCatalog} from './text';
 
 export async function getUiText() {
   const {ui} = await getMessages();
-  return (source: string) => translateText(ui as UiCatalog, source);
+  return (source: string,values?:readonly (string|number)[]) => values?translateTemplate(ui as UiCatalog,source,values):translateText(ui as UiCatalog, source);
 }
 /** Only metadata display fields: URLs and verification/robots settings stay exact. */
 export async function localizeMetadata(metadata: Metadata): Promise<Metadata> {

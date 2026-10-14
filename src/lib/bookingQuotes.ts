@@ -1,4 +1,5 @@
 import type {Database} from 'better-sqlite3';
+import {configuredServiceMarket,ServiceMarketError} from './serviceMarkets';
 import {randomUUID} from 'node:crypto';
 import {ManagedPricingError,PRICING_SPACES} from './managedPricing';
 import {resolveManagedPrice} from './managedPricingStore';
@@ -29,6 +30,7 @@ CREATE TRIGGER IF NOT EXISTS booking_quote_no_delete BEFORE DELETE ON booking_pr
 `;
 export type BookingPriceContext={city:string;spaceType:SpaceType;sqm:number;windowsSqm:number;mode:'standard'|'express';express60:boolean};
 export function bookingPriceContext(body:Record<string,unknown>):BookingPriceContext {
+  try{configuredServiceMarket(body);}catch(error){if(error instanceof ServiceMarketError)throw new ManagedPricingError(error.message,error.status);throw error;}
   if(typeof body.city!=='string'||!body.city.trim()||body.city.length>120)throw new ManagedPricingError('Localitate invalidă.');
   if(!PRICING_SPACES.includes(body.spaceType as SpaceType)||!Number.isSafeInteger(body.sqm)||Number(body.sqm)<1||Number(body.sqm)>1000)throw new ManagedPricingError('Parametri de serviciu invalizi.');
   const windowsSqm=body.windowsSqm??0;

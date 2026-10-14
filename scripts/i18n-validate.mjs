@@ -9,7 +9,7 @@ const locales=['bg','hr','cs','da','nl','en','et','fi','fr','de','el','hu','ga',
 const keys=Object.keys(source).sort();
 const hash=crypto.createHash('sha256').update(JSON.stringify(source)).digest('hex');
 if(!manifest.complete||manifest.languages!==24||manifest.sourceHash!==hash||manifest.sourceMessages!==keys.length)throw Error('Complete catalogs matching the current UI source are required');
-const tokens=text=>(text.match(/\{p\d+\}|https?:\/\/[^\s]+|[\w.+-]+@[\w.-]+|\d+(?:[.,]\d+)*|NITIDO(?:\.RO| Pro)?|RON|Stripe|Google Play|App Store/g)||[]).sort();
+const tokens=text=>(text.match(/\{p\d+\}|https?:\/\/[^\s]+|[\w.+-]+@[\w.-]+|\d+(?:[.,]\d+)*|NITIDO(?:\.RO| Pro)?|RON|EUR|\blei\b|\bleu\b|Stripe|Google Play|App Store/g)||[]).sort();
 for(const locale of locales){
   const catalog=JSON.parse(fs.readFileSync(path.join(root,locale+'.json'),'utf8'));
   if(JSON.stringify(Object.keys(catalog).sort())!==JSON.stringify(keys))throw Error(`Missing or extra keys in ${locale}`);

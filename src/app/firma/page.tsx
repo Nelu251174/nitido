@@ -1,4 +1,6 @@
 "use client";
+import {UiDate} from '@/components/UiDate';
+
 import {UiText,UiElement,UiTemplate} from '@/components/UiText';
 import {AssistedJourney} from "@/components/AssistedJourney";
 import {VisitCare} from "@/components/VisitCare";
@@ -308,7 +310,7 @@ export default function FirmaPage() {
                     <span className="inline-block text-white text-[10px] font-display font-bold px-2.5 py-1 rounded-full bg-coral"><UiText text={"🔥 EXPRESS 60 — PRIORITATE MAXIMĂ"}/></span>
                     {job.express_60_deadline && (
                       <span className="text-[10.5px] font-display font-bold text-coral"><UiText text={"Preluare garantată până la"}/>{" "}
-                        {new Date(job.express_60_deadline).toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" })}
+                        {<UiDate value={new Date(job.express_60_deadline)} kind="time" options={{ hour: "2-digit", minute: "2-digit" }}/>}
                       </span>
                     )}
                   </div>
@@ -325,11 +327,11 @@ export default function FirmaPage() {
                   <span className="text-[11px] bg-mist px-2 py-1 rounded-md">{job.space_type}</span>
                   {job.scheduled_at && (
                     <span className="text-[11px] bg-mist px-2 py-1 rounded-md">
-                      {new Date(job.scheduled_at).toLocaleString("ro-RO", {
+                      {<UiDate value={new Date(job.scheduled_at)} kind="dateTime" options={{
                         weekday: "short",
                         hour: "2-digit",
                         minute: "2-digit",
-                      })}
+                      }}/>}
                     </span>
                   )}
                 </div>

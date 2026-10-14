@@ -45,7 +45,7 @@ const batches=[];
 for(let offset=0;offset<entries.length;){const batch=[];let chars=0;while(offset<entries.length&&batch.length<65&&(chars<7000||!batch.length)){const item=entries[offset++];batch.push(item);chars+=item[1].length;}batches.push(batch);}
 
 function protectedTokens(text) {
-  return (text.match(/\{p\d+\}|https?:\/\/[^\s]+|[\w.+-]+@[\w.-]+|\d+(?:[.,]\d+)*|NITIDO(?:\.RO| Pro)?|RON|Stripe|Google Play|App Store/g)||[]).sort();
+  return (text.match(/\{p\d+\}|https?:\/\/[^\s]+|[\w.+-]+@[\w.-]+|\d+(?:[.,]\d+)*|NITIDO(?:\.RO| Pro)?|RON|EUR|\blei\b|\bleu\b|Stripe|Google Play|App Store/g)||[]).sort();
 }
 function validate(result,batch) {
   if(!result||typeof result!=='object'||Array.isArray(result)||Object.keys(result).length!==batch.length)throw Error('Translation count mismatch');
@@ -56,19 +56,22 @@ function validate(result,batch) {
     if(translated.includes('```'))throw Error('Unexpected markup');
   }
 }
+let halted=false;
 async function translate(locale) {
   const file=path.join(output,`${locale}.json`);
   const catalog=fs.existsSync(file)?JSON.parse(fs.readFileSync(file,'utf8')):{};
   for(const fullBatch of batches){
+    if(halted)return;
     const batch=fullBatch.filter(([id])=>!catalog[id]);
     if(!batch.length)continue;
     let success=false;
     for(let attempt=0;attempt<3&&!success;attempt++){
+      if(halted)return;
       if(state.requests>=maxRequests||state.inputTokens+state.outputTokens>=maxTokens)throw Error('Translation budget limit reached');
       try{
         const schema={type:'object',properties:Object.fromEntries(batch.map(([id])=>[id,{type:'string'}])),required:batch.map(([id])=>id),additionalProperties:false};
         const payload={model,store:false,max_output_tokens:12000,reasoning:{effort:'none'},
-          instructions:`Translate this Romanian cleaning marketplace's UI copy into ${names[locale]}. Use clear, natural, professional wording. This is a Romanian service with a multilingual interface, not a claim of service coverage abroad. Preserve every numeric token exactly (including decimal separators), currency RON, percentages, URLs, emails, IDs, and the brands NITIDO, NITIDO.RO, NITIDO Pro, Stripe, Google Play, App Store, Standard, Express and Express 60. Preserve placeholder tokens and punctuation structure. Translate all readable words, including short fragments, error messages, accessibility labels and legal copy; do not add explanations, promises or features. Keep fragments short enough for mobile controls. Each input key must occur exactly once in the output.`,
+          instructions:`Translate this Romanian cleaning marketplace's UI copy into ${names[locale]}. Use clear, natural, professional wording. This is a Romanian service with a multilingual interface, not a claim of service coverage abroad. Preserve every numeric token exactly (including decimal separators), currencies RON and EUR, the Romanian currency words lei and leu exactly (never substitute euros for lei), percentages, URLs, emails, IDs, and the brands NITIDO, NITIDO.RO, NITIDO Pro, Stripe, Google Play, App Store, Standard, Express and Express 60. Preserve placeholder tokens and punctuation structure. Translate all readable words, including short fragments, error messages, accessibility labels and legal copy; do not add explanations, promises or features. Keep fragments short enough for mobile controls. Each input key must occur exactly once in the output.`,
           input:JSON.stringify(Object.fromEntries(batch)),text:{format:{type:'json_schema',name:'ui_translations',strict:true,schema}}};
         const wire=JSON.stringify(payload);
         // Reserve an upper estimate BEFORE dispatch (including concurrent work).
@@ -107,7 +110,12 @@ async function translate(locale) {
 }
 // Limit provider load. Other app traffic keeps using its normal AI settings.
 const queue=[...selected];
-await Promise.all(Array.from({length:Math.min(3,queue.length)},async()=>{while(queue.length){await translate(queue.shift());}}));
+const results=await Promise.allSettled(Array.from({length:Math.min(3,queue.length)},async()=>{
+  try{while(queue.length&&!halted){await translate(queue.shift());}}
+  catch(error){halted=true;throw error;}
+}));
 const complete=targets.every(locale=>state.completed.includes(locale));
 atomic(path.join(output,'manifest.json'),{complete,languages:24,sourceLanguage:'ro',sourceMessages:entries.length,sourceHash,provider:'OpenAI',model,review:'machine translation; specialist legal review pending'});
 console.log(JSON.stringify({complete,requests:state.requests,tokens:state.inputTokens+state.outputTokens}));
+const failed=results.find(result=>result.status==='rejected');
+if(failed)throw failed.reason;

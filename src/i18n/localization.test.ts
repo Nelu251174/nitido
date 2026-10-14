@@ -3,8 +3,9 @@ import {createElement as h} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {NextIntlClientProvider} from 'next-intl';
 import {LANGUAGES,asLocale,selectLocale,hasSupportedLanguage} from './locales';
-import {textKey,translateText} from './text';
+import {textKey,translateText,translateTemplate} from './text';
 import {UiText,UiTemplate,UiElement} from '@/components/UiText';
+import {UiDate} from '@/components/UiDate';
 import source from '../../messages/ro.json';
 
 describe('language negotiation',()=>{
@@ -63,6 +64,16 @@ describe('source-owned UI and user data isolation',()=>{
   it('retains adjacent fragment spaces and returns unknown copy unchanged',()=>{
     expect(translateText(en,' Autentificare ')).toBe(' Sign in ');
     expect(translateText(en,'Ana Popescu')).toBe('Ana Popescu');
+  });
+  it('substitutes server template values only once, including literal placeholder-like user values',()=>{
+    expect(translateTemplate(en,'Confirmă {p0} pentru {p1}',['500 RON','{p0}'])).toBe('For {p0}, confirm 500 RON');
+  });
+  it('formats dates in all 24 languages without changing the operational time zone',()=>{
+    const value=new Date('2026-10-14T22:30:00Z'),options={year:'numeric',month:'long',day:'numeric'} as const;
+    for(const [locale] of LANGUAGES){
+      const html=render(locale,{},h(UiDate,{value,kind:'date',options}));
+      expect(html).toBe(renderToStaticMarkup(h('span',{},value.toLocaleDateString(locale,{timeZone:'Europe/Bucharest',...options}))).slice(6,-7));
+    }
   });
   it('keeps source catalog keys stable and free of collisions',()=>{
     for(const [key,text] of Object.entries(source))expect(textKey(text)).toBe(key);
