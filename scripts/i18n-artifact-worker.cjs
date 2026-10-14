@@ -1,48 +1,39 @@
-/** Owner-authorized private catalog job. Run only inside GitHub Actions.
- * Prepares a private handoff for the managed operator, without exporting the host's
- * OpenAI credential. Only a temporary, artifact-specific upload URL reaches the
- * host. Every handoff and result is encrypted to an operator-only private key
- * before any artifact upload. The resulting ZIP contains ciphertext, never a public
- * website upload. No application database or customer records are read.
- */
-const fs=require('node:fs');
-const crypto=require('node:crypto');
-const path=require('node:path');
-module.exports=async function({core}){
+/** Owner-approved encrypted transport. Catalog decryption key stays in the workspace. */
+const fs=require('node:fs'),crypto=require('node:crypto'),path=require('node:path'),zlib=require('node:zlib');
+module.exports=async function({core,github,context}){
  const prefix=path.resolve('.translation-tools/node_modules/@actions/artifact/lib');
  const {internalArtifactTwirpClient}=require(prefix+'/internal/shared/artifact-twirp-client.js');
  const {getBackendIdsFromToken}=require(prefix+'/internal/shared/util.js');
  const {getExpiration}=require(prefix+'/internal/upload/retention.js');
- const {BlobClient}=require(path.resolve('.translation-tools/node_modules/@azure/storage-blob'));
- const client=internalArtifactTwirpClient();
- const ids=getBackendIdsFromToken(),name='nitido-eu-remote-upload';
- const made=await client.CreateArtifact({...ids,name,version:4,expiresAt:getExpiration(7)});
- if(!made.ok)throw Error('Private artifact could not be created');
- const uploadUrl=made.signedUploadUrl;
- core.setSecret(uploadUrl);
+ const client=internalArtifactTwirpClient(),ids=getBackendIdsFromToken(),name='nitido-eu-remote-upload';
+ const made=await client.CreateArtifact({...ids,name,version:4,expiresAt:getExpiration(7)});if(!made.ok)throw Error('Encrypted artifact reservation failed');
+ core.setSecret(made.signedUploadUrl);
  const publicKey=fs.readFileSync('scripts/i18n-transfer-public-key.pub','utf8');
- function seal(plaintext){
-  const key=crypto.randomBytes(32),iv=crypto.randomBytes(12);
-  const cipher=crypto.createCipheriv('aes-256-gcm',key,iv);
-  const ciphertext=Buffer.concat([cipher.update(plaintext,'utf8'),cipher.final()]);
-  const wrapped=crypto.publicEncrypt({key:publicKey,oaepHash:'sha256',padding:crypto.constants.RSA_PKCS1_OAEP_PADDING},key);
-  return JSON.stringify({algorithm:'RSA-OAEP-SHA256/AES-256-GCM',key:wrapped.toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:ciphertext.toString('base64')});
- }
- const probe=process.env.NITIDO_TRANSLATION_PROBE==='true';
- // Ciphertext only: the operator private key stays outside this public repo,
- // outside Actions and outside the application host. No upload URL is exposed.
- const handoff=path.resolve('.translation-handoff');fs.mkdirSync(handoff,{recursive:true,mode:0o700});
- fs.writeFileSync(handoff+'/task.enc.json',seal(JSON.stringify({uploadUrl,sourceSha:process.env.GITHUB_SHA,runId:process.env.GITHUB_RUN_ID,probe})),{mode:0o600});
+ const key=crypto.randomBytes(32),iv=crypto.randomBytes(12),cipher=crypto.createCipheriv('aes-256-gcm',key,iv);
+ const plain=JSON.stringify({uploadUrl:made.signedUploadUrl,sourceSha:process.env.GITHUB_SHA,runId:process.env.GITHUB_RUN_ID,probe:process.env.NITIDO_TRANSLATION_PROBE==='true'});
+ const data=Buffer.concat([cipher.update(plain,'utf8'),cipher.final()]);
+ const wrapped=crypto.publicEncrypt({key:publicKey,oaepHash:'sha256',padding:crypto.constants.RSA_PKCS1_OAEP_PADDING},key);
+ const sealed=JSON.stringify({algorithm:'RSA-OAEP-SHA256/AES-256-GCM',key:wrapped.toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')});
+ const handoff=path.resolve('.translation-handoff');fs.mkdirSync(handoff,{recursive:true,mode:0o700});fs.writeFileSync(handoff+'/task.enc.json',sealed,{mode:0o600});
  const artifact=require(prefix+'/artifact.js').default;
- const transferred=await artifact.uploadArtifact('nitido-private-job-handoff',[handoff+'/task.enc.json'],handoff,{retentionDays:1});
- core.info(JSON.stringify({handoffArtifactId:transferred.id,probe}));
- core.info('NITIDO_ENCRYPTED_HANDOFF:'+fs.readFileSync(handoff+'/task.enc.json','utf8'));
- // Existing runner-local secret binding, already used by deploy.yml:18.
- // No managed-executor credential is copied or newly configured here.
- // The owner authorized encrypted link transport within this GitHub workflow.
- if(!process.env.COOLIFY_TOKEN)throw Error('Runner link-protection secret is not configured');
- const key=crypto.hkdfSync('sha256',Buffer.from(process.env.COOLIFY_TOKEN),Buffer.from('nitido-eu-link-transport'),Buffer.from(process.env.GITHUB_RUN_ID),32);
- const iv=crypto.randomBytes(12),cipher=crypto.createCipheriv('aes-256-gcm',key,iv);
- const data=Buffer.concat([cipher.update(JSON.stringify({url:uploadUrl,...ids,name}),'utf8'),cipher.final()]);
- core.info('NITIDO_ENCRYPTED_COLLECTION_LINK:'+JSON.stringify({iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')}));
+ await artifact.uploadArtifact('nitido-private-job-handoff',[handoff+'/task.enc.json'],handoff,{retentionDays:1});
+ core.info(JSON.stringify({encryptedHandoffReady:true,providerKeyExported:false}));
+ let receipt;
+ for(let minute=0;minute<235;minute++){
+  try{const r=await github.rest.repos.getContent({...context.repo,path:'translation-receipts/'+process.env.GITHUB_RUN_ID+'.json',ref:'codex/eu-translation-worker-20261014'});receipt=JSON.parse(Buffer.from(r.data.content,'base64').toString());if(receipt.uploaded===true)break;}catch{/* Await the owner's verified upload receipt. */}
+  if(minute%2===0)core.info(JSON.stringify({awaitingEncryptedCatalogs:true,elapsedMinutes:minute}));
+  await new Promise(resolve=>setTimeout(resolve,60000));
+ }
+ if(!receipt||receipt.sourceSha!==process.env.GITHUB_SHA||receipt.archiveBytes!==24000000)throw Error('Verified upload receipt is required');
+ // Finalize with the same runtime identity and job that reserved this artifact.
+ const finalized=await client.FinalizeArtifact({...ids,name,size:String(receipt.archiveBytes)});if(!finalized.ok)throw Error('Owned artifact finalization failed');
+ const result=await client.GetSignedArtifactURL({...ids,name});core.setSecret(result.signedUrl);
+ const {BlobClient}=require(path.resolve('.translation-tools/node_modules/@azure/storage-blob'));
+ const blob=new BlobClient(result.signedUrl),properties=await blob.getProperties();if(properties.contentLength!==receipt.archiveBytes)throw Error('Encrypted archive size mismatch');
+ const zip=await blob.downloadToBuffer();if(zip.readUInt32LE(0)!==0x04034b50||zip.readUInt16LE(8)!==8)throw Error('Unexpected encrypted archive');
+ const n=zip.readUInt16LE(26),extra=zip.readUInt16LE(28);if(zip.subarray(30,30+n).toString()!=='bundle.enc.json')throw Error('Unexpected archive entry');
+ const offset=30+n+extra,payload=zlib.inflateRawSync(zip.subarray(offset,offset+zip.readUInt32LE(18)),{maxOutputLength:40000000});
+ if(JSON.parse(payload).algorithm!=='RSA-OAEP-SHA256/AES-256-GCM')throw Error('Catalog encryption is required');
+ const output=path.resolve('.encrypted-catalog-result');fs.mkdirSync(output,{recursive:true,mode:0o700});fs.writeFileSync(output+'/bundle.enc.json',payload,{mode:0o600});
+ const published=await artifact.uploadArtifact('nitido-eu-private-catalogs',[output+'/bundle.enc.json'],output,{retentionDays:7});core.info(JSON.stringify({encryptedArtifactId:published.id,encryptedBytes:payload.length}));
 };

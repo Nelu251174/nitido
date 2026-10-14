@@ -10,9 +10,9 @@ concurrency:
   group: nitido-owner-approved-private-translations
   cancel-in-progress: true
 jobs:
-  prepare:
+  generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 245
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,14 +23,12 @@ jobs:
         id: transfer
         env:
           NITIDO_TRANSLATION_PROBE: 'true'
-          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
         with:
           script: |
-            await require('./scripts/i18n-artifact-worker.cjs')({core});
-  collect:
-    needs: prepare
+            await require('./scripts/i18n-artifact-worker.cjs')({core,github,context});
+  relay:
     runs-on: ubuntu-latest
-    timeout-minutes: 245
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,13 +36,11 @@ jobs:
           node-version: 22
       - run: npm install --prefix .translation-tools --ignore-scripts @actions/artifact@4.0.0
       - uses: actions/github-script@v7
-        env:
-          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
         with:
           script: |
-            await require('./scripts/i18n-artifact-collect.cjs')({core,github,context});
+            await require('./scripts/i18n-handoff-relay.cjs')({core});
   export-ciphertext:
-    needs: collect
+    needs: generate
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 8
@@ -59,4 +55,4 @@ jobs:
         env:
           PART: ${{ matrix.part }}
         run: |
-          node -e 'const fs=require("node:fs");const data=fs.readFileSync(".ciphertext-catalogs/bundle.enc.json","utf8"),part=Number(process.env.PART),size=Math.ceil(data.length/32);console.log("NITIDO_ENCRYPTED_CATALOG_PART:"+part+":"+data.slice(part*size,(part+1)*size));'
+          node -e 'const fs=require("node:fs");const data=fs.readFileSync(".ciphertext-catalogs/bundle.enc.json","utf8"),part=Number(process.env.PART),size=Math.ceil(data.length/32);const piece=data.slice(part*size,(part+1)*size);for(let offset=0;offset<piece.length;offset+=10000)console.log("NITIDO_ENCRYPTED_CATALOG_PART:"+part+":"+(offset/10000)+":"+piece.slice(offset,offset+10000));'
