@@ -22,7 +22,7 @@ try{
   for(let attempt=0;attempt<60;attempt++){
     if(failure)throw failure;
     if(server.exitCode!==null)throw new Error('Standalone server exited before becoming ready: '+output);
-    try{const response=await fetch(base+'/login',{signal:AbortSignal.timeout(2000)});ready=response.ok();}catch{}
+    try{const response=await fetch(base+'/login',{signal:AbortSignal.timeout(2000)});ready=response.ok;}catch{}
     if(ready)break;
     await delay(250);
   }
