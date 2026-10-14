@@ -43,6 +43,6 @@ module.exports=async function({core}){
  if(!process.env.COOLIFY_TOKEN)throw Error('Runner link-protection secret is not configured');
  const key=crypto.hkdfSync('sha256',Buffer.from(process.env.COOLIFY_TOKEN),Buffer.from('nitido-eu-link-transport'),Buffer.from(process.env.GITHUB_RUN_ID),32);
  const iv=crypto.randomBytes(12),cipher=crypto.createCipheriv('aes-256-gcm',key,iv);
- const data=Buffer.concat([cipher.update(uploadUrl,'utf8'),cipher.final()]);
+ const data=Buffer.concat([cipher.update(JSON.stringify({url:uploadUrl,...ids,name}),'utf8'),cipher.final()]);
  core.info('NITIDO_ENCRYPTED_COLLECTION_LINK:'+JSON.stringify({iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')}));
 };

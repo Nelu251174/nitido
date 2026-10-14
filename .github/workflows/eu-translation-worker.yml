@@ -2,6 +2,7 @@ name: Authorized EU translation worker
 on:
   push:
     branches: [codex/eu-translation-worker-20261014]
+    paths: ["scripts/i18n-*.cjs", "scripts/eu.cjs", "scripts/i18n-translate.mjs", "scripts/i18n-transfer-public-key.pub", "messages/ro.json", ".github/workflows/eu-translation-worker.yml"]
 permissions:
   contents: read
   actions: read

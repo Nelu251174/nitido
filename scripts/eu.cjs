@@ -30,12 +30,22 @@
  const ciphertext=Buffer.concat([cipher.update(JSON.stringify(bundle),'utf8'),cipher.final()]);
  const wrapped=crypto.publicEncrypt({key:publicKey,oaepHash:'sha256',padding:crypto.constants.RSA_PKCS1_OAEP_PADDING},key);
  const body=Buffer.from(JSON.stringify({algorithm:'RSA-OAEP-SHA256/AES-256-GCM',key:wrapped.toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:ciphertext.toString('base64')}));
- const compressed=zlib.deflateRawSync(body),filename=Buffer.from('bundle.enc.json');
- let crc=0xffffffff;for(const byte of body){crc^=byte;for(let bit=0;bit<8;bit++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}crc=(crc^0xffffffff)>>>0;
- const local=Buffer.alloc(30);local.writeUInt32LE(0x04034b50,0);local.writeUInt16LE(20,4);local.writeUInt16LE(8,8);local.writeUInt32LE(crc,14);local.writeUInt32LE(compressed.length,18);local.writeUInt32LE(body.length,22);local.writeUInt16LE(filename.length,26);
- const central=Buffer.alloc(46);central.writeUInt32LE(0x02014b50,0);central.writeUInt16LE(20,4);central.writeUInt16LE(20,6);central.writeUInt16LE(8,10);central.writeUInt32LE(crc,16);central.writeUInt32LE(compressed.length,20);central.writeUInt32LE(body.length,24);central.writeUInt16LE(filename.length,28);
- const end=Buffer.alloc(22);end.writeUInt32LE(0x06054b50,0);end.writeUInt16LE(1,8);end.writeUInt16LE(1,10);end.writeUInt32LE(central.length+filename.length,12);end.writeUInt32LE(local.length+filename.length+compressed.length,16);
- const zip=Buffer.concat([local,filename,compressed,central,filename,end]);fs.writeFileSync(root+'/catalogs-private.zip',zip,{mode:0o600});
+ const compressed=zlib.deflateRawSync(body),filename=Buffer.from('bundle.enc.json'),paddingName=Buffer.from('padding.bin');
+ // Exact-sized transport lets the receiver finalize with accurate metadata.
+ // Both payload and padding contain no plaintext UI or credentials.
+ const ARCHIVE_BYTES=24000000,overhead=30+filename.length+30+paddingName.length+46+filename.length+46+paddingName.length+22;
+ const paddingLength=ARCHIVE_BYTES-overhead-compressed.length;
+ if(paddingLength<0)throw Error('Encrypted payload exceeds transport limit');
+ const padding=Buffer.alloc(paddingLength),table=Array.from({length:256},(_,i)=>{let n=i;for(let bit=0;bit<8;bit++)n=(n>>>1)^((n&1)?0xedb88320:0);return n>>>0;});
+ const crc32=data=>{let n=0xffffffff;for(const byte of data)n=table[(n^byte)&255]^(n>>>8);return (n^0xffffffff)>>>0;};
+ function local(name,method,crc,size,original){const h=Buffer.alloc(30);h.writeUInt32LE(0x04034b50);h.writeUInt16LE(20,4);h.writeUInt16LE(method,8);h.writeUInt32LE(crc,14);h.writeUInt32LE(size,18);h.writeUInt32LE(original,22);h.writeUInt16LE(name.length,26);return h;}
+ function central(name,method,crc,size,original,offset){const h=Buffer.alloc(46);h.writeUInt32LE(0x02014b50);h.writeUInt16LE(20,4);h.writeUInt16LE(20,6);h.writeUInt16LE(method,10);h.writeUInt32LE(crc,16);h.writeUInt32LE(size,20);h.writeUInt32LE(original,24);h.writeUInt16LE(name.length,28);h.writeUInt32LE(offset,42);return h;}
+ const crc=crc32(body),padCrc=crc32(padding),first=local(filename,8,crc,compressed.length,body.length),second=local(paddingName,0,padCrc,padding.length,padding.length);
+ const secondOffset=first.length+filename.length+compressed.length;
+ const dir=[central(filename,8,crc,compressed.length,body.length,0),filename,central(paddingName,0,padCrc,padding.length,padding.length,secondOffset),paddingName];
+ const dirSize=dir.reduce((n,b)=>n+b.length,0),dirOffset=secondOffset+second.length+paddingName.length+padding.length;
+ const end=Buffer.alloc(22);end.writeUInt32LE(0x06054b50);end.writeUInt16LE(2,8);end.writeUInt16LE(2,10);end.writeUInt32LE(dirSize,12);end.writeUInt32LE(dirOffset,16);
+ const zip=Buffer.concat([first,filename,compressed,second,paddingName,padding,...dir,end]);if(zip.length!==ARCHIVE_BYTES)throw Error('Incorrect encrypted transport size');fs.writeFileSync(root+'/catalogs-private.zip',zip,{mode:0o600});
  const uploaded=await fetch(uploadUrl,{method:'PUT',headers:{'x-ms-blob-type':'BlockBlob','Content-Type':'application/zip'},body:zip});if(!uploaded.ok)throw Error('Encrypted artifact upload failed');
  for(let i=0;i<Number(countText);i++)fs.unlinkSync(prefix+'-'+i);
 })().catch(()=>{process.exitCode=1;});
