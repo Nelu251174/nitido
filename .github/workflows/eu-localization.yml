@@ -20,7 +20,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx vitest run src/i18n/localization.test.ts src/lib/siteIndexing.test.ts src/lib/appStore.test.ts src/lib/authRedirect.test.ts src/lib/supportKnowledge.test.ts
+      - run: npx vitest run src/i18n/localization.test.ts src/lib/siteIndexing.test.ts src/lib/appStore.test.ts src/lib/authRedirect.test.ts src/lib/supportKnowledge.test.ts src/lib/serviceMarkets.test.ts src/lib/pricingSnapshot.test.ts src/app/api/jobs/quote/route.test.ts src/lib/bookingQuotes.test.ts
       - run: npx next typegen
       - run: npx tsc --noEmit
       - run: npm run build

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import {getUiText} from "@/i18n/server";
 import { notFound } from "next/navigation";
 import { InformationPage } from "@/components/InformationPage";
 import { CITIES, getCity } from "@/lib/cities";
@@ -14,8 +15,9 @@ export async function generateMetadata({ params }: { params: Promise<{ oras: str
   const { oras } = await params;
   const city = getCity(oras);
   if (!city) return {};
-  const title = `Curățenie ${city.prepositional} — firme verificate, preț fix`;
-  const description = `Servicii de curățenie ${city.prepositional}: postezi lucrarea pentru apartament, casă sau birou și firmele verificate din ${city.name} sunt notificate instant. Preț afișat de la început, plată securizată.`;
+  const t=await getUiText();
+  const title = t("Curățenie în {p0} — firme verificate, preț fix",[city.name]);
+  const description = t("Servicii de curățenie în {p0}: postezi lucrarea pentru apartament, casă sau birou și firmele verificate din {p1} sunt notificate instant. Preț afișat de la început, plată securizată.",[city.name,city.name]);
   return {
     title,
     description,
@@ -29,31 +31,32 @@ export default async function CityPage({ params }: { params: Promise<{ oras: str
   const city = getCity(oras);
   if (!city) notFound();
 
+  const t=await getUiText();
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Service",
-    serviceType: "Servicii de curățenie la cerere",
+    serviceType: t("Servicii de curățenie la cerere"),
     areaServed: { "@type": "City", name: city.name },
     provider: { "@type": "Organization", name: "NITIDO.RO", url: SITE_URL },
     url: `${SITE_URL}/curatenie/${city.slug}`,
-    description: `Curățenie ${city.prepositional} — postezi lucrarea, firmele verificate din zonă sunt notificate instant.`,
+    description: t("Curățenie în {p0} — postezi lucrarea, firmele verificate din zonă sunt notificate instant.",[city.name]),
   };
 
   const otherCities = CITIES.filter((c) => c.slug !== city.slug).map((c) => c.name).join(", ");
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g,"\\u003c") }} />
       <InformationPage
-        eyebrow={`Curățenie · ${city.county}`}
-        title={`Curățenie ${city.prepositional}`}
+        eyebrow={t("Curățenie · {p0}",[city.county])}
+        title={t("Curățenie în {p0}",[city.name])}
         intro={city.intro}
         cta={{ label: "Postează o lucrare", href: "/signup?role=client" }}
         sections={[
           {
             title: "Cum funcționează",
             items: [
-              `Postezi lucrarea (adresă ${city.prepositional}, tip spațiu, suprafață) și vezi prețul înainte de publicare.`,
+              t("Postezi lucrarea (adresă în {p0}, tip spațiu, suprafață) și vezi prețul înainte de publicare.",[city.name]),
               "Firmele verificate din zonă sunt notificate. Primești oferte și alegi firma pe calitate — sau, pentru urgențe, prima firmă disponibilă preia instant cu Nitido Express.",
               "Plata se rezervă la acceptare și se decontează după finalizarea confirmată.",
             ],
@@ -61,14 +64,14 @@ export default async function CityPage({ params }: { params: Promise<{ oras: str
           {
             title: "Preț orientativ apartament",
             paragraphs: [
-              `Prețul e fix, calculat din suprafață — același pe care-l vede și firma. Orientativ ${city.prepositional}: până în 40 mp ~${calcGrossPrice("apartament", 40)} lei, până în 60 mp ~${calcGrossPrice("apartament", 60)} lei, până în 80 mp ~${calcGrossPrice("apartament", 80)} lei, până în 100 mp ~${calcGrossPrice("apartament", 100)} lei.`,
+              t("Prețul e fix, calculat din suprafață — același pe care-l vede și firma. Orientativ în {p0}: până în 40 mp ~{p1} lei, până în 60 mp ~{p2} lei, până în 80 mp ~{p3} lei, până în 100 mp ~{p4} lei.",[city.name,...[40,60,80,100].map(sqm=>calcGrossPrice("apartament",sqm))]),
               "Case, birouri și alte spații se calculează pe metru pătrat. Vezi regulile complete de preț pe pagina de prețuri.",
             ],
           },
           {
             title: "Zone acoperite",
             paragraphs: [
-              `Firmele își setează aria de acoperire și primesc doar lucrările relevante. Acoperim printre altele: ${city.areas.join(", ")}.`,
+              t("Firmele își setează aria de acoperire și primesc doar lucrările relevante. Acoperim printre altele: {p0}.",[city.areas.join(", ")]),
             ],
           },
           {
@@ -77,7 +80,7 @@ export default async function CityPage({ params }: { params: Promise<{ oras: str
               "Firme verificate, cu rating public și istoric.",
               "Preț fix, fără licitație și fără negociere ulterioară.",
               "Plată securizată — banii se mișcă doar când lucrarea chiar se întâmplă.",
-              `Disponibil și în alte orașe: ${otherCities}.`,
+              t("Disponibil și în alte orașe: {p0}.",[otherCities]),
             ],
           },
         ]}

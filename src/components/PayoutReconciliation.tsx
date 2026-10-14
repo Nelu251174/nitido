@@ -1,4 +1,6 @@
 'use client';
+import {UiDate} from '@/components/UiDate';
+
 import {UiText} from '@/components/UiText';
 import {useRef,useState} from 'react';
 import type {PayoutReport} from '@/lib/payoutReconciliation';
@@ -29,7 +31,7 @@ export function PayoutReconciliation({accountId,payoutId}:{accountId:string;payo
  return <div className="space-y-2 min-w-48"><button disabled={busy} onClick={()=>void check()} className="border rounded-lg px-3 py-2 disabled:opacity-50">{busy?<UiText text={'Se verifică…'}/>:<UiText text={'Reconciliază în sandbox'}/>}</button>
  <button disabled={busy} onClick={()=>void check(true)} className="block underline py-2 disabled:opacity-50"><UiText text={"Ultimul raport salvat"}/></button>
  {error&&<p role="alert" className="text-coral">{<UiText text={error}/>}</p>}
- {report&&<div role="status"><p className="font-semibold">{report.status==='matched'?<UiText text={'Sume și lucrări asociate'}/>:<UiText text={'Necesită verificare'}/>}</p><p className="text-muted"><UiText text={"Verificare sandbox · "}/>{new Date(report.checkedAt).toLocaleString('ro-RO')}</p>
+ {report&&<div role="status"><p className="font-semibold">{report.status==='matched'?<UiText text={'Sume și lucrări asociate'}/>:<UiText text={'Necesită verificare'}/>}</p><p className="text-muted"><UiText text={"Verificare sandbox · "}/>{<UiDate value={new Date(report.checkedAt)} kind="dateTime"/>}</p>
  {report.differenceMinor!==null&&<p><UiText text={"Diferență: "}/>{(report.differenceMinor/100).toFixed(2)}<UiText text={" RON"}/></p>}
  {report.issues.map(issue=><p key={issue}>{issues[issue]??<UiText text={'Verificare financiară necesară.'}/>}</p>)}
  <details><summary className="cursor-pointer py-2"><UiText text={"Tranzacții ("}/>{report.lines.length})</summary><ul className="space-y-2">{report.lines.map(line=><li key={line.balanceId} className="break-all">{line.jobId??<UiText text={'Lucrare neasociată'}/>} · {(line.netMinor/100).toFixed(2)}<UiText text={" RON"}/><br/>{line.balanceId}{line.issue&&<p className="text-coral"><UiText text={"Necesită verificare: "}/>{line.issue}</p>}</li>)}</ul></details>

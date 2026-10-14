@@ -29,8 +29,8 @@ const credential=process.env.OPENAI_API_KEY?.trim();
 if(!credential)throw Error('Translation provider is not configured');
 // Cap every attempt, including retries. No automatic top-up or new service.
 const maxRequests=Number(process.env.NITIDO_TRANSLATION_MAX_REQUESTS || 1800);
-const maxTokens=Number(process.env.NITIDO_TRANSLATION_MAX_TOKENS || 6000000);
-if(!Number.isSafeInteger(maxRequests)||maxRequests<1||maxRequests>1800||!Number.isSafeInteger(maxTokens)||maxTokens<1||maxTokens>6000000)throw Error('Invalid request/token cap');
+const maxTokens=Number(process.env.NITIDO_TRANSLATION_MAX_TOKENS || 20000000);
+if(!Number.isSafeInteger(maxRequests)||maxRequests<1||maxRequests>1800||!Number.isSafeInteger(maxTokens)||maxTokens<1||maxTokens>20000000)throw Error('Invalid request/token cap');
 const maxUsd=Number(process.env.NITIDO_TRANSLATION_MAX_USD || 20);
 if(!Number.isFinite(maxUsd)||maxUsd<=0||maxUsd>20)throw Error('Approved API budget must be between 0 and 20 USD');
 // Standard API prices verified 2026-10-14. No tools or regional endpoint.
@@ -45,7 +45,7 @@ const batches=[];
 for(let offset=0;offset<entries.length;){const batch=[];let chars=0;while(offset<entries.length&&batch.length<65&&(chars<7000||!batch.length)){const item=entries[offset++];batch.push(item);chars+=item[1].length;}batches.push(batch);}
 
 function protectedTokens(text) {
-  return (text.match(/\{p\d+\}|https?:\/\/[^\s]+|[\w.+-]+@[\w.-]+|\d+(?:[.,]\d+)*|NITIDO(?:\.RO| Pro)?|RON|Stripe|Google Play|App Store/g)||[]).sort();
+  return (text.match(/\{p\d+\}|https?:\/\/[^\s]+|[\w.+-]+@[\w.-]+|\d+(?:[.,]\d+)*|NITIDO(?:\.RO| Pro)?|RON|EUR|\blei\b|\bleu\b|Stripe|Google Play|App Store/g)||[]).sort();
 }
 function validate(result,batch) {
   if(!result||typeof result!=='object'||Array.isArray(result)||Object.keys(result).length!==batch.length)throw Error('Translation count mismatch');
@@ -71,7 +71,7 @@ async function translate(locale) {
       try{
         const schema={type:'object',properties:Object.fromEntries(batch.map(([id])=>[id,{type:'string'}])),required:batch.map(([id])=>id),additionalProperties:false};
         const payload={model,store:false,max_output_tokens:12000,reasoning:{effort:'none'},
-          instructions:`Translate this Romanian cleaning marketplace's UI copy into ${names[locale]}. Use clear, natural, professional wording. This is a Romanian service with a multilingual interface, not a claim of service coverage abroad. Preserve every numeric token exactly (including decimal separators), currency RON, percentages, URLs, emails, IDs, and the brands NITIDO, NITIDO.RO, NITIDO Pro, Stripe, Google Play, App Store, Standard, Express and Express 60. Preserve placeholder tokens and punctuation structure. Translate all readable words, including short fragments, error messages, accessibility labels and legal copy; do not add explanations, promises or features. Keep fragments short enough for mobile controls. Each input key must occur exactly once in the output.`,
+          instructions:`Translate this Romanian cleaning marketplace's UI copy into ${names[locale]}. Use clear, natural, professional wording. This is a Romanian service with a multilingual interface, not a claim of service coverage abroad. Preserve every numeric token exactly (including decimal separators), currencies RON and EUR, the Romanian currency words lei and leu exactly (never substitute euros for lei), percentages, URLs, emails, IDs, and the brands NITIDO, NITIDO.RO, NITIDO Pro, Stripe, Google Play, App Store, Standard, Express and Express 60. Preserve placeholder tokens and punctuation structure. Translate all readable words, including short fragments, error messages, accessibility labels and legal copy; do not add explanations, promises or features. Keep fragments short enough for mobile controls. Each input key must occur exactly once in the output.`,
           input:JSON.stringify(Object.fromEntries(batch)),text:{format:{type:'json_schema',name:'ui_translations',strict:true,schema}}};
         const wire=JSON.stringify(payload);
         // Reserve an upper estimate BEFORE dispatch (including concurrent work).

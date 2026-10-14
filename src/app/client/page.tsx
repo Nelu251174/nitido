@@ -1,4 +1,6 @@
 "use client";
+import {UiDate} from '@/components/UiDate';
+
 import {UiText,UiElement,UiTemplate} from '@/components/UiText';
 import {AssistedEntry} from "@/components/AssistedJourney";
 import {EntrancePicker} from "@/components/EntrancePicker";
@@ -896,7 +898,7 @@ export default function ClientPage() {
               )}
             </div>}
 
-            {confirmedOffer&&<UiElement as="section" className="design-panel" aria-label="Oferta pentru confirmare"><h2><UiText text={"Confirmă prețul rezervării"}/></h2><ul>{confirmedOffer.pricing.lines.filter(line=>line.amountBani!==0).map(line=><li key={line.code}>{{cleaning:'Curățenie',windows:'Geamuri',express60:'Express 60',platform_credit:'Credit aplicat'}[line.code]??line.code}: {(line.amountBani/100).toFixed(2)}<UiText text={" lei"}/></li>)}</ul><p><UiText text={"Servicii și suplimente: "}/>{(confirmedOffer.pricing.grossBani/100).toFixed(2)}<UiText text={" lei. Credit aplicat: "}/>{(confirmedOffer.pricing.creditBani/100).toFixed(2)}<UiText text={" lei."}/></p><p><strong><UiText text={"Total de plată: "}/>{(confirmedOffer.pricing.clientTotalBani/100).toFixed(2)}<UiText text={" lei."}/></strong></p><p><UiText text={"Oferta este valabilă până la "}/>{new Date(confirmedOffer.expiresAt).toLocaleTimeString('ro-RO',{timeZone:'Europe/Bucharest'})}<UiText text={", ora României. Dacă modifici datele lucrării sau oferta expiră, vei primi o ofertă nouă pentru confirmare."}/></p></UiElement>}
+            {confirmedOffer&&<UiElement as="section" className="design-panel" aria-label="Oferta pentru confirmare"><h2><UiText text={"Confirmă prețul rezervării"}/></h2><ul>{confirmedOffer.pricing.lines.filter(line=>line.amountBani!==0).map(line=><li key={line.code}>{<UiText text={{cleaning:'Curățenie',windows:'Geamuri',express60:'Express 60',platform_credit:'Credit aplicat'}[line.code]??line.code}/>}: {(line.amountBani/100).toFixed(2)}<UiText text={" lei"}/></li>)}</ul><p><UiText text={"Servicii și suplimente: "}/>{(confirmedOffer.pricing.grossBani/100).toFixed(2)}<UiText text={" lei. Credit aplicat: "}/>{(confirmedOffer.pricing.creditBani/100).toFixed(2)}<UiText text={" lei."}/></p><p><strong><UiText text={"Total de plată: "}/>{(confirmedOffer.pricing.clientTotalBani/100).toFixed(2)}<UiText text={" lei."}/></strong></p><p><UiText text={"Oferta este valabilă până la "}/>{<UiDate value={new Date(confirmedOffer.expiresAt)} kind="time" options={{timeZone:'Europe/Bucharest'}}/>}<UiText text={", ora României. Dacă modifici datele lucrării sau oferta expiră, vei primi o ofertă nouă pentru confirmare."}/></p></UiElement>}
             {error && <p role="alert" className="text-coral text-xs mb-3">{<UiText text={error}/>}</p>}
 
             {!needsAssessment && cardConfigured && <div className="mb-4"><ClientCards booking cards={cards} selected={selectedCardId} loading={hasCard===null}
@@ -956,7 +958,7 @@ export default function ClientPage() {
                   <div className="rounded-xl border border-coral bg-coral/10 p-3 mb-3">
                     <div className="font-display font-bold text-sm text-ink"><UiText text={"🔥 Express 60 activ"}/></div>
                     <p className="text-[12px] text-muted mt-0.5"><UiText text={"Preluare garantată"}/>{job.express_60_deadline ? (
-                        <><UiText text={" până la "}/><b className="text-ink">{new Date(job.express_60_deadline).toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" })}</b></>
+                        <><UiText text={" până la "}/><b className="text-ink">{<UiDate value={new Date(job.express_60_deadline)} kind="time" options={{ hour: "2-digit", minute: "2-digit" }}/>}</b></>
                       ) : <UiText text={" în 60 de minute"}/>}<UiText text={". Dacă nicio firmă nu preia la timp, suplimentul nu se percepe."}/></p>
                   </div>
                 ) : null}

@@ -1,4 +1,5 @@
 import {jobPhotoRules,freezeExecutionRules} from '@/lib/executionTemplates';
+import {configuredServiceMarket,ServiceMarketError} from '@/lib/serviceMarkets';
 import {assertCustomerCanCreate,CustomerRestrictionError} from '@/lib/customerRestrictions';
 import {jobAssistedOperation} from '@/lib/assistedOperations';
 import {prepareManualOfferBooking,linkManualOfferJob} from '@/lib/manualOfferBooking';
@@ -166,6 +167,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(()=>null);
   if(!body||typeof body!=="object")return NextResponse.json({error:"Cerere invalidă"},{status:400});
+  try{configuredServiceMarket(body);}catch(error){if(error instanceof ServiceMarketError)return NextResponse.json({error:error.message,countryCode:error.countryCode,currency:error.currency},{status:error.status});throw error;}
   const manual=body.manualOfferId!=null;
   let assisted=false;
   if(manual){try{const offer=prepareManualOfferBooking(db,user.id,body);if(offer.jobId){const job=db.prepare("SELECT * FROM jobs WHERE id=? AND client_id=?").get(offer.jobId,user.id);if(!job)throw new MarginError("Rezervarea nu poate fi verificată.",409);return NextResponse.json({job,replayed:true});}body.details=offer.terms.scope;assisted=Boolean(offer.operation);}catch(e){if(e instanceof MarginError)return NextResponse.json({error:e.message},{status:e.status});throw e;}}

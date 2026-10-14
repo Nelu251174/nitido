@@ -1,4 +1,6 @@
 'use client';
+import {UiDate} from '@/components/UiDate';
+
 import {UiText,UiElement} from '@/components/UiText';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
@@ -52,7 +54,7 @@ export function OrganizationManagement(){
      {org.members.map(m=><div className="flex flex-wrap justify-between gap-3 py-4 border-b border-line" key={m.id}><div><b>{m.name??m.email}</b><p className="text-sm">{m.email} · {<UiText text={roles[m.role]}/>}</p></div><button className="v2-btn v2-btn-secondary" disabled={busy} onClick={()=>{if(window.confirm('Revoci accesul? Solicitările nefolosite ale colegului și aprobările date de el vor fi retrase.'))void act({action:'member.revoke',organizationId:org.id,id:m.id})}}><UiText text={"Revocă accesul"}/></button></div>)}
      {org.invites.map(i=><div className="flex flex-wrap justify-between gap-3 py-3" key={i.id}><p>{i.email} · {<UiText text={roles[i.role]}/>}<UiText text={" · în așteptare"}/></p><button className="underline" disabled={busy} onClick={()=>void act({action:'invite.revoke',organizationId:org.id,id:i.id})}><UiText text={"Revocă invitația"}/></button></div>)}
     </section>}
-    {org.role==='owner'&&<details className="v2-card p-5"><summary className="font-bold cursor-pointer"><UiText text={"Istoric organizație · ultimele 30 de acțiuni"}/></summary>{org.history.map((h,i)=><div className="py-3 border-b border-line" key={`${h.created_at}:${i}`}><b>{actions[h.action]??h.action}</b><p className="text-sm text-muted">{h.actor} · {new Date(h.created_at).toLocaleString('ro-RO')}</p><HistoryDetail action={h.action} details={h.details}/></div>)}</details>}
+    {org.role==='owner'&&<details className="v2-card p-5"><summary className="font-bold cursor-pointer"><UiText text={"Istoric organizație · ultimele 30 de acțiuni"}/></summary>{org.history.map((h,i)=><div className="py-3 border-b border-line" key={`${h.created_at}:${i}`}><b>{actions[h.action]??h.action}</b><p className="text-sm text-muted">{h.actor} · {<UiDate value={new Date(h.created_at)} kind="dateTime"/>}</p><HistoryDetail action={h.action} details={h.details}/></div>)}</details>}
    </div>}
   </>}
  </main></div>;

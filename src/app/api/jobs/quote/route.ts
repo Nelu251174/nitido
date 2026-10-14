@@ -1,4 +1,5 @@
 import {db} from "@/lib/db";
+import {configuredServiceMarket,ServiceMarketError} from '@/lib/serviceMarkets';
 import {managedBookingEnabled,bookingPriceContext,issueBookingQuote} from "@/lib/bookingQuotes";
 import {ManagedPricingError} from "@/lib/managedPricing";
 import {hasTrustedMutationOrigin} from "@/lib/security";
@@ -24,7 +25,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Trebuie să fii autentificat ca client" }, { status: 401 });
   }
 
-  const body = (await req.json().catch(() => null)) as { spaceType?: unknown; sqm?: unknown; windowsSqm?:unknown; [key:string]:unknown } | null;
+  const body = (await req.json().catch(() => null)) as { spaceType?: unknown; sqm?: unknown; windowsSqm?:unknown;countryCode?:unknown;currency?:unknown; [key:string]:unknown } | null;
+  let market;
+  try{market=configuredServiceMarket(body??{});}catch(error){if(error instanceof ServiceMarketError)return NextResponse.json({error:error.message,countryCode:error.countryCode,currency:error.currency},{status:error.status});throw error;}
   if(managedBookingEnabled()){
     if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:"Origine invalidă"},{status:403});
     try{
@@ -54,7 +57,7 @@ export async function POST(req: NextRequest) {
       windowsSqm,
       priceGross: calcServicePrice(spaceType as SpaceType, sqm,windowsSqm),
       durationMinutes: calcServiceDuration(sqm,windowsSqm),
-      currency: "RON",
+      ...market,
       pricing: pricingSnapshot({spaceType:spaceType as SpaceType,sqm,windowsSqm,expressFeeLei:0,creditLei:0}),
     },
     scheduling: { slotHours: SLOT_HOURS, minLeadHours: MIN_LEAD_HOURS },
