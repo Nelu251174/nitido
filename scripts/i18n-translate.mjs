@@ -29,8 +29,8 @@ const credential=process.env.OPENAI_API_KEY?.trim();
 if(!credential)throw Error('Translation provider is not configured');
 // Cap every attempt, including retries. No automatic top-up or new service.
 const maxRequests=Number(process.env.NITIDO_TRANSLATION_MAX_REQUESTS || 1800);
-const maxTokens=Number(process.env.NITIDO_TRANSLATION_MAX_TOKENS || 6000000);
-if(!Number.isSafeInteger(maxRequests)||maxRequests<1||maxRequests>1800||!Number.isSafeInteger(maxTokens)||maxTokens<1||maxTokens>6000000)throw Error('Invalid request/token cap');
+const maxTokens=Number(process.env.NITIDO_TRANSLATION_MAX_TOKENS || 20000000);
+if(!Number.isSafeInteger(maxRequests)||maxRequests<1||maxRequests>1800||!Number.isSafeInteger(maxTokens)||maxTokens<1||maxTokens>20000000)throw Error('Invalid request/token cap');
 const maxUsd=Number(process.env.NITIDO_TRANSLATION_MAX_USD || 20);
 if(!Number.isFinite(maxUsd)||maxUsd<=0||maxUsd>20)throw Error('Approved API budget must be between 0 and 20 USD');
 // Standard API prices verified 2026-10-14. No tools or regional endpoint.

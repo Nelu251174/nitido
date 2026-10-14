@@ -53,7 +53,7 @@ Before activation:
 
 ```sh
 node scripts/i18n-extract.mjs
-NITIDO_TRANSLATION_MAX_REQUESTS=1800 NITIDO_TRANSLATION_MAX_TOKENS=6000000 node scripts/i18n-translate.mjs
+NITIDO_TRANSLATION_MAX_USD=20 node scripts/i18n-translate.mjs
 node scripts/i18n-validate.mjs .translation-work
 ```
 
