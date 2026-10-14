@@ -32,4 +32,6 @@ jobs:
           npm run i18n:validate
           node scripts/i18n-offline.mjs --check
       - run: npm run build
+      - name: Verify IP language selection through the built standalone server
+        run: node scripts/i18n-ip-smoke.mjs
       # No credentials, translation requests, deployment or store upload.
