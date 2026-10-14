@@ -21,7 +21,7 @@
   fs.writeFileSync(root+'/source.json',source,{mode:0o600});fs.writeFileSync(root+'/generator.mjs',generator,{mode:0o600});
   if(!status.probe){
    if(!status.providerConfigured)throw Error('Translation provider is not configured');
-   status.exitCode=await new Promise(resolve=>{const child=spawn(process.execPath,[root+'/generator.mjs'],{env:{...process.env,NITIDO_TRANSLATION_SOURCE:root+'/source.json',NITIDO_TRANSLATION_OUTPUT:root+'/catalogs',NITIDO_TRANSLATION_MAX_USD:'20',NITIDO_TRANSLATION_CONCURRENCY:'6'},stdio:'ignore'});child.on('exit',resolve);child.on('error',()=>resolve(1));});
+   status.exitCode=await new Promise(resolve=>{const child=spawn(process.execPath,[root+'/generator.mjs'],{env:{...process.env,NITIDO_TRANSLATION_SOURCE:root+'/source.json',NITIDO_TRANSLATION_OUTPUT:root+'/catalogs',NITIDO_TRANSLATION_MAX_USD:'20',NITIDO_TRANSLATION_CONCURRENCY:'12'},stdio:'ignore'});child.on('exit',resolve);child.on('error',()=>resolve(1));});
    if(fs.existsSync(root+'/catalogs'))for(const file of fs.readdirSync(root+'/catalogs'))if(/^(?:bg|hr|cs|da|nl|en|et|fi|fr|de|el|hu|ga|it|lv|lt|mt|pl|pt|sk|sl|es|sv|manifest|translation-progress)\.json$/.test(file))bundle.files[file]=JSON.parse(fs.readFileSync(root+'/catalogs/'+file,'utf8'));
    status.complete=bundle.files['manifest.json']?.complete===true;
   }
