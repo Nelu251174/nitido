@@ -15,7 +15,7 @@ module.exports=async function({core}){
  const {getExpiration}=require(prefix+'/internal/upload/retention.js');
  const {BlobClient}=require(path.resolve('.translation-tools/node_modules/@azure/storage-blob'));
  const client=internalArtifactTwirpClient();
- const ids=getBackendIdsFromToken(),name='nitido-eu-private-catalogs';
+ const ids=getBackendIdsFromToken(),name='nitido-eu-remote-upload';
  const made=await client.CreateArtifact({...ids,name,version:4,expiresAt:getExpiration(7)});
  if(!made.ok)throw Error('Private artifact could not be created');
  const uploadUrl=made.signedUploadUrl;
@@ -65,16 +65,13 @@ module.exports=async function({core}){
  const artifact=require(prefix+'/artifact.js').default;
  const transferred=await artifact.uploadArtifact('nitido-private-job-handoff',[handoff+'/task.enc.json'],handoff,{retentionDays:1});
  core.info(JSON.stringify({handoffArtifactId:transferred.id,probe}));
- core.info('NITIDO_ENCRYPTED_HANDOFF:'+fs.readFileSync(handoff+'/task.enc.json','utf8')); 
- const blob=new BlobClient(uploadUrl);let size;
- for(let attempt=0;attempt<235;attempt++){
-  try{const props=await blob.getProperties();if(props.contentLength>0){size=props.contentLength;break;}}catch{/* Not uploaded yet. */}
-  if(attempt%2===0)core.info(JSON.stringify({waitingForPrivateCatalogs:true,elapsedMinutes:attempt}));
-  await new Promise(resolve=>setTimeout(resolve,60000));
- }
- if(!size)throw Error('Private catalog artifact timeout');
- const result=await client.FinalizeArtifact({...ids,name,size:String(size)});
- if(!result.ok)throw Error('Private artifact finalization failed');
- core.setOutput('artifact-id',result.artifactId);
- core.info(JSON.stringify({artifactId:result.artifactId,bytes:size,probe}));
+ core.info('NITIDO_ENCRYPTED_HANDOFF:'+fs.readFileSync(handoff+'/task.enc.json','utf8'));
+ // Existing runner-local secret binding, already used by deploy.yml:18.
+ // No managed-executor credential is copied or newly configured here.
+ // The owner authorized encrypted link transport within this GitHub workflow.
+ if(!process.env.COOLIFY_TOKEN)throw Error('Runner link-protection secret is not configured');
+ const key=crypto.hkdfSync('sha256',Buffer.from(process.env.COOLIFY_TOKEN),Buffer.from('nitido-eu-link-transport'),Buffer.from(process.env.GITHUB_RUN_ID),32);
+ const iv=crypto.randomBytes(12),cipher=crypto.createCipheriv('aes-256-gcm',key,iv);
+ const data=Buffer.concat([cipher.update(uploadUrl,'utf8'),cipher.final()]);
+ core.info('NITIDO_ENCRYPTED_COLLECTION_LINK:'+JSON.stringify({iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')}));
 };

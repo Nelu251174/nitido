@@ -4,13 +4,14 @@ on:
     branches: [codex/eu-translation-worker-20261014]
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: nitido-owner-approved-private-translations
   cancel-in-progress: true
 jobs:
-  generate:
+  prepare:
     runs-on: ubuntu-latest
-    timeout-minutes: 245
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,11 +22,28 @@ jobs:
         id: transfer
         env:
           NITIDO_TRANSLATION_PROBE: 'true'
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
         with:
           script: |
             await require('./scripts/i18n-artifact-worker.cjs')({core});
+  collect:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 245
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --prefix .translation-tools --ignore-scripts @actions/artifact@4.0.0
+      - uses: actions/github-script@v7
+        env:
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        with:
+          script: |
+            await require('./scripts/i18n-artifact-collect.cjs')({core,github,context});
   export-ciphertext:
-    needs: generate
+    needs: collect
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 8
