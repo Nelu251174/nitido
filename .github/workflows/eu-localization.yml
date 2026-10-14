@@ -20,13 +20,16 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Validate all language catalogs and offline copy
+      - name: Validate saved catalogs and financial/data invariants
         run: |
-          npm run i18n:validate
+          node scripts/i18n-validate.mjs --available
           node --test scripts/i18n-catalog.test.mjs
-          node scripts/i18n-offline.mjs --check
       - run: npx vitest run src/i18n/localization.test.ts src/lib/siteIndexing.test.ts src/lib/appStore.test.ts src/lib/authRedirect.test.ts src/lib/supportKnowledge.test.ts src/lib/serviceMarkets.test.ts src/lib/pricingSnapshot.test.ts src/app/api/jobs/quote/route.test.ts src/lib/bookingQuotes.test.ts src/lib/calendarView.test.ts src/lib/scheduling.test.ts
       - run: npx next typegen
       - run: npx tsc --noEmit
+      - name: Require all 24 languages and matching offline copy before publication
+        run: |
+          npm run i18n:validate
+          node scripts/i18n-offline.mjs --check
       - run: npm run build
       # No credentials, translation requests, deployment or store upload.
