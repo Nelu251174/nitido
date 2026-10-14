@@ -49,7 +49,7 @@ function protectedTokens(text) {
 }
 function shield(original) {
   const values=[];
-  const text=original.replace(/\{p\d+\}|https?:\/\/[^\s]+|[\w.+-]+@[\w.-]+|\d+(?:[.,]\d+)*|NITIDO(?:\.RO| Pro)?|RON|EUR|\blei\b|\bleu\b|Stripe|Google Play|App Store/g,value=>{
+  const text=original.replace(/\{p\d+\}|https?:\/\/[^\s]+|[\w.+-]+@[\w.-]+|\d+(?:[.,]\d+)*|NITIDO(?:\.RO| Pro)?|RON|EUR|\blei\b|\bleu\b|Stripe|Google Play|App Store/gi,value=>{
     const marker=`__NITIDO_TOKEN_${values.length}__`;values.push(value);return marker;
   });
   return {text,restore(translated){
