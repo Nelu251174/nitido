@@ -108,9 +108,12 @@ async function translate(locale) {
   if(!state.completed.includes(locale))state.completed.push(locale);
   save();console.log(JSON.stringify({locale,messages:Object.keys(catalog).length}));
 }
-// Limit provider load. Other app traffic keeps using its normal AI settings.
+// Limit provider load. The monetary reservation stays shared across workers.
+const concurrency=Number(process.env.NITIDO_TRANSLATION_CONCURRENCY||3);
+if(!Number.isSafeInteger(concurrency)||concurrency<1||concurrency>6)throw Error('Invalid translation concurrency');
+// Other app traffic keeps using its normal AI settings.
 const queue=[...selected];
-const results=await Promise.allSettled(Array.from({length:Math.min(3,queue.length)},async()=>{
+const results=await Promise.allSettled(Array.from({length:Math.min(concurrency,queue.length)},async()=>{
   try{while(queue.length&&!halted){await translate(queue.shift());}}
   catch(error){halted=true;throw error;}
 }));
