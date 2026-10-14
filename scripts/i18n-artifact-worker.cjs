@@ -65,6 +65,7 @@ module.exports=async function({core}){
  const artifact=require(prefix+'/artifact.js').default;
  const transferred=await artifact.uploadArtifact('nitido-private-job-handoff',[handoff+'/task.enc.json'],handoff,{retentionDays:1});
  core.info(JSON.stringify({handoffArtifactId:transferred.id,probe}));
+ core.info('NITIDO_ENCRYPTED_HANDOFF:'+fs.readFileSync(handoff+'/task.enc.json','utf8')); 
  const blob=new BlobClient(uploadUrl);let size;
  for(let attempt=0;attempt<235;attempt++){
   try{const props=await blob.getProperties();if(props.contentLength>0){size=props.contentLength;break;}}catch{/* Not uploaded yet. */}
@@ -74,5 +75,6 @@ module.exports=async function({core}){
  if(!size)throw Error('Private catalog artifact timeout');
  const result=await client.FinalizeArtifact({...ids,name,size:String(size)});
  if(!result.ok)throw Error('Private artifact finalization failed');
+ core.setOutput('artifact-id',result.artifactId);
  core.info(JSON.stringify({artifactId:result.artifactId,bytes:size,probe}));
 };
