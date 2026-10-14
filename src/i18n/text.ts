@@ -11,6 +11,7 @@ export function textKey(text: string): string {
   return `t${(a >>> 0).toString(16)}_${(b >>> 0).toString(16)}`;
 }
 export function translateText(catalog: UiCatalog, source: string): string {
+  if(/^(?:NITIDO(?:\.RO| Pro)?|N|Nit|ido|\.RO)$/i.test(normalizeText(source)))return source;
   const translated = catalog[textKey(source)];
   if (!translated) return source;
   // JSX fragments need their spaces when adjacent to numbers or names.

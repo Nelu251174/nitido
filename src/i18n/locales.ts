@@ -10,6 +10,13 @@ export const LANGUAGES = [
 export type Locale = typeof LANGUAGES[number][0];
 export const LOCALE_COOKIE = 'nitido-language';
 export const DEFAULT_LOCALE: Locale = 'ro';
+/** Open Graph requires language_TERRITORY; this never selects billing country. */
+export const SOCIAL_LOCALES: Record<Locale,string> = {
+  bg:'bg_BG',hr:'hr_HR',cs:'cs_CZ',da:'da_DK',nl:'nl_NL',en:'en_GB',
+  et:'et_EE',fi:'fi_FI',fr:'fr_FR',de:'de_DE',el:'el_GR',hu:'hu_HU',
+  ga:'ga_IE',it:'it_IT',lv:'lv_LV',lt:'lt_LT',mt:'mt_MT',pl:'pl_PL',
+  pt:'pt_PT',ro:'ro_RO',sk:'sk_SK',sl:'sl_SI',es:'es_ES',sv:'sv_SE',
+};
 export function asLocale(value: string | null | undefined): Locale | undefined {
   const code = value?.trim().toLowerCase().replaceAll('_', '-').split('-')[0];
   return LANGUAGES.find(([locale]) => locale === code)?.[0];

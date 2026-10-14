@@ -4,7 +4,7 @@
 //  - Navigari (pagini): network-first -> daca esti offline, arata /offline.html.
 //  - Doar fisierele statice imutabile (_next/static, iconite, fonturi, imagini)
 //    sunt cache-uite (cache-first). Astea au hash in nume, deci nu raman vechi.
-const VERSION = "nitido-v1";
+const VERSION = "nitido-v2-eu";
 const STATIC_CACHE = `${VERSION}-static`;
 const OFFLINE_URL = "/offline.html";
 

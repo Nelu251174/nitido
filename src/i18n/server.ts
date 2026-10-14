@@ -2,6 +2,7 @@ import 'server-only';
 import type {Metadata} from 'next';
 import {getLocale, getMessages} from 'next-intl/server';
 import {translateText,translateTemplate, type UiCatalog} from './text';
+import {asLocale,SOCIAL_LOCALES,DEFAULT_LOCALE} from './locales';
 
 export async function getUiText() {
   const {ui} = await getMessages();
@@ -18,6 +19,6 @@ export async function localizeMetadata(metadata: Metadata): Promise<Metadata> {
     return {...value, default:ui(value.default), template:value.template};
   };
   return {...metadata, title:title(metadata.title), description:metadata.description?ui(metadata.description):metadata.description,
-    openGraph:metadata.openGraph?{...metadata.openGraph,locale, title:title(metadata.openGraph.title)??undefined,description:metadata.openGraph.description?ui(metadata.openGraph.description):undefined}:undefined,
+    openGraph:metadata.openGraph?{...metadata.openGraph,locale:SOCIAL_LOCALES[asLocale(locale)??DEFAULT_LOCALE], title:title(metadata.openGraph.title)??undefined,description:metadata.openGraph.description?ui(metadata.openGraph.description):undefined}:undefined,
     twitter:metadata.twitter?{...metadata.twitter,title:title(metadata.twitter.title)??undefined,description:metadata.twitter.description?ui(metadata.twitter.description):undefined}:undefined};
 }

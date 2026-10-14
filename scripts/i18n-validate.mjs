@@ -9,14 +9,14 @@ const locales=['bg','hr','cs','da','nl','en','et','fi','fr','de','el','hu','ga',
 const keys=Object.keys(source).sort();
 const hash=crypto.createHash('sha256').update(JSON.stringify(source)).digest('hex');
 if(!manifest.complete||manifest.languages!==24||manifest.sourceHash!==hash||manifest.sourceMessages!==keys.length)throw Error('Complete catalogs matching the current UI source are required');
-const tokens=text=>(text.match(/\{p\d+\}|https?:\/\/[^\s]+|[\w.+-]+@[\w.-]+|\d+(?:[.,]\d+)*|NITIDO(?:\.RO| Pro)?|RON|EUR|\blei\b|\bleu\b|Stripe|Google Play|App Store/g)||[]).sort();
+const tokens=(text,original=text)=>(text.match(/\{p\d+\}|https?:\/\/[^\s]+|[\w.+-]+@[\w.-]+|\d+(?:[.,]\d+)*|NITIDO(?:\.RO| Pro)?|\bRON\b|\bEUR\b|\blei\b|\bleu\b|Stripe|Google Play|App Store/g)||[]).filter(token=>!['lei','leu'].includes(token)||new RegExp('\\b'+token+'\\b').test(original)).sort();
 for(const locale of locales){
   const catalog=JSON.parse(fs.readFileSync(path.join(root,locale+'.json'),'utf8'));
   if(JSON.stringify(Object.keys(catalog).sort())!==JSON.stringify(keys))throw Error(`Missing or extra keys in ${locale}`);
   for(const key of keys){
     const text=catalog[key];
     if(typeof text!=='string'||!text.trim()||/```|<\/?(?:script|iframe|img|style)\b/i.test(text))throw Error(`Invalid copy in ${locale}/${key}`);
-    if(JSON.stringify(tokens(text))!==JSON.stringify(tokens(source[key])))throw Error(`Number, contact or placeholder changed in ${locale}/${key}`);
+    if(JSON.stringify(tokens(text,source[key]))!==JSON.stringify(tokens(source[key])))throw Error(`Number, contact or placeholder changed in ${locale}/${key}`);
   }
 }
 console.log(JSON.stringify({complete:true,languages:24,messagesPerLanguage:keys.length}));

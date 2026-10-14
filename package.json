@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "prebuild": "npm run i18n:validate && node scripts/i18n-offline.mjs --check",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
