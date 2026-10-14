@@ -1,4 +1,5 @@
 "use client";
+import {useLocale} from 'next-intl';
 import {UiDate} from '@/components/UiDate';
 
 import {UiText,UiElement,UiTemplate} from '@/components/UiText';
@@ -112,6 +113,8 @@ interface ReportRow {
 }
 
 export default function ClientPage() {
+ const locale=useLocale();
+
   const router = useRouter();
   const { user, loading } = useCurrentUser();
 
@@ -769,7 +772,7 @@ export default function ClientPage() {
             {whenType === "asap" && asapSlot && (
               <div className="text-xs text-muted bg-mist rounded-lg px-3 py-2.5 mb-3"><UiText text={"Primul interval estimat, după ora României:"}/>{" "}
                 <b className="text-ink">
-                  {new Intl.DateTimeFormat('ro-RO',{timeZone:'Europe/Bucharest',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}).format(asapSlot)}
+                  {new Intl.DateTimeFormat(locale,{timeZone:'Europe/Bucharest',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}).format(asapSlot)}
                 </b>
               </div>
             )}
@@ -781,7 +784,7 @@ export default function ClientPage() {
                     <UiElement as="button"
                       type="button"
                       key={d}
-                      aria-label={new Intl.DateTimeFormat('ro-RO',{timeZone:'UTC',weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date(`${d}T12:00:00Z`))}
+                      aria-label={new Intl.DateTimeFormat(locale,{timeZone:'UTC',weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date(`${d}T12:00:00Z`))}
                       aria-pressed={d===scheduledDate}
                       onClick={() => {
                         setScheduledDate(d);
@@ -1064,6 +1067,8 @@ function ReferralCard({ code, creditBalance }: { code: string; creditBalance: nu
 }
 
 function RecurringSection({ defaults }: { defaults: { street: string; postalCode: string; city: string; floor: string; sqm: number; spaceType: SpaceType } }) {
+ const locale=useLocale();
+
   const [address, setAddress] = useState(defaults);
   const [visitDetails, setVisitDetails] = useState("");
   const [preferredFirm,setPreferredFirm]=useState(''),[previousFirms,setPreviousFirms]=useState<Array<{id:string;name:string}>>([]);
@@ -1226,7 +1231,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
                 {p.pause_start&&p.pause_end&&<span className="block text-xs text-aqua-deep"><UiText text={"Pauză programată: "}/>{p.pause_start} – {p.pause_end}<UiText text={" inclusiv"}/><button type="button" disabled={statusBusy||busy} onClick={()=>void removePause(p)} className="block mt-2 underline disabled:opacity-50"><UiText text={"Elimină pauza programată"}/></button></span>}
                 <label className="block text-xs my-2"><UiText text={"Firma preferată"}/><select className={inputClass} disabled={statusBusy||busy} value={p.preferred_firm_id??''} onChange={async e=>{const firmId=e.target.value||null;setStatusBusy(true);try{const r=await fetch(`/api/recurring/${encodeURIComponent(p.id)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'preferred_firm',firmId})});const d=await r.json();if(!r.ok)throw Error(d.error);await load();setMsg('Preferința a fost salvată. Firmele deja alocate rămân neschimbate.')}catch(e){setMsg(e instanceof Error?e.message:'Salvarea a eșuat.')}finally{setStatusBusy(false)}}}><option value=""><UiText text={"Aleg la fiecare vizită"}/></option>{previousFirms.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}{p.preferred_firm_id&&!previousFirms.some(f=>f.id===p.preferred_firm_id)&&<option value={p.preferred_firm_id}>{p.preferred_firm_name??<UiText text={'Firmă indisponibilă'}/>}</option>}</select></label>
                 <b className="text-sm block truncate">{<UiText text={FREQ_LABELS[p.frequency]}/>} · {p.space_type} · {p.city}</b>
-                <span className="text-xs text-[#6b756f]">{p.next_visit_at?<UiTemplate text={"Următoarea vizită: {p0}"} values={[new Intl.DateTimeFormat('ro-RO',{timeZone:'Europe/Bucharest',dateStyle:'medium',timeStyle:'short'}).format(new Date(p.next_visit_at))]}/>:p.end_date&&p.next_run_date>p.end_date?<UiText text={"Generarea seriei s-a încheiat"}/>:<UiTemplate text={"Următoarea dată de generat: {p0}"} values={[p.next_run_date]}/>} · {p.status === "active" ? <UiText text={"activ"}/> : p.status === "paused" ? <UiText text={"pe pauză"}/> : p.status}</span>
+                <span className="text-xs text-[#6b756f]">{p.next_visit_at?<UiTemplate text={"Următoarea vizită: {p0}"} values={[new Intl.DateTimeFormat(locale,{timeZone:'Europe/Bucharest',dateStyle:'medium',timeStyle:'short'}).format(new Date(p.next_visit_at))]}/>:p.end_date&&p.next_run_date>p.end_date?<UiText text={"Generarea seriei s-a încheiat"}/>:<UiTemplate text={"Următoarea dată de generat: {p0}"} values={[p.next_run_date]}/>} · {p.status === "active" ? <UiText text={"activ"}/> : p.status === "paused" ? <UiText text={"pe pauză"}/> : p.status}</span>
                 <span className="block text-xs text-muted"><UiText text={"Ora "}/>{String(p.hour).padStart(2,"0")}<UiText text={":00 · ora României"}/></span>
               </span>
               {p.status !== "cancelled" && (
@@ -1243,7 +1248,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
               {!!p.upcoming_dates?.length && <details className="basis-full rounded-lg bg-aqua/5 p-3">
                 <summary className="cursor-pointer text-sm font-bold"><UiText text={"Date estimate în următoarele 30 de zile"}/></summary>
                 <p className="mt-2 text-xs text-muted"><UiText text={"Calendar orientativ al vizitelor încă negenerate. Disponibilitatea firmei și plata se confirmă pentru fiecare rezervare."}/></p>
-                <ul className="mt-2 flex flex-wrap gap-2">{p.upcoming_dates.map(date => <li key={date} className="rounded-lg bg-white px-3 py-2 text-xs">{new Intl.DateTimeFormat("ro-RO",{timeZone:"Europe/Bucharest",dateStyle:"medium",timeStyle:"short"}).format(new Date(date))}</li>)}</ul>
+                <ul className="mt-2 flex flex-wrap gap-2">{p.upcoming_dates.map(date => <li key={date} className="rounded-lg bg-white px-3 py-2 text-xs">{new Intl.DateTimeFormat(locale,{timeZone:"Europe/Bucharest",dateStyle:"medium",timeStyle:"short"}).format(new Date(date))}</li>)}</ul>
               </details>}
             </div>
           ))}
@@ -1274,13 +1279,13 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
           <label className="text-sm"><UiText text={"Sfârșit pauză"}/><input className="block w-full border rounded p-2" type="date" value={pauseEnd} min={pauseStart} disabled={statusBusy} onChange={event=>setPauseEnd(event.target.value)}/></label>
         </div>
         <button type="button" className="mt-3 text-sm font-bold text-aqua-deep disabled:opacity-50" disabled={statusBusy||!pausePlan||!pauseStart||!pauseEnd} onClick={()=>void schedulePause()}><UiText text={"Verifică vizitele și continuă"}/></button>
-        {pauseImpact&&pauseImpact.planId===pausePlan&&pauseImpact.start===pauseStart&&pauseImpact.end===pauseEnd&&<div className="mt-3 rounded-xl border border-line p-3"><p className="text-sm font-bold">{pauseImpact.count}<UiText text={" vizite active în interval"}/></p><p className="text-xs text-muted mt-1"><UiText text={"Sunt afișate cel mult 100 de vizite. Deschiderea rezervării nu o anulează și nu modifică plata."}/></p><ul className="divide-y divide-line">{pauseImpact.visits.map(visit=><li key={visit.job_id} className="py-2 text-sm"><span>{new Intl.DateTimeFormat("ro-RO",{timeZone:"Europe/Bucharest",dateStyle:"medium",timeStyle:"short"}).format(new Date(visit.scheduled_at))} · {visit.city} · {JOB_STATUS[visit.status]??visit.status}</span><Link className="block underline mt-1" href={`/client?jobId=${encodeURIComponent(visit.job_id)}`}><UiText text={"Deschide rezervarea"}/></Link></li>)}</ul></div>}
+        {pauseImpact&&pauseImpact.planId===pausePlan&&pauseImpact.start===pauseStart&&pauseImpact.end===pauseEnd&&<div className="mt-3 rounded-xl border border-line p-3"><p className="text-sm font-bold">{pauseImpact.count}<UiText text={" vizite active în interval"}/></p><p className="text-xs text-muted mt-1"><UiText text={"Sunt afișate cel mult 100 de vizite. Deschiderea rezervării nu o anulează și nu modifică plata."}/></p><ul className="divide-y divide-line">{pauseImpact.visits.map(visit=><li key={visit.job_id} className="py-2 text-sm"><span>{new Intl.DateTimeFormat(locale,{timeZone:"Europe/Bucharest",dateStyle:"medium",timeStyle:"short"}).format(new Date(visit.scheduled_at))} · {visit.city} · {JOB_STATUS[visit.status]??visit.status}</span><Link className="block underline mt-1" href={`/client?jobId=${encodeURIComponent(visit.job_id)}`}><UiText text={"Deschide rezervarea"}/></Link></li>)}</ul></div>}
       </details>}
 
       <details className="mt-4 border-t border-line pt-3">
         <summary className="cursor-pointer text-sm font-bold"><UiText text={"Vizitele abonamentelor"}/></summary>
         <p className="text-xs text-muted mt-2"><UiText text={"Ultimele 200 de vizite înregistrate, inclusiv din abonamente anulate. Lucrările istorice fără legătură înregistrată rămân în Rezervări."}/></p>
-        {occurrences.length===0?<p className="text-sm mt-3"><UiText text={"Nicio vizită înregistrată în acest istoric."}/></p>:<ul className="divide-y divide-line">{occurrences.map(visit=><li key={visit.job_id} className="py-3 flex flex-wrap justify-between gap-3 text-sm"><span>{new Intl.DateTimeFormat("ro-RO",{timeZone:"Europe/Bucharest",dateStyle:"medium",timeStyle:"short"}).format(new Date(visit.scheduled_at))} · {visit.city}<span className="block text-xs text-muted">{JOB_STATUS[visit.status]??visit.status}</span>{visit.preferred_firm_id&&<span className="block text-xs mt-1"><UiText text={"Firma preferată: "}/>{visit.preferred_firm_name??<UiText text={'Indisponibilă'}/>} · {visit.accepted_firm_id===visit.preferred_firm_id?<UiText text={'confirmată pentru această vizită'}/>:visit.accepted_firm_id?<UiText text={'ai selectat o altă firmă'}/>:visit.preferred_offer_status==='pending'?<UiText text={'candidatură primită; verifică disponibilitatea la selectare'}/>:visit.preferred_offer_status==='rejected'||visit.preferred_offer_status==='withdrawn'?<UiText text={'candidatură retrasă sau respinsă; poți alege altă firmă'}/>:<UiText text={'așteaptă candidatura firmei; poți vedea alternative în rezervare'}/>}</span>}</span><a className="font-bold text-aqua-deep" href={`/client?jobId=${encodeURIComponent(visit.job_id)}`}><UiText text={"Deschide rezervarea"}/></a></li>)}</ul>}
+        {occurrences.length===0?<p className="text-sm mt-3"><UiText text={"Nicio vizită înregistrată în acest istoric."}/></p>:<ul className="divide-y divide-line">{occurrences.map(visit=><li key={visit.job_id} className="py-3 flex flex-wrap justify-between gap-3 text-sm"><span>{new Intl.DateTimeFormat(locale,{timeZone:"Europe/Bucharest",dateStyle:"medium",timeStyle:"short"}).format(new Date(visit.scheduled_at))} · {visit.city}<span className="block text-xs text-muted">{JOB_STATUS[visit.status]??visit.status}</span>{visit.preferred_firm_id&&<span className="block text-xs mt-1"><UiText text={"Firma preferată: "}/>{visit.preferred_firm_name??<UiText text={'Indisponibilă'}/>} · {visit.accepted_firm_id===visit.preferred_firm_id?<UiText text={'confirmată pentru această vizită'}/>:visit.accepted_firm_id?<UiText text={'ai selectat o altă firmă'}/>:visit.preferred_offer_status==='pending'?<UiText text={'candidatură primită; verifică disponibilitatea la selectare'}/>:visit.preferred_offer_status==='rejected'||visit.preferred_offer_status==='withdrawn'?<UiText text={'candidatură retrasă sau respinsă; poți alege altă firmă'}/>:<UiText text={'așteaptă candidatura firmei; poți vedea alternative în rezervare'}/>}</span>}</span><a className="font-bold text-aqua-deep" href={`/client?jobId=${encodeURIComponent(visit.job_id)}`}><UiText text={"Deschide rezervarea"}/></a></li>)}</ul>}
       </details>
       {open && (
         <div className="mt-4 border-t border-line pt-4">

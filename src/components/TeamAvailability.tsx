@@ -1,9 +1,13 @@
 'use client';
+import {useLocale} from 'next-intl';
 import {UiText,UiElement} from '@/components/UiText';
 import {useRef,useState} from 'react';
 export type TeamBlock={id:string;team_id:string;team_name:string;starts_at:string;ends_at:string;reason:string};
-const format=(s:string)=>new Date(s).toLocaleString('ro-RO',{timeZone:'Europe/Bucharest',dateStyle:'medium',timeStyle:'short'});
+
 export function TeamAvailability({teams,blocks,onSave,busy}:{teams:{id:string;name:string}[];blocks:TeamBlock[];onSave:(p:Record<string,unknown>,message:string)=>Promise<boolean>;busy:boolean}){
+ const locale=useLocale();
+ const format=(s:string)=>new Date(s).toLocaleString(locale,{timeZone:'Europe/Bucharest',dateStyle:'medium',timeStyle:'short'});
+
  const [team,setTeam]=useState(''),[error,setError]=useState(''),[history,setHistory]=useState(false);
  const lock=useRef(false);
  const [now]=useState(()=>Date.now());

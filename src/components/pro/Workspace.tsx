@@ -1,4 +1,5 @@
 "use client";
+import {UiDate} from '@/components/UiDate';
 import {UiText,UiElement,UiTemplate} from '@/components/UiText';
 /* API commands remain authoritative. Flexible rows render the versioned Pro read models. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -142,14 +143,12 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <div className="pro-empty">{children}</div>;
 }
 function Badge({ status }: { status: string }) {
-  return <span className="pro-status">{STATUS[status] ?? status}</span>;
+  return <span className="pro-status"><UiText text={STATUS[status] ?? status}/></span>;
 }
 function date(v: string) {
-  return new Date(v).toLocaleString("ro-RO", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+  return <UiDate value={new Date(v)} options={{timeZone:undefined,dateStyle:'short',timeStyle:'short'}}/>;
 }
+
 const serviceFields = [
   field("service", "Serviciu", "select", Object.entries(SERVICES)),
   field("starts_at", "Început", "datetime-local"),

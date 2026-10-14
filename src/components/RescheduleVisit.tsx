@@ -1,11 +1,15 @@
 'use client';
+import {useLocale} from 'next-intl';
 import {UiText} from '@/components/UiText';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {inputClass} from './ui';
 type Request={id:string;original_at:string;proposed_at:string;status:string;firm_confirmed_at:string|null;authorization_status:string|null;cleanup_status:string|null};
-const label=(date:string)=>new Intl.DateTimeFormat('ro-RO',{timeZone:'Europe/Bucharest',dateStyle:'medium',timeStyle:'short'}).format(new Date(date));
+
 export function RescheduleVisit({jobId,scheduledAt,status,role,onChanged}:{jobId:string;scheduledAt:string|null;status:string;role:'client'|'firma';onChanged:()=>void|Promise<void>}){
+ const locale=useLocale();
+ const label=(date:string)=>new Intl.DateTimeFormat(locale,{timeZone:'Europe/Bucharest',dateStyle:'medium',timeStyle:'short'}).format(new Date(date));
+
  const [requests,setRequests]=useState<Request[]>([]),[date,setDate]=useState(''),[hour,setHour]=useState(10),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const lock=useRef(false),url=`/api/jobs/${encodeURIComponent(jobId)}/reschedule`;
  const load=useCallback(async()=>{const r=await fetch(url);if(!r.ok)throw Error('Reprogramările nu au putut fi încărcate.');const d=await r.json();setRequests(d.requests??[])},[url]);

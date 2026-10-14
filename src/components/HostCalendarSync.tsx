@@ -1,9 +1,13 @@
 'use client';
+import {useLocale} from 'next-intl';
 import {UiText,UiElement} from '@/components/UiText';
 import {useCallback,useEffect,useRef,useState} from 'react';
 type Connection={id:string;name:string;hostname:string;enabled:number;connected:number;full_export:number;version:number;last_attempt:string|null;last_success:string|null;next_run:string;error:string;warning:string;event_count:number};
-const time=(value:string|null)=>value?new Date(value).toLocaleString('ro-RO',{timeZone:'Europe/Bucharest',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'Încă nesincronizat';
+
 export function HostCalendarSync({propertyId,onChanged}:{propertyId:string;onChanged:()=>Promise<void>}){
+ const locale=useLocale();
+ const time=(value:string|null)=>value?new Date(value).toLocaleString(locale,{timeZone:'Europe/Bucharest',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'Încă nesincronizat';
+
  const [connection,setConnection]=useState<Connection|null>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[editing,setEditing]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [moduleEnabled,setModuleEnabled]=useState(true);
  const [sources,setSources]=useState<{source:string}[]>([]),[importSource,setImportSource]=useState('');

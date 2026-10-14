@@ -1,4 +1,5 @@
 'use client';
+import {useLocale} from 'next-intl';
 import {UiText,UiElement,UiTemplate} from '@/components/UiText';
 import {useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
@@ -6,8 +7,11 @@ import type {ExecutionReport} from '@/lib/business';
 import {money} from '@/lib/workspaceShared';
 type Property={id:string;name:string;kind:string;archived?:number;organization_id?:string|null;organization_name?:string|null};
 type Saved={id:string;name:string;createdAt:string};
-const dateLabel=(s:string)=>new Date(s).toLocaleString('ro-RO',{timeZone:'UTC'});
+
 export function BusinessExecutionReport({properties=[],organizationId=''}:{organizationId?:string;properties?:Property[]}){
+ const locale=useLocale();
+ const dateLabel=(s:string)=>new Date(s).toLocaleString(locale,{timeZone:'UTC'});
+
  const today=new Date().toISOString().slice(0,10);
  const [from,setFrom]=useState(today.slice(0,7)+'-01'),[to,setTo]=useState(today);
  const [scope,setScope]=useState('business'),[property,setProperty]=useState(''),[organization,setOrganization]=useState(organizationId);

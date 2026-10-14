@@ -1,10 +1,14 @@
 'use client';
+import {useLocale} from 'next-intl';
 import {UiText,UiElement,UiTemplate} from '@/components/UiText';
 import {useEffect,useState} from 'react';
 import {bucharestDay,utcDate,type EarningRow} from '@/lib/monthlyFirmEarnings';
 const money=(n:number|null)=>n===null?'—':new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON'}).format(n);
-const time=(s:string|null)=>s?utcDate(s).toLocaleTimeString('ro-RO',{timeZone:'Europe/Bucharest',hour:'2-digit',minute:'2-digit'}):'—';
+
 export function FirmEarnings({revision=""}:{revision?:string}){
+ const locale=useLocale();
+ const time=(s:string|null)=>s?utcDate(s).toLocaleTimeString(locale,{timeZone:'Europe/Bucharest',hour:'2-digit',minute:'2-digit'}):'—';
+
  const [month,setMonth]=useState(()=>bucharestDay(new Date().toISOString()).slice(0,7)),[day,setDay]=useState(''),[rows,setRows]=useState<EarningRow[]>([]),[error,setError]=useState(''),[loading,setLoading]=useState(true),[retry,setRetry]=useState(0);
  useEffect(()=>{const controller=new AbortController();fetch(`/api/firm/earnings?month=${encodeURIComponent(month)}`,{signal:controller.signal,cache:'no-store'}).then(async r=>{if(!r.ok)throw Error('Câștigurile nu au putut fi încărcate.');return r.json();}).then(d=>{if(!controller.signal.aborted){setRows(d.rows);setError('');setLoading(false);}}).catch(e=>{if(!controller.signal.aborted){setRows([]);setError(e instanceof Error?e.message:'Conexiune întreruptă');setLoading(false);}});return()=>controller.abort();},[month,retry,revision]);
  const days=[...new Set(rows.map(r=>r.day))].sort().reverse(),selected=day?rows.filter(r=>r.day===day):rows;

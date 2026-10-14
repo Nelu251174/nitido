@@ -1,4 +1,5 @@
 'use client';
+import {useLocale} from 'next-intl';
 import {UiText} from '@/components/UiText';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {useParams,useRouter} from 'next/navigation';
@@ -8,8 +9,11 @@ import {useCurrentUser} from '@/lib/useCurrentUser';
 import {Button,Card,Logo} from '@/components/ui';
 type Confirmation={status:'consent_required'|'waiting_window'|'requires_action'|'authorized';amountMinor:number;scheduledAt?:string;availableAt?:string;cleanupPending?:boolean;clientSecret?:string;paymentMethodId?:string;publishableKey?:string};
 type StripeBrowser={confirmCardPayment:(secret:string,data:{payment_method:string})=>Promise<{error?:{message?:string}}>};
-const dateLabel=(date:string)=>new Intl.DateTimeFormat('ro-RO',{timeZone:'Europe/Bucharest',dateStyle:'medium',timeStyle:'short'}).format(new Date(date));
+
 export default function ConfirmRescheduleCard(){
+ const locale=useLocale();
+ const dateLabel=(date:string)=>new Intl.DateTimeFormat(locale,{timeZone:'Europe/Bucharest',dateStyle:'medium',timeStyle:'short'}).format(new Date(date));
+
  const {id,requestId}=useParams<{id:string;requestId:string}>(),router=useRouter(),{user,loading}=useCurrentUser();
  const [data,setData]=useState<Confirmation|null>(null),[busy,setBusy]=useState(false),[ready,setReady]=useState(false),[consent,setConsent]=useState(false),[error,setError]=useState('');
  const lock=useRef(false);

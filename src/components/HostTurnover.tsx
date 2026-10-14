@@ -1,4 +1,5 @@
 'use client';
+import {useLocale} from 'next-intl';
 import {UiText,UiElement,UiTemplate} from '@/components/UiText';
 import Link from 'next/link';
 import {useState} from 'react';
@@ -8,8 +9,11 @@ import type {JobRow} from '@/lib/types';
 type Property={id:string;name:string;notes:string};
 type Stay={id:string;property_id:string;starts_at:string;ends_at:string;status:string;imported_at:string};
 export type HostCheck={event_id:string;turnover_at:string;item_key:string;done:number;updated_at:string};
-const date=(value:string)=>new Date(value).toLocaleString('ro-RO',{timeZone:'Europe/Bucharest',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+
 export function HostTurnover({properties,events,checks,jobs,links,selected,onSelect,onCheck,busy}:{properties:Property[];events:Stay[];checks:HostCheck[];jobs:JobRow[];links:{property_id:string;job_id:string}[];selected:string;onSelect:(id:string)=>void;onCheck:(payload:Record<string,unknown>,success:string)=>Promise<boolean>;busy:boolean}){
+ const locale=useLocale();
+ const date=(value:string)=>new Date(value).toLocaleString(locale,{timeZone:'Europe/Bucharest',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+
  const [eventId,setEventId]=useState('');
  const [now]=useState(()=>Date.now());
  const property=properties.find(p=>p.id===selected)??properties[0];
