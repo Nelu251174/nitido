@@ -18,6 +18,30 @@
   const [source,generator,manifest]=await Promise.all([pinned('messages/ro.json'),pinned('scripts/i18n-translate.mjs'),pinned('messages/manifest.json')]);
   const copy=JSON.parse(source);bundle.sourceHash=crypto.createHash('sha256').update(JSON.stringify(copy)).digest('hex');
   if(bundle.sourceHash!==JSON.parse(manifest).sourceHash)throw Error('Pinned UI source hash mismatch');
+  // Extend a completed/stopped source-only checkpoint without resetting spending.
+  const progressFile=root+'/catalogs/translation-progress.json';
+  if(!status.probe&&fs.existsSync(progressFile)){
+   const lockFile=root+'/catalogs/.translation.lock';
+   if(fs.existsSync(lockFile)){const pid=Number(fs.readFileSync(lockFile,'utf8'));let active=false;try{process.kill(pid,0);active=true;}catch(error){if(error.code!=='ESRCH')throw error;}if(active)throw Error('A source-only generator is still active');fs.unlinkSync(lockFile);}
+   const progress=JSON.parse(fs.readFileSync(progressFile,'utf8'));
+   const previous=JSON.parse(fs.readFileSync(root+'/source.json','utf8'));
+   if(progress.sourceHash!==bundle.sourceHash){
+    const previousHash=crypto.createHash('sha256').update(JSON.stringify(previous)).digest('hex');
+    if(previousHash!==progress.sourceHash||Object.entries(previous).some(([id,text])=>copy[id]!==text))throw Error('Only an additive UI source extension can resume this budget');
+    progress.sourceHash=bundle.sourceHash;progress.completed=[];
+   }
+   if(progress.currencyWordBoundaryRevision!==2){
+    // Earlier case-insensitive shielding also matched letters inside words.
+    const repair=Object.entries(previous).filter(([,text])=>/\B(?:RON|EUR)|(?:RON|EUR)\B/i.test(text)).map(([id])=>id);
+    for(const locale of ['bg','hr','cs','da','nl','en','et','fi','fr','de','el','hu','ga','it','lv','lt','mt','pl','pt','sk','sl','es','sv']){
+     const file=root+'/catalogs/'+locale+'.json';if(!fs.existsSync(file))continue;
+     const catalog=JSON.parse(fs.readFileSync(file,'utf8'));for(const id of repair)delete catalog[id];
+     fs.writeFileSync(file+'.tmp',JSON.stringify(catalog,null,2)+'\n',{mode:0o600});fs.renameSync(file+'.tmp',file);
+    }
+    progress.currencyWordBoundaryRevision=2;progress.completed=[];
+   }
+   fs.writeFileSync(progressFile+'.tmp',JSON.stringify(progress,null,2)+'\n',{mode:0o600});fs.renameSync(progressFile+'.tmp',progressFile);
+  }
   fs.writeFileSync(root+'/source.json',source,{mode:0o600});fs.writeFileSync(root+'/generator.mjs',generator,{mode:0o600});
   if(!status.probe){
    if(!status.providerConfigured)throw Error('Translation provider is not configured');

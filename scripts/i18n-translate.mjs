@@ -41,15 +41,18 @@ if(selected.some(locale=>!targets.includes(locale)))throw Error('Unsupported tra
 const atomic=(file,data)=>{fs.writeFileSync(file+'.tmp',JSON.stringify(data,null,2)+'\n');fs.renameSync(file+'.tmp',file);};
 const save=()=>atomic(progressFile,state);
 const entries=Object.entries(source);
-const batches=[];
-for(let offset=0;offset<entries.length;){const batch=[];let chars=0;while(offset<entries.length&&batch.length<65&&(chars<7000||!batch.length)){const item=entries[offset++];batch.push(item);chars+=item[1].length;}batches.push(batch);}
+function makeBatches(items) {
+ const batches=[];
+ for(let offset=0;offset<items.length;){const batch=[];let chars=0;while(offset<items.length&&batch.length<65&&(chars<7000||!batch.length)){const item=items[offset++];batch.push(item);chars+=item[1].length;}batches.push(batch);}
+ return batches;
+}
 
 function protectedTokens(text) {
   return (text.match(/\{p\d+\}|https?:\/\/[^\s]+|[\w.+-]+@[\w.-]+|\d+(?:[.,]\d+)*|NITIDO(?:\.RO| Pro)?|RON|EUR|\blei\b|\bleu\b|Stripe|Google Play|App Store/g)||[]).sort();
 }
 function shield(original) {
   const values=[];
-  const text=original.replace(/\{p\d+\}|https?:\/\/[^\s]+|[\w.+-]+@[\w.-]+|\d+(?:[.,]\d+)*|NITIDO(?:\.RO| Pro)?|RON|EUR|\blei\b|\bleu\b|Stripe|Google Play|App Store/gi,value=>{
+  const text=original.replace(/\{p\d+\}|https?:\/\/[^\s]+|[\w.+-]+@[\w.-]+|\d+(?:[.,]\d+)*|NITIDO(?:\.RO| Pro)?|\bRON\b|\bEUR\b|\blei\b|\bleu\b|Stripe|Google Play|App Store|Europe\/Bucharest/gi,value=>{
     const marker=`__NITIDO_TOKEN_${values.length}__`;values.push(value);return marker;
   });
   return {text,restore(translated){
@@ -66,16 +69,15 @@ function validate(result,batch) {
     const translated=result[id];
     if(typeof translated!=='string'||!translated.trim()||translated.length>original.length*8+200)throw Error('Invalid translation');
     if(JSON.stringify(protectedTokens(original))!==JSON.stringify(protectedTokens(translated)))throw Error(`Protected number, brand or contact changed at ${id}`);
-    if(translated.includes('```'))throw Error('Unexpected markup');
+    if(/```|<\/?(?:script|iframe|img|style)\b/i.test(translated))throw Error('Unexpected markup');
   }
 }
 let halted=false;
 async function translate(locale) {
   const file=path.join(output,`${locale}.json`);
   const catalog=fs.existsSync(file)?JSON.parse(fs.readFileSync(file,'utf8')):{};
-  for(const fullBatch of batches){
+  for(let batch of makeBatches(entries.filter(([id])=>!catalog[id]))){
     if(halted)return;
-    const batch=fullBatch.filter(([id])=>!catalog[id]);
     if(!batch.length)continue;
     let success=false;
     for(let attempt=0;attempt<3&&!success;attempt++){
@@ -108,19 +110,31 @@ async function translate(locale) {
         if(body.status!=='completed')throw Error('Incomplete provider output');
         const raw=body.output_text||body.output?.flatMap(item=>item.content||[]).find(item=>item.type==='output_text')?.text;
         const result=JSON.parse(raw);
-        for(const [id,value] of guarded)result[id]=value.restore(result[id]);
-        validate(result,batch);
-        Object.assign(catalog,result);atomic(file,catalog);success=true;
+        if(!result||typeof result!=='object'||Array.isArray(result)||Object.keys(result).length!==batch.length)throw Error('Translation count mismatch');
+        const rejected=[];
+        for(const [id,original] of batch){
+          try{const text=guarded.get(id).restore(result[id]);validate({[id]:text},[[id,original]]);catalog[id]=text;}
+          catch(error){
+            const reason=error instanceof Error?error.message:'Invalid translation';
+            rejected.push({id,reason});
+            // Only rejected source-owned UI copy, never credentials or responses.
+            state.rejections=[...(state.rejections??[]),{locale,id,original,translated:typeof result[id]==='string'?result[id].slice(0,original.length*8+200):null,reason}].slice(-64);
+          }
+        }
+        atomic(file,catalog);save();
+        if(rejected.length){batch=batch.filter(([id])=>rejected.some(item=>item.id===id));throw Error(`${rejected[0].reason} at ${rejected[0].id}`);}
+        success=true;
       }catch(error){
         // Only our safe error labels are recorded, never provider bodies/keys.
         const message=error instanceof Error?error.message:'Translation failed';
-        if(message==='Approved API cost limit reached')throw error;
+        if(message==='Approved API cost limit reached'||/^Translation provider HTTP (?:401|403)$/.test(message))throw error;
         state.failures.push({locale,attempt,message:message.slice(0,150)});save();
         if(attempt<2)await new Promise(resolve=>setTimeout(resolve,2000*(attempt+1)));
       }
     }
-    if(!success)throw Error(`Translation failed for ${locale}; checkpoints are resumable`);
+    if(!success)console.log(JSON.stringify({locale,missingInBatch:batch.length,resumable:true}));
   }
+  if(entries.some(([id])=>!catalog[id])){save();console.log(JSON.stringify({locale,missing:entries.filter(([id])=>!catalog[id]).length}));return;}
   validate(catalog,entries);
   if(!state.completed.includes(locale))state.completed.push(locale);
   save();console.log(JSON.stringify({locale,messages:Object.keys(catalog).length}));
@@ -139,3 +153,4 @@ atomic(path.join(output,'manifest.json'),{complete,languages:24,sourceLanguage:'
 console.log(JSON.stringify({complete,requests:state.requests,tokens:state.inputTokens+state.outputTokens}));
 const failed=results.find(result=>result.status==='rejected');
 if(failed)throw failed.reason;
+if(!complete)throw Error('Validated translations remain incomplete; checkpoints are resumable');
