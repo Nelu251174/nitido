@@ -25,6 +25,18 @@
    if(fs.existsSync(lockFile)){const pid=Number(fs.readFileSync(lockFile,'utf8'));let active=false;try{process.kill(pid,0);active=true;}catch(error){if(error.code!=='ESRCH')throw error;}if(active)throw Error('A source-only generator is still active');fs.unlinkSync(lockFile);}
    const progress=JSON.parse(fs.readFileSync(progressFile,'utf8'));
    const previous=JSON.parse(fs.readFileSync(root+'/source.json','utf8'));
+   if(!progress.historical429Credit){
+    // These recorded HTTP 429 requests were rejected before model processing.
+    // Every historical payload used 12000 output tokens and at least 1321 wire
+    // bytes (fixed prompt/schema envelope; shortest locale name). Credit only
+    // this proven minimum; preserve all processed usage and uncertain reserves.
+    const count=(progress.failures??[]).filter(item=>item.message==='Translation provider HTTP 429').length;
+    const minimum=(1321+8192)*0.75/1000000+12000*4.5/1000000;
+    const credit=count*minimum,processed=progress.inputTokens*0.75/1000000+progress.outputTokens*4.5/1000000;
+    if(progress.model!=='gpt-5.4-mini'||count>progress.requests||progress.chargedUpperUsd-credit<processed-0.000001)throw Error('Declined-request reservation evidence is inconsistent');
+    progress.chargedUpperUsd-=credit;
+    progress.historical429Credit={count,minimumReservedUsd:minimum,creditUsd:credit,evidenceSourceSha:'7da9ecdbc5c68a28355cf5094284841f6035ebfb'};
+   }
    if(progress.sourceHash!==bundle.sourceHash){
     const previousHash=crypto.createHash('sha256').update(JSON.stringify(previous)).digest('hex');
     if(previousHash!==progress.sourceHash||Object.entries(previous).some(([id,text])=>copy[id]!==text))throw Error('Only an additive UI source extension can resume this budget');
@@ -45,7 +57,7 @@
   fs.writeFileSync(root+'/source.json',source,{mode:0o600});fs.writeFileSync(root+'/generator.mjs',generator,{mode:0o600});
   if(!status.probe){
    if(!status.providerConfigured)throw Error('Translation provider is not configured');
-   status.exitCode=await new Promise(resolve=>{const child=spawn(process.execPath,[root+'/generator.mjs'],{env:{...process.env,NITIDO_TRANSLATION_SOURCE:root+'/source.json',NITIDO_TRANSLATION_OUTPUT:root+'/catalogs',NITIDO_TRANSLATION_MAX_USD:'20',NITIDO_TRANSLATION_CONCURRENCY:'12'},stdio:'ignore'});child.on('exit',resolve);child.on('error',()=>resolve(1));});
+   status.exitCode=await new Promise(resolve=>{const child=spawn(process.execPath,[root+'/generator.mjs'],{env:{...process.env,NITIDO_TRANSLATION_SOURCE:root+'/source.json',NITIDO_TRANSLATION_OUTPUT:root+'/catalogs',NITIDO_TRANSLATION_MAX_USD:'20',NITIDO_TRANSLATION_CONCURRENCY:'4'},stdio:'ignore'});child.on('exit',resolve);child.on('error',()=>resolve(1));});
    if(fs.existsSync(root+'/catalogs'))for(const file of fs.readdirSync(root+'/catalogs'))if(/^(?:bg|hr|cs|da|nl|en|et|fi|fr|de|el|hu|ga|it|lv|lt|mt|pl|pt|sk|sl|es|sv|manifest|translation-progress)\.json$/.test(file))bundle.files[file]=JSON.parse(fs.readFileSync(root+'/catalogs/'+file,'utf8'));
    status.complete=bundle.files['manifest.json']?.complete===true;
   }

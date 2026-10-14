@@ -81,12 +81,14 @@ async function translate(locale) {
     if(!batch.length)continue;
     let success=false;
     for(let attempt=0;attempt<3&&!success;attempt++){
+      let retryDelay=2000*(attempt+1);
       if(halted)return;
       if(state.requests>=maxRequests||state.inputTokens+state.outputTokens>=maxTokens)throw Error('Translation budget limit reached');
       try{
         const schema={type:'object',properties:Object.fromEntries(batch.map(([id])=>[id,{type:'string'}])),required:batch.map(([id])=>id),additionalProperties:false};
         const guarded=new Map(batch.map(([id,original])=>[id,shield(original)]));
-        const payload={model,store:false,max_output_tokens:12000,reasoning:{effort:'none'},
+        const outputLimit=Math.min(12000,Math.max(4096,Math.ceil(batch.reduce((n,[,text])=>n+text.length,0)*0.9+batch.length*24+512)));
+        const payload={model,store:false,max_output_tokens:outputLimit,reasoning:{effort:'none'},
           instructions:`Translate this Romanian cleaning marketplace's UI copy into ${names[locale]}. Use clear, natural, professional wording. This is a Romanian service with a multilingual interface, not a claim of service coverage abroad. Preserve every numeric token exactly (including decimal separators), currencies RON and EUR, the Romanian currency words lei and leu exactly (never substitute euros for lei), percentages, URLs, emails, IDs, and the brands NITIDO, NITIDO.RO, NITIDO Pro, Stripe, Google Play, App Store, Standard, Express and Express 60. Preserve placeholder tokens and punctuation structure. Translate all readable words, including short fragments, error messages, accessibility labels and legal copy; do not add explanations, promises or features. Keep fragments short enough for mobile controls. Each input key must occur exactly once in the output.`,
           input:JSON.stringify(Object.fromEntries([...guarded].map(([id,value])=>[id,value.text]))),text:{format:{type:'json_schema',name:'ui_translations',strict:true,schema}}};
         payload.instructions+=' Tokens such as __NITIDO_TOKEN_0__ are protected values: copy each token exactly once, without editing its characters or translating it. Do not introduce additional numeric values or brands.';
@@ -99,7 +101,19 @@ async function translate(locale) {
         const response=await fetch('https://api.openai.com/v1/responses',{
           method:'POST',headers:{Authorization:`Bearer ${credential}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(90000),
           body:wire});
-        if(!response.ok)throw Error(`Translation provider HTTP ${response.status}`);
+        if(!response.ok){
+          if(response.status===429){
+            // The provider declined this request; no model tokens were processed.
+            state.chargedUpperUsd-=reserved;
+            state.unprocessed429=(state.unprocessed429??0)+1;
+            let code='unknown_429';try{const error=await response.json();if(['rate_limit_exceeded','insufficient_quota','billing_hard_limit_reached'].includes(error.error?.code))code=error.error.code;}catch{}
+            state.last429Code=code;save();
+            if(code==='insufficient_quota'||code==='billing_hard_limit_reached')throw Error('Translation provider quota unavailable');
+            const seconds=Number(response.headers.get('retry-after'));
+            retryDelay=Math.max(30000*(attempt+1),Number.isFinite(seconds)?Math.min(90000,Math.max(0,seconds*1000)):0)+Math.floor(Math.random()*2000);
+          }
+          throw Error(`Translation provider HTTP ${response.status}`);
+        }
         const body=await response.json();
         const usage=body.usage;
         if(usage&&Number.isSafeInteger(usage.input_tokens)&&usage.input_tokens>=0&&Number.isSafeInteger(usage.output_tokens)&&usage.output_tokens>=0){
@@ -127,9 +141,9 @@ async function translate(locale) {
       }catch(error){
         // Only our safe error labels are recorded, never provider bodies/keys.
         const message=error instanceof Error?error.message:'Translation failed';
-        if(message==='Approved API cost limit reached'||/^Translation provider HTTP (?:401|403)$/.test(message))throw error;
+        if(message==='Approved API cost limit reached'||message==='Translation provider quota unavailable'||/^Translation provider HTTP (?:401|403)$/.test(message))throw error;
         state.failures.push({locale,attempt,message:message.slice(0,150)});save();
-        if(attempt<2)await new Promise(resolve=>setTimeout(resolve,2000*(attempt+1)));
+        if(attempt<2)await new Promise(resolve=>setTimeout(resolve,retryDelay));
       }
     }
     if(!success)console.log(JSON.stringify({locale,missingInBatch:batch.length,resumable:true}));
