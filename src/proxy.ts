@@ -1,7 +1,7 @@
 import {NextRequest,NextResponse} from 'next/server';
 import {siteIndexingEnabled} from './lib/siteIndexing';
 import {lookup} from 'geoip-country';
-import {asLocale, hasSupportedLanguage, LOCALE_COOKIE} from './i18n/locales';
+import {asLocale, LOCALE_COOKIE} from './i18n/locales';
 const privatePaths=['/pro','/api','/admin','/client','/firma','/login','/signup','/mobile','/colaborari','/echipa','/invitatie','/remedieri','/reset-password','/verify-email','/reset-parola','/confirma-email','/uploads','/card-finalizat','/cont'];
 export function proxy(req:NextRequest){
  const host=req.headers.get('host')?.toLowerCase();
@@ -9,11 +9,10 @@ export function proxy(req:NextRequest){
  const privatePath=privatePaths.some(p=>req.nextUrl.pathname===p||req.nextUrl.pathname.startsWith(p+'/'));
  const forwarded=new Headers(req.headers);
  // Never trust a caller-provided country. Resolve locally, without sending IPs
- // to a translation/geolocation service. Cookies and language headers win.
+ // to a translation/geolocation service. A manual language choice wins.
  forwarded.delete('x-nitido-country');
  const pageRequest=!req.nextUrl.pathname.startsWith('/api/') && !/\.[a-z0-9]+$/i.test(req.nextUrl.pathname);
- if(!asLocale(req.cookies.get(LOCALE_COOKIE)?.value) && !hasSupportedLanguage(req.headers.get('accept-language')) &&
-    !req.nextUrl.pathname.startsWith('/api/') && !/\.[a-z0-9]+$/i.test(req.nextUrl.pathname)){
+ if(!asLocale(req.cookies.get(LOCALE_COOKIE)?.value) && pageRequest){
    const ip=req.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
    try {const country=ip?lookup(ip)?.country:null;if(country)forwarded.set('x-nitido-country',country);} catch { /* Country lookup is best effort. */ }
  }

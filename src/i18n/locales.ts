@@ -33,6 +33,9 @@ const COUNTRY_LANGUAGES: Record<string, Locale> = {
 export function selectLocale(manual?: string | null, acceptLanguage?: string | null, country?: string | null): Locale {
   const chosen = asLocale(manual);
   if (chosen) return chosen;
+  // The user's country selects the automatic language; browser is a fallback.
+  const countryLocale = asLocale(COUNTRY_LANGUAGES[country?.toUpperCase() ?? '']);
+  if (countryLocale) return countryLocale;
   const preferences = (acceptLanguage ?? '').split(',').map((part, index) => {
     const [tag, ...params] = part.trim().split(';');
     const qText = params.find(p => p.trim().startsWith('q='))?.trim().slice(2);
@@ -40,7 +43,7 @@ export function selectLocale(manual?: string | null, acceptLanguage?: string | n
     return {locale: asLocale(tag), quality, index};
   }).filter(p => p.locale && Number.isFinite(p.quality) && p.quality > 0 && p.quality <= 1)
     .sort((a, b) => b.quality - a.quality || a.index - b.index);
-  return preferences[0]?.locale ?? asLocale(COUNTRY_LANGUAGES[country?.toUpperCase() ?? '']) ?? DEFAULT_LOCALE;
+  return preferences[0]?.locale ?? DEFAULT_LOCALE;
 }
 export function hasSupportedLanguage(header?: string | null): boolean {
   return (header ?? '').split(',').some(part => {

@@ -21,16 +21,18 @@ describe('language negotiation',()=>{
   });
   it('gives a manual preference priority over device language and country',()=>{
     expect(selectLocale('de','fr-FR,en;q=0.8','FR')).toBe('de');
-    expect(selectLocale('invalid','fr-FR,en;q=0.8','DE')).toBe('fr');
+    expect(selectLocale('invalid','fr-FR,en;q=0.8','DE')).toBe('de');
   });
   it('respects q weights, q=0 and malformed preferences',()=>{
-    expect(selectLocale(null,'fr;q=0,en-US;q=0.6,de;q=0.9','FR')).toBe('de');
-    expect(selectLocale(null,'fr;q=oops,en;q=1.2,da;q=0.8','FR')).toBe('da');
+    expect(selectLocale(null,'fr;q=0,en-US;q=0.6,de;q=0.9','BE')).toBe('de');
+    expect(selectLocale(null,'fr;q=oops,en;q=1.2,da;q=0.8','BE')).toBe('da');
     expect(selectLocale(null,'ja-JP,fr;q=0','FR')).toBe('fr');
     expect(hasSupportedLanguage('ja-JP,fr;q=0')).toBe(false);
   });
-  it('uses IP country only as fallback and does not guess in multilingual countries',()=>{
-    expect(selectLocale(null,'en-GB','FR')).toBe('en');
+  it('uses IP country before browser language and does not guess in multilingual countries',()=>{
+    expect(selectLocale(null,'en-US,en;q=0.9','RO')).toBe('ro');
+    expect(selectLocale(null,'en-GB','FR')).toBe('fr');
+    expect(selectLocale('en','ro-RO','RO')).toBe('en');
     expect(selectLocale(null,'ja-JP','FR')).toBe('fr');
     expect(selectLocale(null,null,'BE')).toBe('ro');
     expect(selectLocale(null,null,'IE')).toBe('en');

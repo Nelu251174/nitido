@@ -1,7 +1,7 @@
 name: EU language preparation
 on:
   push:
-    branches: [codex/eu-localization-20261014]
+    branches: [codex/eu-localization-20261014, codex/ip-first-language-20261014]
   workflow_dispatch:
 permissions:
   contents: read
@@ -24,7 +24,7 @@ jobs:
         run: |
           node scripts/i18n-validate.mjs --available
           node --test scripts/i18n-catalog.test.mjs
-      - run: npx vitest run src/i18n/localization.test.ts src/lib/siteIndexing.test.ts src/lib/appStore.test.ts src/lib/authRedirect.test.ts src/lib/supportKnowledge.test.ts src/lib/serviceMarkets.test.ts src/lib/pricingSnapshot.test.ts src/app/api/jobs/quote/route.test.ts src/lib/bookingQuotes.test.ts src/lib/calendarView.test.ts src/lib/scheduling.test.ts
+      - run: npx vitest run src/i18n/localization.test.ts src/i18n/ipLanguage.test.ts src/lib/siteIndexing.test.ts src/lib/appStore.test.ts src/lib/authRedirect.test.ts src/lib/supportKnowledge.test.ts src/lib/serviceMarkets.test.ts src/lib/pricingSnapshot.test.ts src/app/api/jobs/quote/route.test.ts src/lib/bookingQuotes.test.ts src/lib/calendarView.test.ts src/lib/scheduling.test.ts
       - run: npx next typegen
       - run: npx tsc --noEmit
       - name: Require all released languages and matching offline copy before publication

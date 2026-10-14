@@ -5,8 +5,8 @@ loaded Capacitor interface. The owner authorized publishing the completed
 languages now and deferring the rest.
 
 Released languages: bg, hr, cs, da, nl, en, fr, de, ro. Each of the nine
-catalogs has all 4,540 source messages. The selector, browser/device negotiation,
-country fallback and offline copy use this same explicit release list. The
+catalogs has all 4,540 source messages. The selector, IP-country selection,
+browser/device fallback and offline copy use this same explicit release list. The
 remaining 15 official EU languages are deferred and are not selectable.
 
 Their unfinished private checkpoints retain the existing generation accounting.
@@ -17,8 +17,10 @@ The owner-approved generation cap remains USD 20 before tax.
 ## Language selection and data
 
 The saved `nitido-language` cookie has priority and lasts one year. Otherwise,
-weighted browser/device language preferences are used. A local IP-country
-lookup is a fallback when no supported language matches; multilingual countries
+the local IP-country lookup selects the supported language for that country,
+even when the browser/device prefers another language. For example, a Romanian
+IP with an English browser selects Romanian. Weighted browser/device preferences
+are the fallback when the country has no released language; multilingual countries
 such as Belgium have no guessed language. Romanian is the default. Pages use
 private/no-store caching, and only the selected language catalog is delivered.
 
@@ -90,7 +92,8 @@ refund behavior are preserved.
 
 ## Verification
 
-Targeted automated checks cover released/unsupported language negotiation,
+Targeted automated checks cover Romanian IP selection with an English browser,
+manual-choice precedence, proxy country forwarding and released/unsupported language negotiation,
 translation/data isolation, dates, navigation, store promotion guards, quotes,
 country/currency rules and catalog publication safety. A release containing a
 missing, duplicate or unsupported language fails validation, as do changed
