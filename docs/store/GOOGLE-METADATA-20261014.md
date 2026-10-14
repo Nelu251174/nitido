@@ -1,9 +1,11 @@
 # Google Play metadata correction — 14 October 2026
 
 Owner screenshots identify a Metadata policy rejection in the Romanian full
-description. They do not show the rejected description text or require a binary
-change. The installed store field still needs to be read before claiming the
-precise offending sentence. The account's rejection is not a suspension notice.
+description. The later owner-supplied email explicitly quotes
+`Full description (ro): "Descriere completă: "`. This suggests an incomplete field
+or a label pasted as content; the full saved console value is still not inspected.
+The notice does not request a binary change. The account's rejection is not a
+suspension notice.
 
 The replacement in `METADATA-RO.json` → `google.fullDescription` explains physical
 cleaning services in Romania, the customer booking flow and the provider workflow.

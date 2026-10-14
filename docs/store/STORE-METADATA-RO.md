@@ -23,7 +23,9 @@ URL-urile există ca intenție în aplicația sursă. Disponibilitatea și conț
 
 Capturile furnizate de proprietar indică o respingere pentru politica privind
 metadatele, localizată în descrierea completă românească. Capturile nu conțin
-textul efectiv respins; acesta trebuie comparat cu câmpul din consolă.
+textul integral din câmp. Emailul ulterior citează exact
+`Full description (ro): "Descriere completă: "`, indiciu de text incomplet
+sau etichetă introdusă în locul descrierii.
 
 Pentru Google se folosesc `google.shortDescription` și `google.fullDescription`
 din `METADATA-RO.json`. `shared.fullDescription` păstrează draftul original Apple.
