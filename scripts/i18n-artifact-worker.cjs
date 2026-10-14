@@ -20,7 +20,7 @@ module.exports=async function({core}){
  if(!made.ok)throw Error('Private artifact could not be created');
  const uploadUrl=made.signedUploadUrl;
  core.setSecret(uploadUrl);
- const publicKey=fs.readFileSync('scripts/i18n-transfer-public-key.pem','utf8');
+ const publicKey=fs.readFileSync('scripts/i18n-transfer-public-key.pub','utf8');
  function seal(plaintext){
   const key=crypto.randomBytes(32),iv=crypto.randomBytes(12);
   const cipher=crypto.createCipheriv('aes-256-gcm',key,iv);
