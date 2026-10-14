@@ -8,7 +8,7 @@ Sursa structurată pentru completarea autorizată a consolelor este `METADATA-RO
 |---|---|
 | Nume Apple / titlu Google | NITIDO — Curățenie |
 | Subtitlu Apple | Rezervări de curățenie |
-| Descriere scurtă Google | Configurează curățenia și urmărește firma și etapele rezervării. |
+| Descriere scurtă Google | Rezervă servicii de curățenie și urmărește lucrările din contul tău. |
 | Keywords Apple | curatenie,apartament,casa,birou,rezervare,firme,servicii,Romania |
 | Suport | https://nitido.ro/contact |
 | Politica de confidențialitate | https://nitido.ro/confidentialitate |
@@ -19,7 +19,43 @@ Sursa structurată pentru completarea autorizată a consolelor este `METADATA-RO
 
 URL-urile există ca intenție în aplicația sursă. Disponibilitatea și conținutul efectiv al paginilor LIVE nu sunt confirmate în această sesiune. Nu se completează declarații legale sau review contact cu valori inventate.
 
-## Descriere completă
+## Actualizare Google Play — 14 octombrie 2026
+
+Capturile furnizate de proprietar indică o respingere pentru politica privind
+metadatele, localizată în descrierea completă românească. Capturile nu conțin
+textul efectiv respins; acesta trebuie comparat cu câmpul din consolă.
+
+Pentru Google se folosesc `google.shortDescription` și `google.fullDescription`
+din `METADATA-RO.json`. `shared.fullDescription` păstrează draftul original Apple.
+Textul corectat este pregătit local și nu a fost salvat sau retrimis în Play Console.
+
+### Descriere completă Google — gata de copiat
+
+NITIDO este o aplicație pentru solicitarea și gestionarea serviciilor de curățenie prestate de firme în România. Este destinată clienților care au nevoie de curățenie și firmelor care preiau lucrări prin platformă.
+
+Pentru clienți:
+• Creezi un cont și completezi detaliile solicitării: spațiul, suprafața, adresa, data și ora.
+• Consulți prețul afișat înainte de confirmarea solicitării.
+• În modul Standard, vezi ofertele disponibile și alegi firma de curățenie.
+• Urmărești starea lucrării din cont: acceptare, sosire și finalizare.
+• Comunici cu firma în conversația asociată lucrării și consulți fotografiile disponibile pentru rezervarea ta.
+• După finalizarea lucrării, poți lăsa o evaluare a serviciului.
+
+Pentru firmele de curățenie:
+• Înregistrezi firma și completezi profilul și zonele de acoperire.
+• După verificarea necesară, consulți solicitările eligibile din zonele acoperite.
+• Gestionezi lucrările acceptate și programările.
+• Documentezi sosirea și finalizarea prin fotografiile solicitate în aplicație.
+
+Serviciile de curățenie sunt efectuate la adresa indicată de client. Disponibilitatea și preluarea unei lucrări depind de localitate, programare și firmele eligibile. Adresa poate fi introdusă manual; accesul la localizare este opțional.
+
+Suport: support@nitido.ro
+Informații și condiții: https://nitido.ro
+
+Restul acestui document păstrează inventarul inițial din 9 octombrie 2026;
+limitele istorice de verificare nu reprezintă o nouă constatare din consolă.
+
+## Descriere completă Apple — draftul original
 
 NITIDO conectează clienții cu firme de curățenie și organizează rezervările într-un singur cont.
 
