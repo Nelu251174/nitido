@@ -4,6 +4,17 @@ Scope: public pages, customer and cleaning-company screens, and the remotely
 loaded Capacitor interface. Catalog generation is in progress. Non-Romanian
 rendering remains disabled until every catalog passes validation.
 
+Current blocker: the existing OpenAI API account returns HTTP 429 with error
+type `insufficient_quota`. A single-request diagnostic confirmed this; generation
+is paused until the account's available credit/project limit is resolved. The
+owner-approved USD 20 cap is unchanged. No deployment has been performed.
+
+Eight new catalogs are complete and saved for review: bg, hr, cs, da, nl, en,
+fr and de, each with 4,540 source messages. Romanian is the source language.
+Private resumable checkpoints retain 62,244 translations, including unfinished
+catalogs; unfinished files are not included in the release. The global activation
+gate deliberately remains closed.
+
 Languages: bg, hr, cs, da, nl, en, et, fi, fr, de, el, hu, ga, it, lv, lt,
 mt, pl, pt, ro, sk, sl, es, sv.
 
@@ -35,6 +46,19 @@ cost before dispatch. Valid strings are saved and only rejected strings are
 retried. Brands, contacts, numbers, currency words and interpolation values are
 protected; incomplete catalogs cannot activate the feature.
 
+Currency codes are matched as whole words, so French `VALEURS`/`SECTEUR` and
+Estonian `BRONEERING` are not mistaken for EUR/RON. Romanian `lei`/`leu` units
+remain protected when present in the source; the Portuguese legal word `lei`
+does not introduce a false currency mismatch. Seven regression checks retain
+rejection of modified amounts, currencies, contacts, slots and missing keys.
+
+The latest confirmed processed-token cost estimate is USD 10.96190925 before
+tax. Conservative retained accounting is USD 11.88488925; the remaining approved
+allowance is USD 8.11511075. These are generation accounting estimates, not a
+claim about the provider account balance or final invoice. All 207 requests
+declined during the latest two runs added no processed tokens. Only safe error
+categories are retained; provider messages and credentials are not exported.
+
 Intermediate catalogs and the temporary upload link are encrypted with the
 operator-owned public key. The private decryption key remains in the workspace.
 The owner explicitly approved recovering ciphertext through public GitHub
@@ -45,6 +69,14 @@ exported. No customer records are sent through this translation workflow.
 exact keys, protected values and unexpected markup. Catalogs are machine
 translations; specialist legal review remains pending. `messages/extra-source.json`
 keeps short mapped labels in the reproducible extraction source.
+
+The npm build preflight and language CI require complete valid catalogs and
+matching generated offline copy. The offline generator uses the same 24
+catalogs, the manual cookie, device preferences and cached last language.
+Generation of the final offline HTML remains pending complete catalogs.
+`node scripts/i18n-validate.mjs --available` validates the complete catalogs
+already saved for review. It reports `publicationAllowed: false`; the build
+uses the strict validation command without this diagnostic option.
 
 ## Currency and service coverage
 
@@ -63,8 +95,11 @@ refund behavior are preserved.
 
 The expanded suite passed 119 checks for language negotiation, translation/data
 isolation, dates, navigation, store promotion guards, quotes and country/currency
-rules. TypeScript passed. Candidate 1875846 passed a hosted full build and an
-unsigned iOS compile. Complete-catalog validation, hosted mobile rendering in
+rules. TypeScript and targeted lint passed for the later implementation changes;
+the seven currency/data catalog regression checks also passed. Candidate 2811dbf
+passed a hosted full build and an unsigned iOS compile. The later publication
+guards deliberately fail the full-catalog preflight until the remaining 15
+languages are complete. Complete-catalog validation, hosted mobile rendering in
 all 24 languages and deployment health remain required before activation.
 
 The approved iOS 1.0 (17) continues to load the shared remote interface; this
