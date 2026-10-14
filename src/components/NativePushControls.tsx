@@ -1,4 +1,5 @@
 'use client';
+import {UiText} from '@/components/UiText';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { PushNotifications } from '@capacitor/push-notifications';
@@ -31,5 +32,5 @@ export function NativePushControls({ role, controls = true }: { role: 'client' |
     finally { setBusy(false); }
   }
   if (!available || !controls) return null;
-  return <div><button className="web-alert-toggle" disabled={busy} onClick={() => void enable()}>{busy ? 'Se activează…' : 'Activează notificările telefonului'}</button>{message && <p className="web-alert-hint" role="status">{message}</p>}</div>;
+  return <div><button className="web-alert-toggle" disabled={busy} onClick={() => void enable()}>{busy ? <UiText text={'Se activează…'}/> : <UiText text={'Activează notificările telefonului'}/>}</button>{message && <p className="web-alert-hint" role="status">{message}</p>}</div>;
 }

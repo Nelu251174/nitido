@@ -1,5 +1,6 @@
 "use client";
 
+import {UiText,UiElement} from '@/components/UiText';
 import { appStoreLinks } from "@/lib/appStore";
 import { useAppPlatform } from "@/lib/useAppPlatform";
 
@@ -17,7 +18,7 @@ const GOOGLE_FONT = "'Roboto', 'Helvetica Neue', Arial, sans-serif";
 /** Insigna „Descărcați de pe App Store" (design oficial Apple, negru). */
 export function AppStoreBadge({ className = "" }: { className?: string }) {
   return (
-    <svg
+    <UiElement as="svg"
       viewBox="0 0 135 40"
       className={className}
       role="img"
@@ -27,20 +28,16 @@ export function AppStoreBadge({ className = "" }: { className?: string }) {
       <g transform="translate(10 9.5) scale(.82)">
         <path fill="#fff" d={APPLE_LOGO} />
       </g>
-      <text x="43" y="16" fill="#fff" fontFamily={APPLE_FONT} fontSize="6.8">
-        Descărcați de pe
-      </text>
-      <text x="42.4" y="31" fill="#fff" fontFamily={APPLE_FONT} fontSize="17" fontWeight={600} letterSpacing="-.5">
-        App Store
-      </text>
-    </svg>
+      <text x="43" y="16" fill="#fff" fontFamily={APPLE_FONT} fontSize="6.8"><UiText text={"Descărcați de pe"}/></text>
+      <text x="42.4" y="31" fill="#fff" fontFamily={APPLE_FONT} fontSize="17" fontWeight={600} letterSpacing="-.5"><UiText text={"App Store"}/></text>
+    </UiElement>
   );
 }
 
 /** Insigna „DESCARCĂ DE PE Google Play" (triunghiul colorat oficial). */
 export function GooglePlayBadge({ className = "" }: { className?: string }) {
   return (
-    <svg
+    <UiElement as="svg"
       viewBox="0 0 135 40"
       className={className}
       role="img"
@@ -53,13 +50,9 @@ export function GooglePlayBadge({ className = "" }: { className?: string }) {
         <polygon points="3,3 26,16 16.5,16" fill="#FF3B3B" />
         <polygon points="16.5,16 26,16 3,29" fill="#FFC400" />
       </svg>
-      <text x="42" y="15.5" fill="#fff" fontFamily={GOOGLE_FONT} fontSize="6.2" letterSpacing="1">
-        DESCARCĂ DE PE
-      </text>
-      <text x="41.5" y="31" fill="#fff" fontFamily={GOOGLE_FONT} fontSize="16" fontWeight={600}>
-        Google Play
-      </text>
-    </svg>
+      <text x="42" y="15.5" fill="#fff" fontFamily={GOOGLE_FONT} fontSize="6.2" letterSpacing="1"><UiText text={"DESCARCĂ DE PE"}/></text>
+      <text x="41.5" y="31" fill="#fff" fontFamily={GOOGLE_FONT} fontSize="16" fontWeight={600}><UiText text={"Google Play"}/></text>
+    </UiElement>
   );
 }
 
@@ -79,38 +72,33 @@ export function PhoneAppPromo() {
     <div className="border-b border-[#2a332c]">
       <div className="v2-container py-10">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-bold text-white">Folosește NITIDO pe telefon</h2>
+          <h2 className="text-lg font-bold text-white"><UiText text={"Folosește NITIDO pe telefon"}/></h2>
           {!links.live && (
-            <span className="rounded-full border border-[#f5a623] px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-[#f5a623]">
-              ÎN CURÂND
-            </span>
+            <span className="rounded-full border border-[#f5a623] px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-[#f5a623]"><UiText text={"ÎN CURÂND"}/></span>
           )}
         </div>
         <p className="mt-3 max-w-xl text-sm leading-6 text-[#8b958f]">
           {links.live
-            ? "Folosește linkul disponibil pentru magazinul dispozitivului tău. Poți configura rezervări, consulta lucrările și urmări actualizările din cont. Pentru operațiunile trimise, verifică întotdeauna confirmarea din aplicație."
-            : "Poți folosi NITIDO direct din browserul telefonului: configurezi curățenia, intri în cont și urmărești starea lucrărilor. Insignele magazinelor fără link sunt informative și nu descarcă o aplicație. Linkurile de instalare vor fi disponibile aici când publicarea este confirmată."}
+            ? <UiText text={"Folosește linkul disponibil pentru magazinul dispozitivului tău. Poți configura rezervări, consulta lucrările și urmări actualizările din cont. Pentru operațiunile trimise, verifică întotdeauna confirmarea din aplicație."}/>
+            : <UiText text={"Poți folosi NITIDO direct din browserul telefonului: configurezi curățenia, intri în cont și urmărești starea lucrărilor. Insignele magazinelor fără link sunt informative și nu descarcă o aplicație. Linkurile de instalare vor fi disponibile aici când publicarea este confirmată."}/>}
         </p>
         <div className="mt-5 flex flex-wrap items-center gap-3">
           {links.appStore ? (
-            <a href={links.appStore} target="_blank" rel="noreferrer" aria-label="Descărcați de pe App Store">
+            <UiElement as="a" href={links.appStore} target="_blank" rel="noreferrer" aria-label="Descărcați de pe App Store">
               <AppStoreBadge className={badgeClass} />
-            </a>
+            </UiElement>
           ) : (
             <AppStoreBadge className={`${badgeClass} opacity-80`} />
           )}
           {links.playStore ? (
-            <a href={links.playStore} target="_blank" rel="noreferrer" aria-label="Descarcă de pe Google Play">
+            <UiElement as="a" href={links.playStore} target="_blank" rel="noreferrer" aria-label="Descarcă de pe Google Play">
               <GooglePlayBadge className={badgeClass} />
-            </a>
+            </UiElement>
           ) : (
             <GooglePlayBadge className={`${badgeClass} opacity-80`} />
           )}
         </div>
-        <p className="mt-4 text-[11px] leading-5 text-[#5f6b63]">
-          Google Play și sigla Google Play sunt mărci comerciale ale Google LLC. Apple și sigla Apple
-          sunt mărci comerciale ale Apple Inc.
-        </p>
+        <p className="mt-4 text-[11px] leading-5 text-[#5f6b63]"><UiText text={"Google Play și sigla Google Play sunt mărci comerciale ale Google LLC. Apple și sigla Apple sunt mărci comerciale ale Apple Inc."}/></p>
       </div>
     </div>
   );

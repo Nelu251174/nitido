@@ -1,5 +1,6 @@
 "use client";
 
+import {UiText} from '@/components/UiText';
 import { useState } from "react";
 
 const FAQ_ITEMS: { question: string; answer: string }[] = [
@@ -44,7 +45,7 @@ export function Faq() {
               className="w-full flex items-center justify-between py-5 text-left"
             >
               <span className="font-display font-bold text-ink text-[15px] pr-6">
-                {item.question}
+                {<UiText text={item.question}/>}
               </span>
               <span
                 className={`flex-shrink-0 w-6 h-6 rounded-full border border-line flex items-center justify-center text-muted transition-transform ${
@@ -55,7 +56,7 @@ export function Faq() {
               </span>
             </button>
             {isOpen && (
-              <p className="text-sm text-muted leading-relaxed pb-5 pr-10">{item.answer}</p>
+              <p className="text-sm text-muted leading-relaxed pb-5 pr-10">{<UiText text={item.answer}/>}</p>
             )}
           </div>
         );

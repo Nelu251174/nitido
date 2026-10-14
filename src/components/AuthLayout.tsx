@@ -1,5 +1,6 @@
 "use client";
 
+import {UiText} from '@/components/UiText';
 import { ReactNode } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/ui";
@@ -18,21 +19,13 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         <div aria-hidden="true" className="pointer-events-none absolute top-1/3 -left-20 w-72 h-72 rounded-full bg-indigo/25 blur-3xl animate-blob-slow animate-blob-delay" />
         <div aria-hidden="true" className="pointer-events-none absolute bottom-0 right-0 w-64 h-64 rounded-full bg-coral/15 blur-3xl animate-blob-slow" />
 
-        <Link href="/" className="font-display font-extrabold text-lg text-white inline-block w-fit relative">
-          Nit<span className="text-gradient">ido</span>
+        <Link href="/" className="font-display font-extrabold text-lg text-white inline-block w-fit relative"><UiText text={"Nit"}/><span className="text-gradient"><UiText text={"ido"}/></span>
         </Link>
 
         <div className="relative">
-          <span className="inline-block px-3 py-1 rounded-full text-[11px] font-display font-bold text-aqua glass-dark mb-5">
-            Marketplace de curățenie · România
-          </span>
-          <h2 className="font-display font-extrabold text-3xl lg:text-4xl text-white leading-tight">
-            Curățenia ta, organizată de la început.
-          </h2>
-          <p className="text-white/60 text-sm mt-4 max-w-sm leading-relaxed">
-            Vezi prețul înainte de publicare. La Standard alegi firma; la Express,
-            lucrarea este preluată de prima firmă eligibilă care acceptă.
-          </p>
+          <span className="inline-block px-3 py-1 rounded-full text-[11px] font-display font-bold text-aqua glass-dark mb-5"><UiText text={"Marketplace de curățenie · România"}/></span>
+          <h2 className="font-display font-extrabold text-3xl lg:text-4xl text-white leading-tight"><UiText text={"Curățenia ta, organizată de la început."}/></h2>
+          <p className="text-white/60 text-sm mt-4 max-w-sm leading-relaxed"><UiText text={"Vezi prețul înainte de publicare. La Standard alegi firma; la Express, lucrarea este preluată de prima firmă eligibilă care acceptă."}/></p>
           <div className="mt-8 space-y-3">
             {[
               "Cereri către firmele eligibile din zonă",
@@ -50,13 +43,13 @@ export function AuthLayout({ children }: { children: ReactNode }) {
                     strokeLinejoin="round"
                   />
                 </svg>
-                {t}
+                {<UiText text={t}/>}
               </div>
             ))}
           </div>
         </div>
 
-        <p className="relative text-white/30 text-xs">© 2026 Nitido</p>
+        <p className="relative text-white/30 text-xs"><UiText text={"© 2026 Nitido"}/></p>
       </div>
 
       <div className="auth-content flex-1 flex flex-col mesh-light">

@@ -1,4 +1,5 @@
 node_modules/
+.translation-work/
 mobile/node_modules/
 mobile/.expo/
 mobile/.expo-export-check/

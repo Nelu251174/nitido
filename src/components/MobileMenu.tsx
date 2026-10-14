@@ -1,5 +1,6 @@
 "use client";
 
+import {UiElement,UiText} from '@/components/UiText';
 import Link from "next/link";
 import { useState, useEffect } from "react";
 
@@ -26,7 +27,7 @@ export function MobileMenu() {
 
   return (
     <>
-      <button
+      <UiElement as="button"
         type="button"
         aria-label={open ? "Închide meniul" : "Deschide meniul"}
         aria-expanded={open}
@@ -36,21 +37,21 @@ export function MobileMenu() {
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           {open ? <path d="M6 6l12 12M18 6 6 18" /> : <><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></>}
         </svg>
-      </button>
+      </UiElement>
 
       {open && (
-        <div className="public-mobile-menu" aria-label="Meniu principal">
+        <UiElement as="div" className="public-mobile-menu" aria-label="Meniu principal">
           <nav className="public-mobile-menu-links">
             {LINKS.map(([href, label]) => (
               <Link key={href} href={href} onClick={() => setOpen(false)} className="public-mobile-menu-link">
-                {label}
+                {<UiText text={label}/>}
               </Link>
             ))}
             <div className="flex flex-col gap-3 mt-6">
               <HeaderAuthButtons onNavigate={() => setOpen(false)} />
             </div>
           </nav>
-        </div>
+        </UiElement>
       )}
     </>
   );

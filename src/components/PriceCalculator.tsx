@@ -1,5 +1,6 @@
 "use client";
 
+import {UiText} from '@/components/UiText';
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { calcGrossPrice, SpaceType } from "@/lib/pricing";
@@ -25,10 +26,8 @@ export function PriceCalculator() {
 
   return (
     <div className="bg-white border border-line rounded-2xl p-8 shadow-sm">
-      <div className="text-xs font-display font-bold text-aqua-deep uppercase tracking-wide mb-1">
-        Calculează prețul
-      </div>
-      <p className="text-sm text-muted mb-6">Fără cont, fără angajament — estimare pentru curățenie, fără spălare de geamuri. Geamurile se adaugă separat.</p>
+      <div className="text-xs font-display font-bold text-aqua-deep uppercase tracking-wide mb-1"><UiText text={"Calculează prețul"}/></div>
+      <p className="text-sm text-muted mb-6"><UiText text={"Fără cont, fără angajament — estimare pentru curățenie, fără spălare de geamuri. Geamurile se adaugă separat."}/></p>
 
       <div className="flex gap-2 flex-wrap mb-5">
         {(Object.keys(SPACE_LABELS) as SpaceType[]).map((k) => (
@@ -42,14 +41,12 @@ export function PriceCalculator() {
                 : "border-line text-muted hover:border-aqua"
             }`}
           >
-            {SPACE_LABELS[k]}
+            {<UiText text={SPACE_LABELS[k]}/>}
           </button>
         ))}
       </div>
 
-      <label className="block text-xs uppercase tracking-wide text-muted font-semibold mb-2">
-        Suprafață: {sqm} mp
-      </label>
+      <label className="block text-xs uppercase tracking-wide text-muted font-semibold mb-2"><UiText text={"Suprafață: "}/>{sqm}<UiText text={" mp"}/></label>
       <input
         type="range"
         min={20}
@@ -61,16 +58,14 @@ export function PriceCalculator() {
       />
 
       <div className="flex items-center justify-between bg-mist rounded-xl p-5">
-        <span className="text-sm text-muted">Preț estimat</span>
-        <span className="font-display font-extrabold text-3xl text-aqua-deep">{price} lei</span>
+        <span className="text-sm text-muted"><UiText text={"Preț estimat"}/></span>
+        <span className="font-display font-extrabold text-3xl text-aqua-deep">{price}<UiText text={" lei"}/></span>
       </div>
 
       <Link
         href={`/rezervare?spaceType=${spaceType}&sqm=${sqm}`}
         className="mt-5 block text-center px-6 py-3 rounded-xl bg-ink text-white font-display font-bold hover:opacity-90 transition"
-      >
-        Continuă cu rezervarea
-      </Link>
+      ><UiText text={"Continuă cu rezervarea"}/></Link>
     </div>
   );
 }

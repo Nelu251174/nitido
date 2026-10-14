@@ -1,3 +1,4 @@
+import {UiText,UiElement} from '@/components/UiText';
 import Link from 'next/link';
 
 const steps = [
@@ -14,17 +15,17 @@ export function AssistedJourney({role='client'}:{role?:'client'|'admin'|'firma'}
   :role==='firma'
   ? 'O lucrare asistată este pregătită de NITIDO și confirmată de client. Vezi propunerile adresate firmei tale, verifici echipa și intervalul, apoi accepți. Calendarul este reverificat la acceptare; o propunere nu ține loc de alocare.'
   : 'Pentru renovări, suprafețe mari sau cerințe speciale, începi cu o evaluare. Oferta și programarea se confirmă separat, astfel încât să știi ce servicii primești, cât plătești și ce echipă este propusă.';
- return <section className="assisted-journey" aria-label="Ghidul evaluării asistate">
-  <p className="v2-eyebrow">Evaluare · Ofertă · Echipă · Execuție</p>
-  <h2>{role==='admin'?'De la cerere la echipa alocată':role==='firma'?'Cum preiei o lucrare asistată':'Cum ajungi de la evaluare la rezervare'}</h2>
-  <p>{intro}</p>
-  <details><summary>Vezi cei 6 pași și responsabilitatea fiecăruia</summary><ol>{steps.map(([title,body])=><li key={title}><h3>{title}</h3><p>{body}</p></li>)}</ol></details>
-  {role==='firma'&&<Link className="v2-btn v2-btn-secondary" href="/firma/calendar">Verifică programul echipei</Link>}
- </section>;
+ return <UiElement as="section" className="assisted-journey" aria-label="Ghidul evaluării asistate">
+  <p className="v2-eyebrow"><UiText text={"Evaluare · Ofertă · Echipă · Execuție"}/></p>
+  <h2>{role==='admin'?<UiText text={'De la cerere la echipa alocată'}/>:role==='firma'?<UiText text={'Cum preiei o lucrare asistată'}/>:<UiText text={'Cum ajungi de la evaluare la rezervare'}/>}</h2>
+  <p>{<UiText text={intro}/>}</p>
+  <details><summary><UiText text={"Vezi cei 6 pași și responsabilitatea fiecăruia"}/></summary><ol>{steps.map(([title,body])=><li key={title}><h3>{<UiText text={title}/>}</h3><p>{<UiText text={body}/>}</p></li>)}</ol></details>
+  {role==='firma'&&<Link className="v2-btn v2-btn-secondary" href="/firma/calendar"><UiText text={"Verifică programul echipei"}/></Link>}
+ </UiElement>;
 }
 export function AssistedEntry() {
  return <section className="assisted-journey assisted-entry">
-  <div><p className="v2-eyebrow">Pentru lucrări care necesită analiză</p><h2>Ai o renovare, un spațiu mare sau cerințe speciale?</h2><p>Descrie lucrarea și solicită o ofertă adaptată. În cont vei putea adăuga fotografii, răspunde la întrebări și verifica oferta, echipa și programarea înainte de rezervare.</p><p className="booking-muted">Cererea de evaluare nu autorizează cardul și nu garantează disponibilitatea unei echipe.</p></div>
-  <Link className="v2-btn v2-btn-primary" href="/client/evaluari">Solicită evaluarea lucrării</Link>
+  <div><p className="v2-eyebrow"><UiText text={"Pentru lucrări care necesită analiză"}/></p><h2><UiText text={"Ai o renovare, un spațiu mare sau cerințe speciale?"}/></h2><p><UiText text={"Descrie lucrarea și solicită o ofertă adaptată. În cont vei putea adăuga fotografii, răspunde la întrebări și verifica oferta, echipa și programarea înainte de rezervare."}/></p><p className="booking-muted"><UiText text={"Cererea de evaluare nu autorizează cardul și nu garantează disponibilitatea unei echipe."}/></p></div>
+  <Link className="v2-btn v2-btn-primary" href="/client/evaluari"><UiText text={"Solicită evaluarea lucrării"}/></Link>
  </section>;
 }

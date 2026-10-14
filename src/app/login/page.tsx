@@ -1,5 +1,6 @@
 "use client";
 
+import {UiText} from '@/components/UiText';
 import { useState, Suspense, FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -7,7 +8,7 @@ import { Field, inputClass, Button } from "@/components/ui";
 import { AuthLayout } from "@/components/AuthLayout";
 import {postAuthDestination,authSwitchHref} from "@/lib/authRedirect";
 
-export default function LoginPage() {return <Suspense fallback={<p role="status">Se încarcă…</p>}><LoginForm/></Suspense>}
+export default function LoginPage() {return <Suspense fallback={<p role="status"><UiText text={"Se încarcă…"}/></p>}><LoginForm/></Suspense>}
 
 function LoginForm() {
   const router = useRouter();
@@ -41,8 +42,8 @@ function LoginForm() {
 
   return (
     <AuthLayout>
-      <h1 className="font-display font-extrabold text-2xl text-ink mb-1">Autentificare</h1>
-      <p className="text-sm text-muted mb-6">Alege tipul de cont și intră.</p>
+      <h1 className="font-display font-extrabold text-2xl text-ink mb-1"><UiText text={"Autentificare"}/></h1>
+      <p className="text-sm text-muted mb-6"><UiText text={"Alege tipul de cont și intră."}/></p>
 
       <div className="flex gap-2 mb-5">
         <button
@@ -53,9 +54,7 @@ function LoginForm() {
               ? "border-aqua bg-aqua/10 text-ink shadow-[0_1px_2px_rgba(0,158,96,0.1)]"
               : "border-line text-muted hover:border-ink/20"
           }`}
-        >
-          Sunt client
-        </button>
+        ><UiText text={"Sunt client"}/></button>
         <button
           type="button"
           onClick={() => setRole("firma")}
@@ -64,9 +63,7 @@ function LoginForm() {
               ? "border-aqua bg-aqua/10 text-ink shadow-[0_1px_2px_rgba(0,158,96,0.1)]"
               : "border-line text-muted hover:border-ink/20"
           }`}
-        >
-          Sunt firmă de curățenie
-        </button>
+        ><UiText text={"Sunt firmă de curățenie"}/></button>
       </div>
 
       <form onSubmit={submit}>
@@ -88,23 +85,18 @@ function LoginForm() {
         </Field>
 
         <div className="flex justify-end -mt-1 mb-3">
-          <Link href="/reset-parola" className="text-xs text-aqua-deep font-semibold">
-            Am uitat parola
-          </Link>
+          <Link href="/reset-parola" className="text-xs text-aqua-deep font-semibold"><UiText text={"Am uitat parola"}/></Link>
         </div>
 
-        {error && <p className="text-coral text-xs mb-3">{error}</p>}
+        {error && <p className="text-coral text-xs mb-3">{<UiText text={error}/>}</p>}
 
         <Button type="submit" className="w-full" disabled={submitting}>
-          {submitting ? "Se autentifică..." : "Autentificare"}
+          {submitting ? <UiText text={"Se autentifică..."}/> : <UiText text={"Autentificare"}/>}
         </Button>
       </form>
 
-      <p className="text-xs text-muted text-center mt-5">
-        Nu ai cont?{" "}
-        <Link href={authSwitchHref("signup",searchParams.get("next"),role)} className="text-aqua-deep font-semibold">
-          Creează unul
-        </Link>
+      <p className="text-xs text-muted text-center mt-5"><UiText text={"Nu ai cont?"}/>{" "}
+        <Link href={authSwitchHref("signup",searchParams.get("next"),role)} className="text-aqua-deep font-semibold"><UiText text={"Creează unul"}/></Link>
       </p>
     </AuthLayout>
   );

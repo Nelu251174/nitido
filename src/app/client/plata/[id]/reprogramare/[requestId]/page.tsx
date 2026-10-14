@@ -1,4 +1,5 @@
 'use client';
+import {UiText} from '@/components/UiText';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {useParams,useRouter} from 'next/navigation';
 import Link from 'next/link';
@@ -43,20 +44,20 @@ export default function ConfirmRescheduleCard(){
  }
  return <main className="min-h-screen bg-mist px-4 py-8"><div className="mx-auto max-w-lg min-w-0">
   <Link href="/client"><Logo/></Link><Card className="mt-6">
-   <h1 className="text-2xl font-display font-bold">Confirmă cardul pentru noua dată</h1>
-   {loading?<p className="mt-4">Se verifică sesiunea…</p>:user?.role!=='client'?<p className="mt-4">Folosește contul clientului care a creat rezervarea.</p>:<>
+   <h1 className="text-2xl font-display font-bold"><UiText text={"Confirmă cardul pentru noua dată"}/></h1>
+   {loading?<p className="mt-4"><UiText text={"Se verifică sesiunea…"}/></p>:user?.role!=='client'?<p className="mt-4"><UiText text={"Folosește contul clientului care a creat rezervarea."}/></p>:<>
     {data&&<p className="my-5 text-3xl font-bold">{new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON'}).format(data.amountMinor/100)}</p>}
-    {data?.scheduledAt&&<p className="text-sm">Interval propus: {dateLabel(data.scheduledAt)}</p>}
-    {data?.status==='authorized'?<div role="status" className="mt-5 space-y-3"><p className="font-bold text-aqua-deep">Noua dată și autorizarea sunt confirmate.</p>{data.cleanupPending?<p className="text-sm">Eliberarea autorizării vechi este în curs și va fi reluată automat dacă procesatorul nu răspunde.</p>:<p className="text-sm">Eliberarea autorizării vechi a fost confirmată de procesator. Banca poate avea nevoie de timp pentru actualizarea soldului disponibil.</p>}</div>:<>
-     <p className="mt-4 text-sm text-muted">Autorizarea veche nu acoperă noul interval. Autorizezi aceeași sumă pe cardul ales pentru această rezervare. Încasarea se face la finalizarea lucrării.</p>
-     <p className="mt-3 text-sm">Temporar, banca poate afișa ambele sume rezervate. După confirmarea noii autorizări și a disponibilității firmei, eliberăm autorizarea veche. Dacă reprogramarea nu se poate încheia, eliberăm autorizarea nouă nefolosită.</p>
-     <p className="mt-3 text-sm font-medium">Data actuală rămâne valabilă până când apare confirmarea reprogramării.</p>
-     {data?.status==='waiting_window'?<p role="status" className="mt-4">Poți confirma cardul începând cu {data.availableAt?dateLabel(data.availableAt):'48 de ore înaintea vizitei'}.</p>:<label className="mt-5 flex items-start gap-3 text-sm"><input type="checkbox" checked={consent} disabled={busy} onChange={e=>setConsent(e.target.checked)} className="mt-1 h-5 w-5 shrink-0"/><span>Sunt de acord cu noua autorizare și cu rezervarea temporară a ambelor sume.</span></label>}
-     <Button className="mt-5 w-full" disabled={busy||!ready||!consent||!data||data.status==='waiting_window'} onClick={()=>void confirm()}>{busy?'Se confirmă…':'Autorizează și confirmă noua dată'}</Button>
+    {data?.scheduledAt&&<p className="text-sm"><UiText text={"Interval propus: "}/>{dateLabel(data.scheduledAt)}</p>}
+    {data?.status==='authorized'?<div role="status" className="mt-5 space-y-3"><p className="font-bold text-aqua-deep"><UiText text={"Noua dată și autorizarea sunt confirmate."}/></p>{data.cleanupPending?<p className="text-sm"><UiText text={"Eliberarea autorizării vechi este în curs și va fi reluată automat dacă procesatorul nu răspunde."}/></p>:<p className="text-sm"><UiText text={"Eliberarea autorizării vechi a fost confirmată de procesator. Banca poate avea nevoie de timp pentru actualizarea soldului disponibil."}/></p>}</div>:<>
+     <p className="mt-4 text-sm text-muted"><UiText text={"Autorizarea veche nu acoperă noul interval. Autorizezi aceeași sumă pe cardul ales pentru această rezervare. Încasarea se face la finalizarea lucrării."}/></p>
+     <p className="mt-3 text-sm"><UiText text={"Temporar, banca poate afișa ambele sume rezervate. După confirmarea noii autorizări și a disponibilității firmei, eliberăm autorizarea veche. Dacă reprogramarea nu se poate încheia, eliberăm autorizarea nouă nefolosită."}/></p>
+     <p className="mt-3 text-sm font-medium"><UiText text={"Data actuală rămâne valabilă până când apare confirmarea reprogramării."}/></p>
+     {data?.status==='waiting_window'?<p role="status" className="mt-4"><UiText text={"Poți confirma cardul începând cu "}/>{data.availableAt?dateLabel(data.availableAt):<UiText text={'48 de ore înaintea vizitei'}/>}.</p>:<label className="mt-5 flex items-start gap-3 text-sm"><input type="checkbox" checked={consent} disabled={busy} onChange={e=>setConsent(e.target.checked)} className="mt-1 h-5 w-5 shrink-0"/><span><UiText text={"Sunt de acord cu noua autorizare și cu rezervarea temporară a ambelor sume."}/></span></label>}
+     <Button className="mt-5 w-full" disabled={busy||!ready||!consent||!data||data.status==='waiting_window'} onClick={()=>void confirm()}>{busy?<UiText text={'Se confirmă…'}/>:<UiText text={'Autorizează și confirmă noua dată'}/>}</Button>
     </>}
-    <button className="mt-4 w-full text-sm underline py-2" disabled={busy} onClick={()=>void refresh()}>Reîncarcă starea plății</button>
+    <button className="mt-4 w-full text-sm underline py-2" disabled={busy} onClick={()=>void refresh()}><UiText text={"Reîncarcă starea plății"}/></button>
    </>}
-   {error&&<p role="alert" className="mt-4 text-sm text-coral">{error}</p>}
-   <Link className="mt-5 block text-sm font-bold underline" href="/client">Revino la rezervare</Link>
+   {error&&<p role="alert" className="mt-4 text-sm text-coral">{<UiText text={error}/>}</p>}
+   <Link className="mt-5 block text-sm font-bold underline" href="/client"><UiText text={"Revino la rezervare"}/></Link>
   </Card></div>{user?.role==='client'&&<Script src="https://js.stripe.com/v3/" onReady={()=>setReady(true)} onError={()=>setError('Conexiunea securizată nu s-a încărcat. Reîncarcă pagina.')}/>}</main>;
 }

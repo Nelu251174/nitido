@@ -1,5 +1,6 @@
 "use client";
 
+import {UiText,UiElement} from '@/components/UiText';
 import { useEffect, useState } from "react";
 
 // Tip minimal pentru evenimentul de instalare (nu e inca in tipurile standard TS).
@@ -60,7 +61,7 @@ export function PwaProvider() {
   if (!show) return null;
 
   return (
-    <div
+    <UiElement as="div"
       style={{
         position: "fixed",
         left: "50%",
@@ -82,23 +83,17 @@ export function PwaProvider() {
       aria-label="Instalează aplicația NITIDO"
     >
       <div style={{ flex: 1, fontSize: 14, lineHeight: 1.35 }}>
-        <b>Instalează aplicația NITIDO</b>
-        <div style={{ color: "#b8c1bb", fontSize: 12.5, marginTop: 2 }}>
-          Acces rapid de pe ecranul telefonului, ca o aplicație.
-        </div>
+        <b><UiText text={"Instalează aplicația NITIDO"}/></b>
+        <div style={{ color: "#b8c1bb", fontSize: 12.5, marginTop: 2 }}><UiText text={"Acces rapid de pe ecranul telefonului, ca o aplicație."}/></div>
       </div>
       <button
         onClick={dismiss}
         style={{ background: "transparent", color: "#8b958f", border: "none", fontSize: 13, cursor: "pointer" }}
-      >
-        Mai târziu
-      </button>
+      ><UiText text={"Mai târziu"}/></button>
       <button
         onClick={install}
         style={{ background: "var(--nitido-brand-on-dark)", color: "#111827", border: "none", fontWeight: 700, fontSize: 13, padding: "9px 16px", borderRadius: 10, cursor: "pointer" }}
-      >
-        Instalează
-      </button>
-    </div>
+      ><UiText text={"Instalează"}/></button>
+    </UiElement>
   );
 }

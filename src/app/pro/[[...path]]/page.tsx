@@ -1,8 +1,9 @@
+import {localizeMetadata} from '@/i18n/server';
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Workspace from "@/components/pro/Workspace";
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = {
+const sourceMetadata: Metadata = {
   title: "Portofoliul NITIDO Pro",
   robots: { index: false, follow: false },
 };
@@ -33,3 +34,5 @@ export default async function Page({
     notFound();
   return <Workspace key={path.join("/")} path={path} />;
 }
+
+export async function generateMetadata() { return localizeMetadata(sourceMetadata); }

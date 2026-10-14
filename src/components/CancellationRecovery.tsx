@@ -1,4 +1,5 @@
 "use client";
+import {UiText} from '@/components/UiText';
 import {useRef,useState} from 'react';
 
 export function CancellationRecovery({jobId,onRecovered}:{jobId:string;onRecovered:()=>Promise<void>}){
@@ -14,5 +15,5 @@ export function CancellationRecovery({jobId,onRecovered}:{jobId:string;onRecover
    }catch{setMessage('Răspuns neconfirmat. Reîncarcă starea înainte de a reîncerca.');}
    finally{running.current=false;setBusy(false);}
  }
- return <><button className="underline disabled:opacity-50" disabled={busy} onClick={retry}>{busy?'Se verifică…':'Reîncearcă eliberarea în sandbox'}</button>{message&&<p role="status" className="text-sm">{message}</p>}</>;
+ return <><button className="underline disabled:opacity-50" disabled={busy} onClick={retry}>{busy?<UiText text={'Se verifică…'}/>:<UiText text={'Reîncearcă eliberarea în sandbox'}/>}</button>{message&&<p role="status" className="text-sm">{message}</p>}</>;
 }

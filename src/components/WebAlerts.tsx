@@ -1,4 +1,5 @@
 'use client';
+import {UiText,UiElement} from '@/components/UiText';
 import {useEffect,useRef,useState,useSyncExternalStore} from 'react';
 import {NativePushControls} from './NativePushControls';
 import {nativePushAvailable} from '@/lib/nativePushClient';
@@ -68,5 +69,5 @@ function WebAlertsSession(){
   setHint(granted==='granted'?'Alerte active cât timp NITIDO este deschis în browser.':'Sunet activ în pagină. Notificările desktop nu sunt permise în acest browser.');
  }
  if(!account)return null;
- return <aside className="web-alerts" aria-label="Alerte NITIDO">{controls&&<><button className="web-alert-toggle" onClick={()=>void enable()}>{enabled?'Oprește sunetul și alertele desktop':'Activează sunetul și alertele desktop'}</button><button className="web-alert-toggle" onClick={()=>void testSound()}>Testează sunetul</button></>}{hint&&<p className="web-alert-hint" role="status">{hint}<button aria-label="Închide explicația" onClick={()=>setHint('')}>×</button></p>}{toast&&<div className="web-alert-toast" role="status"><button aria-label="Închide alerta" onClick={()=>setToast(null)}>×</button><strong>{toast.title}</strong>{toast.count>1&&<p>{toast.count} noutăți în cont.</p>}<a href={toast.href}>Vezi detaliile</a></div>}</aside>;
+ return <UiElement as="aside" className="web-alerts" aria-label="Alerte NITIDO">{controls&&<><button className="web-alert-toggle" onClick={()=>void enable()}>{enabled?<UiText text={'Oprește sunetul și alertele desktop'}/>:<UiText text={'Activează sunetul și alertele desktop'}/>}</button><button className="web-alert-toggle" onClick={()=>void testSound()}><UiText text={"Testează sunetul"}/></button></>}{hint&&<p className="web-alert-hint" role="status">{hint}<UiElement as="button" aria-label="Închide explicația" onClick={()=>setHint('')}>×</UiElement></p>}{toast&&<div className="web-alert-toast" role="status"><UiElement as="button" aria-label="Închide alerta" onClick={()=>setToast(null)}>×</UiElement><strong>{toast.title}</strong>{toast.count>1&&<p>{toast.count}<UiText text={" noutăți în cont."}/></p>}<a href={toast.href}><UiText text={"Vezi detaliile"}/></a></div>}</UiElement>;
 }

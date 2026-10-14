@@ -1,6 +1,7 @@
+import {localizeMetadata} from '@/i18n/server';
 import { publicPageMetadata } from "@/lib/publicSeo";
 import { InformationPage } from "@/components/InformationPage";
-export const metadata = publicPageMetadata("/cookie-uri");
+const sourceMetadata = publicPageMetadata("/cookie-uri");
 const content = {
   "eyebrow": "COOKIE-URI ȘI STOCARE LOCALĂ",
   "title": "Cookie-uri și date păstrate în browser: ce fac și cum le controlezi",
@@ -69,3 +70,5 @@ const content = {
   }
 };
 export default function Page() { return <InformationPage {...content} />; }
+
+export async function generateMetadata() { return localizeMetadata(sourceMetadata); }

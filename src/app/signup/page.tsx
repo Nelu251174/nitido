@@ -1,5 +1,6 @@
 "use client";
 
+import {UiText,UiElement} from '@/components/UiText';
 import { useState, Suspense, FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -81,30 +82,30 @@ function SignupForm() {
     return (
       <AuthLayout>
         <div role="status" aria-live="polite">
-          <h1 className="font-display font-bold text-2xl text-ink mb-3">Contul a fost creat cu succes</h1>
-          <p className="text-sm text-ink mb-4 break-words">Adresa contului: <strong>{created.email}</strong></p>
+          <h1 className="font-display font-bold text-2xl text-ink mb-3"><UiText text={"Contul a fost creat cu succes"}/></h1>
+          <p className="text-sm text-ink mb-4 break-words"><UiText text={"Adresa contului: "}/><strong>{created.email}</strong></p>
           <p className="text-sm text-muted mb-5">
             {created.emailAccepted
-              ? "Emailul de confirmare a fost acceptat pentru trimitere. Caută mesajul «NITIDO — confirmă adresa de email» în Inbox sau Spam. Primirea lui nu este încă confirmată."
-              : "Contul este salvat, dar trimiterea emailului de confirmare nu a fost confirmată. Nu trebuie să creezi contul din nou."}
+              ? <UiText text={"Emailul de confirmare a fost acceptat pentru trimitere. Caută mesajul «NITIDO — confirmă adresa de email» în Inbox sau Spam. Primirea lui nu este încă confirmată."}/>
+              : <UiText text={"Contul este salvat, dar trimiterea emailului de confirmare nu a fost confirmată. Nu trebuie să creezi contul din nou."}/>}
           </p>
         </div>
         <EmailVerificationNotice />
         {created.role === "firma" && (
-          <p className="text-sm text-muted mb-5">Confirmarea emailului este separată de verificarea firmei. Pentru a primi lucrări, firma trebuie să fie validată prin ANAF.</p>
+          <p className="text-sm text-muted mb-5"><UiText text={"Confirmarea emailului este separată de verificarea firmei. Pentru a primi lucrări, firma trebuie să fie validată prin ANAF."}/></p>
         )}
         <Button className="w-full" onClick={() => {
           router.push(created.destination);
           router.refresh();
-        }}>Continuă în cont</Button>
+        }}><UiText text={"Continuă în cont"}/></Button>
       </AuthLayout>
     );
   }
 
   return (
     <AuthLayout>
-      <h1 className="font-display font-extrabold text-2xl text-ink mb-1">Cont nou</h1>
-      <p className="text-sm text-muted mb-6">Alege tipul de cont și completează datele.</p>
+      <h1 className="font-display font-extrabold text-2xl text-ink mb-1"><UiText text={"Cont nou"}/></h1>
+      <p className="text-sm text-muted mb-6"><UiText text={"Alege tipul de cont și completează datele."}/></p>
 
       <div className="flex gap-2 mb-5">
         <button
@@ -115,9 +116,7 @@ function SignupForm() {
               ? "border-aqua bg-aqua/10 text-ink shadow-[0_1px_2px_rgba(0,158,96,0.1)]"
               : "border-line text-muted hover:border-ink/20"
           }`}
-        >
-          Sunt client
-        </button>
+        ><UiText text={"Sunt client"}/></button>
         <button
           type="button"
           onClick={() => setRole("firma")}
@@ -126,9 +125,7 @@ function SignupForm() {
               ? "border-aqua bg-aqua/10 text-ink shadow-[0_1px_2px_rgba(0,158,96,0.1)]"
               : "border-line text-muted hover:border-ink/20"
           }`}
-        >
-          Sunt firmă de curățenie
-        </button>
+        ><UiText text={"Sunt firmă de curățenie"}/></button>
       </div>
 
       <form onSubmit={submit}>
@@ -152,7 +149,7 @@ function SignupForm() {
             />
           </Field>
           <Field label="Telefon *">
-            <input
+            <UiElement as="input"
               className={inputClass}
               placeholder="07xx xxx xxx"
               value={phone}
@@ -164,15 +161,13 @@ function SignupForm() {
           {role === "firma" && (
             <>
               <Field label="CUI *">
-                <input
+                <UiElement as="input"
                   className={inputClass}
                   placeholder="ex: RO12345678"
                   value={cui}
                   onChange={(e) => setCui(e.target.value)}
                 />
-                <p className="text-[11px] text-muted mt-1">
-                  Verificăm CUI-ul direct la ANAF — trebuie să corespundă unei firme reale, active.
-                </p>
+                <p className="text-[11px] text-muted mt-1"><UiText text={"Verificăm CUI-ul direct la ANAF — trebuie să corespundă unei firme reale, active."}/></p>
               </Field>
               <Field label="Zonă de acoperire (oraș principal)">
                 <input
@@ -182,44 +177,36 @@ function SignupForm() {
                 />
               </Field>
               <Field label="Alte localități acoperite (opțional)">
-                <input
+                <UiElement as="input"
                   className={inputClass}
                   placeholder="ex: Ovidiu, Mamaia, Năvodari"
                   value={coverageCitiesExtra}
                   onChange={(e) => setCoverageCitiesExtra(e.target.value)}
                 />
-                <p className="text-[11px] text-muted mt-1">
-                  Separate prin virgulă — primești alerte și pentru lucrări din aceste zone,
-                  nu doar din orașul principal.
-                </p>
+                <p className="text-[11px] text-muted mt-1"><UiText text={"Separate prin virgulă — primești alerte și pentru lucrări din aceste zone, nu doar din orașul principal."}/></p>
               </Field>
             </>
           )}
 
           <Field label="Cod de recomandare (opțional)">
-            <input
+            <UiElement as="input"
               className={inputClass}
               placeholder="ex: ANAP-4X7Q"
               value={referralCode}
               onChange={(e) => setReferralCode(e.target.value)}
             />
-            <p className="text-[11px] text-muted mt-1">
-              Ai un cod de la un prieten? Primiți amândoi 20 lei credit.
-            </p>
+            <p className="text-[11px] text-muted mt-1"><UiText text={"Ai un cod de la un prieten? Primiți amândoi 20 lei credit."}/></p>
           </Field>
 
-          {error && <p className="text-coral text-xs mb-3">{error}</p>}
+          {error && <p className="text-coral text-xs mb-3">{<UiText text={error}/>}</p>}
 
           <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? "Se creează contul..." : "Creează cont"}
+            {submitting ? <UiText text={"Se creează contul..."}/> : <UiText text={"Creează cont"}/>}
           </Button>
       </form>
 
-      <p className="text-xs text-muted text-center mt-5">
-        Ai deja cont?{" "}
-        <Link href={authSwitchHref("login",searchParams.get("next"),role)} className="text-aqua-deep font-semibold">
-          Autentifică-te
-        </Link>
+      <p className="text-xs text-muted text-center mt-5"><UiText text={"Ai deja cont?"}/>{" "}
+        <Link href={authSwitchHref("login",searchParams.get("next"),role)} className="text-aqua-deep font-semibold"><UiText text={"Autentifică-te"}/></Link>
       </p>
     </AuthLayout>
   );

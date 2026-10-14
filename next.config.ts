@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from 'next-intl/plugin';
 
 const nextConfig: NextConfig = {
   // Internal supervised preview; production origins are unaffected.
@@ -6,8 +7,10 @@ const nextConfig: NextConfig = {
   // Build lean pentru Docker — copiază doar fișierele necesare la runtime
   // (folosit de Dockerfile-ul din rădăcina proiectului).
   output: "standalone",
+  serverExternalPackages: ['geoip-country'],
   // The metadata route reads these local fonts at runtime; keep both in Docker.
   outputFileTracingIncludes: {
+    '/*': ['./node_modules/geoip-country/data/**/*','./node_modules/geoip-country/LICENSE','./node_modules/geoip-country/EULA'],
     "/opengraph-image": [
       "./node_modules/@fontsource/inter/files/inter-latin-700-normal.woff",
       "./node_modules/@fontsource/inter/files/inter-latin-ext-700-normal.woff",
@@ -34,4 +37,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default createNextIntlPlugin('./src/i18n/request.ts')(nextConfig);

@@ -1,5 +1,6 @@
 'use client';
 
+import {UiText,UiElement} from '@/components/UiText';
 import {useId, useRef, useState} from 'react';
 
 function validDate(value: string) {
@@ -24,16 +25,16 @@ export function RomanianDateInput({value, onChange, label="Data", allowEmpty=fal
   return <div className="romanian-date-field">
     <label htmlFor={id}>{label}</label>
     <div className="romanian-date-controls">
-      <input ref={textInput} id={id} type="text" value={draft} placeholder="zz/ll/aaaa" maxLength={10}
+      <UiElement as="input" ref={textInput} id={id} type="text" value={draft} placeholder="zz/ll/aaaa" maxLength={10}
         aria-label="Data (zi/lună/an)" aria-invalid={error} aria-describedby={error ? `${id}-error` : undefined}
         onChange={event => {const next=event.target.value;setDraft(next);setError(false);const iso=next.split("/").reverse().join("-");const valid=validDate(iso)||(allowEmpty&&!next.trim());event.target.setCustomValidity(valid?"":"Introdu o dată validă: zz/ll/aaaa.");if(valid)onChange(next.trim()?iso:"");}}
         onBlur={commit} onKeyDown={event => {if (event.key === 'Enter') {event.preventDefault(); commit();}}}/>
       <span className="romanian-date-picker">
         <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>
-        <input type="date" aria-label="Alege data din calendar" value={value}
+        <UiElement as="input" type="date" aria-label="Alege data din calendar" value={value}
           onChange={event => {if (validDate(event.target.value)) {setDraft(event.target.value.split('-').reverse().join('/')); setError(false); textInput.current?.setCustomValidity(''); onChange(event.target.value);}}}/>
       </span>
     </div>
-    {error && <span id={`${id}-error`} role="alert">Introdu o dată validă: zz/ll/aaaa.</span>}
+    {error && <span id={`${id}-error`} role="alert"><UiText text={"Introdu o dată validă: zz/ll/aaaa."}/></span>}
   </div>;
 }

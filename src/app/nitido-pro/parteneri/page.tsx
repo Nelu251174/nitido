@@ -1,6 +1,7 @@
+import {localizeMetadata} from '@/i18n/server';
 import LeadForm from "@/components/pro/LeadForm";
 import { publicPageMetadata } from "@/lib/publicSeo";
-export const metadata = publicPageMetadata("/nitido-pro/parteneri");
+const sourceMetadata = publicPageMetadata("/nitido-pro/parteneri");
 export default function Page() {
   return (
     <div className="pro-wrap">
@@ -8,3 +9,5 @@ export default function Page() {
     </div>
   );
 }
+
+export async function generateMetadata() { return localizeMetadata(sourceMetadata); }

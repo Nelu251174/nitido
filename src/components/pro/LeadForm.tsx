@@ -1,4 +1,5 @@
 "use client";
+import {UiText} from '@/components/UiText';
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { SERVICES } from "@/lib/pro/shared";
@@ -48,49 +49,38 @@ export default function LeadForm({ partner = false }: { partner?: boolean }) {
     return (
       <div className="pro-form">
         <div className="pro-success">
-          <h1>Cererea ta a fost înregistrată.</h1>
-          <p>
-            Un reprezentant NITIDO va analiza{" "}
+          <h1><UiText text={"Cererea ta a fost înregistrată."}/></h1>
+          <p><UiText text={"Un reprezentant NITIDO va analiza"}/>{" "}
             {partner
-              ? "solicitarea de parteneriat"
-              : "eligibilitatea portofoliului"}
-            . Cererea nu activează automat accesul la portofoliu. Dacă trebuie să corectezi informațiile trimise, contactează echipa la support@nitido.ro și menționează adresa de email folosită în formular.
-          </p>
+              ? <UiText text={"solicitarea de parteneriat"}/>
+              : <UiText text={"eligibilitatea portofoliului"}/>}<UiText text={". Cererea nu activează automat accesul la portofoliu. Dacă trebuie să corectezi informațiile trimise, contactează echipa la support@nitido.ro și menționează adresa de email folosită în formular."}/></p>
         </div>
-        <Link href="/nitido-pro" className="v2-btn v2-btn-primary">
-          Înapoi la NITIDO Pro
-        </Link>
+        <Link href="/nitido-pro" className="v2-btn v2-btn-primary"><UiText text={"Înapoi la NITIDO Pro"}/></Link>
       </div>
     );
   return (
     <div className="pro-form">
-      <p className="pro-eyebrow">
-        NITIDO PRO · {partner ? "Parteneriat" : "Evaluarea portofoliului"}
+      <p className="pro-eyebrow"><UiText text={"NITIDO PRO · "}/>{partner ? <UiText text={"Parteneriat"}/> : <UiText text={"Evaluarea portofoliului"}/>}
       </p>
       <h1>
         {partner
-          ? "Aplică pentru parteneriat"
-          : "Verifică dacă portofoliul tău este eligibil pentru NITIDO Pro"}
+          ? <UiText text={"Aplică pentru parteneriat"}/>
+          : <UiText text={"Verifică dacă portofoliul tău este eligibil pentru NITIDO Pro"}/>}
       </h1>
       <p className="pro-muted">
         {partner
-          ? "Prezintă serviciile pe care le poți executa, zonele acoperite și capacitatea reală a firmei. Analizăm potrivirea cu lucrările din pilot înainte de activare; trimiterea cererii nu garantează acceptarea sau un volum de comenzi. La pasul următor ne lași datele pentru clarificarea solicitării."
-          : "Descrie zona, numărul de proprietăți, utilizarea lor și serviciile recurente de care ai nevoie. Pilotul se adresează portofoliilor de minimum 5 proprietăți din zone eligibile. Analizăm cererea înainte de activare și stabilim separat condițiile colaborării; acest formular nu generează o rezervare sau o plată."}
+          ? <UiText text={"Prezintă serviciile pe care le poți executa, zonele acoperite și capacitatea reală a firmei. Analizăm potrivirea cu lucrările din pilot înainte de activare; trimiterea cererii nu garantează acceptarea sau un volum de comenzi. La pasul următor ne lași datele pentru clarificarea solicitării."}/>
+          : <UiText text={"Descrie zona, numărul de proprietăți, utilizarea lor și serviciile recurente de care ai nevoie. Pilotul se adresează portofoliilor de minimum 5 proprietăți din zone eligibile. Analizăm cererea înainte de activare și stabilim separat condițiile colaborării; acest formular nu generează o rezervare sau o plată."}/>}
       </p>
-      <p className="my-6 text-sm">
-        Pasul {step} din 2 · {step === 1 ? "Descrie serviciile și zona" : "Completează datele pentru contact"}
+      <p className="my-6 text-sm"><UiText text={"Pasul "}/>{step}<UiText text={" din 2 · "}/>{step === 1 ? <UiText text={"Descrie serviciile și zona"}/> : <UiText text={"Completează datele pentru contact"}/>}
       </p>
       <form onSubmit={submit} className="pro-card">
         <div hidden={step !== 1}>
           <div className="pro-form-grid">
-            <label className="pro-field">
-              Oraș / zone
-              <input required={step === 1} name="city" maxLength={120} />
+            <label className="pro-field"><UiText text={"Oraș / zone"}/><input required={step === 1} name="city" maxLength={120} />
             </label>
             {!partner && (
-              <label className="pro-field">
-                Număr de proprietăți
-                <input
+              <label className="pro-field"><UiText text={"Număr de proprietăți"}/><input
                   required={step === 1}
                   name="property_count"
                   type="number"
@@ -100,7 +90,7 @@ export default function LeadForm({ partner = false }: { partner?: boolean }) {
               </label>
             )}
             <label className="pro-field">
-              {partner ? "Denumire firmă" : "Companie / brand (opțional)"}
+              {partner ? <UiText text={"Denumire firmă"}/> : <UiText text={"Companie / brand (opțional)"}/>}
               <input
                 name="company"
                 required={partner && step === 1}
@@ -108,36 +98,30 @@ export default function LeadForm({ partner = false }: { partner?: boolean }) {
               />
             </label>
             {partner ? (
-              <label className="pro-field">
-                CUI
-                <input name="legal_id" required={step === 1} maxLength={40} />
+              <label className="pro-field"><UiText text={"CUI"}/><input name="legal_id" required={step === 1} maxLength={40} />
               </label>
             ) : (
               <>
-                <label className="pro-field">
-                  Tip proprietăți
-                  <select name="property_type">
-                    <option>Apartamente</option>
-                    <option>Case / vile</option>
-                    <option>Aparthotel</option>
-                    <option>Mixt</option>
+                <label className="pro-field"><UiText text={"Tip proprietăți"}/><select name="property_type">
+                    <option value="Apartamente"><UiText text={"Apartamente"}/></option>
+                    <option value="Case / vile"><UiText text={"Case / vile"}/></option>
+                    <option value="Aparthotel"><UiText text={"Aparthotel"}/></option>
+                    <option value="Mixt"><UiText text={"Mixt"}/></option>
                   </select>
                 </label>
-                <label className="pro-field">
-                  Utilizare
-                  <select name="usage">
-                    <option>Regim hotelier</option>
-                    <option>Chirie pe termen lung</option>
-                    <option>Mixt</option>
-                    <option>Altul</option>
+                <label className="pro-field"><UiText text={"Utilizare"}/><select name="usage">
+                    <option value="Regim hotelier"><UiText text={"Regim hotelier"}/></option>
+                    <option value="Chirie pe termen lung"><UiText text={"Chirie pe termen lung"}/></option>
+                    <option value="Mixt"><UiText text={"Mixt"}/></option>
+                    <option value="Altul"><UiText text={"Altul"}/></option>
                   </select>
                 </label>
               </>
             )}
             <label className="pro-field">
               {partner
-                ? "Capacitate lucrări / lună"
-                : "Volum estimat de lucrări / lună"}
+                ? <UiText text={"Capacitate lucrări / lună"}/>
+                : <UiText text={"Volum estimat de lucrări / lună"}/>}
               <input
                 name="monthly_volume"
                 type="number"
@@ -146,14 +130,11 @@ export default function LeadForm({ partner = false }: { partner?: boolean }) {
                 required={step === 1}
               />
             </label>
-            <label className="pro-field">
-              Data estimată pentru activare
-              <input name="start_date" type="date" required={step === 1} />
+            <label className="pro-field"><UiText text={"Data estimată pentru activare"}/><input name="start_date" type="date" required={step === 1} />
             </label>
           </div>
           <fieldset className="my-5">
-            <legend className="font-semibold text-sm mb-3">
-              Servicii {partner ? "oferite" : "de interes"}
+            <legend className="font-semibold text-sm mb-3"><UiText text={"Servicii "}/>{partner ? <UiText text={"oferite"}/> : <UiText text={"de interes"}/>}
             </legend>
             {Object.entries(SERVICES).map(([v, l]) => (
               <label className="pro-check mb-2" key={v}>
@@ -164,34 +145,27 @@ export default function LeadForm({ partner = false }: { partner?: boolean }) {
           </fieldset>
           <label className="pro-field">
             {partner
-              ? "Experiență și disponibilitate"
-              : "Cea mai mare problemă operațională actuală"}
+              ? <UiText text={"Experiență și disponibilitate"}/>
+              : <UiText text={"Cea mai mare problemă operațională actuală"}/>}
             <textarea name="notes" maxLength={2000} required={step === 1} />
           </label>
           {!partner && (
-            <p className="text-xs pro-muted mt-4">
-              Minimum 5 proprietăți în pilot. Pentru solicitări punctuale,{" "}
-              <Link className="underline" href="/rezervare">
-                configurează curățenia
-              </Link>
+            <p className="text-xs pro-muted mt-4"><UiText text={"Minimum 5 proprietăți în pilot. Pentru solicitări punctuale,"}/>{" "}
+              <Link className="underline" href="/rezervare"><UiText text={"configurează curățenia"}/></Link>
               .
             </p>
           )}
         </div>
         <div hidden={step !== 2}>
           <div className="pro-form-grid">
-            <label className="pro-field">
-              Nume și prenume
-              <input
+            <label className="pro-field"><UiText text={"Nume și prenume"}/><input
                 name="name"
                 required={step === 2}
                 maxLength={150}
                 autoComplete="name"
               />
             </label>
-            <label className="pro-field">
-              Telefon
-              <input
+            <label className="pro-field"><UiText text={"Telefon"}/><input
                 name="phone"
                 type="tel"
                 required={step === 2}
@@ -199,9 +173,7 @@ export default function LeadForm({ partner = false }: { partner?: boolean }) {
                 autoComplete="tel"
               />
             </label>
-            <label className="pro-field">
-              E-mail
-              <input
+            <label className="pro-field"><UiText text={"E-mail"}/><input
                 name="email"
                 type="email"
                 required={step === 2}
@@ -211,24 +183,16 @@ export default function LeadForm({ partner = false }: { partner?: boolean }) {
             </label>
           </div>
           <label className="pro-check mt-6">
-            <input type="checkbox" name="consent" required={step === 2} />
-            Am citit informarea privind prelucrarea datelor și sunt de acord să
-            fiu contactat pentru această solicitare.
-          </label>
+            <input type="checkbox" name="consent" required={step === 2} /><UiText text={"Am citit informarea privind prelucrarea datelor și sunt de acord să fiu contactat pentru această solicitare."}/></label>
           <Link
             href="/confidentialitate"
             className="underline text-sm mt-3 block"
-          >
-            Politica de confidențialitate
-          </Link>
-          <p className="text-xs pro-muted mt-4">
-            Nu include adrese exacte, coduri de acces, date de card sau date
-            despre oaspeți.
-          </p>
+          ><UiText text={"Politica de confidențialitate"}/></Link>
+          <p className="text-xs pro-muted mt-4"><UiText text={"Nu include adrese exacte, coduri de acces, date de card sau date despre oaspeți."}/></p>
         </div>
         {error && (
           <p role="alert" className="pro-error">
-            {error}
+            {<UiText text={error}/>}
           </p>
         )}
         <div className="pro-actions">
@@ -237,18 +201,16 @@ export default function LeadForm({ partner = false }: { partner?: boolean }) {
               type="button"
               className="v2-btn v2-btn-secondary"
               onClick={() => setStep(1)}
-            >
-              Înapoi
-            </button>
+            ><UiText text={"Înapoi"}/></button>
           )}
           <button disabled={busy} className="v2-btn v2-btn-primary">
             {busy
-              ? "Se trimite…"
+              ? <UiText text={"Se trimite…"}/>
               : step === 1
-                ? "Continuă"
+                ? <UiText text={"Continuă"}/>
                 : partner
-                  ? "Trimite solicitarea"
-                  : "Trimite cererea de evaluare"}
+                  ? <UiText text={"Trimite solicitarea"}/>
+                  : <UiText text={"Trimite cererea de evaluare"}/>}
           </button>
         </div>
       </form>

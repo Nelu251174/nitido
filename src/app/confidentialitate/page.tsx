@@ -1,5 +1,6 @@
+import {localizeMetadata} from '@/i18n/server';
 import { publicPageMetadata } from "@/lib/publicSeo";
-export const metadata = publicPageMetadata("/confidentialitate");
+const sourceMetadata = publicPageMetadata("/confidentialitate");
 import { InformationPage, type InfoSection } from "@/components/InformationPage";
 import { legalIdentityStatus } from "@/lib/legalConfig";
 import { connection } from "next/server";
@@ -40,3 +41,5 @@ export default async function Page(){await connection();const legal=legalIdentit
   {title:"33. Contact",paragraphs:[`Solicitări privind datele: ${legal.values.LEGAL_CONTACT_EMAIL || "support@nitido.ro"}. Suport operațional: support@nitido.ro.`]},
 {title:"Datele din NITIDO Pro",paragraphs:["Evaluarea portofoliului folosește datele de contact, zona, numărul de proprietăți și serviciile solicitate. După activare, evidențele pot include proprietăți, responsabili, lucrări, aprobări, costuri, fotografii și instrucțiuni de acces. Permisiunile depind de rolul în organizație și de lucrarea alocată.","Introdu numai informațiile necesare coordonării și evită datele personale ale oaspeților fără legătură cu intervenția. Accesul operațional la datele sensibile este limitat prin fluxul autorizat. Pentru o cerere privind datele unui portofoliu, indică organizația și categoria de informații vizată."]},
 ];return <InformationPage eyebrow="CONFIDENȚIALITATE" title="Cum protejăm și folosim datele" intro="Află ce informații sunt folosite pentru conturi, rezervări, plăți și suport, cine poate avea acces și cum formulezi o cerere privind datele tale. Actualizare editorială: 9 octombrie 2026." cta={{label:"Solicită ștergerea contului",href:"/stergere-cont"}} sections={sections}/>}
+
+export async function generateMetadata() { return localizeMetadata(sourceMetadata); }

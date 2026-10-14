@@ -1,5 +1,6 @@
 "use client";
 
+import {UiElement,UiText} from '@/components/UiText';
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
@@ -21,7 +22,7 @@ export function ClientMobileNavigation() {
   const hash = useSyncExternalStore(subscribe, () => window.location.hash, () => "");
 
   return (
-    <nav className="mobile-workspace-nav client-mobile-navigation" aria-label="Navigare rapidă">
+    <UiElement as="nav" className="mobile-workspace-nav client-mobile-navigation" aria-label="Navigare rapidă">
       {CLIENT_NAVIGATION_ITEMS.map(item => {
         const active = item.target === null
           ? pathname === item.href || pathname.startsWith(`${item.href}/`)
@@ -37,10 +38,10 @@ export function ClientMobileNavigation() {
               // The dashboard restores its sections before scrolling, including repeated taps.
               window.dispatchEvent(new CustomEvent(CLIENT_NAVIGATION_EVENT, { detail: item.target }));
             }}>
-            {item.label}
+            {<UiText text={item.label}/>}
           </Link>
         );
       })}
-    </nav>
+    </UiElement>
   );
 }

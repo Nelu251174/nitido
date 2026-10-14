@@ -1,4 +1,5 @@
 "use client";
+import {UiText,UiElement,UiTemplate} from '@/components/UiText';
 /* API commands remain authoritative. Flexible rows render the versioned Pro read models. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
@@ -91,7 +92,7 @@ function Form({
                   defaultValue={f.value}
                   required={!f.optional}
                 >
-                  <option value="">Selectează</option>
+                  <option value=""><UiText text={"Selectează"}/></option>
                   {f.options.map(([v, l]) => (
                     <option key={v} value={v}>
                       {l}
@@ -120,7 +121,7 @@ function Form({
         </div>
         {error && (
           <p role="alert" className="pro-error">
-            {error}
+            {<UiText text={error}/>}
           </p>
         )}
         {ok && (
@@ -130,7 +131,7 @@ function Form({
         )}
         <div className="pro-actions">
           <button className="v2-btn v2-btn-primary" disabled={busy}>
-            {busy ? "Se salvează…" : title}
+            {busy ? <UiText text={"Se salvează…"}/> : title}
           </button>
         </div>
       </form>
@@ -322,26 +323,18 @@ export default function Workspace({ path }: { path: string[] }) {
         ))}
       </div>
     ) : (
-      <Empty>
-        Pasul următor: programează o lucrare sau configurează o regulă
-        recurentă.
-      </Empty>
+      <Empty><UiText text={"Pasul următor: programează o lucrare sau configurează o regulă recurentă."}/></Empty>
     );
   return (
     <div className="pro-app">
       <header className="pro-row rounded-none">
-        <Link href="/" className="font-bold text-xl">
-          NITIDO<span className="text-[var(--nitido-brand)]">.RO</span>
+        <Link href="/" className="font-bold text-xl"><UiText text={"NITIDO"}/><span className="text-[var(--nitido-brand)]"><UiText text={".RO"}/></span>
         </Link>
-        <Link href="/nitido-pro" className="font-semibold">
-          NITIDO Pro
-        </Link>
-        <Link href="/client" className="text-sm underline">
-          Contul NITIDO
-        </Link>
+        <Link href="/nitido-pro" className="font-semibold"><UiText text={"NITIDO Pro"}/></Link>
+        <Link href="/client" className="text-sm underline"><UiText text={"Contul NITIDO"}/></Link>
       </header>
       <div className="pro-shell">
-        <nav className="pro-sidebar" aria-label="Navigație Pro">
+        <UiElement as="nav" className="pro-sidebar" aria-label="Navigație Pro">
           {nav
             .filter(([k]) => {
               if (k === "operator") return context?.admin && (!internal || canOperate || canManage || canSuper);
@@ -361,20 +354,18 @@ export default function Workspace({ path }: { path: string[] }) {
                 {l}
               </Link>
             ))}
-        </nav>
+        </UiElement>
         <main className="pro-content">
           <div className="pro-topline">
             <div>
-              <p className="pro-eyebrow">Operațiuni controlate</p>
-              <h1>{nav.find(([k]) => k === section)?.[1] ?? "NITIDO Pro"}</h1>
+              <p className="pro-eyebrow"><UiText text={"Operațiuni controlate"}/></p>
+              <h1>{nav.find(([k]) => k === section)?.[1] ?? <UiText text={"NITIDO Pro"}/>}</h1>
               <p className="pro-muted text-sm">
-                {organization?.name ?? "Acces pentru portofolii activate"}
+                {organization?.name ?? <UiText text={"Acces pentru portofolii activate"}/>}
               </p>
             </div>
             {!!context?.organizations.length && (
-              <label className="pro-field">
-                Organizație
-                <select
+              <label className="pro-field"><UiText text={"Organizație"}/><select
                   value={org}
                   onChange={(e) => {
                     setData({});
@@ -394,43 +385,31 @@ export default function Workspace({ path }: { path: string[] }) {
           </div>
           {error && (
             <div role="alert" className="pro-error">
-              {error}
+              {<UiText text={error}/>}
               {!context && (
                 <p className="mt-3">
-                  <Link href="/login?role=client" className="underline mr-4">
-                    Login client
-                  </Link>
-                  <Link href="/login?role=firma" className="underline mr-4">
-                    Login firmă
-                  </Link>
-                  <Link href="/admin/login" className="underline">
-                    Admin NITIDO
-                  </Link>
+                  <Link href="/login?role=client" className="underline mr-4"><UiText text={"Login client"}/></Link>
+                  <Link href="/login?role=firma" className="underline mr-4"><UiText text={"Login firmă"}/></Link>
+                  <Link href="/admin/login" className="underline"><UiText text={"Admin NITIDO"}/></Link>
                 </p>
               )}
             </div>
           )}
           {loading && (
-            <p role="status" className="pro-empty">
-              Se încarcă datele portofoliului…
-            </p>
+            <p role="status" className="pro-empty"><UiText text={"Se încarcă datele portofoliului…"}/></p>
           )}
           {!loading && context && (
             <>
               {!org && !context.partners.length && section !== "operator" && (
-                <Empty>
-                  Contul tău nu are încă acces la un portofoliu Pro. Activarea
-                  se face după evaluare.{" "}
-                  <Link className="underline" href="/nitido-pro/aplica">
-                    Solicită evaluarea
-                  </Link>
+                <Empty><UiText text={"Contul tău nu are încă acces la un portofoliu Pro. Activarea se face după evaluare."}/>{" "}
+                  <Link className="underline" href="/nitido-pro/aplica"><UiText text={"Solicită evaluarea"}/></Link>
                   .
                 </Empty>
               )}
               {section === "dashboard" && org && (
                 <>
                   {data.summary && <PortfolioDashboard report={data.summary} filters={range} properties={props} onChange={next => setRange({ ...next, property_page: next.property_page ?? "0" })} />}
-                  <h2>Lucrări de urmărit</h2>
+                  <h2><UiText text={"Lucrări de urmărit"}/></h2>
                   {workList(
                     rows
                       .filter(
@@ -438,7 +417,7 @@ export default function Workspace({ path }: { path: string[] }) {
                       )
                       .slice(0, 8),
                   )}
-                  <h2>Notificări</h2>
+                  <h2><UiText text={"Notificări"}/></h2>
                   {data.notifications?.length ? (
                     <div className="pro-list">
                       {data.notifications.slice(0, 12).map((n: Row) => (
@@ -449,7 +428,7 @@ export default function Workspace({ path }: { path: string[] }) {
                       ))}
                     </div>
                   ) : (
-                    <Empty>Nu există notificări noi.</Empty>
+                    <Empty><UiText text={"Nu există notificări noi."}/></Empty>
                   )}
                 </>
               )}
@@ -471,10 +450,7 @@ export default function Workspace({ path }: { path: string[] }) {
                     ))}
                   </div>
                   {!data.properties?.length && (
-                    <Empty>
-                      Nu există proprietăți active. Adaugă prima proprietate
-                      pentru a configura operațiunile recurente.
-                    </Empty>
+                    <Empty><UiText text={"Nu există proprietăți active. Adaugă prima proprietate pentru a configura operațiunile recurente."}/></Empty>
                   )}
                   {canManage && <Form
                     title="Adaugă proprietate"
@@ -549,7 +525,7 @@ export default function Workspace({ path }: { path: string[] }) {
                     onSubmit={(b, r) => r(`properties/${w.id}/update`, b)}
                   />}
                   {canManage && w.checklist_configuration && <PropertyChecklists key={w.id} propertyId={w.id} configuration={w.checklist_configuration} run={run} />}
-                  <h2>Istoric lucrări</h2>
+                  <h2><UiText text={"Istoric lucrări"}/></h2>
                   {workList(rows)}
                   {!internal && <Form
                     title="Salvează codul de acces"
@@ -604,15 +580,15 @@ export default function Workspace({ path }: { path: string[] }) {
                           run={run}
                           onSubmit={(b, r) => r("recurring", b)}
                         />
-                        <h2>Reguli recurente</h2>
+                        <h2><UiText text={"Reguli recurente"}/></h2>
                         {(data.rules ?? []).map((r: Row) => (
                           <div className="pro-row mb-3" key={r.id}>
                             <div>
                               {r.title}
                               <small>
-                                {{ daily: "Zilnic", weekly: "Săptămânal", biweekly: "La două săptămâni", monthly: "Lunar" }[r.frequency as string]} · Următoarea apariție: {r.next_date} ·{" "}
-                                {r.active ? "Activă" : "În pauză"}
-                                {r.end_date && ` · Ultima zi: ${r.end_date}`}
+                                {<UiText text={{ daily: "Zilnic", weekly: "Săptămânal", biweekly: "La două săptămâni", monthly: "Lunar" }[r.frequency as string]}/>}<UiText text={" · Următoarea apariție: "}/>{r.next_date} ·{" "}
+                                {r.active ? <UiText text={"Activă"}/> : <UiText text={"În pauză"}/>}
+                                {r.end_date && <UiTemplate text={" · Ultima zi: {p0}"} values={[r.end_date]}/>}
                               </small>
                             </div>
                             <button
@@ -623,7 +599,7 @@ export default function Workspace({ path }: { path: string[] }) {
                                 }).catch((e) => setError(e.message))
                               }
                             >
-                              {r.active ? "Pauză" : "Reia"}
+                              {r.active ? <UiText text={"Pauză"}/> : <UiText text={"Reia"}/>}
                             </button>
                             <Form
                               title="Omite o apariție viitoare"
@@ -662,12 +638,11 @@ export default function Workspace({ path }: { path: string[] }) {
                       <p>{w.property.instructions}</p>
                     )}
                     {w.estimate !== undefined && (
-                      <p className="mt-4">
-                        Estimat: <strong>{money(w.estimate)}</strong> ·{" "}
+                      <p className="mt-4"><UiText text={"Estimat: "}/><strong>{money(w.estimate)}</strong> ·{" "}
                         <Badge status={w.financial_status} />
                         {w.final_cost !== null &&
                           w.final_cost !== undefined && (
-                            <> · Final: {money(w.final_cost)}</>
+                            <><UiText text={" · Final: "}/>{money(w.final_cost)}</>
                           )}
                       </p>
                     )}
@@ -683,9 +658,7 @@ export default function Workspace({ path }: { path: string[] }) {
                               .then((d) => setSecret(d.secret))
                               .catch((e) => setError(e.message))
                           }
-                        >
-                          Arată codul autorizat
-                        </button>
+                        ><UiText text={"Arată codul autorizat"}/></button>
                         {secret && <p>{secret}</p>}
                       </div>
                     )}
@@ -703,8 +676,8 @@ export default function Workspace({ path }: { path: string[] }) {
                           }
                         >
                           {a === "accept"
-                            ? "Acceptă lucrarea"
-                            : "Refuză oferta"}
+                            ? <UiText text={"Acceptă lucrarea"}/>
+                            : <UiText text={"Refuză oferta"}/>}
                         </button>
                       ))}
                     </div>
@@ -718,16 +691,14 @@ export default function Workspace({ path }: { path: string[] }) {
                             revision: w.revision,
                           }).catch((e) => setError(e.message))
                         }
-                      >
-                        Începe lucrarea
-                      </button>
+                      ><UiText text={"Începe lucrarea"}/></button>
                     )}
                   {w.checklist_json !== undefined && w.answers_json !== undefined && <div className="pro-card mt-4">
-                    <h2>Checklist</h2>
+                    <h2><UiText text={"Checklist"}/></h2>
                     <Checklist key={w.revision} work={w} run={run} />
                   </div>}
                   {canOperate && <div className="pro-card mt-4">
-                    <h2>Dovezi foto</h2><p>Minimum la sosire: {w.photoRules?.arrivalMin??0}; minimum la finalizare: {w.photoRules?.completionMin??1}. La remediere sunt necesare fotografii noi, după redeschiderea execuției.</p>
+                    <h2><UiText text={"Dovezi foto"}/></h2><p><UiText text={"Minimum la sosire: "}/>{w.photoRules?.arrivalMin??0}<UiText text={"; minimum la finalizare: "}/>{w.photoRules?.completionMin??1}<UiText text={". La remediere sunt necesare fotografii noi, după redeschiderea execuției."}/></p>
                     <div className="pro-photos">
                       {w.media?.map((m: Row) => (
                         <a
@@ -747,9 +718,7 @@ export default function Workspace({ path }: { path: string[] }) {
                       ))}
                     </div>
                     {!w.media?.length && (
-                      <p className="pro-muted">
-                        Nu există fotografii disponibile.
-                      </p>
+                      <p className="pro-muted"><UiText text={"Nu există fotografii disponibile."}/></p>
                     )}
                     {w.permissions.partner && ["accepted", "rework_requested", "in_progress"].includes(w.status) && (
                       <Upload
@@ -924,7 +893,7 @@ export default function Workspace({ path }: { path: string[] }) {
                         }
                       />
                     )}
-                  <h2>Istoricul lucrării</h2>
+                  <h2><UiText text={"Istoricul lucrării"}/></h2>
                   <ol className="pro-timeline">
                     {w.audit?.map((a: Row, i: number) => (
                       <li key={i}>
@@ -953,10 +922,7 @@ export default function Workspace({ path }: { path: string[] }) {
                     ))}
                   </div>
                   {!rows.length && (
-                    <Empty>
-                      Nu există tichete deschise. Problemele raportate vor
-                      apărea aici.
-                    </Empty>
+                    <Empty><UiText text={"Nu există tichete deschise. Problemele raportate vor apărea aici."}/></Empty>
                   )}
                   {canOperate && <Form
                     title="Deschide tichet"
@@ -985,9 +951,7 @@ export default function Workspace({ path }: { path: string[] }) {
                       <Link
                         className="underline block mt-4"
                         href={"/pro/lucrari/" + w.work_order_id}
-                      >
-                        Deschide lucrarea și devizul asociat
-                      </Link>
+                      ><UiText text={"Deschide lucrarea și devizul asociat"}/></Link>
                     )}
                     {canOperate && <Upload
                       entity="ticket_id"
@@ -1023,7 +987,7 @@ export default function Workspace({ path }: { path: string[] }) {
               {section === "aprobari" && org && (
                 <>
                   {!rows.length ? (
-                    <Empty>Nu există aprobări în așteptare.</Empty>
+                    <Empty><UiText text={"Nu există aprobări în așteptare."}/></Empty>
                   ) : (
                     <div className="pro-list">
                       {rows.map((a) => (
@@ -1034,8 +998,7 @@ export default function Workspace({ path }: { path: string[] }) {
                         >
                           <div>
                             {a.title}
-                            <small>
-                              Versiunea {a.quote_version} · {money(a.amount)}
+                            <small><UiText text={"Versiunea "}/>{a.quote_version} · {money(a.amount)}
                             </small>
                           </div>
                           <Badge status={a.decision} />
@@ -1048,9 +1011,7 @@ export default function Workspace({ path }: { path: string[] }) {
               {section === "rapoarte" && org && (
                 <>
                   <div className="pro-form-grid mb-5">
-                    <label className="pro-field">
-                      De la
-                      <input
+                    <label className="pro-field"><UiText text={"De la"}/><input
                         type="date"
                         value={range.from}
                         onChange={(e) =>
@@ -1058,9 +1019,7 @@ export default function Workspace({ path }: { path: string[] }) {
                         }
                       />
                     </label>
-                    <label className="pro-field">
-                      Până la
-                      <input
+                    <label className="pro-field"><UiText text={"Până la"}/><input
                         type="date"
                         value={range.to}
                         onChange={(e) =>
@@ -1068,15 +1027,13 @@ export default function Workspace({ path }: { path: string[] }) {
                         }
                       />
                     </label>
-                    <label className="pro-field">
-                      Proprietate
-                      <select
+                    <label className="pro-field"><UiText text={"Proprietate"}/><select
                         value={range.property}
                         onChange={(e) =>
                           setRange({ ...range, property: e.target.value })
                         }
                       >
-                        <option value="">Toate proprietățile autorizate</option>
+                        <option value=""><UiText text={"Toate proprietățile autorizate"}/></option>
                         {props.map(([id, label]) => (
                           <option key={id} value={id}>
                             {label}
@@ -1084,15 +1041,13 @@ export default function Workspace({ path }: { path: string[] }) {
                         ))}
                       </select>
                     </label>
-                    <label className="pro-field">
-                      Categorie
-                      <select
+                    <label className="pro-field"><UiText text={"Categorie"}/><select
                         value={range.category}
                         onChange={(e) =>
                           setRange({ ...range, category: e.target.value })
                         }
                       >
-                        <option value="">Toate categoriile</option>
+                        <option value=""><UiText text={"Toate categoriile"}/></option>
                         {Object.entries(SERVICES).map(([id, label]) => (
                           <option key={id} value={id}>
                             {label}
@@ -1105,9 +1060,7 @@ export default function Workspace({ path }: { path: string[] }) {
                     <strong>
                       {money(rows.reduce((n, r) => n + r.amount, 0))}
                     </strong>
-                    <span>
-                      Costuri finale validate · maximum 1.000 intrări recente
-                    </span>
+                    <span><UiText text={"Costuri finale validate · maximum 1.000 intrări recente"}/></span>
                   </div>
                   <div className="pro-actions">
                     <a
@@ -1118,19 +1071,17 @@ export default function Workspace({ path }: { path: string[] }) {
                         new URLSearchParams(range)
                       }
                       className="v2-btn v2-btn-primary"
-                    >
-                      Descarcă CSV
-                    </a>
+                    ><UiText text={"Descarcă CSV"}/></a>
                   </div>
                   <div className="pro-card pro-table-wrap">
                     <table className="pro-table">
                       <thead>
                         <tr>
-                          <th>Data</th>
-                          <th>Proprietate</th>
-                          <th>Categorie</th>
-                          <th>Cost</th>
-                          <th>Stare</th>
+                          <th><UiText text={"Data"}/></th>
+                          <th><UiText text={"Proprietate"}/></th>
+                          <th><UiText text={"Categorie"}/></th>
+                          <th><UiText text={"Cost"}/></th>
+                          <th><UiText text={"Stare"}/></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1177,16 +1128,16 @@ export default function Workspace({ path }: { path: string[] }) {
                   />
                   {org && canSuper && (
                     <>
-                      <h2>Invitații</h2>
+                      <h2><UiText text={"Invitații"}/></h2>
                       {(data.invites ?? []).map((i: Row) => (
                         <div className="pro-row mb-2" key={i.id}>
                           <span>
                             {i.email} · {i.role} ·{" "}
                             {i.used_at
-                              ? "Acceptată"
+                              ? <UiText text={"Acceptată"}/>
                               : i.revoked
-                                ? "Revocată"
-                                : "În așteptare"}
+                                ? <UiText text={"Revocată"}/>
+                                : <UiText text={"În așteptare"}/>}
                           </span>
                           {!i.used_at && !i.revoked && (
                             <button
@@ -1196,9 +1147,7 @@ export default function Workspace({ path }: { path: string[] }) {
                                   setError(e.message),
                                 )
                               }
-                            >
-                              Revocă invitația
-                            </button>
+                            ><UiText text={"Revocă invitația"}/></button>
                           )}
                         </div>
                       ))}
@@ -1208,7 +1157,7 @@ export default function Workspace({ path }: { path: string[] }) {
                             <div>
                               {m.name}
                               <small>
-                                {m.role} · {m.active ? "Activ" : "Revocat"}
+                                {m.role} · {m.active ? <UiText text={"Activ"}/> : <UiText text={"Revocat"}/>}
                               </small>
                             </div>
                             {m.role !== "owner" && !!m.active && (
@@ -1219,9 +1168,7 @@ export default function Workspace({ path }: { path: string[] }) {
                                     setError(e.message),
                                   )
                                 }
-                              >
-                                Revocă accesul
-                              </button>
+                              ><UiText text={"Revocă accesul"}/></button>
                             )}
                           </div>
                         ))}
@@ -1254,13 +1201,9 @@ export default function Workspace({ path }: { path: string[] }) {
               {section === "setari" && organization && (
                 <>
                   <div className="pro-card">
-                    <p>
-                      Status: <Badge status={organization.status} />
+                    <p><UiText text={"Status: "}/><Badge status={organization.status} />
                     </p>
-                    <p className="mt-3">
-                      Monedă: RON · Prag: {money(organization.threshold)} ·
-                      Calcul pe suma brută
-                    </p>
+                    <p className="mt-3"><UiText text={"Monedă: RON · Prag: "}/>{money(organization.threshold)}<UiText text={" · Calcul pe suma brută"}/></p>
                   </div>
                   {canSuper && <Form
                     title="Salvează politica de aprobare"
@@ -1290,12 +1233,8 @@ export default function Workspace({ path }: { path: string[] }) {
               )}
               {section === "operator" && context.admin && (
                 <>
-                  <h2>Activare controlată</h2>
-                  <p className="pro-muted">
-                    Folosește numai conturi existente și referințe de
-                    contract/verificare reale. Datele financiare nu pot fi
-                    aprobate de admin.
-                  </p>
+                  <h2><UiText text={"Activare controlată"}/></h2>
+                  <p className="pro-muted"><UiText text={"Folosește numai conturi existente și referințe de contract/verificare reale. Datele financiare nu pot fi aprobate de admin."}/></p>
                   {canSuper && <Form
                     title="Creează organizație"
                     fields={[
@@ -1347,7 +1286,7 @@ export default function Workspace({ path }: { path: string[] }) {
                       onSubmit={(b, r) => r("staff/" + org, b)}
                     />
                   )}
-                  <h2>Parteneri</h2>
+                  <h2><UiText text={"Parteneri"}/></h2>
                   {canManage && (data.partners ?? []).map((p: Row) => (
                     <Form
                       key={p.id}
@@ -1364,7 +1303,7 @@ export default function Workspace({ path }: { path: string[] }) {
                       onSubmit={(b, r) => r("partners/" + p.id, b)}
                     />
                   ))}
-                  <h2>Cereri de evaluare</h2>
+                  <h2><UiText text={"Cereri de evaluare"}/></h2>
                   {(data.leads ?? []).map((l: Row) => (
                     <div className="pro-card mb-3" key={l.id}>
                       <strong>{l.name}</strong>
@@ -1426,9 +1365,7 @@ function Checklist({ work: w, run }: { work: Row; run: Run }) {
               answers,
             }).catch((e) => setErr(e.message))
           }
-        >
-          Salvează checklistul
-        </button>
+        ><UiText text={"Salvează checklistul"}/></button>
       )}
       {err && (
         <p role="alert" className="pro-error">
@@ -1472,33 +1409,29 @@ function Upload({
         }
       }}
     >
-      <label className="pro-field">
-        Fotografie JPEG / PNG / WEBP
-        <input
+      <label className="pro-field"><UiText text={"Fotografie JPEG / PNG / WEBP"}/><input
           type="file"
           name="file"
           accept="image/jpeg,image/png,image/webp"
           required
         />
       </label>
-      <label className="pro-field mt-3">
-        Categorie
-        <select name="category" key={String(beforeOnly)} defaultValue={beforeOnly ? "before" : "after"}>
-          {!beforeOnly && <option value="after">După execuție</option>}
-          <option value="before">Înainte</option>
+      <label className="pro-field mt-3"><UiText text={"Categorie"}/><select name="category" key={String(beforeOnly)} defaultValue={beforeOnly ? "before" : "after"}>
+          {!beforeOnly && <option value="after"><UiText text={"După execuție"}/></option>}
+          <option value="before"><UiText text={"Înainte"}/></option>
           {!beforeOnly && <>
-            <option value="issue">Problemă</option>
-            <option value="resolution">Remediere</option>
-            <option value="quote">Deviz</option>
+            <option value="issue"><UiText text={"Problemă"}/></option>
+            <option value="resolution"><UiText text={"Remediere"}/></option>
+            <option value="quote"><UiText text={"Deviz"}/></option>
           </>}
         </select>
       </label>
       <button className="v2-btn v2-btn-secondary mt-3" disabled={busy}>
-        {busy ? "Se încarcă…" : "Încarcă dovada"}
+        {busy ? <UiText text={"Se încarcă…"}/> : <UiText text={"Încarcă dovada"}/>}
       </button>
       {error && (
         <p role="alert" className="pro-error">
-          {error}
+          {<UiText text={error}/>}
         </p>
       )}
     </form>

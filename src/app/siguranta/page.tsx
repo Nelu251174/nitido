@@ -1,6 +1,7 @@
+import {localizeMetadata} from '@/i18n/server';
 import { publicPageMetadata } from "@/lib/publicSeo";
 import { InformationPage } from "@/components/InformationPage";
-export const metadata = publicPageMetadata("/siguranta");
+const sourceMetadata = publicPageMetadata("/siguranta");
 const content = {
   "eyebrow": "GHID NITIDO",
   "title": "Cum îți protejezi contul, datele și rezervările",
@@ -55,3 +56,5 @@ const content = {
   }
 };
 export default function Page() { return <InformationPage {...content} />; }
+
+export async function generateMetadata() { return localizeMetadata(sourceMetadata); }

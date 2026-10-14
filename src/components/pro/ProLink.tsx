@@ -1,4 +1,5 @@
 "use client";
+import {UiText} from '@/components/UiText';
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 export function ProLink({ onNavigate }: { onNavigate?: () => void } = {}) {
@@ -22,8 +23,6 @@ export function ProLink({ onNavigate }: { onNavigate?: () => void } = {}) {
       >
         <path d="m3 7 4 3 5-6 5 6 4-3-2 12H5L3 7Z" />
         <path d="M5 22h14" />
-      </svg>
-      NITIDO PRO
-    </Link>
+      </svg><UiText text={"NITIDO PRO"}/></Link>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import {UiText,UiElement} from '@/components/UiText';
 import { useEffect, useState, useRef, FormEvent } from "react";
 import Link from "next/link";
 import { Field, inputClass, Button } from "@/components/ui";
@@ -27,7 +28,7 @@ export default function ResetParolaPage() {
     return () => window.removeEventListener("hashchange", readLink);
   }, []);
 
-  if (!ready) return <AuthLayout><p className="text-sm text-muted">Se încarcă...</p></AuthLayout>;
+  if (!ready) return <AuthLayout><p className="text-sm text-muted"><UiText text={"Se încarcă..."}/></p></AuthLayout>;
   return token ? <SetNewPassword key={token} token={token} /> : <RequestLink />;
 }
 
@@ -64,21 +65,19 @@ function RequestLink() {
 
   return (
     <AuthLayout>
-      <h1 className="font-display font-extrabold text-2xl text-ink mb-1">Ai uitat parola?</h1>
-      <p className="text-sm text-muted mb-6">Îți trimitem un link de resetare pe email.</p>
+      <h1 className="font-display font-extrabold text-2xl text-ink mb-1"><UiText text={"Ai uitat parola?"}/></h1>
+      <p className="text-sm text-muted mb-6"><UiText text={"Îți trimitem un link de resetare pe email."}/></p>
       {sent ? (
-        <div className="rounded-xl border border-line bg-mist p-4 text-sm text-ink">
-          Cererea a fost procesată. Dacă adresa corespunde unui cont și mesajul poate fi trimis, vei primi un link de resetare. Verifică Inbox și Spam. Livrarea nu este confirmată aici.
-          <div className="mt-4"><Link href="/login" className="text-aqua-deep font-display font-bold">← Înapoi la autentificare</Link></div>
+        <div className="rounded-xl border border-line bg-mist p-4 text-sm text-ink"><UiText text={"Cererea a fost procesată. Dacă adresa corespunde unui cont și mesajul poate fi trimis, vei primi un link de resetare. Verifică Inbox și Spam. Livrarea nu este confirmată aici."}/><div className="mt-4"><Link href="/login" className="text-aqua-deep font-display font-bold"><UiText text={"← Înapoi la autentificare"}/></Link></div>
         </div>
       ) : (
         <form onSubmit={submit}>
           <Field label="Email">
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} placeholder="email@exemplu.ro" />
+            <UiElement as="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} placeholder="email@exemplu.ro" />
           </Field>
-          {error && <p className="text-coral text-xs mt-2 mb-1">{error}</p>}
-          <Button type="submit" className="w-full mt-4" disabled={busy}>{busy ? "Se trimite..." : "Trimite linkul de resetare"}</Button>
-          <p className="text-center text-sm text-muted mt-4"><Link href="/login" className="text-aqua-deep font-display font-bold">Înapoi la autentificare</Link></p>
+          {error && <p className="text-coral text-xs mt-2 mb-1">{<UiText text={error}/>}</p>}
+          <Button type="submit" className="w-full mt-4" disabled={busy}>{busy ? <UiText text={"Se trimite..."}/> : <UiText text={"Trimite linkul de resetare"}/>}</Button>
+          <p className="text-center text-sm text-muted mt-4"><Link href="/login" className="text-aqua-deep font-display font-bold"><UiText text={"Înapoi la autentificare"}/></Link></p>
         </form>
       )}
     </AuthLayout>
@@ -116,24 +115,22 @@ function SetNewPassword({ token }: { token: string }) {
 
   return (
     <AuthLayout>
-      <h1 className="font-display font-extrabold text-2xl text-ink mb-1">Setează o parolă nouă</h1>
-      <p className="text-sm text-muted mb-6">Alege o parolă de minim 10 caractere, cu litere și cifre.</p>
+      <h1 className="font-display font-extrabold text-2xl text-ink mb-1"><UiText text={"Setează o parolă nouă"}/></h1>
+      <p className="text-sm text-muted mb-6"><UiText text={"Alege o parolă de minim 10 caractere, cu litere și cifre."}/></p>
       {done ? (
-        <div className="rounded-xl border border-line bg-mist p-4 text-sm text-ink">
-          Parola a fost schimbată cu succes. Te poți autentifica acum.
-          <div className="mt-4"><Link href="/login" className="text-aqua-deep font-display font-bold">Mergi la autentificare →</Link></div>
+        <div className="rounded-xl border border-line bg-mist p-4 text-sm text-ink"><UiText text={"Parola a fost schimbată cu succes. Te poți autentifica acum."}/><div className="mt-4"><Link href="/login" className="text-aqua-deep font-display font-bold"><UiText text={"Mergi la autentificare →"}/></Link></div>
         </div>
       ) : (
         <form onSubmit={submit}>
           <Field label="Parolă nouă">
-            <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass} placeholder="minim 10 caractere" />
+            <UiElement as="input" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass} placeholder="minim 10 caractere" />
           </Field>
           <Field label="Confirmă parola">
-            <input type="password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} className={inputClass} placeholder="repetă parola" />
+            <UiElement as="input" type="password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} className={inputClass} placeholder="repetă parola" />
           </Field>
-          {error && <p className="text-coral text-xs mt-2 mb-1">{error}</p>}
-          <Button type="submit" className="w-full mt-4" disabled={busy}>{busy ? "Se salvează..." : "Schimbă parola"}</Button>
-          <p className="text-center text-sm text-muted mt-4"><Link href="/login" className="text-aqua-deep font-display font-bold">Înapoi la autentificare</Link></p>
+          {error && <p className="text-coral text-xs mt-2 mb-1">{<UiText text={error}/>}</p>}
+          <Button type="submit" className="w-full mt-4" disabled={busy}>{busy ? <UiText text={"Se salvează..."}/> : <UiText text={"Schimbă parola"}/>}</Button>
+          <p className="text-center text-sm text-muted mt-4"><Link href="/login" className="text-aqua-deep font-display font-bold"><UiText text={"Înapoi la autentificare"}/></Link></p>
         </form>
       )}
     </AuthLayout>

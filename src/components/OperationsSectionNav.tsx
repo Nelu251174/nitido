@@ -1,3 +1,4 @@
+import {UiText,UiElement} from '@/components/UiText';
 import Link from 'next/link';
 import {DesignIcon,type DesignIconName} from './DesignIcon';
 export function OperationsSectionNav({screen,disabled=false}:{screen:'host'|'business';disabled?:boolean}){
@@ -16,5 +17,5 @@ export function OperationsSectionNav({screen,disabled=false}:{screen:'host'|'bus
  {label:'Documente',href:'#rapoarte',icon:'briefcase'},
  {label:'Membri',href:'/colaborari',icon:'users'},
  ];
- return <nav className="operations-section-nav" aria-label={screen==='host'?'Meniu gazdă':'Meniu business'}>{disabled?<Link href="/client/organizatii"><DesignIcon name="settings" size={20}/>Modulele organizației</Link>:items.map(i=><Link href={i.href} key={i.label}><DesignIcon name={i.icon} size={20}/>{i.label}</Link>)}<Link href="/client"><DesignIcon name="arrow" size={20}/>Înapoi în cont</Link></nav>;
+ return <UiElement as="nav" className="operations-section-nav" aria-label={screen==='host'?'Meniu gazdă':'Meniu business'}>{disabled?<Link href="/client/organizatii"><DesignIcon name="settings" size={20}/><UiText text={"Modulele organizației"}/></Link>:items.map(i=><Link href={i.href} key={i.label}><DesignIcon name={i.icon} size={20}/>{<UiText text={i.label}/>}</Link>)}<Link href="/client"><DesignIcon name="arrow" size={20}/><UiText text={"Înapoi în cont"}/></Link></UiElement>;
 }

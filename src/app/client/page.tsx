@@ -1,4 +1,5 @@
 "use client";
+import {UiText,UiElement,UiTemplate} from '@/components/UiText';
 import {AssistedEntry} from "@/components/AssistedJourney";
 import {EntrancePicker} from "@/components/EntrancePicker";
 import {validEntrance,type Entrance} from "@/lib/entrance";
@@ -579,9 +580,7 @@ export default function ClientPage() {
 
   if (loading || !user || user.role !== "client") {
     return (
-      <div className="min-h-screen bg-mist flex items-center justify-center text-muted text-sm">
-        Se încarcă...
-      </div>
+      <div className="min-h-screen bg-mist flex items-center justify-center text-muted text-sm"><UiText text={"Se încarcă..."}/></div>
     );
   }
 
@@ -592,11 +591,11 @@ export default function ClientPage() {
           <Logo href="/client" onClick={()=>{setJob(null);setShowBooking(false);window.scrollTo(0,0)}} />
         </div>
         <WorkspaceNav role="client" onNavigate={href=>{if(href==='/client'||href.startsWith('/client#')){setJob(null);setShowBooking(false)}}}/>
-        <div className="mt-auto max-[760px]:hidden"><div className="text-sm font-semibold">{user.name}</div><div className="text-xs text-[#6b756f] mt-1">{user.email}</div><button onClick={logout} className="text-xs text-[#64748b] mt-4">Ieși din cont</button></div>
+        <div className="mt-auto max-[760px]:hidden"><div className="text-sm font-semibold">{user.name}</div><div className="text-xs text-[#6b756f] mt-1">{user.email}</div><button onClick={logout} className="text-xs text-[#64748b] mt-4"><UiText text={"Ieși din cont"}/></button></div>
       </aside>
       <main className="flex-1 min-w-0 px-8 py-8 max-[760px]:px-[22px] max-[760px]:pb-28">
-        <div className="board-topbar"><span>Spațiul tău NITIDO</span><div><Link href="/client/mesaje" aria-label="Mesaje"><DesignIcon name="bell"/></Link><button type="button" className="account-profile-link" onClick={openProfileEditor} aria-label="Deschide profilul meu"><span className="board-avatar">{user.name.slice(0,1)}</span><b>{user.name}</b></button></div></div>
-        <header className="board-greeting"><div><h1>Bună, {user.name.split(" ")[0]}!</h1><p>Mulțumim că faci parte din comunitatea NITIDO.RO.</p></div><span className="board-greeting-note"><DesignIcon name="sparkles"/>Un cămin curat este începutul<br/>unei zile mai bune.</span></header>
+        <div className="board-topbar"><span><UiText text={"Spațiul tău NITIDO"}/></span><div><Link href="/client/mesaje" aria-label="Mesaje"><DesignIcon name="bell"/></Link><UiElement as="button" type="button" className="account-profile-link" onClick={openProfileEditor} aria-label="Deschide profilul meu"><span className="board-avatar">{user.name.slice(0,1)}</span><b>{user.name}</b></UiElement></div></div>
+        <header className="board-greeting"><div><h1><UiText text={"Bună, "}/>{user.name.split(" ")[0]}!</h1><p><UiText text={"Mulțumim că faci parte din comunitatea NITIDO.RO."}/></p></div><span className="board-greeting-note"><DesignIcon name="sparkles"/><UiText text={"Un cămin curat este începutul"}/><br/><UiText text={"unei zile mai bune."}/></span></header>
         {!job&&!showBooking&&<AssistedEntry/>}
         {!job&&!showBooking&&<ClientOverview jobs={myJobs} onSelect={setJob} onBook={goToForm}/>}
         <EmailVerificationNotice/>
@@ -605,41 +604,41 @@ export default function ClientPage() {
         {job&&<JobExecutionDetail job={job} firmName={firmName} onBack={()=>{setJob(null);setShowBooking(false)}}/>}
         <div className={`client-content-grid ${showBooking&&!job?"with-detail":""}`}>
         <div className="min-w-0">
-        {myJobs.filter(j=>j.status==="waiting"&&["requires_action","requires_confirmation"].includes(j.authorizationStatus??"")).map(j=><section key={j.id} className="v2-card p-5 mb-4"><h2 className="font-bold">Confirmarea cardului este necesară</h2><p className="text-sm text-muted mt-2">{j.city} · {j.sqm} m². Banca solicită confirmarea autorizării pentru această lucrare.</p><Link href={`/client/plata/${encodeURIComponent(j.id)}`} className="inline-block mt-3 font-bold text-aqua-deep underline">Confirmă prin bancă</Link></section>)}
-        {!job&&!showBooking&&<section id="sec-lucrari" className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold">Rezervările tale recente</h2><span className="text-xs text-[#6b756f]">{myJobs.length} total</span></div>{myJobs.length===0?<div className="mt-4"><p className="text-sm text-muted">Nu ai rezervări încă.</p><button type="button" className="v2-btn v2-btn-primary mt-4" onClick={goToForm}>Configurează o rezervare</button></div>:<><input aria-label="Caută rezervări" className={`${inputClass} mt-3`} value={historyFilter} onChange={e=>setHistoryFilter(e.target.value)} placeholder="Caută rezervare sau status…"/><div className="mt-3 divide-y divide-[#e2e8f0]">{myJobs.filter(item=>`${item.city} ${item.street} ${JOB_STATUS[item.status]}`.toLowerCase().includes(historyFilter.toLowerCase())).map(item=><button key={item.id} onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[var(--nitido-brand-soft)] flex items-center justify-center text-[var(--nitido-brand-dark)] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate">{item.space_type} · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm} m² · {JOB_STATUS[item.status]}</span></span><b className="text-sm">{item.price_gross} lei</b></button>)}</div></>}</section>}
+        {myJobs.filter(j=>j.status==="waiting"&&["requires_action","requires_confirmation"].includes(j.authorizationStatus??"")).map(j=><section key={j.id} className="v2-card p-5 mb-4"><h2 className="font-bold"><UiText text={"Confirmarea cardului este necesară"}/></h2><p className="text-sm text-muted mt-2">{j.city} · {j.sqm}<UiText text={" m². Banca solicită confirmarea autorizării pentru această lucrare."}/></p><Link href={`/client/plata/${encodeURIComponent(j.id)}`} className="inline-block mt-3 font-bold text-aqua-deep underline"><UiText text={"Confirmă prin bancă"}/></Link></section>)}
+        {!job&&!showBooking&&<section id="sec-lucrari" className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold"><UiText text={"Rezervările tale recente"}/></h2><span className="text-xs text-[#6b756f]">{myJobs.length}<UiText text={" total"}/></span></div>{myJobs.length===0?<div className="mt-4"><p className="text-sm text-muted"><UiText text={"Nu ai rezervări încă."}/></p><button type="button" className="v2-btn v2-btn-primary mt-4" onClick={goToForm}><UiText text={"Configurează o rezervare"}/></button></div>:<><UiElement as="input" aria-label="Caută rezervări" className={`${inputClass} mt-3`} value={historyFilter} onChange={e=>setHistoryFilter(e.target.value)} placeholder="Caută rezervare sau status…"/><div className="mt-3 divide-y divide-[#e2e8f0]">{myJobs.filter(item=>`${item.city} ${item.street} ${JOB_STATUS[item.status]}`.toLowerCase().includes(historyFilter.toLowerCase())).map(item=><button key={item.id} onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[var(--nitido-brand-soft)] flex items-center justify-center text-[var(--nitido-brand-dark)] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate">{item.space_type} · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm}<UiText text={" m² · "}/>{<UiText text={JOB_STATUS[item.status]}/>}</span></span><b className="text-sm">{item.price_gross}<UiText text={" lei"}/></b></button>)}</div></>}</section>}
         {!job && !showBooking && <RecurringSection defaults={{ street, postalCode, city, floor, sqm, spaceType }} />}
         {!job && !showBooking && <BusinessSection />}
         {!job && !showBooking && user?.referral_code && (
           <ReferralCard code={user.referral_code} creditBalance={creditBalance} />
         )}
         {!job && !showBooking && <div className="mb-5"><AppRatingCard /></div>}
-        {!job && !showBooking && <section id="sec-mesaje" className="v2-card p-5 mb-5"><h2 className="font-bold">Mesaje &amp; suport</h2><p className="text-sm text-[#64748b] mt-2 leading-6">Ai o întrebare despre o lucrare sau despre cont? Echipa NITIDO îți răspunde rapid.</p><div className="mt-3 flex flex-col gap-1 text-sm"><a href="mailto:support@nitido.ro" className="text-[var(--nitido-brand-dark)] font-semibold">✉️ support@nitido.ro</a></div><Link href="/contact#asistent-ai" className="v2-btn v2-btn-secondary mt-4 inline-flex">Deschide asistentul NITIDO</Link></section>}
-        {!job && !showBooking && <section id="sec-incredere" className="v2-card p-5 mb-5"><h2 className="font-bold">Încredere &amp; Siguranță</h2><ul className="text-sm text-[#64748b] mt-2 leading-6 list-disc pl-5 space-y-1"><li>Firme verificate în platformă, cu CUI validat la ANAF.</li><li>Autorizarea cardului și încasarea sunt etape distincte. Starea plății este afișată separat de starea lucrării.</li><li>Plata cardului e procesată securizat de Stripe — NITIDO nu îți vede datele cardului.</li><li>Urmărești lucrarea în timp real și primești dovezi foto la final.</li></ul><Link href="/incredere" className="v2-btn v2-btn-secondary mt-4 inline-flex">Vezi pagina completă</Link></section>}
+        {!job && !showBooking && <section id="sec-mesaje" className="v2-card p-5 mb-5"><h2 className="font-bold"><UiText text={"Mesaje &amp; suport"}/></h2><p className="text-sm text-[#64748b] mt-2 leading-6"><UiText text={"Ai o întrebare despre o lucrare sau despre cont? Echipa NITIDO îți răspunde rapid."}/></p><div className="mt-3 flex flex-col gap-1 text-sm"><a href="mailto:support@nitido.ro" className="text-[var(--nitido-brand-dark)] font-semibold"><UiText text={"✉️ support@nitido.ro"}/></a></div><Link href="/contact#asistent-ai" className="v2-btn v2-btn-secondary mt-4 inline-flex"><UiText text={"Deschide asistentul NITIDO"}/></Link></section>}
+        {!job && !showBooking && <section id="sec-incredere" className="v2-card p-5 mb-5"><h2 className="font-bold"><UiText text={"Încredere &amp; Siguranță"}/></h2><ul className="text-sm text-[#64748b] mt-2 leading-6 list-disc pl-5 space-y-1"><li><UiText text={"Firme verificate în platformă, cu CUI validat la ANAF."}/></li><li><UiText text={"Autorizarea cardului și încasarea sunt etape distincte. Starea plății este afișată separat de starea lucrării."}/></li><li><UiText text={"Plata cardului e procesată securizat de Stripe — NITIDO nu îți vede datele cardului."}/></li><li><UiText text={"Urmărești lucrarea în timp real și primești dovezi foto la final."}/></li></ul><Link href="/incredere" className="v2-btn v2-btn-secondary mt-4 inline-flex"><UiText text={"Vezi pagina completă"}/></Link></section>}
         {!job && !showBooking && (
           <section id="sec-cont" className="v2-card p-5 mb-5">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="font-bold">Contul meu</h2>
-              {!editingProfile && <button type="button" onClick={openProfileEditor} className="inline-flex items-center rounded-full border border-[#d8d7d0] px-3.5 py-1.5 text-sm font-semibold text-[var(--nitido-brand-dark)] transition-colors duration-150 hover:border-[var(--nitido-brand)] hover:bg-[var(--nitido-brand-soft)]">Editează profilul</button>}
+              <h2 className="font-bold"><UiText text={"Contul meu"}/></h2>
+              {!editingProfile && <button type="button" onClick={openProfileEditor} className="inline-flex items-center rounded-full border border-[#d8d7d0] px-3.5 py-1.5 text-sm font-semibold text-[var(--nitido-brand-dark)] transition-colors duration-150 hover:border-[var(--nitido-brand)] hover:bg-[var(--nitido-brand-soft)]"><UiText text={"Editează profilul"}/></button>}
             </div>
             {!editingProfile ? (
               <div className="mt-3 grid gap-3 sm:grid-cols-2 text-sm">
-                <div><div className="text-[10.5px] uppercase tracking-wide text-[#6b756f] font-semibold">Nume</div><div className="text-ink mt-0.5">{user.name}</div></div>
-                <div><div className="text-[10.5px] uppercase tracking-wide text-[#6b756f] font-semibold">Email</div><div className="text-ink mt-0.5 break-all">{user.email}</div></div>
-                <div className="sm:col-span-2"><button onClick={logout} className="inline-flex items-center rounded-full border border-[#d8d7d0] px-3.5 py-1.5 text-sm font-semibold text-[#c0392b] transition-colors duration-150 hover:border-[#c0392b] hover:bg-[#fbeaea]">Ieși din cont</button></div>
+                <div><div className="text-[10.5px] uppercase tracking-wide text-[#6b756f] font-semibold"><UiText text={"Nume"}/></div><div className="text-ink mt-0.5">{user.name}</div></div>
+                <div><div className="text-[10.5px] uppercase tracking-wide text-[#6b756f] font-semibold"><UiText text={"Email"}/></div><div className="text-ink mt-0.5 break-all">{user.email}</div></div>
+                <div className="sm:col-span-2"><button onClick={logout} className="inline-flex items-center rounded-full border border-[#d8d7d0] px-3.5 py-1.5 text-sm font-semibold text-[#c0392b] transition-colors duration-150 hover:border-[#c0392b] hover:bg-[#fbeaea]"><UiText text={"Ieși din cont"}/></button></div>
               </div>
             ) : (
               <div className="mt-3 space-y-3">
-                <label className="block text-sm"><span className="text-[#6b756f]">Nume</span><input className={inputClass} value={profileForm.name} onChange={(e)=>setProfileForm(f=>({...f,name:e.target.value}))} /></label>
-                <label className="block text-sm"><span className="text-[#6b756f]">Email</span><input className={inputClass} value={profileForm.email} onChange={(e)=>setProfileForm(f=>({...f,email:e.target.value}))} /></label>
-                <label className="block text-sm"><span className="text-[#6b756f]">Telefon</span><input className={inputClass} value={profileForm.phone} onChange={(e)=>setProfileForm(f=>({...f,phone:e.target.value}))} placeholder="07xx xxx xxx" /></label>
-                <p className="text-xs text-[#6b756f]">Parola se schimbă din pagina „Am uitat parola”.</p>
+                <label className="block text-sm"><span className="text-[#6b756f]"><UiText text={"Nume"}/></span><input className={inputClass} value={profileForm.name} onChange={(e)=>setProfileForm(f=>({...f,name:e.target.value}))} /></label>
+                <label className="block text-sm"><span className="text-[#6b756f]"><UiText text={"Email"}/></span><input className={inputClass} value={profileForm.email} onChange={(e)=>setProfileForm(f=>({...f,email:e.target.value}))} /></label>
+                <label className="block text-sm"><span className="text-[#6b756f]"><UiText text={"Telefon"}/></span><UiElement as="input" className={inputClass} value={profileForm.phone} onChange={(e)=>setProfileForm(f=>({...f,phone:e.target.value}))} placeholder="07xx xxx xxx" /></label>
+                <p className="text-xs text-[#6b756f]"><UiText text={"Parola se schimbă din pagina „Am uitat parola”."}/></p>
                 <div className="flex gap-2 pt-1">
-                  <Button onClick={saveProfile} disabled={savingProfile}>{savingProfile?"Se salvează...":"Salvează"}</Button>
-                  <Button variant="outline" onClick={()=>setEditingProfile(false)} disabled={savingProfile}>Renunță</Button>
+                  <Button onClick={saveProfile} disabled={savingProfile}>{savingProfile?<UiText text={"Se salvează..."}/>:<UiText text={"Salvează"}/>}</Button>
+                  <Button variant="outline" onClick={()=>setEditingProfile(false)} disabled={savingProfile}><UiText text={"Renunță"}/></Button>
                 </div>
               </div>
             )}
-            <Link href="/stergere-cont" className="mt-4 inline-flex text-sm underline">Solicită ștergerea contului</Link>
+            <Link href="/stergere-cont" className="mt-4 inline-flex text-sm underline"><UiText text={"Solicită ștergerea contului"}/></Link>
           </section>
         )}
         {!job && !showBooking && cardConfigured && (
@@ -649,16 +648,12 @@ export default function ClientPage() {
         <div id="sec-form" />
         {!job && showBooking && (
           <Card>
-            {hostEventId&&<p role="status" className="mb-4 rounded-xl border border-aqua bg-mist p-4 text-sm">Curățenie între rezervări. Proprietatea și intervalul sunt verificate din nou la publicare. <Link href="/client/host" className="underline">Înapoi la calendar</Link></p>}
+            {hostEventId&&<p role="status" className="mb-4 rounded-xl border border-aqua bg-mist p-4 text-sm"><UiText text={"Curățenie între rezervări. Proprietatea și intervalul sunt verificate din nou la publicare. "}/><Link href="/client/host" className="underline"><UiText text={"Înapoi la calendar"}/></Link></p>}
             {draftNotice&&<p role="status" className="mb-4 rounded-xl border border-aqua bg-mist p-4 text-sm">{draftNotice}</p>}
-            <h1 className="font-display font-extrabold text-xl text-ink mb-1">
-              Postează o lucrare
-            </h1>
-            <p className="text-sm text-muted mb-5 leading-relaxed">
-              Completează detaliile — vezi prețul instant, apoi firmele din zonă primesc alerta.
-            </p>
+            <h1 className="font-display font-extrabold text-xl text-ink mb-1"><UiText text={"Postează o lucrare"}/></h1>
+            <p className="text-sm text-muted mb-5 leading-relaxed"><UiText text={"Completează detaliile — vezi prețul instant, apoi firmele din zonă primesc alerta."}/></p>
 
-            <Field label="Instrucțiuni speciale (opțional)"><textarea className={inputClass} rows={3} maxLength={500} value={details} onChange={e=>setDetails(e.target.value)} placeholder="Materiale sensibile, animale de companie, preferințe de curățenie…"/><small>{details.length}/500 · Vizibile firmei după alocare. Nu introduce coduri de acces sau parole.</small></Field>
+            <Field label="Instrucțiuni speciale (opțional)"><UiElement as="textarea" className={inputClass} rows={3} maxLength={500} value={details} onChange={e=>setDetails(e.target.value)} placeholder="Materiale sensibile, animale de companie, preferințe de curățenie…"/><small>{details.length}<UiText text={"/500 · Vizibile firmei după alocare. Nu introduce coduri de acces sau parole."}/></small></Field>
             <BookingAddressLocation address={{city,street,postalCode}} onDetected={value=>{setCity(value.city);setStreet(value.street);setPostalCode(value.postalCode)}} enabled={!propertyId&&!hostEventId&&!new URLSearchParams(typeof window!=="undefined"?window.location.search:"").has("propertyId")}/><Field label="Stradă și număr">
               <input className={inputClass} value={street} onChange={(e) => setStreet(e.target.value)} />
             </Field>
@@ -699,25 +694,23 @@ export default function ClientPage() {
             </Field>
 
             <WindowsExtra value={windowsSqm} onChange={setWindowsSqm}/>
-            <span className="block text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1">
-              Cum vrei să alegi firma?
-            </span>
+            <span className="block text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1"><UiText text={"Cum vrei să alegi firma?"}/></span>
             <div className="grid grid-cols-2 gap-2 mb-3">
               <button
                 type="button"
                 onClick={() => setMode("standard")}
                 className={`text-left p-3 rounded-xl border ${mode === "standard" ? "border-aqua bg-aqua/10" : "border-line"}`}
               >
-                <span className="block font-display font-bold text-xs text-ink">✦ Primesc oferte</span>
-                <span className="block text-[11px] text-muted mt-0.5 leading-tight">Mai multe firme, aleg eu pe calitate. Recomandat.</span>
+                <span className="block font-display font-bold text-xs text-ink"><UiText text={"✦ Primesc oferte"}/></span>
+                <span className="block text-[11px] text-muted mt-0.5 leading-tight"><UiText text={"Mai multe firme, aleg eu pe calitate. Recomandat."}/></span>
               </button>
               <button
                 type="button"
                 onClick={() => setMode("express")}
                 className={`text-left p-3 rounded-xl border ${mode === "express" ? "border-coral bg-coral/10" : "border-line"}`}
               >
-                <span className="block font-display font-bold text-xs text-ink">⚡ Express (urgent)</span>
-                <span className="block text-[11px] text-muted mt-0.5 leading-tight">Prima firmă disponibilă preia imediat.</span>
+                <span className="block font-display font-bold text-xs text-ink"><UiText text={"⚡ Express (urgent)"}/></span>
+                <span className="block text-[11px] text-muted mt-0.5 leading-tight"><UiText text={"Prima firmă disponibilă preia imediat."}/></span>
               </button>
             </div>
 
@@ -743,23 +736,17 @@ export default function ClientPage() {
               </span>
               <span className="flex-1">
                 <span className="flex items-center justify-between gap-2">
-                  <span className="font-display font-bold text-xs text-ink">🔥 Express 60 · preluare în 60 min</span>
-                  <span className="font-display font-bold text-xs text-coral shrink-0">+{EXPRESS_60_FEE_LEI} lei</span>
+                  <span className="font-display font-bold text-xs text-ink"><UiText text={"🔥 Express 60 · preluare în 60 min"}/></span>
+                  <span className="font-display font-bold text-xs text-coral shrink-0">+{<UiText text={EXPRESS_60_FEE_LEI}/>}<UiText text={" lei"}/></span>
                 </span>
-                <span className="block text-[11px] text-muted mt-0.5 leading-tight">
-                  Garantat: o firmă preia în 60 de minute, prioritate maximă. Dacă nu, nu plătești suplimentul.
-                </span>
+                <span className="block text-[11px] text-muted mt-0.5 leading-tight"><UiText text={"Garantat: o firmă preia în 60 de minute, prioritate maximă. Dacă nu, nu plătești suplimentul."}/></span>
               </span>
             </button>
             {express60 && whenType !== "asap" && (
-              <div className="text-[11px] text-coral bg-coral/5 rounded-lg px-3 py-2 mb-3">
-                Express 60 e disponibil doar pentru „Cât mai curând”. Alege-l mai jos.
-              </div>
+              <div className="text-[11px] text-coral bg-coral/5 rounded-lg px-3 py-2 mb-3"><UiText text={"Express 60 e disponibil doar pentru „Cât mai curând”. Alege-l mai jos."}/></div>
             )}
 
-            <span className="block text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1">
-              Când?
-            </span>
+            <span className="block text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1"><UiText text={"Când?"}/></span>
             <div className="flex gap-2 mb-3">
               <button
                 type="button"
@@ -767,23 +754,18 @@ export default function ClientPage() {
                 className={`flex-1 py-2.5 rounded-lg border font-display font-bold text-xs ${
                   whenType === "asap" ? "border-aqua bg-aqua/10 text-ink" : "border-line text-muted"
                 }`}
-              >
-                Cât mai curând
-              </button>
+              ><UiText text={"Cât mai curând"}/></button>
               <button
                 type="button"
                 onClick={() => setWhenType("scheduled")}
                 className={`flex-1 py-2.5 rounded-lg border font-display font-bold text-xs ${
                   whenType === "scheduled" ? "border-aqua bg-aqua/10 text-ink" : "border-line text-muted"
                 }`}
-              >
-                Aleg data
-              </button>
+              ><UiText text={"Aleg data"}/></button>
             </div>
 
             {whenType === "asap" && asapSlot && (
-              <div className="text-xs text-muted bg-mist rounded-lg px-3 py-2.5 mb-3">
-                Primul interval estimat, după ora României:{" "}
+              <div className="text-xs text-muted bg-mist rounded-lg px-3 py-2.5 mb-3"><UiText text={"Primul interval estimat, după ora României:"}/>{" "}
                 <b className="text-ink">
                   {new Intl.DateTimeFormat('ro-RO',{timeZone:'Europe/Bucharest',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}).format(asapSlot)}
                 </b>
@@ -794,7 +776,7 @@ export default function ClientPage() {
               <div className="mb-3">
                 <div className="flex gap-1.5 overflow-x-auto pb-1.5 mb-2">
                   {next14Days.map((d) => (
-                    <button
+                    <UiElement as="button"
                       type="button"
                       key={d}
                       aria-label={new Intl.DateTimeFormat('ro-RO',{timeZone:'UTC',weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date(`${d}T12:00:00Z`))}
@@ -809,13 +791,13 @@ export default function ClientPage() {
                           : "border-line"
                       }`}
                     >
-                      {DAY_NAMES[new Date(`${d}T12:00:00Z`).getUTCDay()]}
+                      {<UiText text={DAY_NAMES[new Date(`${d}T12:00:00Z`).getUTCDay()]}/>}
                       <div className="font-display font-bold text-sm">{Number(d.slice(-2))}</div>
-                    </button>
+                    </UiElement>
                   ))}
                 </div>
-                <p className="text-sm text-muted mb-2">Orele sunt cele din România. Disponibilitatea firmei se confirmă la alocare.</p>
-                {scheduledSlotExpired&&<p role="status" className="text-sm text-red-700 mb-2">Intervalul selectat a expirat. Alege altă oră înainte de publicare.</p>}
+                <p className="text-sm text-muted mb-2"><UiText text={"Orele sunt cele din România. Disponibilitatea firmei se confirmă la alocare."}/></p>
+                {scheduledSlotExpired&&<p role="status" className="text-sm text-red-700 mb-2"><UiText text={"Intervalul selectat a expirat. Alege altă oră înainte de publicare."}/></p>}
                 <div className="grid grid-cols-3 gap-1.5">
                   {SLOT_HOURS.map((h) => {
                     const valid = isBookableRomanianSlot(scheduledDate,h,calendarNow);
@@ -843,12 +825,10 @@ export default function ClientPage() {
 
             <div className="border border-line rounded-xl p-3.5 mb-2 bg-white">
               <div className="flex items-center justify-between">
-                <span className="font-display font-semibold text-xs">📷 Nitido Scan (opțional)</span>
-                <span className="text-[10.5px] text-muted">{photos.length}/5 poze</span>
+                <span className="font-display font-semibold text-xs"><UiText text={"📷 Nitido Scan (opțional)"}/></span>
+                <span className="text-[10.5px] text-muted">{photos.length}<UiText text={"/5 poze"}/></span>
               </div>
-              <p className="text-[10.5px] text-muted mt-0.5 mb-2.5">
-                Fă câte o poză pe încăpere. Firma vede contextul clar și estimează mai bine.
-              </p>
+              <p className="text-[10.5px] text-muted mt-0.5 mb-2.5"><UiText text={"Fă câte o poză pe încăpere. Firma vede contextul clar și estimează mai bine."}/></p>
               <div className="grid grid-cols-3 gap-1.5">
                 {SCAN_ROOMS.map((r) => (
                   <label
@@ -868,17 +848,17 @@ export default function ClientPage() {
                       onChange={(e) => handlePhotoSelect(e, r.key)}
                     />
                     <span className="text-base leading-none">＋</span>
-                    <span>{r.label}</span>
+                    <span>{<UiText text={r.label}/>}</span>
                   </label>
                 ))}
               </div>
-              {uploading && <div className="text-[10.5px] text-muted mt-2">Se încarcă…</div>}
+              {uploading && <div className="text-[10.5px] text-muted mt-2"><UiText text={"Se încarcă…"}/></div>}
               {photos.length > 0 && (
                 <div className="flex gap-1.5 mt-2.5 flex-wrap">
                   {photos.map((p) => (
                     <div key={p.id} className="relative w-14">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                      <UiElement as="img"
                         src={p.url}
                         alt={`Poză ${scanRoomLabel(p.room)}`}
                         className="w-14 h-14 rounded-lg object-cover border border-line"
@@ -892,42 +872,39 @@ export default function ClientPage() {
               )}
             </div>
 
-            {needsAssessment?<section className="design-panel"><h2>Este necesară o evaluare</h2><p>Suprafața depășește limita calculatorului automat.</p><Link className="design-button" href={`/client/evaluari?${new URLSearchParams({city,sqm:String(sqm)})}`}>Trimite spre evaluare</Link></section>:confirmedOffer?null:<div className="bg-mist border border-aqua rounded-xl p-3.5 my-4">
-              <p className="text-sm mb-2">{priceExplanation(spaceType,sqm)}. Camerele nu se taxează separat.</p><p className="text-sm mb-2">Curățenie: {basePrice} lei · Geamuri: {windowsSqm} m² × 8 lei = {windowsPrice} lei</p>
+            {needsAssessment?<section className="design-panel"><h2><UiText text={"Este necesară o evaluare"}/></h2><p><UiText text={"Suprafața depășește limita calculatorului automat."}/></p><Link className="design-button" href={`/client/evaluari?${new URLSearchParams({city,sqm:String(sqm)})}`}><UiText text={"Trimite spre evaluare"}/></Link></section>:confirmedOffer?null:<div className="bg-mist border border-aqua rounded-xl p-3.5 my-4">
+              <p className="text-sm mb-2">{priceExplanation(spaceType,sqm)}<UiText text={". Camerele nu se taxează separat."}/></p><p className="text-sm mb-2"><UiText text={"Curățenie: "}/>{basePrice}<UiText text={" lei · Geamuri: "}/>{windowsSqm}<UiText text={" m² × 8 lei = "}/>{windowsPrice}<UiText text={" lei"}/></p>
               {express60Active && (
                 <div className="flex justify-between items-center text-[11.5px] text-muted mb-1.5 pb-1.5 border-b border-line/60">
-                  <span>Curățenie {basePrice} lei · 🔥 Express 60 +{express60Fee} lei</span>
+                  <span><UiText text={"Curățenie "}/>{basePrice}<UiText text={" lei · 🔥 Express 60 +"}/>{<UiText text={express60Fee}/>}<UiText text={" lei"}/></span>
                 </div>
               )}
               <div className="flex justify-between items-center">
                 <span className="text-[11.5px] text-muted">
-                  {creditUsed > 0 ? "Preț (după credit)" : "Preț estimat"}
+                  {creditUsed > 0 ? <UiText text={"Preț (după credit)"}/> : <UiText text={"Preț estimat"}/>}
                 </span>
                 <span className="flex items-baseline gap-2">
                   {creditUsed > 0 && (
-                    <span className="text-xs text-muted line-through">{price} lei</span>
+                    <span className="text-xs text-muted line-through">{price}<UiText text={" lei"}/></span>
                   )}
                   <span className="font-display font-extrabold text-xl text-aqua-deep">
-                    {finalPrice} lei
-                  </span>
+                    {finalPrice}<UiText text={" lei"}/></span>
                 </span>
               </div>
               {creditUsed > 0 && (
-                <p className="text-[11px] text-aqua-deep font-semibold mt-1">
-                  Ai folosit {creditUsed} lei din creditul de recomandare
-                </p>
+                <p className="text-[11px] text-aqua-deep font-semibold mt-1"><UiText text={"Ai folosit "}/>{creditUsed}<UiText text={" lei din creditul de recomandare"}/></p>
               )}
             </div>}
 
-            {confirmedOffer&&<section className="design-panel" aria-label="Oferta pentru confirmare"><h2>Confirmă prețul rezervării</h2><ul>{confirmedOffer.pricing.lines.filter(line=>line.amountBani!==0).map(line=><li key={line.code}>{{cleaning:'Curățenie',windows:'Geamuri',express60:'Express 60',platform_credit:'Credit aplicat'}[line.code]??line.code}: {(line.amountBani/100).toFixed(2)} lei</li>)}</ul><p>Servicii și suplimente: {(confirmedOffer.pricing.grossBani/100).toFixed(2)} lei. Credit aplicat: {(confirmedOffer.pricing.creditBani/100).toFixed(2)} lei.</p><p><strong>Total de plată: {(confirmedOffer.pricing.clientTotalBani/100).toFixed(2)} lei.</strong></p><p>Oferta este valabilă până la {new Date(confirmedOffer.expiresAt).toLocaleTimeString('ro-RO',{timeZone:'Europe/Bucharest'})}, ora României. Dacă modifici datele lucrării sau oferta expiră, vei primi o ofertă nouă pentru confirmare.</p></section>}
-            {error && <p role="alert" className="text-coral text-xs mb-3">{error}</p>}
+            {confirmedOffer&&<UiElement as="section" className="design-panel" aria-label="Oferta pentru confirmare"><h2><UiText text={"Confirmă prețul rezervării"}/></h2><ul>{confirmedOffer.pricing.lines.filter(line=>line.amountBani!==0).map(line=><li key={line.code}>{{cleaning:'Curățenie',windows:'Geamuri',express60:'Express 60',platform_credit:'Credit aplicat'}[line.code]??line.code}: {(line.amountBani/100).toFixed(2)}<UiText text={" lei"}/></li>)}</ul><p><UiText text={"Servicii și suplimente: "}/>{(confirmedOffer.pricing.grossBani/100).toFixed(2)}<UiText text={" lei. Credit aplicat: "}/>{(confirmedOffer.pricing.creditBani/100).toFixed(2)}<UiText text={" lei."}/></p><p><strong><UiText text={"Total de plată: "}/>{(confirmedOffer.pricing.clientTotalBani/100).toFixed(2)}<UiText text={" lei."}/></strong></p><p><UiText text={"Oferta este valabilă până la "}/>{new Date(confirmedOffer.expiresAt).toLocaleTimeString('ro-RO',{timeZone:'Europe/Bucharest'})}<UiText text={", ora României. Dacă modifici datele lucrării sau oferta expiră, vei primi o ofertă nouă pentru confirmare."}/></p></UiElement>}
+            {error && <p role="alert" className="text-coral text-xs mb-3">{<UiText text={error}/>}</p>}
 
             {!needsAssessment && cardConfigured && <div className="mb-4"><ClientCards booking cards={cards} selected={selectedCardId} loading={hasCard===null}
               busy={cardBusy||uploading||submitting} onSelect={setSelectedCardId} onDefault={id=>void manageCard(id,"PATCH")}
               onRemove={id=>void manageCard(id,"DELETE")} onAdd={addCard}/></div>}
 
             <Button className="w-full" onClick={postJob} disabled={!windowsValid || needsAssessment || submitting || cardBusy || (cardConfigured && (hasCard !== true || !selectedCardId)) || !street.trim() || !city.trim()}>
-              {submitting ? "Se verifică..." : confirmedOffer ? "Confirmă oferta și postează" : "Postează lucrarea"}
+              {submitting ? <UiText text={"Se verifică..."}/> : confirmedOffer ? <UiText text={"Confirmă oferta și postează"}/> : <UiText text={"Postează lucrarea"}/>}
             </Button>
           </Card>
         )}
@@ -935,23 +912,19 @@ export default function ClientPage() {
         {job && <PublishedPriceBreakdown snapshot={job.pricing_snapshot}/>}
         {job&&!job.express_60&&<RescheduleVisit key={job.id} jobId={job.id} scheduledAt={job.scheduled_at} status={job.status} role="client" onChanged={async()=>{const r=await fetch(`/api/jobs/${encodeURIComponent(job.id)}`);if(r.ok)setJob((await r.json()).job)}}/>}
         {job&&job.accepted_firm_id&&<VisitCare key={job.id} jobId={job.id}/>}
-        {job?.details && <section className="design-panel"><h2>Instrucțiunile tale</h2><p className="whitespace-pre-wrap break-words">{job.details}</p></section>}
+        {job?.details && <section className="design-panel"><h2><UiText text={"Instrucțiunile tale"}/></h2><p className="whitespace-pre-wrap break-words">{job.details}</p></section>}
         {job && job.status === "waiting" && (
           <Card>
-            <h1 className="font-display font-extrabold text-xl text-ink mb-1">Lucrare postată!</h1>
+            <h1 className="font-display font-extrabold text-xl text-ink mb-1"><UiText text={"Lucrare postată!"}/></h1>
             {job.mode === "standard" ? (
               <>
-                <p className="text-sm text-muted mb-3">
-                  Firmele verificate din zonă trimit oferte. Alege firma care îți place — pe calitate, nu pe noroc.
-                </p>
+                <p className="text-sm text-muted mb-3"><UiText text={"Firmele verificate din zonă trimit oferte. Alege firma care îți place — pe calitate, nu pe noroc."}/></p>
                 {offers.length === 0 ? (
-                  <div className="rounded-xl border border-line bg-mist p-4 text-sm text-muted">
-                    Așteptăm primele oferte… firmele din zonă au fost notificate.
-                  </div>
+                  <div className="rounded-xl border border-line bg-mist p-4 text-sm text-muted"><UiText text={"Așteptăm primele oferte… firmele din zonă au fost notificate."}/></div>
                 ) : (
                   <div className="offer-comparison">
                     <div className="offer-comparison-heading">
-                      {offers.length} {offers.length === 1 ? "ofertă primită" : "oferte primite"}
+                      {offers.length} {offers.length === 1 ? <UiText text={"ofertă primită"}/> : <UiText text={"oferte primite"}/>}
                     </div>
                     {offers.map((o) => (
                       <div key={o.offerId} className="offer-comparison-card">
@@ -959,19 +932,18 @@ export default function ClientPage() {
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="offer-avatar">{o.firmName.slice(0,1)}</span><div className="font-display font-bold text-sm text-ink truncate">{o.firmName}</div>
-                              <span className="eyebrow-pill">Candidatură</span>
+                              <span className="eyebrow-pill"><UiText text={"Candidatură"}/></span>
                             </div>
                             <div className="text-[11.5px] text-muted mt-0.5">
-                              {o.ratingAvg != null ? `★ ${o.ratingAvg.toFixed(1)} (${o.ratingCount})` : "firmă nouă"} · {o.completedJobs} lucrări finalizate
-                            </div>
+                              {o.ratingAvg != null ? `★ ${o.ratingAvg.toFixed(1)} (${o.ratingCount})` : <UiText text={"firmă nouă"}/>} · {o.completedJobs}<UiText text={" lucrări finalizate"}/></div>
                           </div>
                         </div>
-                        <div className="offer-price"><b>{job.price_gross} lei</b><span>Preț fix pentru această solicitare</span></div>
+                        <div className="offer-price"><b>{job.price_gross}<UiText text={" lei"}/></b><span><UiText text={"Preț fix pentru această solicitare"}/></span></div>
                         {o.message && (
                           <p className="text-sm text-muted mt-2 border-t border-line pt-2">{o.message}</p>
                         )}
                         <Button className="offer-select-button" onClick={() => chooseOffer(o.offerId)} disabled={choosing !== null}>
-                          {choosing === o.offerId ? "Se alege…" : "Alege această firmă"}
+                          {choosing === o.offerId ? <UiText text={"Se alege…"}/> : <UiText text={"Alege această firmă"}/>}
                         </Button>
                       </div>
                     ))}
@@ -982,20 +954,15 @@ export default function ClientPage() {
               <>
                 {job.express_60 ? (
                   <div className="rounded-xl border border-coral bg-coral/10 p-3 mb-3">
-                    <div className="font-display font-bold text-sm text-ink">🔥 Express 60 activ</div>
-                    <p className="text-[12px] text-muted mt-0.5">
-                      Preluare garantată{job.express_60_deadline ? (
-                        <> până la <b className="text-ink">{new Date(job.express_60_deadline).toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" })}</b></>
-                      ) : " în 60 de minute"}. Dacă nicio firmă nu preia la timp, suplimentul nu se percepe.
-                    </p>
+                    <div className="font-display font-bold text-sm text-ink"><UiText text={"🔥 Express 60 activ"}/></div>
+                    <p className="text-[12px] text-muted mt-0.5"><UiText text={"Preluare garantată"}/>{job.express_60_deadline ? (
+                        <><UiText text={" până la "}/><b className="text-ink">{new Date(job.express_60_deadline).toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" })}</b></>
+                      ) : <UiText text={" în 60 de minute"}/>}<UiText text={". Dacă nicio firmă nu preia la timp, suplimentul nu se percepe."}/></p>
                   </div>
                 ) : null}
-                <p className="text-sm text-muted mb-2">
-                  Firmele din zonă au primit alerta acum. Așteptăm acceptare.
-                </p>
+                <p className="text-sm text-muted mb-2"><UiText text={"Firmele din zonă au primit alerta acum. Așteptăm acceptare."}/></p>
                 {job.scheduled_at && (
-                  <p className="text-xs text-muted">
-                    Interval rezervat: {formatInterval(new Date(job.scheduled_at), job.duration_minutes + job.buffer_minutes)}
+                  <p className="text-xs text-muted"><UiText text={"Interval rezervat: "}/>{formatInterval(new Date(job.scheduled_at), job.duration_minutes + job.buffer_minutes)}
                   </p>
                 )}
                 <StatusTrack
@@ -1012,37 +979,26 @@ export default function ClientPage() {
 
         {job && job.status === "completed" && !ratingDone && !job.ownReview && (
           <Card>
-            <h1 className="font-display font-bold text-lg text-ink text-center mb-1">
-              Cum a fost curățenia?
-            </h1>
+            <h1 className="font-display font-bold text-lg text-ink text-center mb-1"><UiText text={"Cum a fost curățenia?"}/></h1>
             <p className="text-sm text-muted text-center mb-2">
-              {firmName ?? "Firma"} a finalizat lucrarea. Poți lăsa o recenzie. Starea plății este afișată separat.
-            </p>
+              {firmName ?? <UiText text={"Firma"}/>}<UiText text={" a finalizat lucrarea. Poți lăsa o recenzie. Starea plății este afișată separat."}/></p>
             <RatingBlock onSubmit={submitRating} />
           </Card>
         )}
 
         {job && job.status === "completed" && (ratingDone || job.ownReview) && (
           <Card>
-            <h1 className="font-display font-bold text-lg text-ink mb-2">Mulțumim!</h1>
-            <p className="text-sm text-muted mb-4">{job.ownReview?`${job.ownReview.rating} / 5 · ${job.ownReview.badge}${job.ownReview.reviewText?` — ${job.ownReview.reviewText}`:""}`:"Rating-ul tău a fost înregistrat."}</p>
+            <h1 className="font-display font-bold text-lg text-ink mb-2"><UiText text={"Mulțumim!"}/></h1>
+            <p className="text-sm text-muted mb-4">{job.ownReview?`${job.ownReview.rating} / 5 · ${job.ownReview.badge}${job.ownReview.reviewText?` — ${job.ownReview.reviewText}`:""}`:<UiText text={"Rating-ul tău a fost înregistrat."}/>}</p>
             {guaranteeEligible && (
               <div className="mb-4 rounded-xl border border-line bg-mist p-3.5">
                 <div className="text-sm font-bold text-ink flex items-center gap-2">
-                  <span className="text-[11px] font-bold text-[#a9781f] bg-[#f7efdd] rounded-full px-2 py-0.5">Nitido Guaranteed</span>
-                  Nu ești mulțumit?
-                </div>
-                <p className="text-[11.5px] text-muted mt-1 leading-relaxed">
-                  Sesizează problema în 48h de la finalizare. Firma propune revenirea gratuită, iar tu confirmi intervalul.
-                </p>
-                <Button variant="outline" className="w-full mt-2.5" onClick={requestGuarantee}>
-                  Cere re-curățare gratuită
-                </Button>
+                  <span className="text-[11px] font-bold text-[#a9781f] bg-[#f7efdd] rounded-full px-2 py-0.5"><UiText text={"Nitido Guaranteed"}/></span><UiText text={"Nu ești mulțumit?"}/></div>
+                <p className="text-[11.5px] text-muted mt-1 leading-relaxed"><UiText text={"Sesizează problema în 48h de la finalizare. Firma propune revenirea gratuită, iar tu confirmi intervalul."}/></p>
+                <Button variant="outline" className="w-full mt-2.5" onClick={requestGuarantee}><UiText text={"Cere re-curățare gratuită"}/></Button>
               </div>
             )}
-            <Button variant="outline" className="w-full" onClick={resetToForm}>
-              Postează o nouă lucrare
-            </Button>
+            <Button variant="outline" className="w-full" onClick={resetToForm}><UiText text={"Postează o nouă lucrare"}/></Button>
             <div className="mt-4">
               <AppRatingCard compact />
             </div>
@@ -1051,29 +1007,21 @@ export default function ClientPage() {
 
         {job && job.status === "no_show" && (
           <Card>
-            <h1 className="font-display font-bold text-lg text-coral mb-2">
-              Firma nu a confirmat prezența
-            </h1>
-            <p className="text-sm text-muted mb-4">
-              Lucrarea a fost anulată automat. Verifică starea anulării autorizării în detaliile plății.
-            </p>
-            <Button className="w-full" onClick={resetToForm}>
-              Repostează lucrarea
-            </Button>
+            <h1 className="font-display font-bold text-lg text-coral mb-2"><UiText text={"Firma nu a confirmat prezența"}/></h1>
+            <p className="text-sm text-muted mb-4"><UiText text={"Lucrarea a fost anulată automat. Verifică starea anulării autorizării în detaliile plății."}/></p>
+            <Button className="w-full" onClick={resetToForm}><UiText text={"Repostează lucrarea"}/></Button>
           </Card>
         )}
 
         {job && job.status === "cancelled" && (
           <Card>
-            <h1 className="font-display font-bold text-lg text-ink mb-2">Lucrarea este anulată</h1>
-            <p className="text-sm text-muted mb-4">
-              Consultă istoricul rezervărilor pentru o eventuală repostare și starea separată a plății.
-            </p>
-            <Button className="w-full" onClick={resetToForm}>Înapoi la panou</Button>
+            <h1 className="font-display font-bold text-lg text-ink mb-2"><UiText text={"Lucrarea este anulată"}/></h1>
+            <p className="text-sm text-muted mb-4"><UiText text={"Consultă istoricul rezervărilor pentru o eventuală repostare și starea separată a plății."}/></p>
+            <Button className="w-full" onClick={resetToForm}><UiText text={"Înapoi la panou"}/></Button>
           </Card>
         )}
         </div>
-        {(!job&&showBooking)&&<aside className="space-y-4"><div className="v2-card p-6"><h2 className="text-xl font-bold">Pregătește rezervarea</h2><p className="text-sm text-muted leading-6 mt-3">Completează spațiul, adresa și programul. Verifică prețul înainte de publicare.</p></div><Link href="/client/proprietati" className="v2-card p-5 block"><b>Proprietățile tale</b><p className="text-sm text-muted mt-2">Salvează adresele pentru rezervările viitoare.</p></Link></aside>}
+        {(!job&&showBooking)&&<aside className="space-y-4"><div className="v2-card p-6"><h2 className="text-xl font-bold"><UiText text={"Pregătește rezervarea"}/></h2><p className="text-sm text-muted leading-6 mt-3"><UiText text={"Completează spațiul, adresa și programul. Verifică prețul înainte de publicare."}/></p></div><Link href="/client/proprietati" className="v2-card p-5 block"><b><UiText text={"Proprietățile tale"}/></b><p className="text-sm text-muted mt-2"><UiText text={"Salvează adresele pentru rezervările viitoare."}/></p></Link></aside>}
         </div>
       </main>
     </div>
@@ -1094,11 +1042,8 @@ function ReferralCard({ code, creditBalance }: { code: string; creditBalance: nu
     <div className="bg-aqua/10 border border-aqua rounded-xl p-4 mb-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="font-display font-bold text-sm text-ink">
-            Recomandă Nitido unui prieten
-          </div>
-          <div className="text-[11.5px] text-muted mt-0.5">
-            Amândoi primiți 20 lei credit — codul tău:{" "}
+          <div className="font-display font-bold text-sm text-ink"><UiText text={"Recomandă Nitido unui prieten"}/></div>
+          <div className="text-[11.5px] text-muted mt-0.5"><UiText text={"Amândoi primiți 20 lei credit — codul tău:"}/>{" "}
             <span className="font-mono font-bold text-ink">{code}</span>
           </div>
         </div>
@@ -1106,13 +1051,11 @@ function ReferralCard({ code, creditBalance }: { code: string; creditBalance: nu
           onClick={copyCode}
           className="flex-shrink-0 text-xs font-display font-bold text-aqua-deep border border-aqua rounded-lg px-3 py-2 bg-white hover:bg-aqua/10"
         >
-          {copied ? "Copiat!" : "Copiază"}
+          {copied ? <UiText text={"Copiat!"}/> : <UiText text={"Copiază"}/>}
         </button>
       </div>
       {creditBalance > 0 && (
-        <div className="text-[11.5px] text-aqua-deep font-semibold mt-2">
-          Ai {creditBalance} lei credit disponibil — se aplică automat la următoarea lucrare.
-        </div>
+        <div className="text-[11.5px] text-aqua-deep font-semibold mt-2"><UiText text={"Ai "}/>{creditBalance}<UiText text={" lei credit disponibil — se aplică automat la următoarea lucrare."}/></div>
       )}
     </div>
   );
@@ -1260,17 +1203,16 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
   return (
     <div className="v2-card p-5 mb-5">
       <div className="flex items-center justify-between">
-        <h2 className="font-bold">
-          Rezervări recurente{" "}
-          <span className="text-[11px] font-bold text-aqua-deep bg-aqua/10 rounded-full px-2 py-0.5 align-middle">Nitido Repeat</span>
+        <h2 className="font-bold"><UiText text={"Rezervări recurente"}/>{" "}
+          <span className="text-[11px] font-bold text-aqua-deep bg-aqua/10 rounded-full px-2 py-0.5 align-middle"><UiText text={"Nitido Repeat"}/></span>
         </h2>
         <button onClick={() => setOpen((o) => !o)} className="text-xs font-display font-bold text-aqua-deep">
-          {open ? "Închide" : "+ Adaugă"}
+          {open ? <UiText text={"Închide"}/> : <UiText text={"+ Adaugă"}/>}
         </button>
       </div>
-      <p className="text-xs text-muted mt-1">Vizite la interval fix, generate anticipat. Firmele pot trimite candidaturi; alegerea firmei și autorizarea cardului se deschid cu 48 de ore înainte de vizită. Deschiderea listei nu generează lucrări.</p>
+      <p className="text-xs text-muted mt-1"><UiText text={"Vizite la interval fix, generate anticipat. Firmele pot trimite candidaturi; alegerea firmei și autorizarea cardului se deschid cu 48 de ore înainte de vizită. Deschiderea listei nu generează lucrări."}/></p>
 
-      <button type="button" disabled={statusBusy||busy} onClick={()=>void generateVisits()} className="mt-3 text-sm font-bold text-aqua-deep disabled:opacity-50">Generează rezervările viitoare</button>
+      <button type="button" disabled={statusBusy||busy} onClick={()=>void generateVisits()} className="mt-3 text-sm font-bold text-aqua-deep disabled:opacity-50"><UiText text={"Generează rezervările viitoare"}/></button>
       {msg && <p role="status" className="text-sm mt-3">{msg}</p>}
       {plans.length > 0 && (
         <div className="mt-3 divide-y divide-[#e2e8f0]">
@@ -1278,27 +1220,27 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
             <div key={p.id} className="py-3 flex flex-wrap items-center gap-3">
               <span className="w-10 h-10 rounded-lg bg-[var(--nitido-brand-soft)] flex items-center justify-center text-[var(--nitido-brand-dark)] font-bold">↻</span>
               <span className="min-w-0 flex-1">
-                {p.end_date&&<span className="block text-xs text-muted">Ultima zi a seriei: {p.end_date} inclusiv</span>}
-                {p.pause_start&&p.pause_end&&<span className="block text-xs text-aqua-deep">Pauză programată: {p.pause_start} – {p.pause_end} inclusiv<button type="button" disabled={statusBusy||busy} onClick={()=>void removePause(p)} className="block mt-2 underline disabled:opacity-50">Elimină pauza programată</button></span>}
-                <label className="block text-xs my-2">Firma preferată<select className={inputClass} disabled={statusBusy||busy} value={p.preferred_firm_id??''} onChange={async e=>{const firmId=e.target.value||null;setStatusBusy(true);try{const r=await fetch(`/api/recurring/${encodeURIComponent(p.id)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'preferred_firm',firmId})});const d=await r.json();if(!r.ok)throw Error(d.error);await load();setMsg('Preferința a fost salvată. Firmele deja alocate rămân neschimbate.')}catch(e){setMsg(e instanceof Error?e.message:'Salvarea a eșuat.')}finally{setStatusBusy(false)}}}><option value="">Aleg la fiecare vizită</option>{previousFirms.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}{p.preferred_firm_id&&!previousFirms.some(f=>f.id===p.preferred_firm_id)&&<option value={p.preferred_firm_id}>{p.preferred_firm_name??'Firmă indisponibilă'}</option>}</select></label>
-                <b className="text-sm block truncate">{FREQ_LABELS[p.frequency]} · {p.space_type} · {p.city}</b>
-                <span className="text-xs text-[#6b756f]">{p.next_visit_at?`Următoarea vizită: ${new Intl.DateTimeFormat('ro-RO',{timeZone:'Europe/Bucharest',dateStyle:'medium',timeStyle:'short'}).format(new Date(p.next_visit_at))}`:p.end_date&&p.next_run_date>p.end_date?"Generarea seriei s-a încheiat":`Următoarea dată de generat: ${p.next_run_date}`} · {p.status === "active" ? "activ" : p.status === "paused" ? "pe pauză" : p.status}</span>
-                <span className="block text-xs text-muted">Ora {String(p.hour).padStart(2,"0")}:00 · ora României</span>
+                {p.end_date&&<span className="block text-xs text-muted"><UiText text={"Ultima zi a seriei: "}/>{p.end_date}<UiText text={" inclusiv"}/></span>}
+                {p.pause_start&&p.pause_end&&<span className="block text-xs text-aqua-deep"><UiText text={"Pauză programată: "}/>{p.pause_start} – {p.pause_end}<UiText text={" inclusiv"}/><button type="button" disabled={statusBusy||busy} onClick={()=>void removePause(p)} className="block mt-2 underline disabled:opacity-50"><UiText text={"Elimină pauza programată"}/></button></span>}
+                <label className="block text-xs my-2"><UiText text={"Firma preferată"}/><select className={inputClass} disabled={statusBusy||busy} value={p.preferred_firm_id??''} onChange={async e=>{const firmId=e.target.value||null;setStatusBusy(true);try{const r=await fetch(`/api/recurring/${encodeURIComponent(p.id)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'preferred_firm',firmId})});const d=await r.json();if(!r.ok)throw Error(d.error);await load();setMsg('Preferința a fost salvată. Firmele deja alocate rămân neschimbate.')}catch(e){setMsg(e instanceof Error?e.message:'Salvarea a eșuat.')}finally{setStatusBusy(false)}}}><option value=""><UiText text={"Aleg la fiecare vizită"}/></option>{previousFirms.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}{p.preferred_firm_id&&!previousFirms.some(f=>f.id===p.preferred_firm_id)&&<option value={p.preferred_firm_id}>{p.preferred_firm_name??<UiText text={'Firmă indisponibilă'}/>}</option>}</select></label>
+                <b className="text-sm block truncate">{<UiText text={FREQ_LABELS[p.frequency]}/>} · {p.space_type} · {p.city}</b>
+                <span className="text-xs text-[#6b756f]">{p.next_visit_at?<UiTemplate text={"Următoarea vizită: {p0}"} values={[new Intl.DateTimeFormat('ro-RO',{timeZone:'Europe/Bucharest',dateStyle:'medium',timeStyle:'short'}).format(new Date(p.next_visit_at))]}/>:p.end_date&&p.next_run_date>p.end_date?<UiText text={"Generarea seriei s-a încheiat"}/>:<UiTemplate text={"Următoarea dată de generat: {p0}"} values={[p.next_run_date]}/>} · {p.status === "active" ? <UiText text={"activ"}/> : p.status === "paused" ? <UiText text={"pe pauză"}/> : p.status}</span>
+                <span className="block text-xs text-muted"><UiText text={"Ora "}/>{String(p.hour).padStart(2,"0")}<UiText text={":00 · ora României"}/></span>
               </span>
               {p.status !== "cancelled" && (
                 <span className="flex flex-wrap gap-3">
-                  <button type="button" disabled={statusBusy||busy} onClick={() => setEditing({plan:p,frequency:p.frequency,hour:p.hour,startDate:p.next_run_date,endDate:p.end_date??"",details:p.details??""})} className="text-xs font-bold text-aqua-deep">Modifică programul</button>
+                  <button type="button" disabled={statusBusy||busy} onClick={() => setEditing({plan:p,frequency:p.frequency,hour:p.hour,startDate:p.next_run_date,endDate:p.end_date??"",details:p.details??""})} className="text-xs font-bold text-aqua-deep"><UiText text={"Modifică programul"}/></button>
                   {p.status === "active" ? (
-                    <button disabled={statusBusy} onClick={() => changeStatus(p.id, "paused")} className="text-xs font-bold text-muted">Pauză</button>
+                    <button disabled={statusBusy} onClick={() => changeStatus(p.id, "paused")} className="text-xs font-bold text-muted"><UiText text={"Pauză"}/></button>
                   ) : (
-                    <button disabled={statusBusy} onClick={() => changeStatus(p.id, "active")} className="text-xs font-bold text-aqua-deep">Reia</button>
+                    <button disabled={statusBusy} onClick={() => changeStatus(p.id, "active")} className="text-xs font-bold text-aqua-deep"><UiText text={"Reia"}/></button>
                   )}
-                  <button disabled={statusBusy} onClick={() => changeStatus(p.id, "cancelled")} className="text-xs font-bold text-coral">Anulează</button>
+                  <button disabled={statusBusy} onClick={() => changeStatus(p.id, "cancelled")} className="text-xs font-bold text-coral"><UiText text={"Anulează"}/></button>
                 </span>
               )}
               {!!p.upcoming_dates?.length && <details className="basis-full rounded-lg bg-aqua/5 p-3">
-                <summary className="cursor-pointer text-sm font-bold">Date estimate în următoarele 30 de zile</summary>
-                <p className="mt-2 text-xs text-muted">Calendar orientativ al vizitelor încă negenerate. Disponibilitatea firmei și plata se confirmă pentru fiecare rezervare.</p>
+                <summary className="cursor-pointer text-sm font-bold"><UiText text={"Date estimate în următoarele 30 de zile"}/></summary>
+                <p className="mt-2 text-xs text-muted"><UiText text={"Calendar orientativ al vizitelor încă negenerate. Disponibilitatea firmei și plata se confirmă pentru fiecare rezervare."}/></p>
                 <ul className="mt-2 flex flex-wrap gap-2">{p.upcoming_dates.map(date => <li key={date} className="rounded-lg bg-white px-3 py-2 text-xs">{new Intl.DateTimeFormat("ro-RO",{timeZone:"Europe/Bucharest",dateStyle:"medium",timeStyle:"short"}).format(new Date(date))}</li>)}</ul>
               </details>}
             </div>
@@ -1308,52 +1250,52 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
 
       <SeriesChanges plans={plans} visits={occurrences} onSaved={load}/>
       {editing && <form className="mt-4 rounded-xl border border-line p-4" onSubmit={event => {event.preventDefault(); void saveSchedule();}}>
-        <h3 className="font-bold">Modifică programul · {editing.plan.city}</h3>
-        <p className="mt-2 text-xs text-muted">Se aplică doar vizitelor care nu au fost încă generate. Pentru o rezervare deja creată, deschide rezervarea din istoric. Pauzele programate rămân valabile.</p>
+        <h3 className="font-bold"><UiText text={"Modifică programul · "}/>{editing.plan.city}</h3>
+        <p className="mt-2 text-xs text-muted"><UiText text={"Se aplică doar vizitelor care nu au fost încă generate. Pentru o rezervare deja creată, deschide rezervarea din istoric. Pauzele programate rămân valabile."}/></p>
         <fieldset disabled={statusBusy||busy} className="mt-3 grid gap-3 sm:grid-cols-2">
-          <label className="text-sm">Frecvență<select className={inputClass} value={editing.frequency} onChange={event => setEditing({...editing,frequency:event.target.value as PlanView["frequency"]})}>{(["weekly","biweekly","monthly"] as const).map(value => <option key={value} value={value}>{FREQ_LABELS[value]}</option>)}</select></label>
-          <label className="text-sm">Ora României<select className={inputClass} value={editing.hour} onChange={event => setEditing({...editing,hour:Number(event.target.value)})}>{SLOT_HOURS.map(value => <option key={value} value={value}>{String(value).padStart(2,"0")}:00</option>)}</select></label>
-          <label className="text-sm">Prima dată din noul program<input required type="date" className={inputClass} min={editing.plan.next_run_date} value={editing.startDate} onChange={event => setEditing({...editing,startDate:event.target.value})}/></label>
-          <label className="text-sm">Data de sfârșit (opțional)<input type="date" className={inputClass} min={editing.startDate} value={editing.endDate} onChange={event => setEditing({...editing,endDate:event.target.value})}/></label>
-          <label className="text-sm sm:col-span-2">Preferințe pentru vizitele viitoare<textarea className={inputClass} maxLength={500} rows={3} value={editing.details} onChange={event => setEditing({...editing,details:event.target.value})}/></label>
+          <label className="text-sm"><UiText text={"Frecvență"}/><select className={inputClass} value={editing.frequency} onChange={event => setEditing({...editing,frequency:event.target.value as PlanView["frequency"]})}>{(["weekly","biweekly","monthly"] as const).map(value => <option key={value} value={value}>{<UiText text={FREQ_LABELS[value]}/>}</option>)}</select></label>
+          <label className="text-sm"><UiText text={"Ora României"}/><select className={inputClass} value={editing.hour} onChange={event => setEditing({...editing,hour:Number(event.target.value)})}>{SLOT_HOURS.map(value => <option key={value} value={value}>{String(value).padStart(2,"0")}:00</option>)}</select></label>
+          <label className="text-sm"><UiText text={"Prima dată din noul program"}/><input required type="date" className={inputClass} min={editing.plan.next_run_date} value={editing.startDate} onChange={event => setEditing({...editing,startDate:event.target.value})}/></label>
+          <label className="text-sm"><UiText text={"Data de sfârșit (opțional)"}/><input type="date" className={inputClass} min={editing.startDate} value={editing.endDate} onChange={event => setEditing({...editing,endDate:event.target.value})}/></label>
+          <label className="text-sm sm:col-span-2"><UiText text={"Preferințe pentru vizitele viitoare"}/><textarea className={inputClass} maxLength={500} rows={3} value={editing.details} onChange={event => setEditing({...editing,details:event.target.value})}/></label>
         </fieldset>
-        <p className="mt-2 text-xs text-muted">Pentru o zi lunară inexistentă se folosește ultima zi a lunii, apoi se revine la ziua inițială. Ora locală se păstrează și la schimbarea orei de vară.</p>
-        <div className="mt-3 flex flex-wrap gap-3"><button type="submit" disabled={statusBusy||busy} className="rounded-lg bg-aqua px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{statusBusy?"Se salvează…":"Salvează programul"}</button><button type="button" disabled={statusBusy} className="px-3 py-2 text-sm" onClick={() => setEditing(null)}>Renunță</button></div>
+        <p className="mt-2 text-xs text-muted"><UiText text={"Pentru o zi lunară inexistentă se folosește ultima zi a lunii, apoi se revine la ziua inițială. Ora locală se păstrează și la schimbarea orei de vară."}/></p>
+        <div className="mt-3 flex flex-wrap gap-3"><button type="submit" disabled={statusBusy||busy} className="rounded-lg bg-aqua px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{statusBusy?<UiText text={"Se salvează…"}/>:<UiText text={"Salvează programul"}/>}</button><button type="button" disabled={statusBusy} className="px-3 py-2 text-sm" onClick={() => setEditing(null)}><UiText text={"Renunță"}/></button></div>
       </form>}
 
       {plans.some(plan=>plan.status==="active")&&<details className="mt-4 border-t border-line pt-3">
-        <summary className="cursor-pointer text-sm font-bold">Programează pauză pe interval</summary>
-        <p className="text-xs text-muted mt-2">Interval inclusiv, ora României. Înlocuiește pauza programată anterior. Vizitele deja create trebuie gestionate separat din Rezervări. Datele omise nu se recuperează retroactiv.</p>
+        <summary className="cursor-pointer text-sm font-bold"><UiText text={"Programează pauză pe interval"}/></summary>
+        <p className="text-xs text-muted mt-2"><UiText text={"Interval inclusiv, ora României. Înlocuiește pauza programată anterior. Vizitele deja create trebuie gestionate separat din Rezervări. Datele omise nu se recuperează retroactiv."}/></p>
         <div className="grid gap-3 mt-3 sm:grid-cols-3">
-          <label className="text-sm">Abonament<select className="block w-full border rounded p-2" value={pausePlan} onChange={event=>setPausePlan(event.target.value)} disabled={statusBusy}><option value="">Alege abonamentul</option>{plans.filter(plan=>plan.status==="active").map(plan=><option key={plan.id} value={plan.id}>{plan.city} · {FREQ_LABELS[plan.frequency]} · {plan.next_run_date}</option>)}</select></label>
-          <label className="text-sm">Început pauză<input className="block w-full border rounded p-2" type="date" value={pauseStart} disabled={statusBusy} onChange={event=>setPauseStart(event.target.value)}/></label>
-          <label className="text-sm">Sfârșit pauză<input className="block w-full border rounded p-2" type="date" value={pauseEnd} min={pauseStart} disabled={statusBusy} onChange={event=>setPauseEnd(event.target.value)}/></label>
+          <label className="text-sm"><UiText text={"Abonament"}/><select className="block w-full border rounded p-2" value={pausePlan} onChange={event=>setPausePlan(event.target.value)} disabled={statusBusy}><option value=""><UiText text={"Alege abonamentul"}/></option>{plans.filter(plan=>plan.status==="active").map(plan=><option key={plan.id} value={plan.id}>{plan.city} · {<UiText text={FREQ_LABELS[plan.frequency]}/>} · {plan.next_run_date}</option>)}</select></label>
+          <label className="text-sm"><UiText text={"Început pauză"}/><input className="block w-full border rounded p-2" type="date" value={pauseStart} disabled={statusBusy} onChange={event=>setPauseStart(event.target.value)}/></label>
+          <label className="text-sm"><UiText text={"Sfârșit pauză"}/><input className="block w-full border rounded p-2" type="date" value={pauseEnd} min={pauseStart} disabled={statusBusy} onChange={event=>setPauseEnd(event.target.value)}/></label>
         </div>
-        <button type="button" className="mt-3 text-sm font-bold text-aqua-deep disabled:opacity-50" disabled={statusBusy||!pausePlan||!pauseStart||!pauseEnd} onClick={()=>void schedulePause()}>Verifică vizitele și continuă</button>
-        {pauseImpact&&pauseImpact.planId===pausePlan&&pauseImpact.start===pauseStart&&pauseImpact.end===pauseEnd&&<div className="mt-3 rounded-xl border border-line p-3"><p className="text-sm font-bold">{pauseImpact.count} vizite active în interval</p><p className="text-xs text-muted mt-1">Sunt afișate cel mult 100 de vizite. Deschiderea rezervării nu o anulează și nu modifică plata.</p><ul className="divide-y divide-line">{pauseImpact.visits.map(visit=><li key={visit.job_id} className="py-2 text-sm"><span>{new Intl.DateTimeFormat("ro-RO",{timeZone:"Europe/Bucharest",dateStyle:"medium",timeStyle:"short"}).format(new Date(visit.scheduled_at))} · {visit.city} · {JOB_STATUS[visit.status]??visit.status}</span><Link className="block underline mt-1" href={`/client?jobId=${encodeURIComponent(visit.job_id)}`}>Deschide rezervarea</Link></li>)}</ul></div>}
+        <button type="button" className="mt-3 text-sm font-bold text-aqua-deep disabled:opacity-50" disabled={statusBusy||!pausePlan||!pauseStart||!pauseEnd} onClick={()=>void schedulePause()}><UiText text={"Verifică vizitele și continuă"}/></button>
+        {pauseImpact&&pauseImpact.planId===pausePlan&&pauseImpact.start===pauseStart&&pauseImpact.end===pauseEnd&&<div className="mt-3 rounded-xl border border-line p-3"><p className="text-sm font-bold">{pauseImpact.count}<UiText text={" vizite active în interval"}/></p><p className="text-xs text-muted mt-1"><UiText text={"Sunt afișate cel mult 100 de vizite. Deschiderea rezervării nu o anulează și nu modifică plata."}/></p><ul className="divide-y divide-line">{pauseImpact.visits.map(visit=><li key={visit.job_id} className="py-2 text-sm"><span>{new Intl.DateTimeFormat("ro-RO",{timeZone:"Europe/Bucharest",dateStyle:"medium",timeStyle:"short"}).format(new Date(visit.scheduled_at))} · {visit.city} · {JOB_STATUS[visit.status]??visit.status}</span><Link className="block underline mt-1" href={`/client?jobId=${encodeURIComponent(visit.job_id)}`}><UiText text={"Deschide rezervarea"}/></Link></li>)}</ul></div>}
       </details>}
 
       <details className="mt-4 border-t border-line pt-3">
-        <summary className="cursor-pointer text-sm font-bold">Vizitele abonamentelor</summary>
-        <p className="text-xs text-muted mt-2">Ultimele 200 de vizite înregistrate, inclusiv din abonamente anulate. Lucrările istorice fără legătură înregistrată rămân în Rezervări.</p>
-        {occurrences.length===0?<p className="text-sm mt-3">Nicio vizită înregistrată în acest istoric.</p>:<ul className="divide-y divide-line">{occurrences.map(visit=><li key={visit.job_id} className="py-3 flex flex-wrap justify-between gap-3 text-sm"><span>{new Intl.DateTimeFormat("ro-RO",{timeZone:"Europe/Bucharest",dateStyle:"medium",timeStyle:"short"}).format(new Date(visit.scheduled_at))} · {visit.city}<span className="block text-xs text-muted">{JOB_STATUS[visit.status]??visit.status}</span>{visit.preferred_firm_id&&<span className="block text-xs mt-1">Firma preferată: {visit.preferred_firm_name??'Indisponibilă'} · {visit.accepted_firm_id===visit.preferred_firm_id?'confirmată pentru această vizită':visit.accepted_firm_id?'ai selectat o altă firmă':visit.preferred_offer_status==='pending'?'candidatură primită; verifică disponibilitatea la selectare':visit.preferred_offer_status==='rejected'||visit.preferred_offer_status==='withdrawn'?'candidatură retrasă sau respinsă; poți alege altă firmă':'așteaptă candidatura firmei; poți vedea alternative în rezervare'}</span>}</span><a className="font-bold text-aqua-deep" href={`/client?jobId=${encodeURIComponent(visit.job_id)}`}>Deschide rezervarea</a></li>)}</ul>}
+        <summary className="cursor-pointer text-sm font-bold"><UiText text={"Vizitele abonamentelor"}/></summary>
+        <p className="text-xs text-muted mt-2"><UiText text={"Ultimele 200 de vizite înregistrate, inclusiv din abonamente anulate. Lucrările istorice fără legătură înregistrată rămân în Rezervări."}/></p>
+        {occurrences.length===0?<p className="text-sm mt-3"><UiText text={"Nicio vizită înregistrată în acest istoric."}/></p>:<ul className="divide-y divide-line">{occurrences.map(visit=><li key={visit.job_id} className="py-3 flex flex-wrap justify-between gap-3 text-sm"><span>{new Intl.DateTimeFormat("ro-RO",{timeZone:"Europe/Bucharest",dateStyle:"medium",timeStyle:"short"}).format(new Date(visit.scheduled_at))} · {visit.city}<span className="block text-xs text-muted">{JOB_STATUS[visit.status]??visit.status}</span>{visit.preferred_firm_id&&<span className="block text-xs mt-1"><UiText text={"Firma preferată: "}/>{visit.preferred_firm_name??<UiText text={'Indisponibilă'}/>} · {visit.accepted_firm_id===visit.preferred_firm_id?<UiText text={'confirmată pentru această vizită'}/>:visit.accepted_firm_id?<UiText text={'ai selectat o altă firmă'}/>:visit.preferred_offer_status==='pending'?<UiText text={'candidatură primită; verifică disponibilitatea la selectare'}/>:visit.preferred_offer_status==='rejected'||visit.preferred_offer_status==='withdrawn'?<UiText text={'candidatură retrasă sau respinsă; poți alege altă firmă'}/>:<UiText text={'așteaptă candidatura firmei; poți vedea alternative în rezervare'}/>}</span>}</span><a className="font-bold text-aqua-deep" href={`/client?jobId=${encodeURIComponent(visit.job_id)}`}><UiText text={"Deschide rezervarea"}/></a></li>)}</ul>}
       </details>
       {open && (
         <div className="mt-4 border-t border-line pt-4">
-          <p className="text-sm text-muted mb-3">Configurează spațiul pentru această serie de vizite.</p>
-          <Field label="Firma preferată"><select className={inputClass} value={preferredFirm} onChange={e=>setPreferredFirm(e.target.value)}><option value="">Aleg firma pentru fiecare vizită</option>{previousFirms.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></Field><p className="text-xs text-muted my-2">Preferința nu garantează disponibilitatea. Firma confirmă prin candidatură, iar tu alegi și confirmi plata pentru fiecare vizită. Poți selecta explicit altă firmă dacă cea preferată nu este disponibilă.</p>
-          <Field label="Proprietate salvată (opțional)"><select className={inputClass} value={seriesPropertyId} onChange={event=>{const id=event.target.value;setSeriesPropertyId(id);const property=savedProperties.find(p=>p.id===id);if(property){setAddress({street:property.street,city:property.city,postalCode:property.postal_code??'',floor:property.floor??'',sqm:property.sqm,spaceType:property.space_type});setVisitDetails('')}}}><option value="">Introdu adresa manual</option>{savedProperties.map(p=><option key={p.id} value={p.id}>{p.name} · {p.city}</option>)}</select></Field>
-          {seriesPropertyId&&<div className="my-3 text-sm"><p>Preferințe salvate — selectează și adaptează instrucțiunile pentru această serie:</p><p className="whitespace-pre-wrap text-muted">{[savedProperties.find(p=>p.id===seriesPropertyId)?.notes,savedProperties.find(p=>p.id===seriesPropertyId)?.sensitive_materials,savedProperties.find(p=>p.id===seriesPropertyId)?.usual_tasks].filter(Boolean).join('\n')}</p><p className="text-xs mt-1">Instrucțiunile de acces nu sunt copiate automat.</p></div>}
+          <p className="text-sm text-muted mb-3"><UiText text={"Configurează spațiul pentru această serie de vizite."}/></p>
+          <Field label="Firma preferată"><select className={inputClass} value={preferredFirm} onChange={e=>setPreferredFirm(e.target.value)}><option value=""><UiText text={"Aleg firma pentru fiecare vizită"}/></option>{previousFirms.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></Field><p className="text-xs text-muted my-2"><UiText text={"Preferința nu garantează disponibilitatea. Firma confirmă prin candidatură, iar tu alegi și confirmi plata pentru fiecare vizită. Poți selecta explicit altă firmă dacă cea preferată nu este disponibilă."}/></p>
+          <Field label="Proprietate salvată (opțional)"><select className={inputClass} value={seriesPropertyId} onChange={event=>{const id=event.target.value;setSeriesPropertyId(id);const property=savedProperties.find(p=>p.id===id);if(property){setAddress({street:property.street,city:property.city,postalCode:property.postal_code??'',floor:property.floor??'',sqm:property.sqm,spaceType:property.space_type});setVisitDetails('')}}}><option value=""><UiText text={"Introdu adresa manual"}/></option>{savedProperties.map(p=><option key={p.id} value={p.id}>{p.name} · {p.city}</option>)}</select></Field>
+          {seriesPropertyId&&<div className="my-3 text-sm"><p><UiText text={"Preferințe salvate — selectează și adaptează instrucțiunile pentru această serie:"}/></p><p className="whitespace-pre-wrap text-muted">{[savedProperties.find(p=>p.id===seriesPropertyId)?.notes,savedProperties.find(p=>p.id===seriesPropertyId)?.sensitive_materials,savedProperties.find(p=>p.id===seriesPropertyId)?.usual_tasks].filter(Boolean).join('\n')}</p><p className="text-xs mt-1"><UiText text={"Instrucțiunile de acces nu sunt copiate automat."}/></p></div>}
           <div className="grid gap-3 sm:grid-cols-2 mb-4">
             <Field label="Stradă și număr"><input className={inputClass} maxLength={300} value={address.street} onChange={event=>setAddress({...address,street:event.target.value})}/></Field>
             <Field label="Oraș"><input className={inputClass} maxLength={120} value={address.city} onChange={event=>setAddress({...address,city:event.target.value})}/></Field>
             <Field label="Cod poștal"><input className={inputClass} maxLength={30} value={address.postalCode} onChange={event=>setAddress({...address,postalCode:event.target.value})}/></Field>
             <Field label="Etaj"><input className={inputClass} maxLength={100} value={address.floor} onChange={event=>setAddress({...address,floor:event.target.value})}/></Field>
             <Field label="Suprafață, m²"><input className={inputClass} type="number" min={1} max={1000} step={1} value={address.sqm} onChange={event=>setAddress({...address,sqm:Number(event.target.value)})}/></Field>
-            <Field label="Tip spațiu"><select className={inputClass} value={address.spaceType} onChange={event=>setAddress({...address,spaceType:event.target.value as SpaceType})}><option value="apartament">Apartament</option><option value="casa">Casă</option><option value="birou">Birou</option><option value="altul">Alt spațiu</option></select></Field>
+            <Field label="Tip spațiu"><select className={inputClass} value={address.spaceType} onChange={event=>setAddress({...address,spaceType:event.target.value as SpaceType})}><option value="apartament"><UiText text={"Apartament"}/></option><option value="casa"><UiText text={"Casă"}/></option><option value="birou"><UiText text={"Birou"}/></option><option value="altul"><UiText text={"Alt spațiu"}/></option></select></Field>
           </div>
-          <Field label="Preferințe pentru vizite"><textarea className={inputClass} maxLength={500} rows={3} value={visitDetails} onChange={event=>setVisitDetails(event.target.value)} placeholder="Materiale sensibile, animale de companie, preferințe de curățenie…"/></Field>
-          <span className="block text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1">Frecvență</span>
+          <Field label="Preferințe pentru vizite"><UiElement as="textarea" className={inputClass} maxLength={500} rows={3} value={visitDetails} onChange={event=>setVisitDetails(event.target.value)} placeholder="Materiale sensibile, animale de companie, preferințe de curățenie…"/></Field>
+          <span className="block text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1"><UiText text={"Frecvență"}/></span>
           <div className="grid grid-cols-3 gap-2 mb-3">
             {(["weekly", "biweekly", "monthly"] as const).map((f) => (
               <button
@@ -1362,7 +1304,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
                 onClick={() => setFrequency(f)}
                 className={`py-2 rounded-lg border text-[11px] font-display font-bold ${frequency === f ? "border-aqua bg-aqua/10 text-ink" : "border-line text-muted"}`}
               >
-                {FREQ_LABELS[f]}
+                {<UiText text={FREQ_LABELS[f]}/>}
               </button>
             ))}
           </div>
@@ -1382,9 +1324,9 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
           <Field label="Data de sfârșit (opțional)">
             <input type="date" className={inputClass} min={startDate} value={endDate} onChange={event=>setEndDate(event.target.value)} />
           </Field>
-          <p className="text-xs text-muted mt-2">Fără dată de sfârșit, seria continuă până o oprești. Data aleasă este inclusivă, în ora României; nu se generează vizite după ea. Pentru o zi lunară inexistentă se folosește ultima zi a lunii, apoi se revine la ziua inițială.</p>
+          <p className="text-xs text-muted mt-2"><UiText text={"Fără dată de sfârșit, seria continuă până o oprești. Data aleasă este inclusivă, în ora României; nu se generează vizite după ea. Pentru o zi lunară inexistentă se folosește ultima zi a lunii, apoi se revine la ziua inițială."}/></p>
           <Button className="w-full mt-3" onClick={create} disabled={busy||statusBusy}>
-            {busy ? "Se creează..." : "Creează abonamentul"}
+            {busy ? <UiText text={"Se creează..."}/> : <UiText text={"Creează abonamentul"}/>}
           </Button>
         </div>
       )}
@@ -1449,52 +1391,51 @@ function BusinessSection() {
   return (
     <div className="v2-card p-5 mb-5">
       <div className="flex items-center justify-between">
-        <h2 className="font-bold">
-          Cont business{" "}
-          <span className="text-[11px] font-bold text-[#3a4650] bg-[#eef1f0] rounded-full px-2 py-0.5 align-middle">Nitido Office</span>
+        <h2 className="font-bold"><UiText text={"Cont business"}/>{" "}
+          <span className="text-[11px] font-bold text-[#3a4650] bg-[#eef1f0] rounded-full px-2 py-0.5 align-middle"><UiText text={"Nitido Office"}/></span>
         </h2>
         <button onClick={() => setOpen((o) => !o)} className="text-xs font-display font-bold text-aqua-deep">
-          {open ? "Închide" : profile?.isBusiness ? "Editează" : "+ Activează"}
+          {open ? <UiText text={"Închide"}/> : profile?.isBusiness ? <UiText text={"Editează"}/> : <UiText text={"+ Activează"}/>}
         </button>
       </div>
-      <p className="text-xs text-muted mt-1">Pentru birouri și firme: date de facturare + raport de execuție.</p>
+      <p className="text-xs text-muted mt-1"><UiText text={"Pentru birouri și firme: date de facturare + raport de execuție."}/></p>
 
       {profile?.isBusiness && !open && (
         <div className="mt-3 text-sm">
           <b>{profile.companyName}</b>
-          <div className="text-xs text-[#6b756f]">CUI: {profile.companyCui}{profile.companyAddress ? ` · ${profile.companyAddress}` : ""}</div>
-          <Button variant="outline" className="w-full mt-3" onClick={loadReport}>Vezi raportul de execuție</Button>
+          <div className="text-xs text-[#6b756f]"><UiText text={"CUI: "}/>{profile.companyCui}{profile.companyAddress ? ` · ${profile.companyAddress}` : ""}</div>
+          <Button variant="outline" className="w-full mt-3" onClick={loadReport}><UiText text={"Vezi raportul de execuție"}/></Button>
         </div>
       )}
 
       {open && (
         <div className="mt-4 border-t border-line pt-4">
           <Field label="Nume firmă">
-            <input className={inputClass} value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="ACME SRL" />
+            <UiElement as="input" className={inputClass} value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="ACME SRL" />
           </Field>
           <Field label="CUI">
-            <input className={inputClass} value={companyCui} onChange={(e) => setCompanyCui(e.target.value)} placeholder="RO12345678" />
+            <UiElement as="input" className={inputClass} value={companyCui} onChange={(e) => setCompanyCui(e.target.value)} placeholder="RO12345678" />
           </Field>
           <Field label="Adresă firmă (opțional)">
             <input className={inputClass} value={companyAddress} onChange={(e) => setCompanyAddress(e.target.value)} />
           </Field>
           {msg && <p className="text-coral text-xs mt-1">{msg}</p>}
-          <Button className="w-full mt-2" onClick={save} disabled={busy}>{busy ? "Se salvează..." : "Salvează contul business"}</Button>
+          <Button className="w-full mt-2" onClick={save} disabled={busy}>{busy ? <UiText text={"Se salvează..."}/> : <UiText text={"Salvează contul business"}/>}</Button>
         </div>
       )}
 
       {showReport && report && (
         <div className="mt-4 border-t border-line pt-4">
           <div className="flex justify-between items-center mb-2">
-            <b className="text-sm">Raport de execuție</b>
-            <button onClick={() => setShowReport(false)} className="text-xs text-muted">Închide</button>
+            <b className="text-sm"><UiText text={"Raport de execuție"}/></b>
+            <button onClick={() => setShowReport(false)} className="text-xs text-muted"><UiText text={"Închide"}/></button>
           </div>
           <div className="flex gap-3 mb-3">
-            <div className="flex-1 bg-mist rounded-lg p-3"><div className="text-lg font-bold">{report.totalJobs}</div><div className="text-[11px] text-muted">lucrări</div></div>
-            <div className="flex-1 bg-mist rounded-lg p-3"><div className="text-lg font-bold">{report.totalAmount} lei</div><div className="text-[11px] text-muted">total</div></div>
+            <div className="flex-1 bg-mist rounded-lg p-3"><div className="text-lg font-bold">{report.totalJobs}</div><div className="text-[11px] text-muted"><UiText text={"lucrări"}/></div></div>
+            <div className="flex-1 bg-mist rounded-lg p-3"><div className="text-lg font-bold">{report.totalAmount}<UiText text={" lei"}/></div><div className="text-[11px] text-muted"><UiText text={"total"}/></div></div>
           </div>
           {report.rows.length === 0 ? (
-            <p className="text-xs text-muted">Nicio lucrare finalizată încă.</p>
+            <p className="text-xs text-muted"><UiText text={"Nicio lucrare finalizată încă."}/></p>
           ) : (
             <div className="divide-y divide-[#e2e8f0]">
               {report.rows.map((row) => (
@@ -1503,7 +1444,7 @@ function BusinessSection() {
                     <b className="block truncate">{row.spaceType} · {row.city}</b>
                     <span className="text-[#6b756f]">{row.completedAt ? row.completedAt.slice(0, 10) : ""} · {row.firmName ?? "—"}</span>
                   </span>
-                  <b className="flex-shrink-0">{row.priceGross} lei</b>
+                  <b className="flex-shrink-0">{row.priceGross}<UiText text={" lei"}/></b>
                 </div>
               ))}
             </div>
@@ -1520,10 +1461,8 @@ function RatingBlock({ onSubmit }: { onSubmit: (stars: number, reviewText: strin
   return (
     <div className="space-y-3">
       <StarRating value={stars} onChange={setStars} />
-      <label className="block text-sm font-bold text-ink">Recenzie opțională<textarea className={`${inputClass} mt-2 min-h-24 resize-y`} maxLength={2000} value={reviewText} onChange={event=>setReviewText(event.target.value)} placeholder="Spune pe scurt cum a fost experiența."/></label>
-      <Button className="w-full" disabled={stars === 0} onClick={() => onSubmit(stars,reviewText)}>
-        Trimite recenzia verificată
-      </Button>
+      <label className="block text-sm font-bold text-ink"><UiText text={"Recenzie opțională"}/><UiElement as="textarea" className={`${inputClass} mt-2 min-h-24 resize-y`} maxLength={2000} value={reviewText} onChange={event=>setReviewText(event.target.value)} placeholder="Spune pe scurt cum a fost experiența."/></label>
+      <Button className="w-full" disabled={stars === 0} onClick={() => onSubmit(stars,reviewText)}><UiText text={"Trimite recenzia verificată"}/></Button>
     </div>
   );
 }

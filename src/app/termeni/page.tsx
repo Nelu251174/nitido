@@ -1,5 +1,6 @@
+import {localizeMetadata} from '@/i18n/server';
 import { publicPageMetadata } from "@/lib/publicSeo";
-export const metadata = publicPageMetadata("/termeni");
+const sourceMetadata = publicPageMetadata("/termeni");
 import { InformationPage, type InfoSection } from "@/components/InformationPage";
 import { legalIdentityStatus } from "@/lib/legalConfig";
 import { connection } from "next/server";
@@ -39,3 +40,5 @@ export default async function Page(){await connection();const legal=legalIdentit
   {title:"32. Lege și litigii",paragraphs:["Se aplică legea română, fără afectarea drepturilor imperative. Părțile vor încerca soluționarea amiabilă înaintea instanței competente.","Pentru o sesizare, transmite identificatorul lucrării, descrierea problemei, dovezile relevante și soluția solicitată. Contactarea suportului nu îți limitează accesul la autoritățile competente sau la instanță. Nu trimite documente ori date personale fără legătură cu reclamația."]},
   {title:"33. Contact și identitate juridică",paragraphs:[legal.productionReady?`Operator: ${legal.values.LEGAL_ENTITY_NAME}; înregistrare: ${legal.values.LEGAL_ENTITY_REGISTRATION}; adresă: ${legal.values.LEGAL_ENTITY_ADDRESS}; contact: ${legal.values.LEGAL_CONTACT_EMAIL}.`:"Datele de identificare juridică ale operatorului nu sunt completate integral pe această pagină. Solicită aceste informații la support@nitido.ro înainte de a încheia o relație contractuală. Denumirea NITIDO.RO reprezintă marca platformei și nu înlocuiește identificarea entității juridice."]},
 ];return <InformationPage eyebrow="TERMENI ȘI CONDIȚII" title="Regulile de utilizare a platformei NITIDO.RO" intro="Reguli pentru conturi, rezervări, executarea serviciilor, plăți și sesizări. Citește-le împreună cu informațiile afișate pentru serviciul ales. Actualizare editorială: 24 septembrie 2026." cta={{label:"Cere o clarificare despre termeni",href:"/contact"}} sections={sections}/>}
+
+export async function generateMetadata() { return localizeMetadata(sourceMetadata); }

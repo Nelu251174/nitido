@@ -1,3 +1,4 @@
+import {localizeMetadata} from '@/i18n/server';
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
@@ -8,6 +9,10 @@ import "./workspace-theme.css";
 import "@fontsource-variable/instrument-sans";
 import { WebAlerts } from "@/components/WebAlerts";
 import { PwaProvider } from "@/components/PwaProvider";
+import {NextIntlClientProvider} from 'next-intl';
+import {getLocale, getMessages} from 'next-intl/server';
+import {LanguageSelector} from '@/components/LanguageSelector';
+import {catalogsReady} from '@/i18n/catalogs';
 
 const sora = localFont({
   src: [
@@ -36,7 +41,7 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export const metadata: Metadata = {
+const sourceMetadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: "NITIDO.RO",
   appleWebApp: {
@@ -94,14 +99,20 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const [locale, messages] = await Promise.all([getLocale(), getMessages()]);
   return (
-    <html lang="ro" className={`${sora.variable} ${inter.variable} h-full antialiased`}>
+    <html lang={locale} className={`${sora.variable} ${inter.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
+        <NextIntlClientProvider locale={locale} messages={messages} timeZone="Europe/Bucharest">
+        {catalogsReady() && <div className="nitido-language-bar"><LanguageSelector/></div>}
         {children}
         <PwaProvider />
         <WebAlerts />
+        </NextIntlClientProvider>
       </body>
     </html>
   );
 }
+
+export async function generateMetadata() { return localizeMetadata(sourceMetadata); }

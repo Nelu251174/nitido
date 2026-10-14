@@ -1,5 +1,6 @@
 "use client";
 
+import {UiText} from '@/components/UiText';
 import { appStoreLinks, storeLinksForPlatform } from "@/lib/appStore";
 import { useAppPlatform } from "@/lib/useAppPlatform";
 
@@ -17,14 +18,10 @@ export function AppRatingCard({ compact = false }: { compact?: boolean } = {}) {
       <div className="flex items-center gap-1 text-[#f5a623] text-base leading-none" aria-hidden="true">
         ★★★★★
       </div>
-      <div className="font-display font-bold text-ink mt-1.5 text-sm">
-        Îți place NITIDO? Lasă-ne o notă ⭐
-      </div>
+      <div className="font-display font-bold text-ink mt-1.5 text-sm"><UiText text={"Îți place NITIDO? Lasă-ne o notă ⭐"}/></div>
       {links.live ? (
         <>
-          <p className="text-[12px] text-muted mt-0.5 mb-3">
-            O evaluare bună ne ajută enorm să aducem mai multe firme și clienți.
-          </p>
+          <p className="text-[12px] text-muted mt-0.5 mb-3"><UiText text={"O evaluare bună ne ajută enorm să aducem mai multe firme și clienți."}/></p>
           <div className="flex flex-wrap gap-2">
             {links.appStore && (
               <a
@@ -32,9 +29,7 @@ export function AppRatingCard({ compact = false }: { compact?: boolean } = {}) {
                 target="_blank"
                 rel="noreferrer"
                 className="flex-1 min-w-[130px] text-center rounded-lg bg-ink text-white font-display font-bold text-xs px-4 py-2.5"
-              >
-                 App Store
-              </a>
+              ><UiText text={"App Store"}/></a>
             )}
             {links.playStore && (
               <a
@@ -42,16 +37,13 @@ export function AppRatingCard({ compact = false }: { compact?: boolean } = {}) {
                 target="_blank"
                 rel="noreferrer"
                 className="flex-1 min-w-[130px] text-center rounded-lg bg-aqua-deep text-white font-display font-bold text-xs px-4 py-2.5"
-              >
-                ▶ Google Play
-              </a>
+              ><UiText text={"▶ Google Play"}/></a>
             )}
           </div>
         </>
       ) : (
-        <p className="text-[12px] text-muted mt-0.5">
-          În curând vei putea evalua aplicația în{" "}
-          <b className="text-ink">App Store</b> și <b className="text-ink">Google Play</b>.
+        <p className="text-[12px] text-muted mt-0.5"><UiText text={"În curând vei putea evalua aplicația în"}/>{" "}
+          <b className="text-ink"><UiText text={"App Store"}/></b><UiText text={" și "}/><b className="text-ink"><UiText text={"Google Play"}/></b>.
         </p>
       )}
     </div>

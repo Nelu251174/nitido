@@ -1,0 +1,26 @@
+name: EU language preparation
+on:
+  push:
+    branches: [codex/eu-localization-20261014]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SITE_URL: https://sandbox.nitido.ro
+      SITE_PUBLIC_INDEXING: 'false'
+      STRIPE_SECRET_KEY: sk_test_ci_dummy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run src/i18n/localization.test.ts src/lib/siteIndexing.test.ts src/lib/appStore.test.ts src/lib/authRedirect.test.ts src/lib/supportKnowledge.test.ts
+      - run: npx tsc --noEmit
+      - run: npm run build
+      # No credentials, translation requests, deployment or store upload.

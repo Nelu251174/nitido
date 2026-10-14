@@ -1,0 +1,23 @@
+import 'server-only';
+import type {Metadata} from 'next';
+import {getLocale, getMessages} from 'next-intl/server';
+import {translateText, type UiCatalog} from './text';
+
+export async function getUiText() {
+  const {ui} = await getMessages();
+  return (source: string) => translateText(ui as UiCatalog, source);
+}
+/** Only metadata display fields: URLs and verification/robots settings stay exact. */
+export async function localizeMetadata(metadata: Metadata): Promise<Metadata> {
+  const ui = await getUiText();
+  const locale = await getLocale();
+  const title = (value: Metadata['title']): Metadata['title'] => {
+    if(typeof value === 'string')return ui(value);
+    if(!value)return value;
+    if('absolute' in value)return {...value, absolute:ui(value.absolute)};
+    return {...value, default:ui(value.default), template:value.template};
+  };
+  return {...metadata, title:title(metadata.title), description:metadata.description?ui(metadata.description):metadata.description,
+    openGraph:metadata.openGraph?{...metadata.openGraph,locale, title:title(metadata.openGraph.title)??undefined,description:metadata.openGraph.description?ui(metadata.openGraph.description):undefined}:undefined,
+    twitter:metadata.twitter?{...metadata.twitter,title:title(metadata.twitter.title)??undefined,description:metadata.twitter.description?ui(metadata.twitter.description):undefined}:undefined};
+}

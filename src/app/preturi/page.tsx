@@ -1,7 +1,8 @@
+import {localizeMetadata} from '@/i18n/server';
 import {publicPageMetadata} from '@/lib/publicSeo';
 import {InformationPage} from '@/components/InformationPage';
 import {APARTMENT_TIERS,PER_SQM_RATES,MINIMUM_PRICES,WINDOWS_RATE_LEI,calcGrossPrice,calcWindowsPrice} from '@/lib/pricing';
-export const metadata=publicPageMetadata('/preturi');
+const sourceMetadata=publicPageMetadata('/preturi');
 export default function Page(){return <InformationPage eyebrow="PREȚURI NITIDO" title="Știi cât plătești înainte să rezervi." intro="Calculăm curățenia după tipul spațiului și suprafață. Numărul camerelor nu adaugă o taxă separată. Spălarea geamurilor este opțională și se plătește separat." cta={{label:'Configurează curățenia',href:'/rezervare'}} sections={[
  {title:'Apartamente · pachete după suprafață',paragraphs:['Alege suprafața care trebuie curățată, exprimată în metri pătrați. Pachetele sunt grupate pe intervale: un apartament de 55 m² intră în intervalul până la 60 m². Numărul de camere nu se adaugă ca taxă separată. Pentru suprafețele de peste 100 m², calculul continuă cu tariful pentru fiecare metru pătrat suplimentar.'],items:[...APARTMENT_TIERS.map((t,i)=>`${i?APARTMENT_TIERS[i-1].max+1:1}–${t.max} m²: ${t.price} lei`),'Peste 100 m²: 650 lei + 6,50 lei pentru fiecare m² suplimentar.']},
  {title:'Case, birouri și alte spații',paragraphs:['Pentru aceste categorii se calculează suprafața înmulțită cu tariful pe metru pătrat, respectând un preț minim de intervenție. Dacă rezultatul înmulțirii este mai mic decât minimul categoriei, se aplică minimul. Selectează categoria care descrie efectiv spațiul; o alegere greșită poate produce o estimare nepotrivită.'],items:[`Casă / vilă: ${PER_SQM_RATES.casa} lei/m², minimum ${MINIMUM_PRICES.casa} lei/intervenție.`,`Birou: ${PER_SQM_RATES.birou} lei/m², minimum ${MINIMUM_PRICES.birou} lei/intervenție.`,`Alte spații obișnuite: ${PER_SQM_RATES.altul} lei/m², minimum ${MINIMUM_PRICES.altul} lei/intervenție.`]},
@@ -12,3 +13,5 @@ export default function Page(){return <InformationPage eyebrow="PREȚURI NITIDO"
  {title:'Cum măsori și ce verifici înainte de publicare',paragraphs:['Pentru curățenia spațiului folosește suprafața care face obiectul intervenției. Pentru geamuri, măsoară separat lățimea și înălțimea suprafețelor vitrate, însumează rezultatele și rotunjește totalul în sus. Nu introduce suprafața locuinței în câmpul pentru geamuri și nu dubla măsurătoarea pentru cele două fețe.','Dacă nu poți măsura corect ori suprafața include zone greu accesibile, cere clarificări înainte de confirmare. Observațiile și fotografiile pot explica situația, dar nu modifică automat prețul calculat și nu reprezintă acceptarea unei intervenții speciale.']},
  {title:'Ai o cerință specială?',paragraphs:['Pentru o suprafață peste 1.000 m² sau o intervenție specială, folosește secțiunea Evaluări din cont. Pentru clarificări: support@nitido.ro.']}
  ]}/>}
+
+export async function generateMetadata() { return localizeMetadata(sourceMetadata); }

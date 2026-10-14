@@ -1,6 +1,7 @@
+import {localizeMetadata} from '@/i18n/server';
 import { publicPageMetadata } from "@/lib/publicSeo";
 import { InformationPage } from "@/components/InformationPage";
-export const metadata = publicPageMetadata("/urmarire-live");
+const sourceMetadata = publicPageMetadata("/urmarire-live");
 const content = {
   "eyebrow": "GHID NITIDO",
   "title": "Urmărește starea lucrării și află ce înseamnă fiecare etapă",
@@ -55,3 +56,5 @@ const content = {
   }
 };
 export default function Page() { return <InformationPage {...content} />; }
+
+export async function generateMetadata() { return localizeMetadata(sourceMetadata); }

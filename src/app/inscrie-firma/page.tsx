@@ -1,5 +1,7 @@
+import {localizeMetadata} from '@/i18n/server';
+import {UiText} from '@/components/UiText';
 import { publicPageMetadata } from "@/lib/publicSeo";
-export const metadata = publicPageMetadata("/inscrie-firma");
+const sourceMetadata = publicPageMetadata("/inscrie-firma");
 import Link from "next/link";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 
@@ -35,25 +37,20 @@ export default function InscrieFirmaPage() {
       {/* Hero */}
       <section className="v2-container py-16 pb-14 max-md:py-12">
         <div className="max-w-3xl">
-          <div className="inline-flex rounded-full bg-[var(--nitido-brand-soft)] text-[var(--nitido-brand-dark)] px-4 py-2 text-xs font-bold mb-6">
-            Parteneri NITIDO · București &amp; Constanța
-          </div>
-          <h1 className="text-[56px] max-md:text-[38px] leading-[1.05] tracking-[-.035em] font-bold">
-            Firma ta de curățenie primește lucrări plătite. <span className="text-[var(--nitido-brand)]">Fără abonament.</span>
+          <div className="inline-flex rounded-full bg-[var(--nitido-brand-soft)] text-[var(--nitido-brand-dark)] px-4 py-2 text-xs font-bold mb-6"><UiText text={"Parteneri NITIDO · București &amp; Constanța"}/></div>
+          <h1 className="text-[56px] max-md:text-[38px] leading-[1.05] tracking-[-.035em] font-bold"><UiText text={"Firma ta de curățenie primește lucrări plătite. "}/><span className="text-[var(--nitido-brand)]"><UiText text={"Fără abonament."}/></span>
           </h1>
-          <p className="mt-6 text-[17px] leading-7 text-[#3e4842] max-w-2xl">
-            NITIDO.RO conectează firma ta cu solicitări de curățenie din zonele acoperite. Trimiți ofertă sau preiei urgențele
-            când ești eligibil și disponibil — prețul e calculat în platformă, tu te concentrezi pe calitate. Lansăm întâi în <b>București</b> și <b>Constanța</b>.
+          <p className="mt-6 text-[17px] leading-7 text-[#3e4842] max-w-2xl"><UiText text={"NITIDO.RO conectează firma ta cu solicitări de curățenie din zonele acoperite. Trimiți ofertă sau preiei urgențele când ești eligibil și disponibil — prețul e calculat în platformă, tu te concentrezi pe calitate. Lansăm întâi în "}/><b><UiText text={"București"}/></b><UiText text={" și "}/><b><UiText text={"Constanța"}/></b>.
           </p>
           <div className="flex flex-wrap gap-3 mt-8">
-            <Link href="/signup?role=firma" className="v2-btn v2-btn-primary">Înregistrează firma gratuit</Link>
-            <Link href="/pentru-firme" className="v2-btn v2-btn-secondary">Citește ghidul pentru firme</Link>
+            <Link href="/signup?role=firma" className="v2-btn v2-btn-primary"><UiText text={"Înregistrează firma gratuit"}/></Link>
+            <Link href="/pentru-firme" className="v2-btn v2-btn-secondary"><UiText text={"Citește ghidul pentru firme"}/></Link>
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-2 mt-8 text-sm text-[#64748b]">
             {["Fără taxă de înscriere", "Comision fix 18%", "Verificare ANAF"].map((x) => (
               <span key={x} className="flex gap-2 items-center text-[var(--nitido-brand-dark)]">
                 <span className="font-bold">✓</span>
-                <i className="not-italic text-[#64748b]">{x}</i>
+                <i className="not-italic text-[#64748b]">{<UiText text={x}/>}</i>
               </span>
             ))}
           </div>
@@ -63,13 +60,13 @@ export default function InscrieFirmaPage() {
       {/* Value props */}
       <section className="bg-white">
         <div className="v2-container v2-section">
-          <div className="v2-eyebrow">De ce NITIDO</div>
-          <h2 className="v2-h2 mt-3">Înțelege condițiile înainte să înscrii firma.</h2>
+          <div className="v2-eyebrow"><UiText text={"De ce NITIDO"}/></div>
+          <h2 className="v2-h2 mt-3"><UiText text={"Înțelege condițiile înainte să înscrii firma."}/></h2>
           <div className="grid grid-cols-3 gap-4 mt-9 max-md:grid-cols-1">
             {VALUE_PROPS.map((v) => (
               <article key={v.title} className="bg-[#f7f9fc] rounded-2xl p-[26px]">
-                <h3 className="font-bold text-lg">{v.title}</h3>
-                <p className="text-sm text-[#64748b] leading-6 mt-2">{v.text}</p>
+                <h3 className="font-bold text-lg">{<UiText text={v.title}/>}</h3>
+                <p className="text-sm text-[#64748b] leading-6 mt-2">{<UiText text={v.text}/>}</p>
               </article>
             ))}
           </div>
@@ -78,14 +75,14 @@ export default function InscrieFirmaPage() {
 
       {/* Steps */}
       <section className="v2-container v2-section">
-        <div className="v2-eyebrow">Cum intri</div>
-        <h2 className="v2-h2 mt-3">Trei pași până la prima lucrare.</h2>
+        <div className="v2-eyebrow"><UiText text={"Cum intri"}/></div>
+        <h2 className="v2-h2 mt-3"><UiText text={"Trei pași până la prima lucrare."}/></h2>
         <div className="grid grid-cols-3 gap-4 mt-9 max-md:grid-cols-1">
           {STEPS.map((s) => (
             <article key={s.n} className="v2-card p-[26px]">
-              <div className="text-sm font-bold text-[var(--nitido-brand)]">{s.n}</div>
-              <h3 className="font-bold text-lg mt-8">{s.title}</h3>
-              <p className="text-sm text-[#64748b] leading-6 mt-2">{s.text}</p>
+              <div className="text-sm font-bold text-[var(--nitido-brand)]">{<UiText text={s.n}/>}</div>
+              <h3 className="font-bold text-lg mt-8">{<UiText text={s.title}/>}</h3>
+              <p className="text-sm text-[#64748b] leading-6 mt-2">{<UiText text={s.text}/>}</p>
             </article>
           ))}
         </div>
@@ -95,35 +92,30 @@ export default function InscrieFirmaPage() {
       <section className="bg-white">
         <div className="v2-container v2-section">
           <div className="rounded-[20px] bg-[#111827] p-8 text-white md:p-12">
-            <div className="text-xs font-bold text-[var(--nitido-brand-on-dark)]">LANSARE PILOT</div>
-            <h2 className="mt-4 max-w-3xl text-4xl font-bold max-md:text-3xl">
-              Căutăm firme în București și Constanța.
-            </h2>
-            <p className="mt-5 max-w-3xl leading-7 text-[#b8c1bb]">
-              Pornim concentrat, ca fiecare firmă înscrisă la început să prindă cerere reală în zona ei. Dacă activezi în
-              aceste orașe și vrei lucrări constante, cu plată securizată și clienți serioși, e momentul să te înscrii.
-            </p>
+            <div className="text-xs font-bold text-[var(--nitido-brand-on-dark)]"><UiText text={"LANSARE PILOT"}/></div>
+            <h2 className="mt-4 max-w-3xl text-4xl font-bold max-md:text-3xl"><UiText text={"Căutăm firme în București și Constanța."}/></h2>
+            <p className="mt-5 max-w-3xl leading-7 text-[#b8c1bb]"><UiText text={"Pornim concentrat, ca fiecare firmă înscrisă la început să prindă cerere reală în zona ei. Dacă activezi în aceste orașe și vrei lucrări constante, cu plată securizată și clienți serioși, e momentul să te înscrii."}/></p>
             <div className="mt-6 flex flex-wrap gap-2">
               {["București", "Constanța"].map((c) => (
                 <span key={c} className="rounded-full bg-[var(--nitido-brand)]/20 text-[var(--nitido-brand-on-dark)] px-4 py-2 text-sm font-bold">
-                  📍 {c}
+                  📍 {<UiText text={c}/>}
                 </span>
               ))}
             </div>
-            <Link href="/signup?role=firma" className="v2-btn v2-btn-primary mt-8">Înregistrează firma</Link>
+            <Link href="/signup?role=firma" className="v2-btn v2-btn-primary mt-8"><UiText text={"Înregistrează firma"}/></Link>
           </div>
         </div>
       </section>
 
       {/* FAQ */}
       <section className="v2-container v2-section">
-        <div className="v2-eyebrow">Întrebări frecvente</div>
-        <h2 className="v2-h2 mt-3">Ce vor firmele să știe.</h2>
+        <div className="v2-eyebrow"><UiText text={"Întrebări frecvente"}/></div>
+        <h2 className="v2-h2 mt-3"><UiText text={"Ce vor firmele să știe."}/></h2>
         <div className="grid grid-cols-2 gap-4 mt-9 v2-mobile-stack">
           {FAQ.map((f) => (
             <article className="v2-card p-6" key={f.q}>
-              <h3 className="font-bold">{f.q}</h3>
-              <p className="text-sm text-[#64748b] mt-2 leading-6">{f.a}</p>
+              <h3 className="font-bold">{<UiText text={f.q}/>}</h3>
+              <p className="text-sm text-[#64748b] mt-2 leading-6">{<UiText text={f.a}/>}</p>
             </article>
           ))}
         </div>
@@ -132,11 +124,9 @@ export default function InscrieFirmaPage() {
       {/* Final CTA */}
       <section className="bg-white">
         <div className="v2-container v2-section text-center">
-          <h2 className="v2-h2">Gata să primești prima lucrare?</h2>
-          <p className="mx-auto mt-5 max-w-2xl leading-7 text-[#64748b]">
-            Înregistrarea durează câteva minute. Fără abonament, fără costuri ascunse — plătești doar când muncești.
-          </p>
-          <Link href="/signup?role=firma" className="v2-btn v2-btn-primary mt-8">Înregistrează firma gratuit</Link>
+          <h2 className="v2-h2"><UiText text={"Gata să primești prima lucrare?"}/></h2>
+          <p className="mx-auto mt-5 max-w-2xl leading-7 text-[#64748b]"><UiText text={"Înregistrarea durează câteva minute. Fără abonament, fără costuri ascunse — plătești doar când muncești."}/></p>
+          <Link href="/signup?role=firma" className="v2-btn v2-btn-primary mt-8"><UiText text={"Înregistrează firma gratuit"}/></Link>
         </div>
       </section>
 
@@ -144,3 +134,5 @@ export default function InscrieFirmaPage() {
     </main>
   );
 }
+
+export async function generateMetadata() { return localizeMetadata(sourceMetadata); }

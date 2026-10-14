@@ -1,4 +1,5 @@
 'use client';
+import {UiText,UiElement} from '@/components/UiText';
 import { useRef, useState } from 'react';
 export function SelectionRecovery({ jobId }: { jobId: string }) {
   const lock = useRef(false);
@@ -16,10 +17,10 @@ export function SelectionRecovery({ jobId }: { jobId: string }) {
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Conexiune întreruptă. Reîncarcă lucrarea.'); }
     finally { lock.current = false; setBusy(false); }
   }
-  return <section className="design-panel" aria-label="Confirmarea selecției">
-    <h2>{done ? 'Selecția este confirmată' : 'Confirmarea selecției este în așteptare'}</h2>
-    <p>{done ? 'Reîncarcă lucrarea pentru starea actualizată.' : 'Firma este rezervată. Poți relua confirmarea locală fără o nouă autorizare sau încasare.'}</p>
-    {!done && <button type="button" className="rounded-xl bg-ink px-4 py-3 text-white disabled:opacity-50" disabled={busy} onClick={()=>void recover()}>{busy ? 'Se verifică…' : 'Finalizează confirmarea'}</button>}
-    {error && <p role="alert">{error}</p>}
-  </section>;
+  return <UiElement as="section" className="design-panel" aria-label="Confirmarea selecției">
+    <h2>{done ? <UiText text={'Selecția este confirmată'}/> : <UiText text={'Confirmarea selecției este în așteptare'}/>}</h2>
+    <p>{done ? <UiText text={'Reîncarcă lucrarea pentru starea actualizată.'}/> : <UiText text={'Firma este rezervată. Poți relua confirmarea locală fără o nouă autorizare sau încasare.'}/>}</p>
+    {!done && <button type="button" className="rounded-xl bg-ink px-4 py-3 text-white disabled:opacity-50" disabled={busy} onClick={()=>void recover()}>{busy ? <UiText text={'Se verifică…'}/> : <UiText text={'Finalizează confirmarea'}/>}</button>}
+    {error && <p role="alert">{<UiText text={error}/>}</p>}
+  </UiElement>;
 }

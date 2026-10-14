@@ -1,5 +1,6 @@
 "use client";
 
+import {UiText,UiElement} from '@/components/UiText';
 import Link from "next/link";
 import { ReactNode } from "react";
 
@@ -9,8 +10,7 @@ export function Logo({ inverted = false, href = "/", onClick }: { inverted?: boo
       href={href}
       onClick={onClick}
       className={`font-display font-extrabold text-lg tracking-tight ${inverted ? "text-white" : "text-ink"}`}
-    >
-      NITIDO<span className="text-[var(--nitido-action-hover)]">.RO</span>
+    ><UiText text={"NITIDO"}/><span className="text-[var(--nitido-action-hover)]"><UiText text={".RO"}/></span>
     </Link>
   );
 }
@@ -87,7 +87,7 @@ export function Field({
   return (
     <label className="block mb-3">
       <span className="block text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1">
-        {label}
+        {<UiText text={label}/>}
       </span>
       {children}
     </label>
@@ -115,7 +115,7 @@ export function StatusTrack({
           <span
             className={`w-2 h-2 rounded-full flex-shrink-0 ${s.done ? "bg-aqua" : "bg-line"}`}
           />
-          {s.label}
+          {<UiText text={s.label}/> }
         </div>
       ))}
     </div>
@@ -126,7 +126,7 @@ export function StarRating({ value, onChange }: { value: number; onChange: (v: n
   return (
     <div className="flex gap-2 justify-center my-4">
       {[1, 2, 3, 4, 5].map((v) => (
-        <button
+        <UiElement as="button"
           key={v}
           type="button"
           onClick={() => onChange(v)}
@@ -136,7 +136,7 @@ export function StarRating({ value, onChange }: { value: number; onChange: (v: n
           aria-label={`${v} stele`}
         >
           ★
-        </button>
+        </UiElement>
       ))}
     </div>
   );

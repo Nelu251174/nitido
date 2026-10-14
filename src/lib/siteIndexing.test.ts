@@ -6,9 +6,10 @@ import { siteIndexingEnabled } from './siteIndexing';
 import sitemap from '@/app/sitemap';
 import robots from '@/app/robots';
 import { proxy } from '@/proxy';
-import { metadata as proMetadata } from '@/app/nitido-pro/page';
-import { metadata as qualificationMetadata } from '@/app/nitido-pro/aplica/page';
-import { metadata as partnerMetadata } from '@/app/nitido-pro/parteneri/page';
+import { generateMetadata as proMetadata } from '@/app/nitido-pro/page';
+import { generateMetadata as qualificationMetadata } from '@/app/nitido-pro/aplica/page';
+import { generateMetadata as partnerMetadata } from '@/app/nitido-pro/parteneri/page';
+vi.mock('@/i18n/server', () => ({localizeMetadata: async (metadata: unknown) => metadata}));
 
 afterEach(() => vi.unstubAllEnvs());
 const enableProductionIndexing = (site = 'https://nitido.ro') => {
@@ -58,8 +59,9 @@ describe('public indexability and canonical sitemap', () => {
     expect(rules[0].disallow).toEqual(expect.arrayContaining(['/pro', '/admin', '/client', '/firma', '/api/']));
   });
 
-  it('gives each real Pro page its own canonical, description and social metadata', () => {
-    for (const [path, metadata] of [['/nitido-pro', proMetadata], ['/nitido-pro/aplica', qualificationMetadata], ['/nitido-pro/parteneri', partnerMetadata]] as const) {
+  it('gives each real Pro page its own canonical, description and social metadata', async () => {
+    const [pro,qualification,partner]=await Promise.all([proMetadata(),qualificationMetadata(),partnerMetadata()]);
+    for (const [path, metadata] of [['/nitido-pro', pro], ['/nitido-pro/aplica', qualification], ['/nitido-pro/parteneri', partner]] as const) {
       expect(metadata).toEqual(publicPageMetadata(path));
       expect(metadata.alternates?.canonical).toBe(path);
       expect(metadata.openGraph).toMatchObject({
@@ -76,7 +78,7 @@ describe('public indexability and canonical sitemap', () => {
       });
       expect(metadata.description).not.toBe(PUBLIC_SEO_PAGES['/'].description);
     }
-    expect(new Set([proMetadata.title, qualificationMetadata.title, partnerMetadata.title]).size).toBe(3);
+    expect(new Set([pro.title, qualification.title, partner.title]).size).toBe(3);
   });
 
   it('keeps noindex headers on sandbox and private paths while the public Pro landing remains indexable', () => {

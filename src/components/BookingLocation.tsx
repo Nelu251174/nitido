@@ -1,4 +1,5 @@
 'use client';
+import {UiText} from '@/components/UiText';
 import {useEffect,useRef,useState} from 'react';
 import {currentBookingCity} from '@/lib/bookingLocation';
 export function BookingLocation({city,onDetected,enabled=true}:{city:string;onDetected:(city:string)=>void;enabled?:boolean}){
@@ -19,5 +20,5 @@ export function BookingLocation({city,onDetected,enabled=true}:{city:string;onDe
  // Start once when a booking address form opens, not while the user types.
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[enabled]);
- return <div className="my-3 text-sm"><p>Localitatea se completează prin GPS, cu permisiunea ta. Coordonatele sunt transmise către BigDataCloud pentru identificarea localității. Poți introduce adresa manual.</p><button className="mt-2 font-bold text-[var(--nitido-brand-dark)] underline" type="button" disabled={busy||!enabled} onClick={()=>void locate()}>{busy?'Se detectează locația…':'Folosește locația mea'}</button>{notice&&<p className="mt-2" role="status">{notice}</p>}</div>;
+ return <div className="my-3 text-sm"><p><UiText text={"Localitatea se completează prin GPS, cu permisiunea ta. Coordonatele sunt transmise către BigDataCloud pentru identificarea localității. Poți introduce adresa manual."}/></p><button className="mt-2 font-bold text-[var(--nitido-brand-dark)] underline" type="button" disabled={busy||!enabled} onClick={()=>void locate()}>{busy?<UiText text={'Se detectează locația…'}/>:<UiText text={'Folosește locația mea'}/>}</button>{notice&&<p className="mt-2" role="status">{<UiText text={notice}/>}</p>}</div>;
 }

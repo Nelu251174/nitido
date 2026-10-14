@@ -1,4 +1,5 @@
 'use client';
+import {UiText} from '@/components/UiText';
 import {useRef,useState} from 'react';
 import type {PayoutReport} from '@/lib/payoutReconciliation';
 
@@ -25,13 +26,13 @@ export function PayoutReconciliation({accountId,payoutId}:{accountId:string;payo
    }catch(e){setError(e instanceof Error?e.message:'Conexiunea s-a întrerupt. Reîncearcă.');}
    finally{lock.current=false;setBusy(false);}
  }
- return <div className="space-y-2 min-w-48"><button disabled={busy} onClick={()=>void check()} className="border rounded-lg px-3 py-2 disabled:opacity-50">{busy?'Se verifică…':'Reconciliază în sandbox'}</button>
- <button disabled={busy} onClick={()=>void check(true)} className="block underline py-2 disabled:opacity-50">Ultimul raport salvat</button>
- {error&&<p role="alert" className="text-coral">{error}</p>}
- {report&&<div role="status"><p className="font-semibold">{report.status==='matched'?'Sume și lucrări asociate':'Necesită verificare'}</p><p className="text-muted">Verificare sandbox · {new Date(report.checkedAt).toLocaleString('ro-RO')}</p>
- {report.differenceMinor!==null&&<p>Diferență: {(report.differenceMinor/100).toFixed(2)} RON</p>}
- {report.issues.map(issue=><p key={issue}>{issues[issue]??'Verificare financiară necesară.'}</p>)}
- <details><summary className="cursor-pointer py-2">Tranzacții ({report.lines.length})</summary><ul className="space-y-2">{report.lines.map(line=><li key={line.balanceId} className="break-all">{line.jobId??'Lucrare neasociată'} · {(line.netMinor/100).toFixed(2)} RON<br/>{line.balanceId}{line.issue&&<p className="text-coral">Necesită verificare: {line.issue}</p>}</li>)}</ul></details>
- <p className="text-muted break-all">Raport: {report.id}</p></div>}
+ return <div className="space-y-2 min-w-48"><button disabled={busy} onClick={()=>void check()} className="border rounded-lg px-3 py-2 disabled:opacity-50">{busy?<UiText text={'Se verifică…'}/>:<UiText text={'Reconciliază în sandbox'}/>}</button>
+ <button disabled={busy} onClick={()=>void check(true)} className="block underline py-2 disabled:opacity-50"><UiText text={"Ultimul raport salvat"}/></button>
+ {error&&<p role="alert" className="text-coral">{<UiText text={error}/>}</p>}
+ {report&&<div role="status"><p className="font-semibold">{report.status==='matched'?<UiText text={'Sume și lucrări asociate'}/>:<UiText text={'Necesită verificare'}/>}</p><p className="text-muted"><UiText text={"Verificare sandbox · "}/>{new Date(report.checkedAt).toLocaleString('ro-RO')}</p>
+ {report.differenceMinor!==null&&<p><UiText text={"Diferență: "}/>{(report.differenceMinor/100).toFixed(2)}<UiText text={" RON"}/></p>}
+ {report.issues.map(issue=><p key={issue}>{issues[issue]??<UiText text={'Verificare financiară necesară.'}/>}</p>)}
+ <details><summary className="cursor-pointer py-2"><UiText text={"Tranzacții ("}/>{report.lines.length})</summary><ul className="space-y-2">{report.lines.map(line=><li key={line.balanceId} className="break-all">{line.jobId??<UiText text={'Lucrare neasociată'}/>} · {(line.netMinor/100).toFixed(2)}<UiText text={" RON"}/><br/>{line.balanceId}{line.issue&&<p className="text-coral"><UiText text={"Necesită verificare: "}/>{line.issue}</p>}</li>)}</ul></details>
+ <p className="text-muted break-all"><UiText text={"Raport: "}/>{report.id}</p></div>}
  </div>;
 }
