@@ -26,7 +26,7 @@ try{
     if(ready)break;
     await delay(250);
   }
-  assert(ready,'Standalone server did not become ready');
+  assert(ready,'Standalone server did not become ready: '+output);
   const fixtures=[
     {name:'Romanian IP overrides English browser',ip:'86.120.0.1',browser:'en-US,en;q=0.9',expected:'ro'},
     {name:'First client address in proxy chain',ip:'86.120.0.1, 172.18.0.1',browser:'en-US',expected:'ro'},
