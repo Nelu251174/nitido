@@ -25,7 +25,7 @@ export default function PortfolioDashboard({ report, filters, properties, onChan
       </select></label>
       <label className="pro-field"><UiText text={"Serviciu"}/><select value={filters.category} onChange={e => change('category', e.target.value)}>
         <option value=""><UiText text={"Toate serviciile"}/></option>
-        {Object.entries(SERVICES).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+        {Object.entries(SERVICES).map(([id, name]) => <option key={id} value={id}><UiText text={name}/></option>)}
       </select></label>
     </div>
     <p className="pro-muted mb-4">{report.period.from} — {report.period.to}<UiText text={" · Calendarul României. Lucrările sunt selectate după ziua programată; stările și inventarul proprietăților reflectă situația actuală."}/></p>
@@ -37,7 +37,7 @@ export default function PortfolioDashboard({ report, filters, properties, onChan
         ['Acceptate', report.work.accepted], ['În desfășurare', report.work.inProgress],
         ['Spre verificare', report.work.awaitingReview], ['Remedieri cerute', report.work.rework],
         ['Aprobări în așteptare', report.approvals.pending], ['Lucrări din planuri recurente', report.recurrence.workOrders],
-      ].map(([label, n]) => <div className="pro-stat" key={String(label)}><strong>{n}</strong><span>{label}</span></div>)}
+      ].map(([label, n]) => <div className="pro-stat" key={String(label)}><strong>{n}</strong><span><UiText text={label}/></span></div>)}
     </div>
     <div className="pro-card mt-4">
       <h2><UiText text={"Recurențe și aprobări"}/></h2>

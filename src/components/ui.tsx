@@ -1,6 +1,6 @@
 "use client";
 
-import {UiText,UiElement} from '@/components/UiText';
+import {UiText,UiElement,useUiText} from '@/components/UiText';
 import Link from "next/link";
 import { ReactNode } from "react";
 
@@ -123,6 +123,7 @@ export function StatusTrack({
 }
 
 export function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const ui=useUiText();
   return (
     <div className="flex gap-2 justify-center my-4">
       {[1, 2, 3, 4, 5].map((v) => (
@@ -133,7 +134,7 @@ export function StarRating({ value, onChange }: { value: number; onChange: (v: n
           className={`text-3xl leading-none transition ${
             v <= value ? "text-coral" : "text-line"
           }`}
-          aria-label={`${v} stele`}
+          aria-label={`${ui('Rating')}: ${v}/5`}
         >
           ★
         </UiElement>

@@ -11,6 +11,11 @@ export function useUiText() {
   const {ui} = useMessages();
   return (source: string,values?:readonly (string|number)[]) => values?translateTemplate(ui as UiCatalog,source,values):translateText(ui as UiCatalog, source);
 }
+/** Stored service keys stay unchanged; only their display labels are localized. */
+export function UiSpaceType({value}:{value:string}) {
+  const labels:Record<string,string>={apartament:'Apartament',casa:'Casă',birou:'Birou',altul:'Alt spațiu'};
+  return labels[value]?<UiText text={labels[value]}/>:value;
+}
 /** Named slots allow each language to reorder values without translating them. */
 export function UiTemplate({text, values}: {text: string; values: ReactNode[]}) {
   const {ui} = useMessages();

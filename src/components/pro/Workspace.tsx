@@ -81,7 +81,7 @@ function Form({
   }
   return (
     <details className="pro-card mt-4">
-      <summary>{title}</summary>
+      <summary><UiText text={title}/></summary>
       <form onSubmit={submit}>
         <div className="pro-form-grid">
           {fields.map((f) => (
@@ -1049,7 +1049,7 @@ export default function Workspace({ path }: { path: string[] }) {
                         <option value=""><UiText text={"Toate categoriile"}/></option>
                         {Object.entries(SERVICES).map(([id, label]) => (
                           <option key={id} value={id}>
-                            {label}
+                            <UiText text={label}/>
                           </option>
                         ))}
                       </select>

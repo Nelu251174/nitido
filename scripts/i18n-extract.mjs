@@ -48,6 +48,12 @@ for(const file of all){
   }visit(ast);
 }
 // Keep a reproducible, sorted source catalog; paths are audit data, never user data.
+// Short mapped labels need an explicit source list: syntax cannot distinguish
+// an English-looking Romanian label from a technical identifier.
+if(fs.existsSync('messages/extra-source.json'))for(const label of JSON.parse(fs.readFileSync('messages/extra-source.json','utf8'))){
+  if(typeof label!=='string'||!label.trim())throw Error('Invalid curated UI label');
+  add(label,path.join(root,'messages/extra-source.json'),'curated-ui-label');
+}
 fs.mkdirSync('messages',{recursive:true});
 fs.writeFileSync('messages/ro.json',JSON.stringify(Object.fromEntries(Object.entries(catalog).sort()),null,2)+'\n');
 fs.mkdirSync('.translation-work',{recursive:true});

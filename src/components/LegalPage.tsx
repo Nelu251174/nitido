@@ -20,7 +20,7 @@ export function LegalPage({
         </div>
       </header>
       <main className="max-w-3xl mx-auto px-6 py-16">
-        <h1 className="font-display font-extrabold text-3xl text-ink mb-2">{title}</h1>
+        <h1 className="font-display font-extrabold text-3xl text-ink mb-2"><UiText text={title}/></h1>
         <p className="text-sm text-muted mb-10"><UiText text={"Actualizat: "}/>{updated}</p>
         <div className="space-y-8 text-[15px] leading-relaxed text-ink [&_h2]:font-display [&_h2]:font-bold [&_h2]:text-lg [&_h2]:text-ink [&_h2]:mb-2 [&_p]:text-muted [&_li]:text-muted">
           {children}

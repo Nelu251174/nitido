@@ -19,7 +19,7 @@ export default function PropertyChecklists({ propertyId, configuration, run }: {
     <p className="mt-3"><UiText text={"Definește punctele de verificare pentru fiecare serviciu: încăperi, echipamente și cerințe specifice proprietății. Lista publicată se aplică lucrărilor create ulterior, inclusiv celor generate din programări recurente. Lucrările deja create și remedierile lor păstrează lista inițială."}/></p>
     <p className="mt-3"><UiText text={"Nu include parole, coduri de acces sau date personale în aceste puncte. Prestatorul alocat va primi lista în fișa lucrării."}/></p>
     <label className="pro-field mt-3"><UiText text={"Serviciul configurat"}/><select value={service} onChange={e => setService(e.target.value)}>
-        {Object.entries(SERVICES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+        {Object.entries(SERVICES).map(([key, label]) => <option key={key} value={key}><UiText text={label}/></option>)}
       </select>
     </label>
     {configuration.available ? <Editor key={`${propertyId}:${service}:${template.revision}`} propertyId={propertyId} template={template} run={run} /> : <p role="status" className="mt-3"><UiText text={"Configurarea personalizată nu este încă disponibilă. Lucrările continuă să folosească listele standard."}/></p>}
