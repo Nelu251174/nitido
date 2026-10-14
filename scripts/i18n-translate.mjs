@@ -47,12 +47,25 @@ for(let offset=0;offset<entries.length;){const batch=[];let chars=0;while(offset
 function protectedTokens(text) {
   return (text.match(/\{p\d+\}|https?:\/\/[^\s]+|[\w.+-]+@[\w.-]+|\d+(?:[.,]\d+)*|NITIDO(?:\.RO| Pro)?|RON|EUR|\blei\b|\bleu\b|Stripe|Google Play|App Store/g)||[]).sort();
 }
+function shield(original) {
+  const values=[];
+  const text=original.replace(/\{p\d+\}|https?:\/\/[^\s]+|[\w.+-]+@[\w.-]+|\d+(?:[.,]\d+)*|NITIDO(?:\.RO| Pro)?|RON|EUR|\blei\b|\bleu\b|Stripe|Google Play|App Store/g,value=>{
+    const marker=`__NITIDO_TOKEN_${values.length}__`;values.push(value);return marker;
+  });
+  return {text,restore(translated){
+    if(typeof translated!=='string')throw Error('Invalid translation');
+    const markers=translated.match(/__NITIDO_TOKEN_\d+__/g)||[];
+    const expected=values.map((_,i)=>`__NITIDO_TOKEN_${i}__`);
+    if(JSON.stringify(markers.sort())!==JSON.stringify(expected.sort()))throw Error('Protected placeholder changed');
+    return translated.replace(/__NITIDO_TOKEN_(\d+)__/g,(_,i)=>values[Number(i)]);
+  }};
+}
 function validate(result,batch) {
   if(!result||typeof result!=='object'||Array.isArray(result)||Object.keys(result).length!==batch.length)throw Error('Translation count mismatch');
   for(const [id,original] of batch){
     const translated=result[id];
     if(typeof translated!=='string'||!translated.trim()||translated.length>original.length*8+200)throw Error('Invalid translation');
-    if(JSON.stringify(protectedTokens(original))!==JSON.stringify(protectedTokens(translated)))throw Error('Protected number, brand or contact changed');
+    if(JSON.stringify(protectedTokens(original))!==JSON.stringify(protectedTokens(translated)))throw Error(`Protected number, brand or contact changed at ${id}`);
     if(translated.includes('```'))throw Error('Unexpected markup');
   }
 }
@@ -70,9 +83,11 @@ async function translate(locale) {
       if(state.requests>=maxRequests||state.inputTokens+state.outputTokens>=maxTokens)throw Error('Translation budget limit reached');
       try{
         const schema={type:'object',properties:Object.fromEntries(batch.map(([id])=>[id,{type:'string'}])),required:batch.map(([id])=>id),additionalProperties:false};
+        const guarded=new Map(batch.map(([id,original])=>[id,shield(original)]));
         const payload={model,store:false,max_output_tokens:12000,reasoning:{effort:'none'},
           instructions:`Translate this Romanian cleaning marketplace's UI copy into ${names[locale]}. Use clear, natural, professional wording. This is a Romanian service with a multilingual interface, not a claim of service coverage abroad. Preserve every numeric token exactly (including decimal separators), currencies RON and EUR, the Romanian currency words lei and leu exactly (never substitute euros for lei), percentages, URLs, emails, IDs, and the brands NITIDO, NITIDO.RO, NITIDO Pro, Stripe, Google Play, App Store, Standard, Express and Express 60. Preserve placeholder tokens and punctuation structure. Translate all readable words, including short fragments, error messages, accessibility labels and legal copy; do not add explanations, promises or features. Keep fragments short enough for mobile controls. Each input key must occur exactly once in the output.`,
-          input:JSON.stringify(Object.fromEntries(batch)),text:{format:{type:'json_schema',name:'ui_translations',strict:true,schema}}};
+          input:JSON.stringify(Object.fromEntries([...guarded].map(([id,value])=>[id,value.text]))),text:{format:{type:'json_schema',name:'ui_translations',strict:true,schema}}};
+        payload.instructions+=' Tokens such as __NITIDO_TOKEN_0__ are protected values: copy each token exactly once, without editing its characters or translating it. Do not introduce additional numeric values or brands.';
         const wire=JSON.stringify(payload);
         // Reserve an upper estimate BEFORE dispatch (including concurrent work).
         // Unknown/aborted responses retain their full reservation on disk.
@@ -92,7 +107,9 @@ async function translate(locale) {
         save();
         if(body.status!=='completed')throw Error('Incomplete provider output');
         const raw=body.output_text||body.output?.flatMap(item=>item.content||[]).find(item=>item.type==='output_text')?.text;
-        const result=JSON.parse(raw);validate(result,batch);
+        const result=JSON.parse(raw);
+        for(const [id,value] of guarded)result[id]=value.restore(result[id]);
+        validate(result,batch);
         Object.assign(catalog,result);atomic(file,catalog);success=true;
       }catch(error){
         // Only our safe error labels are recorded, never provider bodies/keys.
