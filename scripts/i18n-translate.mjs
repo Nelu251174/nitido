@@ -110,9 +110,21 @@ async function translate(locale) {
             // The provider declined this request; no model tokens were processed.
             state.chargedUpperUsd-=reserved;
             state.unprocessed429=(state.unprocessed429??0)+1;
-            let code='unknown_429';try{const error=await response.json();if(['rate_limit_exceeded','insufficient_quota','billing_hard_limit_reached'].includes(error.error?.code))code=error.error.code;}catch{}
-            state.last429Code=code;save();
-            if(code==='insufficient_quota'||code==='billing_hard_limit_reached')throw Error('Translation provider quota unavailable');
+            let code='unknown_429',type='unknown_type',reason='unclassified';
+            try{
+              const body=await response.json(),error=body.error;
+              const known=['rate_limit_exceeded','insufficient_quota','billing_hard_limit_reached'];
+              if(known.includes(error?.code))code=error.code;
+              if(known.includes(error?.type))type=error.type;
+              // Record only a category, never the provider body or message.
+              const message=typeof error==='string'?error:String(error?.message??body.message??'');
+              if(/quota|billing|budget|insufficient.*(?:credit|balance)|credit.*(?:exhaust|insufficient)|balance.*(?:exhaust|insufficient)/i.test(message))reason='quota_or_balance';
+              else if(/rate.?limit|per.minute|tokens.per|\bTPM\b|\bRPM\b/i.test(message))reason='rate';
+              else if(/overload|capacity|busy/i.test(message))reason='capacity';
+            }catch{}
+            state.last429Code=code;state.last429Type=type;state.last429Reason=reason;save();
+            if(code==='insufficient_quota'||code==='billing_hard_limit_reached'||type==='insufficient_quota'||type==='billing_hard_limit_reached'||reason==='quota_or_balance')throw Error('Translation provider quota unavailable');
+            if(code==='unknown_429'&&type==='unknown_type'&&reason==='unclassified')throw Error('Translation provider returned an unclassified throttle');
             const seconds=Number(response.headers.get('retry-after'));
             retryDelay=Math.max(30000*(attempt+1),Number.isFinite(seconds)?Math.min(90000,Math.max(0,seconds*1000)):0)+Math.floor(Math.random()*2000);
           }
@@ -145,7 +157,7 @@ async function translate(locale) {
       }catch(error){
         // Only our safe error labels are recorded, never provider bodies/keys.
         const message=error instanceof Error?error.message:'Translation failed';
-        if(message==='Approved API cost limit reached'||message==='Translation provider quota unavailable'||/^Translation provider HTTP (?:401|403)$/.test(message))throw error;
+        if(message==='Approved API cost limit reached'||message==='Translation provider quota unavailable'||message==='Translation provider returned an unclassified throttle'||/^Translation provider HTTP (?:401|403)$/.test(message))throw error;
         state.failures.push({locale,attempt,message:message.slice(0,150)});save();
         if(attempt<2)await new Promise(resolve=>setTimeout(resolve,retryDelay));
       }
