@@ -1,8 +1,9 @@
 import fs from 'node:fs';
-const languages=['bg','hr','cs','da','nl','en','et','fi','fr','de','el','hu','ga','it','lv','lt','mt','pl','pt','ro','sk','sl','es','sv'];
+const manifest=JSON.parse(fs.readFileSync('messages/manifest.json','utf8'));
+const languages=manifest.locales;
 const source={heading:'Conexiune indisponibilă',message:'Conexiunea s-a întrerupt. Reîncearcă.',retry:'Reîncearcă'};
 function key(text){let a=0x811c9dc5,b=0x9e3779b9;for(const c of text.replace(/\s+/g,' ').trim()){const cp=c.codePointAt(0);a=Math.imul(a^cp,0x01000193);b=Math.imul(b^cp,0x85ebca6b);}return `t${(a>>>0).toString(16)}_${(b>>>0).toString(16)}`;}
-if(!JSON.parse(fs.readFileSync('messages/manifest.json','utf8')).complete)throw Error('Validated complete catalogs are required for offline copy');
+if(!manifest.complete||!Array.isArray(languages)||languages.length!==manifest.languages||!languages.includes('ro'))throw Error('Validated complete released catalogs are required for offline copy');
 const copy=Object.fromEntries(languages.map(locale=>{const catalog=JSON.parse(fs.readFileSync(`messages/${locale}.json`,'utf8'));return [locale,Object.fromEntries(Object.entries(source).map(([name,text])=>{const value=catalog[key(text)];if(typeof value!=='string'||!value.trim())throw Error('Missing offline copy '+locale+'/'+name);return [name,value]}))]}));
 const serialized=JSON.stringify(copy).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
 const html=fs.readFileSync('public/offline.html','utf8');

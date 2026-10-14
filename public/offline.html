@@ -1,10 +1,5 @@
 <!doctype html>
-<html lang="ro">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ești offline — NITIDO.RO</title>
-<style>
+<html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Conexiune indisponibilă — NITIDO.RO</title><style>
   body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
     font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f4f3ee;color:#101711;text-align:center;padding:24px}
   .card{max-width:360px}
@@ -13,14 +8,15 @@
   h1{font-size:20px;margin:0 0 8px}
   p{color:#5c6660;line-height:1.5;margin:0 0 20px}
   a{display:inline-block;background:#1b8a4c;color:#fff;text-decoration:none;padding:12px 22px;border-radius:12px;font-weight:700}
-</style>
-</head>
-<body>
-  <div class="card">
-    <div class="logo">NITIDO<span>.RO</span></div>
-    <h1>Nu ai conexiune la internet</h1>
-    <p>Verifică conexiunea și încearcă din nou. Datele tale sunt în siguranță.</p>
-    <a href="/" onclick="location.reload();return false;">Reîncearcă</a>
-  </div>
-</body>
-</html>
+</style></head>
+<body><div class="card"><div class="logo">NITIDO<span>.RO</span></div><h1 id="heading">Conexiune indisponibilă</h1><p id="message">Conexiunea s-a întrerupt. Reîncearcă.</p><a id="retry" href="/" onclick="location.reload();return false;">Reîncearcă</a></div>
+<script>
+(function(){
+ const copy={"bg":{"heading":"Няма връзка","message":"Връзката беше прекъсната. Опитайте отново.","retry":"Опитай отново"},"hr":{"heading":"Veza nije dostupna","message":"Veza je prekinuta. Pokušaj ponovno.","retry":"Pokušaj ponovno"},"cs":{"heading":"Připojení není k dispozici","message":"Spojení bylo přerušeno. Zkuste to znovu.","retry":"Zkusit znovu"},"da":{"heading":"Forbindelse ikke tilgængelig","message":"Forbindelsen blev afbrudt. Prøv igen.","retry":"Prøv igen"},"nl":{"heading":"Verbinding niet beschikbaar","message":"De verbinding is onderbroken. Probeer opnieuw.","retry":"Opnieuw proberen"},"en":{"heading":"Connection unavailable","message":"The connection was interrupted. Try again.","retry":"Try again"},"fr":{"heading":"Connexion indisponible","message":"La connexion a été interrompue. Réessayez.","retry":"Réessayer"},"de":{"heading":"Verbindung nicht verfügbar","message":"Die Verbindung wurde unterbrochen. Bitte erneut versuchen.","retry":"Erneut versuchen"},"ro":{"heading":"Conexiune indisponibilă","message":"Conexiunea s-a întrerupt. Reîncearcă.","retry":"Reîncearcă"}};
+ const supported=value=>{const code=String(value||'').trim().toLowerCase().replace(/_/g,'-').split('-')[0];return Object.prototype.hasOwnProperty.call(copy,code)?code:null;};
+ let manual=null,cached=null;try{const cookie=document.cookie.match(/(?:^|;\s*)nitido-language=([^;]+)/);manual=cookie?supported(decodeURIComponent(cookie[1])):null;cached=supported(localStorage.getItem('nitido-last-language'));}catch{}
+ const locale=manual||(navigator.languages||[navigator.language]).map(supported).find(Boolean)||cached||'ro';
+ document.documentElement.lang=locale;document.title=copy[locale].heading+' — NITIDO.RO';
+ for(const name of ['heading','message','retry'])document.getElementById(name).textContent=copy[locale][name];
+})();
+</script></body></html>

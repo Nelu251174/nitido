@@ -2,26 +2,30 @@ import {describe,it,expect} from 'vitest';
 import {createElement as h} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {NextIntlClientProvider} from 'next-intl';
-import {LANGUAGES,asLocale,selectLocale,hasSupportedLanguage} from './locales';
+import {ALL_EU_LANGUAGES,LANGUAGES,asLocale,selectLocale,hasSupportedLanguage} from './locales';
 import {textKey,translateText,translateTemplate} from './text';
 import {UiText,UiTemplate,UiElement} from '@/components/UiText';
 import {UiDate} from '@/components/UiDate';
 import source from '../../messages/ro.json';
 
 describe('language negotiation',()=>{
-  it('recognizes all 24 EU languages and regional/device tags',()=>{
-    expect(new Set(LANGUAGES.map(([code])=>code)).size).toBe(24);
+  it('exposes only the nine complete languages and accepts their regional/device tags',()=>{
+    expect(new Set(ALL_EU_LANGUAGES.map(([code])=>code)).size).toBe(24);
+    expect(LANGUAGES.map(([code])=>code)).toEqual(['bg','hr','cs','da','nl','en','fr','de','ro']);
     for(const [locale] of LANGUAGES)expect(asLocale(`${locale.toUpperCase()}-EU`)).toBe(locale);
     expect(asLocale('../../en')).toBeUndefined();
     expect(asLocale('ru')).toBeUndefined();
+    expect(asLocale('ga-IE')).toBeUndefined();
+    expect(selectLocale('it','it-IT,en;q=0.8','IT')).toBe('en');
+    expect(selectLocale('it','it-IT','IT')).toBe('ro');
   });
   it('gives a manual preference priority over device language and country',()=>{
-    expect(selectLocale('ga','fr-FR,en;q=0.8','DE')).toBe('ga');
+    expect(selectLocale('de','fr-FR,en;q=0.8','FR')).toBe('de');
     expect(selectLocale('invalid','fr-FR,en;q=0.8','DE')).toBe('fr');
   });
   it('respects q weights, q=0 and malformed preferences',()=>{
     expect(selectLocale(null,'fr;q=0,en-US;q=0.6,de;q=0.9','FR')).toBe('de');
-    expect(selectLocale(null,'fr;q=oops,en;q=1.2,sv;q=0.8','FR')).toBe('sv');
+    expect(selectLocale(null,'fr;q=oops,en;q=1.2,da;q=0.8','FR')).toBe('da');
     expect(selectLocale(null,'ja-JP,fr;q=0','FR')).toBe('fr');
     expect(hasSupportedLanguage('ja-JP,fr;q=0')).toBe(false);
   });
@@ -68,7 +72,7 @@ describe('source-owned UI and user data isolation',()=>{
   it('substitutes server template values only once, including literal placeholder-like user values',()=>{
     expect(translateTemplate(en,'Confirmă {p0} pentru {p1}',['500 RON','{p0}'])).toBe('For {p0}, confirm 500 RON');
   });
-  it('formats dates in all 24 languages without changing the operational time zone',()=>{
+  it('formats dates in released languages without changing the operational time zone',()=>{
     const value=new Date('2026-10-14T22:30:00Z'),options={year:'numeric',month:'long',day:'numeric'} as const;
     for(const [locale] of LANGUAGES){
       const html=render(locale,{},h(UiDate,{value,kind:'date',options}));

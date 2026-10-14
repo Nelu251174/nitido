@@ -179,7 +179,7 @@ const results=await Promise.allSettled(Array.from({length:Math.min(concurrency,q
   catch(error){halted=true;throw error;}
 }));
 const complete=targets.every(locale=>state.completed.includes(locale));
-atomic(path.join(output,'manifest.json'),{complete,languages:24,sourceLanguage:'ro',sourceMessages:entries.length,sourceHash,provider:'OpenAI',model,review:'machine translation; specialist legal review pending'});
+atomic(path.join(output,'manifest.json'),{complete,languages:24,locales:[...targets,'ro'],targetLanguages:24,sourceLanguage:'ro',sourceMessages:entries.length,sourceHash,provider:'OpenAI',model,review:'machine translation; specialist legal review pending'});
 console.log(JSON.stringify({complete,requests:state.requests,tokens:state.inputTokens+state.outputTokens}));
 const failed=results.find(result=>result.status==='rejected');
 if(failed)throw failed.reason;

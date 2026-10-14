@@ -1,5 +1,6 @@
-/** The 24 official EU languages. Operational territory and settlement stay Romanian. */
-export const LANGUAGES = [
+import manifest from '../../messages/manifest.json';
+/** EU language expansion inventory; release selection uses complete catalogs only. */
+export const ALL_EU_LANGUAGES = [
   ['bg', 'Български'], ['hr', 'Hrvatski'], ['cs', 'Čeština'], ['da', 'Dansk'],
   ['nl', 'Nederlands'], ['en', 'English'], ['et', 'Eesti'], ['fi', 'Suomi'],
   ['fr', 'Français'], ['de', 'Deutsch'], ['el', 'Ελληνικά'], ['hu', 'Magyar'],
@@ -7,7 +8,8 @@ export const LANGUAGES = [
   ['mt', 'Malti'], ['pl', 'Polski'], ['pt', 'Português'], ['ro', 'Română'],
   ['sk', 'Slovenčina'], ['sl', 'Slovenščina'], ['es', 'Español'], ['sv', 'Svenska'],
 ] as const;
-export type Locale = typeof LANGUAGES[number][0];
+export type Locale = typeof ALL_EU_LANGUAGES[number][0];
+export const LANGUAGES = ALL_EU_LANGUAGES.filter(([locale])=>manifest.locales.includes(locale));
 export const LOCALE_COOKIE = 'nitido-language';
 export const DEFAULT_LOCALE: Locale = 'ro';
 /** Open Graph requires language_TERRITORY; this never selects billing country. */
@@ -38,7 +40,7 @@ export function selectLocale(manual?: string | null, acceptLanguage?: string | n
     return {locale: asLocale(tag), quality, index};
   }).filter(p => p.locale && Number.isFinite(p.quality) && p.quality > 0 && p.quality <= 1)
     .sort((a, b) => b.quality - a.quality || a.index - b.index);
-  return preferences[0]?.locale ?? COUNTRY_LANGUAGES[country?.toUpperCase() ?? ''] ?? DEFAULT_LOCALE;
+  return preferences[0]?.locale ?? asLocale(COUNTRY_LANGUAGES[country?.toUpperCase() ?? '']) ?? DEFAULT_LOCALE;
 }
 export function hasSupportedLanguage(header?: string | null): boolean {
   return (header ?? '').split(',').some(part => {

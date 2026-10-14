@@ -1,6 +1,8 @@
 {
-  "complete": false,
-  "languages": 24,
+  "complete": true,
+  "languages": 9,
+  "locales": ["bg", "hr", "cs", "da", "nl", "en", "fr", "de", "ro"],
+  "targetLanguages": 24,
   "sourceLanguage": "ro",
   "sourceMessages": 4540,
   "sourceHash": "f31ace17b56ff52c045b2b9c4e643390701825b1b5ec63e35961c9cce3465493"

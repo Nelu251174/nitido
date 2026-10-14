@@ -1,22 +1,18 @@
-# NITIDO interface in the 24 official EU languages
+# NITIDO multilingual interface — nine-language release
 
 Scope: public pages, customer and cleaning-company screens, and the remotely
-loaded Capacitor interface. Catalog generation is in progress. Non-Romanian
-rendering remains disabled until every catalog passes validation.
+loaded Capacitor interface. The owner authorized publishing the completed
+languages now and deferring the rest.
 
-Current blocker: the existing OpenAI API account returns HTTP 429 with error
-type `insufficient_quota`. A single-request diagnostic confirmed this; generation
-is paused until the account's available credit/project limit is resolved. The
-owner-approved USD 20 cap is unchanged. No deployment has been performed.
+Released languages: bg, hr, cs, da, nl, en, fr, de, ro. Each of the nine
+catalogs has all 4,540 source messages. The selector, browser/device negotiation,
+country fallback and offline copy use this same explicit release list. The
+remaining 15 official EU languages are deferred and are not selectable.
 
-Eight new catalogs are complete and saved for review: bg, hr, cs, da, nl, en,
-fr and de, each with 4,540 source messages. Romanian is the source language.
-Private resumable checkpoints retain 62,244 translations, including unfinished
-catalogs; unfinished files are not included in the release. The global activation
-gate deliberately remains closed.
-
-Languages: bg, hr, cs, da, nl, en, et, fi, fr, de, el, hu, ga, it, lv, lt,
-mt, pl, pt, ro, sk, sl, es, sv.
+Their unfinished private checkpoints retain the existing generation accounting.
+The OpenAI provider returned `insufficient_quota`; translation generation remains
+paused and no provider request is needed to publish or display this release.
+The owner-approved generation cap remains USD 20 before tax.
 
 ## Language selection and data
 
@@ -49,13 +45,13 @@ protected; incomplete catalogs cannot activate the feature.
 Currency codes are matched as whole words, so French `VALEURS`/`SECTEUR` and
 Estonian `BRONEERING` are not mistaken for EUR/RON. Romanian `lei`/`leu` units
 remain protected when present in the source; the Portuguese legal word `lei`
-does not introduce a false currency mismatch. Seven regression checks retain
+does not introduce a false currency mismatch. Catalog regression checks retain
 rejection of modified amounts, currencies, contacts, slots and missing keys.
 
 The latest confirmed processed-token cost estimate is USD 10.96190925 before
 tax. Conservative retained accounting is USD 11.88488925; the remaining approved
 allowance is USD 8.11511075. These are generation accounting estimates, not a
-claim about the provider account balance or final invoice. All 207 requests
+claim about the provider account balance or final invoice. The 207 requests
 declined during the latest two runs added no processed tokens. Only safe error
 categories are retained; provider messages and credentials are not exported.
 
@@ -65,15 +61,16 @@ The owner explicitly approved recovering ciphertext through public GitHub
 Actions logs. The OpenAI credential stays on its existing host and is never
 exported. No customer records are sent through this translation workflow.
 
-`node scripts/i18n-validate.mjs` checks all 24 catalogs against the source hash,
+`node scripts/i18n-validate.mjs` checks every released catalog against the source hash,
 exact keys, protected values and unexpected markup. Catalogs are machine
 translations; specialist legal review remains pending. `messages/extra-source.json`
 keeps short mapped labels in the reproducible extraction source.
 
-The npm build preflight and language CI require complete valid catalogs and
-matching generated offline copy. The offline generator uses the same 24
-catalogs, the manual cookie, device preferences and cached last language.
-Generation of the final offline HTML remains pending complete catalogs.
+The npm build preflight and language CI require a unique explicit EU-language
+release list, complete valid catalogs and matching generated offline copy. The
+offline page uses those nine catalogs, the manual cookie, device preferences and
+cached last language. A deferred language cannot activate through a saved cookie,
+a country fallback or a browser preference.
 `node scripts/i18n-validate.mjs --available` validates the complete catalogs
 already saved for review. It reports `publicationAllowed: false`; the build
 uses the strict validation command without this diagnostic option.
@@ -93,14 +90,18 @@ refund behavior are preserved.
 
 ## Verification
 
-The expanded suite passed 119 checks for language negotiation, translation/data
-isolation, dates, navigation, store promotion guards, quotes and country/currency
-rules. TypeScript and targeted lint passed for the later implementation changes;
-the seven currency/data catalog regression checks also passed. Candidate 2811dbf
-passed a hosted full build and an unsigned iOS compile. The later publication
-guards deliberately fail the full-catalog preflight until the remaining 15
-languages are complete. Complete-catalog validation, hosted mobile rendering in
-all 24 languages and deployment health remain required before activation.
+Targeted automated checks cover released/unsupported language negotiation,
+translation/data isolation, dates, navigation, store promotion guards, quotes,
+country/currency rules and catalog publication safety. A release containing a
+missing, duplicate or unsupported language fails validation, as do changed
+amounts, currencies, contacts, placeholders or source keys. TypeScript and
+scoped lint checks are required before deployment.
+
+The release process builds the exact candidate, verifies each released language
+on sandbox at mobile width, checks manual selection and retained form values,
+checks simulated Capacitor bridges and synthetic account displays, and deploys
+that same candidate after health checks. These browser simulations do not claim
+physical-device or real-payment testing. Release evidence is recorded in PR #96.
 
 The approved iOS 1.0 (17) continues to load the shared remote interface; this
 change does not upload a new store binary or withdraw the approved version.
