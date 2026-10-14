@@ -1,7 +1,8 @@
 /** Owner-authorized private catalog job. Run only inside GitHub Actions.
- * Uses the existing Coolify credential normally, without exporting the host's
+ * Prepares a private handoff for the managed operator, without exporting the host's
  * OpenAI credential. Only a temporary, artifact-specific upload URL reaches the
- * host. The resulting ZIP is an authenticated Actions artifact, never a public
+ * host. Every handoff and result is encrypted to an operator-only private key
+ * before any artifact upload. The resulting ZIP contains ciphertext, never a public
  * website upload. No application database or customer records are read.
  */
 const fs=require('node:fs');
@@ -13,13 +14,20 @@ module.exports=async function({core}){
  const {getBackendIdsFromToken}=require(prefix+'/internal/shared/util.js');
  const {getExpiration}=require(prefix+'/internal/upload/retention.js');
  const {BlobClient}=require(path.resolve('.translation-tools/node_modules/@azure/storage-blob'));
- const {StringValue}=require(prefix+'/generated/index.js');
  const client=internalArtifactTwirpClient();
  const ids=getBackendIdsFromToken(),name='nitido-eu-private-catalogs';
  const made=await client.CreateArtifact({...ids,name,version:4,expiresAt:getExpiration(7)});
  if(!made.ok)throw Error('Private artifact could not be created');
  const uploadUrl=made.signedUploadUrl;
  core.setSecret(uploadUrl);
+ const publicKey=fs.readFileSync('scripts/i18n-transfer-public-key.pem','utf8');
+ function seal(plaintext){
+  const key=crypto.randomBytes(32),iv=crypto.randomBytes(12);
+  const cipher=crypto.createCipheriv('aes-256-gcm',key,iv);
+  const ciphertext=Buffer.concat([cipher.update(plaintext,'utf8'),cipher.final()]);
+  const wrapped=crypto.publicEncrypt({key:publicKey,oaepHash:'sha256',padding:crypto.constants.RSA_PKCS1_OAEP_PADDING},key);
+  return JSON.stringify({algorithm:'RSA-OAEP-SHA256/AES-256-GCM',key:wrapped.toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:ciphertext.toString('base64')});
+ }
  const source=fs.readFileSync('messages/ro.json','utf8');
  const generator=fs.readFileSync('scripts/i18n-translate.mjs','utf8');
  const probe=process.env.NITIDO_TRANSLATION_PROBE==='true';
@@ -37,7 +45,9 @@ module.exports=async function({core}){
  const bundle={status,sourceSha:${JSON.stringify(process.env.GITHUB_SHA)},sourceHash:${JSON.stringify(sourceHash)},files:{}};
  if(!status.probe&&fs.existsSync(root+'/catalogs'))for(const file of fs.readdirSync(root+'/catalogs'))if(/^(?:bg|hr|cs|da|nl|en|et|fi|fr|de|el|hu|ga|it|lv|lt|mt|pl|pt|sk|sl|es|sv|manifest|translation-progress)\\.json$/.test(file))bundle.files[file]=JSON.parse(fs.readFileSync(root+'/catalogs/'+file,'utf8'));
  status.complete=bundle.files['manifest.json']?.complete===true;
- const body=Buffer.from(JSON.stringify(bundle)),compressed=zlib.deflateRawSync(body),filename=Buffer.from('bundle.json');
+ const publicKey=${JSON.stringify(publicKey)};
+ ${seal.toString()}
+ const body=Buffer.from(seal(JSON.stringify(bundle))),compressed=zlib.deflateRawSync(body),filename=Buffer.from('bundle.enc.json');
  let crc=0xffffffff;for(const byte of body){crc^=byte;for(let bit=0;bit<8;bit++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}crc=(crc^0xffffffff)>>>0;
  const local=Buffer.alloc(30);local.writeUInt32LE(0x04034b50,0);local.writeUInt16LE(20,4);local.writeUInt16LE(8,8);local.writeUInt32LE(crc,14);local.writeUInt32LE(compressed.length,18);local.writeUInt32LE(body.length,22);local.writeUInt16LE(filename.length,26);
  const central=Buffer.alloc(46);central.writeUInt32LE(0x02014b50,0);central.writeUInt16LE(20,4);central.writeUInt16LE(20,6);central.writeUInt16LE(8,10);central.writeUInt32LE(crc,16);central.writeUInt32LE(compressed.length,20);central.writeUInt32LE(body.length,24);central.writeUInt16LE(filename.length,28);
@@ -48,25 +58,21 @@ module.exports=async function({core}){
  const encoded=Buffer.from(bootstrap).toString('base64');
  const command=`node -e 'eval(Buffer.from("${encoded}","base64").toString())'`;
  core.setSecret(encoded);core.setSecret(command);
- const baseApi='https://coolify.nitido.ro/api/v1/applications/zxnelxi2cejranyvfpw0scac/scheduled-tasks';
- async function api(url,method='GET',body){const r=await fetch(url,{method,headers:{Authorization:`Bearer ${process.env.COOLIFY_TOKEN}`,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(30000)});if(!r.ok)throw Error(`Coolify HTTP ${r.status}`);return r.json();}
- let task;
- try{
-  task=await api(baseApi,'POST',{name:`Owner-approved private EU catalog job ${process.env.GITHUB_RUN_ID}`,command,frequency:'0 0 * * *',enabled:false,container:null,timeout:14400});
-  if(task.enabled!==false||!task.uuid)throw Error('Task must remain disabled');
-  await api(baseApi+'/'+task.uuid+'/execute','POST');core.info(JSON.stringify({task:task.uuid,probe,started:true}));
-  const blob=new BlobClient(uploadUrl);let size;
-  for(let attempt=0;attempt<235;attempt++){
-   try{const props=await blob.getProperties();if(props.contentLength>0){size=props.contentLength;break;}}catch{/* Not uploaded yet. Never read unrelated resources. */}
-   const executions=await api(baseApi+'/'+task.uuid+'/executions');
-   const latest=executions[0];
-   if(latest&&['failed','error'].includes(latest.status))throw Error('Private catalog task failed before artifact upload');
-   if(attempt%2===0)core.info(JSON.stringify({waitingForPrivateCatalogs:true,elapsedMinutes:attempt}));
-   await new Promise(resolve=>setTimeout(resolve,60000));
-  }
-  if(!size)throw Error('Private catalog artifact timeout');
-  const result=await client.FinalizeArtifact({...ids,name,size:String(size)});
-  if(!result.ok)throw Error('Private artifact finalization failed');
-  core.info(JSON.stringify({artifactId:result.artifactId,bytes:size,probe}));
- }finally{if(task?.uuid)await api(baseApi+'/'+task.uuid,'DELETE');}
+ // Ciphertext only: the operator private key stays outside this public repo,
+ // outside Actions and outside the application host. No upload URL is exposed.
+ const handoff=path.resolve('.translation-handoff');fs.mkdirSync(handoff,{recursive:true,mode:0o700});
+ fs.writeFileSync(handoff+'/task.enc.json',seal(JSON.stringify({name:`Owner-approved private EU catalog job ${process.env.GITHUB_RUN_ID}`,command,frequency:'0 0 * * *',enabled:false,container:null,timeout:14400})),{mode:0o600});
+ const artifact=require(prefix+'/artifact.js').default;
+ const transferred=await artifact.uploadArtifact('nitido-private-job-handoff',[handoff+'/task.enc.json'],handoff,{retentionDays:1});
+ core.info(JSON.stringify({handoffArtifactId:transferred.id,probe}));
+ const blob=new BlobClient(uploadUrl);let size;
+ for(let attempt=0;attempt<235;attempt++){
+  try{const props=await blob.getProperties();if(props.contentLength>0){size=props.contentLength;break;}}catch{/* Not uploaded yet. */}
+  if(attempt%2===0)core.info(JSON.stringify({waitingForPrivateCatalogs:true,elapsedMinutes:attempt}));
+  await new Promise(resolve=>setTimeout(resolve,60000));
+ }
+ if(!size)throw Error('Private catalog artifact timeout');
+ const result=await client.FinalizeArtifact({...ids,name,size:String(size)});
+ if(!result.ok)throw Error('Private artifact finalization failed');
+ core.info(JSON.stringify({artifactId:result.artifactId,bytes:size,probe}));
 };

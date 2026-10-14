@@ -19,7 +19,6 @@ jobs:
       - run: npm install --prefix .translation-tools --ignore-scripts @actions/artifact@4.0.0
       - uses: actions/github-script@v7
         env:
-          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
           NITIDO_TRANSLATION_PROBE: 'true'
         with:
           script: |
