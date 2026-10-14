@@ -4,13 +4,23 @@ on:
     branches: [codex/eu-translation-worker-20261014]
 permissions:
   contents: read
+concurrency:
+  group: nitido-owner-approved-private-translations
+  cancel-in-progress: false
 jobs:
-  readiness:
+  generate:
     runs-on: ubuntu-latest
+    timeout-minutes: 245
     steps:
-      - name: Check existing credential bindings without exposing values
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --prefix .translation-tools --ignore-scripts @actions/artifact@4.0.0
+      - uses: actions/github-script@v7
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
-        run: |
-          node -e 'console.log(JSON.stringify({openaiConfigured:Boolean(process.env.OPENAI_API_KEY),coolifyConfigured:Boolean(process.env.COOLIFY_TOKEN)}))'
+          NITIDO_TRANSLATION_PROBE: 'true'
+        with:
+          script: |
+            await require('./scripts/i18n-artifact-worker.cjs')({core});
