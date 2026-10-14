@@ -1,5 +1,7 @@
 'use client';
 import {UiText,UiElement} from '@/components/UiText';
+import {useMessages} from 'next-intl';
+import {translateText,type UiCatalog} from '@/i18n/text';
 import {useEffect,useRef,useState,useSyncExternalStore} from 'react';
 import {NativePushControls} from './NativePushControls';
 import {nativePushAvailable} from '@/lib/nativePushClient';
@@ -20,10 +22,12 @@ export function WebAlerts(){
  return <><NativePushControls role={role} controls={false}/>{desktop&&<WebAlertsSession key={role}/>}</>;
 }
 function WebAlertsSession(){
+ const {ui}=useMessages();
  const [account,setAccount]=useState<Feed|null>(null),[toast,setToast]=useState<{title:string;href:string;count:number}|null>(null),[enabled,setEnabled]=useState(false),[hint,setHint]=useState('');
  const [controls,setControls]=useState(true),[controlsRevision,setControlsRevision]=useState(0);
+ const accountId=account?.userId;
  useEffect(()=>{const show=()=>{setControls(true);setControlsRevision(v=>v+1)};window.addEventListener("nitido:alert-controls",show);return()=>window.removeEventListener("nitido:alert-controls",show)},[]);
- useEffect(()=>{if(!account)return;const timer=setTimeout(()=>setControls(false),15000);return()=>clearTimeout(timer)},[account?.userId,controlsRevision]);
+ useEffect(()=>{if(!accountId)return;const timer=setTimeout(()=>setControls(false),15000);return()=>clearTimeout(timer)},[accountId,controlsRevision]);
  useEffect(()=>{if(!hint)return;const timer=setTimeout(()=>setHint(""),15000);return()=>clearTimeout(timer)},[hint]);
  useEffect(()=>{if(!toast)return;const timer=setTimeout(()=>setToast(null),30000);return()=>clearTimeout(timer)},[toast]);
  const sound=useRef<AudioContext|null>(null),lastSound=useRef(0),soundEnabled=useRef(false),tones=useRef<OscillatorNode[]>([]);
@@ -50,14 +54,14 @@ function WebAlertsSession(){
     if(!result.fresh.length)return;
     const event=result.fresh[0],title=event.kind==='message'?'Ai primit un mesaj nou':'Lucrarea ta a fost finalizată',href=alertHref(feed.role,event);
     setToast({title,href,count:result.fresh.length});if(on&&!nativePushAvailable()){if(sound.current?.state==='running')chime();else setHint("Popup primit, dar sunetul nu este activ în această filă. Deschide Setări și afișează comenzile de sunet.");}
-    if(on&&!nativePushAvailable()&&document.visibilityState!=='visible'&&'Notification' in window&&Notification.permission==='granted'){try{const n=new Notification(title,{body:'Deschide NITIDO pentru detalii.',tag:'nitido-activity',silent:Boolean(sound.current?.state==='running')});native.push(n);setTimeout(()=>n.close(),30000);n.onclick=()=>{window.focus();window.location.assign(href);n.close();};}catch{}}
+    if(on&&!nativePushAvailable()&&document.visibilityState!=='visible'&&'Notification' in window&&Notification.permission==='granted'){try{const n=new Notification(translateText(ui as UiCatalog,title),{body:translateText(ui as UiCatalog,'Deschide NITIDO pentru detalii.'),tag:'nitido-activity',silent:Boolean(sound.current?.state==='running')});native.push(n);setTimeout(()=>n.close(),30000);n.onclick=()=>{window.focus();window.location.assign(href);n.close();};}catch{}}
    };
    if(navigator.locks)await navigator.locks.request(key,claim);else claim();
   }catch{}finally{busy=false;}};
   const unlock=()=>{if(!soundEnabled.current)return;try{sound.current??=new AudioContext();if(sound.current.state==='suspended')void sound.current.resume().catch(()=>undefined);}catch{}};
   void refresh();const timer=setInterval(()=>void refresh(),10000);window.addEventListener('focus',refresh);document.addEventListener('pointerdown',unlock);
   return()=>{alive=false;controller.abort();clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('pointerdown',unlock);native.forEach(n=>n.close());};
- },[]);
+ },[ui]);
  useEffect(()=>()=>{void sound.current?.close();},[]);
  async function enable(){if(!account)return;const next=!enabled;soundEnabled.current=next;setEnabled(next);try{localStorage.setItem(`nitido.web-alerts.${account.userId}.sound`,next?'on':'off');}catch{}
   if(!next){setHint('Sunetul și alertele desktop sunt oprite.');return;}

@@ -10,6 +10,6 @@ export function catalogsReady(): boolean {
 }
 export async function getCatalog(locale: Locale): Promise<UiCatalog> {
   if (locale === 'ro' || !catalogsReady()) return source;
-  const module = await import(`../../messages/${locale}.json`);
-  return module.default as UiCatalog;
+  const catalogModule = await import(`../../messages/${locale}.json`);
+  return catalogModule.default as UiCatalog;
 }
