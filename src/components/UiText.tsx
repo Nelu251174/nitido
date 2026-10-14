@@ -1,6 +1,6 @@
 import {createElement, Fragment, type JSX, type ReactNode} from 'react';
 import {useMessages} from 'next-intl';
-import {translateText, type UiCatalog} from '@/i18n/text';
+import {translateText,translateTemplate, type UiCatalog} from '@/i18n/text';
 
 /** Shared server/client component: only source-owned UI copy belongs here. */
 export function UiText({text}: {text: string | number | null | undefined}) {
@@ -9,7 +9,7 @@ export function UiText({text}: {text: string | number | null | undefined}) {
 }
 export function useUiText() {
   const {ui} = useMessages();
-  return (source: string) => translateText(ui as UiCatalog, source);
+  return (source: string,values?:readonly (string|number)[]) => values?translateTemplate(ui as UiCatalog,source,values):translateText(ui as UiCatalog, source);
 }
 /** Named slots allow each language to reorder values without translating them. */
 export function UiTemplate({text, values}: {text: string; values: ReactNode[]}) {
