@@ -1,0 +1,11 @@
+import {afterEach,beforeEach,it,expect} from 'vitest';
+import Database from 'better-sqlite3';
+import {SCHEMA_SQL} from './db';
+import {saveStoreReports,storeReportInbox,validateStoreReport,type StoreReport} from './adminOwnerReports';
+let db:Database.Database;const now=Date.parse('2026-10-15T09:00:00Z');
+beforeEach(()=>{db=new Database(':memory:');db.exec(SCHEMA_SQL);});afterEach(()=>db.close());
+function reports():StoreReport[]{return Array.from({length:7},(_,i)=>new Date(Date.parse('2026-10-15')-(i+1)*86400000).toISOString().slice(0,10)).flatMap(reportDate=>[{source:'apple' as const,reportDate,status:'blocked' as const,reason:'APPLE_ACCESS_NOT_CONFIGURED',metric:'app_units' as const,countries:[]},{source:'google' as const,reportDate,status:'pending' as const,reason:'GOOGLE_DAY_NOT_PUBLISHED',metric:'device_installs' as const,countries:[]}]);}
+it('saves unavailable sources as unavailable, never as zero, and deduplicates the daily digest',()=>{const id=saveStoreReports(db,reports(),'2026-10-15',now);expect(saveStoreReports(db,reports(),'2026-10-15',now)).toBe(id);expect(storeReportInbox(db)).toHaveLength(14);expect(db.prepare('SELECT COUNT(*) n FROM admin_owner_events').get()).toEqual({n:1});});
+it('recovers late official dates without downgrading an existing valid report',()=>{const r=reports();r[0]={...r[0],status:'ready',reason:undefined,countries:[{country:'RO',installs:3,redownloads:1}]};saveStoreReports(db,r,'2026-10-15',now);saveStoreReports(db,reports(),'2026-10-15',now);expect(storeReportInbox(db)[0].countries).toEqual([{country:'RO',installs:3,redownloads:1}]);});
+it('requires the full seven-day window for both sources',()=>{expect(()=>saveStoreReports(db,reports().slice(0,13),'2026-10-15',now)).toThrow();const r=reports();r[13]=r[0];expect(()=>saveStoreReports(db,r,'2026-10-15',now)).toThrow();expect(storeReportInbox(db)).toHaveLength(0);});
+it('rejects fabricated country duplicates, wrong metrics, future dates and negative counts',()=>{const r={...reports()[0],status:'ready',reason:undefined};for(const bad of [{...r,reportDate:'2026-10-15'},{...r,metric:'device_installs'},{...r,countries:[{country:'RO',installs:-1}]},{...r,countries:[{country:'RO',installs:1},{country:'RO',installs:2}]},{...r,reportDate:'2026-02-31'}])expect(()=>validateStoreReport(bad,now)).toThrow();});

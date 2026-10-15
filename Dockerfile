@@ -46,6 +46,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/recurring-runner.mjs ./scripts/recurring-runner.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/financial-recovery-runner.mjs ./scripts/financial-recovery-runner.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/notification-recovery-runner.mjs ./scripts/notification-recovery-runner.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/owner-notifications-runner.mjs ./scripts/owner-notifications-runner.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/store-download-report-runner.mjs ./scripts/store-download-report-runner.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/store-download-reports.mjs ./scripts/store-download-reports.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/healthcheck.mjs ./scripts/healthcheck.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/verify-database-backup.mjs ./scripts/verify-database-backup.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/recovery.mjs ./scripts/recovery.mjs

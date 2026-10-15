@@ -1,0 +1,13 @@
+import {beforeEach,it,expect,vi} from 'vitest';
+const state=vi.hoisted(()=>({actor:vi.fn(),origin:vi.fn(),inbox:vi.fn(),read:vi.fn(),audit:vi.fn(),reports:vi.fn(),transaction:vi.fn()}));
+vi.mock('@/lib/adminAuth',()=>({getAdminActorId:state.actor,auditAdminAction:state.audit}));
+vi.mock('@/lib/security',()=>({hasTrustedMutationOrigin:state.origin}));
+vi.mock('@/lib/db',()=>({db:{transaction:state.transaction}}));
+vi.mock('@/lib/adminOwnerEvents',()=>({ownerInbox:state.inbox,markOwnerEventsRead:state.read}));
+vi.mock('@/lib/adminOwnerReports',()=>({storeReportInbox:state.reports}));
+import {GET,POST} from './route';
+const req=(value:unknown)=>new Request('https://nitido.ro/api/admin/owner-notifications',{method:'POST',body:JSON.stringify(value)}) as never;
+beforeEach(()=>{vi.clearAllMocks();state.actor.mockResolvedValue(null);state.origin.mockReturnValue(false);state.inbox.mockReturnValue({events:[]});state.reports.mockReturnValue([]);state.transaction.mockImplementation(fn=>({immediate:fn}));});
+it('requires the default super administrator permission for reads and writes',async()=>{expect((await GET()).status).toBe(401);expect((await POST(req({ids:[]}))).status).toBe(401);expect(state.actor.mock.calls.every(call=>call.length===0)).toBe(true);expect(state.inbox).not.toHaveBeenCalled();});
+it('rejects cross-origin mutations before touching any event',async()=>{state.actor.mockResolvedValue('admin');expect((await POST(req({ids:[]}))).status).toBe(403);expect(state.read).not.toHaveBeenCalled();});
+it('does not cache private data and rejects caller-controlled email destinations',async()=>{state.actor.mockResolvedValue('admin');state.origin.mockReturnValue(true);const response=await GET();expect(response.headers.get('cache-control')).toContain('no-store');expect((await POST(req({ids:[],to:'attacker@example.test'}))).status).toBe(400);expect(state.read).not.toHaveBeenCalled();});

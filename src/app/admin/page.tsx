@@ -2,6 +2,7 @@
 
 import {AdminRoleWorkspace} from '@/components/AdminRoleWorkspace';
 import {AdminStaff} from '@/components/AdminStaff';
+import {AdminOwnerNotifications} from '@/components/AdminOwnerNotifications';
 import {AdminAccountDeletion} from '@/components/AdminAccountDeletion';
 import type {AdminIdentity} from '@/lib/adminRolesShared';
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -166,7 +167,7 @@ export default function AdminPage() {
     const scrollToSection = () => {
       cancelAnimationFrame(frame);
       const id = window.location.hash.slice(1);
-      if (!["firme", "lucrari", "calitate", "plati", "catalog", "evaluari", "incidente", "performanta", "clienti"].includes(id)) return;
+      if (!["inscrieri", "firme", "lucrari", "calitate", "plati", "catalog", "evaluari", "incidente", "performanta", "clienti"].includes(id)) return;
       frame = requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: "start" }));
     };
     scrollToSection();
@@ -293,6 +294,7 @@ export default function AdminPage() {
       <main className="max-w-5xl mx-auto px-6 py-10 space-y-10">
 <header className="mb-8"><p className="v2-eyebrow">NITIDO CONTROL</p><h1 className="workspace-title">Centrul de operațiuni</h1><p className="text-muted">Lucrări, firme și excepții care necesită intervenție.</p></header><div className="workspace-metrics"><Card><p className="text-sm text-muted">Lucrări în așteptare</p><b className="text-3xl">{jobs.filter(j=>j.status==="waiting").length}</b></Card><Card><p className="text-sm text-muted">Plăți de verificat</p><b className="text-3xl">{payments.filter(p=>["failed","pending"].includes(p.status)).length}</b></Card><Card><p className="text-sm text-muted">Notificări nereușite</p><b className="text-3xl">{notifications.filter(n=>n.status==="failed").length}</b></Card></div>
 
+        <AdminOwnerNotifications/>
         <AdminStaff/>
         <AdminAccountDeletion/>
         <AdminOperations jobs={jobs} payments={payments}/>

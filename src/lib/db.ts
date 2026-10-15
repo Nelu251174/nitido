@@ -1,3 +1,4 @@
+import {ADMIN_OWNER_SCHEMA} from './adminOwnerSchema';
 import {PROVIDER_SCORE_SCHEMA} from './providerScoreSchema';
 import {INCIDENT_SLA_ALERT_SCHEMA} from './incidentSlaSchema';
 import {ACCOUNT_DELETION_SCHEMA} from './accountDeletionSchema';
@@ -57,6 +58,7 @@ db.pragma("foreign_keys = ON");
 // Exportată separat ca teste (vitest) să poată crea o bază de date in-memory
 // cu aceeași schemă, izolată de fișierul de date reale.
 export const SCHEMA_SQL = `
+${ADMIN_OWNER_SCHEMA}
 ${ACCOUNT_DELETION_SCHEMA}
 ${EXECUTION_TEMPLATES_SCHEMA}
 ${PROVIDER_INVITATIONS_SCHEMA}

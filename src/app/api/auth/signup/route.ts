@@ -1,5 +1,7 @@
 import {persistSignup,signupInputError} from "@/lib/signupPersistence";
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
+import {lookup} from 'geoip-country';
+import {processOwnerEmails} from '@/lib/adminOwnerEvents';
 import { db, newId, getUserByEmail, getUserByReferralCode } from "@/lib/db";
 import { hashPassword, createSession } from "@/lib/auth";
 import { toE164Romania } from "@/lib/sms";
@@ -107,10 +109,13 @@ export async function POST(req: NextRequest) {
     ownReferralCode = generateReferralCode(name);
   }
 
+  let ownerEventId:string;
+  let connectionCountry:string|null=null;
+  try{connectionCountry=lookup(requestIp(req))?.country??null;}catch{/* Optional coarse country; never a signup restriction. */}
   try {
-    persistSignup(db, {
+    ownerEventId=persistSignup(db, {
       userId, role, name, email, phone:normalizedPhone, passwordHash, referralCode:ownReferralCode,
-      referrer:referrer?{id:referrer.id,code:referrer.referral_code!}:null, bonus:REFERRAL_BONUS_LEI,
+      referrer:referrer?{id:referrer.id,code:referrer.referral_code!}:null, bonus:REFERRAL_BONUS_LEI,connectionCountry,
       ...(role==='firma'?{firm:{id:newId('firm'),cui:sanitizeCui(cui!),city:coverageCity!.trim(),citiesExtra:coverageCitiesExtra?sanitizeCoverageCitiesInput(coverageCitiesExtra)||null:null,verified:cuiVerification?.status==='valid'}}:{})
     });
   } catch (error) {
@@ -118,6 +123,8 @@ export async function POST(req: NextRequest) {
     console.error('signup_persistence_failed', {code:error instanceof Error?error.name:'unknown'});
     return NextResponse.json({error:"Contul nu a putut fi creat. Nu au fost salvate date parțiale. Reîncearcă."},{status:500});
   }
+
+  after(async()=>{try{await processOwnerEmails(db,{ids:[ownerEventId]});}catch{console.error('owner_notification_deferred');}});
 
   const welcomeEmailSent = await sendVerificationEmail(db, userId);
   if (!welcomeEmailSent) console.error("signup_welcome_email_failed", { configured: emailConfigured(), userId });
