@@ -33,5 +33,5 @@ export function HomeLogoLink({onNavigate}:{onNavigate?:()=>void}){
     router.push("/",{scroll:true});
   }
 
-  return <Link href="/" onClick={activate} scroll aria-label="NITIDO" className="design-wordmark focus-visible:ring-2 focus-visible:ring-[var(--nitido-brand)] focus-visible:ring-offset-4"><span aria-hidden="true"><UiText text={"NITIDO"}/></span></Link>;
+  return <Link href="/" onClick={activate} scroll aria-label="NITIDO" style={{color:"var(--nitido-brand)"}} className="design-wordmark focus-visible:ring-2 focus-visible:ring-[var(--nitido-brand)] focus-visible:ring-offset-4"><span aria-hidden="true"><UiText text={"NITIDO"}/></span></Link>;
 }
