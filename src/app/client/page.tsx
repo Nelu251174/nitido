@@ -616,7 +616,7 @@ export default function ClientPage() {
         <EmailVerificationNotice/>
         {cardNotice && <p role="status" className="mb-4 rounded-xl border border-aqua bg-mist p-4 text-sm">{cardNotice}</p>}
         {cardError && <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{cardError}</p>}
-        {job&&<JobExecutionDetail job={job} firmName={firmName} onBack={()=>{setJob(null);setShowBooking(false)}}/>}
+        {job&&<JobExecutionDetail job={job} firmName={firmName} onBack={()=>{setJob(null);setShowBooking(false);setPendingNavigation({target:"sec-lucrari"})}}/>}
         <div className={`client-content-grid ${showBooking&&!job?"with-detail":""}`}>
         <div className="min-w-0">
         {myJobs.filter(j=>j.status==="waiting"&&["requires_action","requires_confirmation"].includes(j.authorizationStatus??"")).map(j=><section key={j.id} className="v2-card p-5 mb-4"><h2 className="font-bold"><UiText text={"Confirmarea cardului este necesară"}/></h2><p className="text-sm text-muted mt-2">{j.city} · {j.sqm}<UiText text={" m². Banca solicită confirmarea autorizării pentru această lucrare."}/></p><Link href={`/client/plata/${encodeURIComponent(j.id)}`} className="inline-block mt-3 font-bold text-aqua-deep underline"><UiText text={"Confirmă prin bancă"}/></Link></section>)}
