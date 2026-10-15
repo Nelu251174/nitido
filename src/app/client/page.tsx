@@ -474,6 +474,15 @@ export default function ClientPage() {
   }
 
   const selectedJobId=job?.id;
+  useEffect(()=>{
+    if(!selectedJobId)return;
+    const frame=window.requestAnimationFrame(()=>{
+      const heading=document.querySelector<HTMLElement>('.execution-heading h1');
+      heading?.focus({preventScroll:true});
+      heading?.scrollIntoView({block:'start',behavior:'instant'});
+    });
+    return()=>window.cancelAnimationFrame(frame);
+  },[selectedJobId]);
   const poll = useCallback(async (signal:AbortSignal) => {
     if (!selectedJobId) return;
     try {
@@ -601,7 +610,7 @@ export default function ClientPage() {
       </aside>
       <main className="flex-1 min-w-0 px-8 py-8 max-[760px]:px-[22px] max-[760px]:pb-28">
         <div className="board-topbar"><span><UiText text={"Spațiul tău NITIDO"}/></span><div><Link href="/client/mesaje" aria-label="Mesaje"><DesignIcon name="bell"/></Link><UiElement as="button" type="button" className="account-profile-link" onClick={openProfileEditor} aria-label="Deschide profilul meu"><span className="board-avatar">{user.name.slice(0,1)}</span><b>{user.name}</b></UiElement></div></div>
-        <header className="board-greeting"><div><h1><UiText text={"Bună, "}/>{user.name.split(" ")[0]}!</h1><p><UiText text={"Mulțumim că faci parte din comunitatea NITIDO.RO."}/></p></div><span className="board-greeting-note"><DesignIcon name="sparkles"/><UiText text={"Un cămin curat este începutul"}/><br/><UiText text={"unei zile mai bune."}/></span></header>
+        {!job&&<header className="board-greeting"><div><h1><UiText text={"Bună, "}/>{user.name.split(" ")[0]}!</h1><p><UiText text={"Mulțumim că faci parte din comunitatea NITIDO.RO."}/></p></div><span className="board-greeting-note"><DesignIcon name="sparkles"/><UiText text={"Un cămin curat este începutul"}/><br/><UiText text={"unei zile mai bune."}/></span></header>}
         {!job&&!showBooking&&<AssistedEntry/>}
         {!job&&!showBooking&&<ClientOverview jobs={myJobs} onSelect={setJob} onBook={goToForm}/>}
         <EmailVerificationNotice/>
