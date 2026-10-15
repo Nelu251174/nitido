@@ -24,7 +24,6 @@ jobs:
     env:
       ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-      ASC_KEY_PATH: ${{ runner.temp }}/nitido-ios18-review-key.p8
       IOS18_EVIDENCE: ${{ github.workspace }}/release-receipts/ios18-release-evidence.json
       IOS18_SCREENSHOTS: ${{ github.workspace }}/docs/store/ios-1.0.1-screenshots
     steps:
@@ -73,6 +72,8 @@ jobs:
         run: |
           python3 -m pip install --quiet pyjwt cryptography
           umask 077
+          ASC_KEY_PATH="$RUNNER_TEMP/nitido-ios18-review-key.p8"
+          printf '%s\n' "ASC_KEY_PATH=$ASC_KEY_PATH" >> "$GITHUB_ENV"
           printf '%s' "$ASC_KEY" > "$ASC_KEY_PATH"
 
       - name: Complete large-phone screenshots and submit the verified version for review
