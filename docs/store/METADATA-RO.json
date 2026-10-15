@@ -14,7 +14,13 @@
   },
   "google": {
     "title": "NITIDO — Curățenie",
-    "shortDescription": "Configurează curățenia și urmărește firma și etapele rezervării."
+    "shortDescription": "Rezervă servicii de curățenie și urmărește lucrările din contul tău.",
+    "fullDescription": "NITIDO este o aplicație pentru solicitarea și gestionarea serviciilor de curățenie prestate de firme în România. Este destinată clienților care au nevoie de curățenie și firmelor care preiau lucrări prin platformă.\n\nPentru clienți:\n• Creezi un cont și completezi detaliile solicitării: spațiul, suprafața, adresa, data și ora.\n• Consulți prețul afișat înainte de confirmarea solicitării.\n• În modul Standard, vezi ofertele disponibile și alegi firma de curățenie.\n• Urmărești starea lucrării din cont: acceptare, sosire și finalizare.\n• Comunici cu firma în conversația asociată lucrării și consulți fotografiile disponibile pentru rezervarea ta.\n• După finalizarea lucrării, poți lăsa o evaluare a serviciului.\n\nPentru firmele de curățenie:\n• Înregistrezi firma și completezi profilul și zonele de acoperire.\n• După verificarea necesară, consulți solicitările eligibile din zonele acoperite.\n• Gestionezi lucrările acceptate și programările.\n• Documentezi sosirea și finalizarea prin fotografiile solicitate în aplicație.\n\nServiciile de curățenie sunt efectuate la adresa indicată de client. Disponibilitatea și preluarea unei lucrări depind de localitate, programare și firmele eligibile. Adresa poate fi introdusă manual; accesul la localizare este opțional.\n\nSuport: support@nitido.ro\nInformații și condiții: https://nitido.ro",
+    "status": "metadata_correction_prepared_not_submitted",
+    "rejectionObservedOn": "2026-10-14",
+    "rejectionField": "Romanian full description",
+    "rejectedConsoleTextVerified": false,
+    "rejectionEvidenceQuote": "Full description (ro): \"Descriere completă: \""
   },
   "shared": {
     "fullDescription": "NITIDO conectează clienții cu firme de curățenie și organizează rezervările într-un singur cont.\n\nPentru clienți:\n• Configurezi serviciul, suprafața și programarea.\n• Consulți suma afișată înainte de confirmare.\n• În Standard, consulți ofertele și alegi firma. Express depinde de disponibilitatea firmelor eligibile.\n• Urmărești starea rezervării și informațiile disponibile despre lucrare.\n• Comunici în contextul rezervării și consulți fotografiile asociate etapelor autorizate.\n• După finalizare, poți evalua serviciul prestat.\n\nPentru firme:\n• Completezi profilul și zonele de acoperire și parcurgi verificarea necesară.\n• Consulți lucrările eligibile și organizezi programările și echipa.\n• Documentezi sosirea și finalizarea conform cerințelor lucrării.\n\nAdresa exactă și fotografiile private sunt disponibile numai participanților autorizați. Locația pentru completarea rezervării este opțională; adresa poate fi introdusă manual.\n\nDisponibilitatea serviciilor și preluarea unei lucrări depind de localitate, programare și firmele eligibile. NITIDO nu garantează o firmă disponibilă instant pentru orice solicitare.\n\nSuport: support@nitido.ro\nInformații și condiții: https://nitido.ro",
@@ -47,7 +53,8 @@
     "appleSubtitleCharacters": 22,
     "appleKeywordsUtf8Bytes": 64,
     "googleTitleCharacters": 18,
-    "googleShortCharacters": 64,
-    "fullDescriptionCharacters": 1191
+    "googleShortCharacters": 68,
+    "fullDescriptionCharacters": 1191,
+    "googleFullDescriptionCharacters": 1330
   }
 }

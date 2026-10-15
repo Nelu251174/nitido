@@ -29,32 +29,18 @@ iOS build 1.
 
 ## Textele pentru magazine (RO)
 
-**Nume aplicație:** NITIDO — Curățenie la cerere
+Folosește pachetul canonic [METADATA-RO.json](store/METADATA-RO.json) și
+[STORE-METADATA-RO.md](store/STORE-METADATA-RO.md), cu descrierea Google corectată
+la 14 octombrie 2026. Pentru Google se folosesc câmpurile `google.title`,
+`google.shortDescription` și `google.fullDescription`.
 
-**Subtitlu (App Store, max 30 caractere):** Firme verificate, preț fix
+Textul istoric din acest ghid a fost retras: promitea preluare garantată în
+60 de minute și folosea formulări ambigue despre urmărirea lucrării și plăți.
+Aceste promisiuni nu trebuie copiate în listarea magazinului. Existența acelui
+text în ghid nu dovedește că el a fost trimis în consola Google.
 
-**Descriere scurtă (Google Play, max 80 caractere):**
-Postezi lucrarea, alegi firma pe calitate. Urgent? Express 60 preia în 60 min.
-
-**Descriere lungă:**
-> NITIDO conectează clienții cu firme de curățenie verificate din România.
->
-> • Postezi lucrarea în câteva minute și vezi prețul estimativ înainte.
-> • Primești oferte de la firme verificate și alegi pe calitate — sau, pentru
->   urgențe, Express 60 îți garantează preluarea în 60 de minute.
-> • Faci poze ghidate ale spațiului (Nitido Scan), ca firma să estimeze corect.
-> • Plată securizată prin card, banii sunt eliberați după finalizarea confirmată.
-> • Urmărești lucrarea live, cu dovezi foto la sosire și la final.
-> • Firmele verificate primesc lucrări în zona lor, fără abonament.
->
-> Prețuri transparente, firme verificate ANAF, plăți prin Stripe.
-
-**Cuvinte-cheie (App Store):** curatenie, firme curatenie, menaj, curatenie apartament, curatenie birou, Bucuresti, Constanta, servicii, cleaning
-
-**Categorie:** Lifestyle (sau Business).
-
-**Ce e nou (prima versiune):** Prima versiune NITIDO: postare lucrări, oferte pe
-calitate, Express 60, Nitido Scan, plată securizată, urmărire live.
+Numele și metadatele Apple rămân în câmpurile `apple` și `shared` ale pachetului;
+această corecție Google nu modifică aplicația iOS aprobată.
 
 ---
 
@@ -68,7 +54,7 @@ calitate, Express 60, Nitido Scan, plată securizată, urmărire live.
 2. În Android Studio: **Build → Generate Signed Bundle / APK → Android App Bundle (.aab)**.
    - La prima dată creezi un **keystore** (fișier de semnare) — păstrează-l în siguranță, e obligatoriu la fiecare update viitor. (Sau folosește „Play App Signing", recomandat de Google.)
 3. Firebase (pentru push): creezi un proiect Firebase cu package `ro.nitido.app`, descarci `google-services.json` și îl pui în `android/app/`.
-4. În **Google Play Console**: creezi aplicația, completezi listarea (textele de mai sus), încarci capturile, setezi content rating și politica de confidențialitate (`nitido.ro/confidentialitate`).
+4. În **Google Play Console**: creezi aplicația, completezi listarea din pachetul canonic, încarci capturile, setezi content rating și politica de confidențialitate (`nitido.ro/confidentialitate`).
 5. Încarci `.aab`-ul pe canalul de **testare internă** întâi (verifici pe telefonul tău), apoi promovezi la **Production**.
 6. Trimiți la review. De obicei 1-3 zile.
 
