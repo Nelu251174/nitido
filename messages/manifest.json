@@ -1,9 +1,19 @@
 {
   "complete": true,
   "languages": 9,
-  "locales": ["bg", "hr", "cs", "da", "nl", "en", "fr", "de", "ro"],
+  "locales": [
+    "bg",
+    "hr",
+    "cs",
+    "da",
+    "nl",
+    "en",
+    "fr",
+    "de",
+    "ro"
+  ],
   "targetLanguages": 24,
   "sourceLanguage": "ro",
-  "sourceMessages": 4540,
-  "sourceHash": "f31ace17b56ff52c045b2b9c4e643390701825b1b5ec63e35961c9cce3465493"
+  "sourceMessages": 4538,
+  "sourceHash": "5ba1ea6716a6a57e70741c6c1c64d0ec3c97c3d3863b3f922da413ff575b22e8"
 }
