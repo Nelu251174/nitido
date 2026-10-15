@@ -12,7 +12,7 @@ describe("public navigation", () => {
     expect(siteChrome).toContain("<HomeLogoLink/>");
     expect(homepage).toMatch(/<SiteHeader(?:\s+home)?\s*\/>/);
     expect(homeLogo).toContain('<Link href="/"');
-    expect(homeLogo).toContain('aria-label="NITIDO.RO – Pagina principală"');
+    expect(homeLogo).toContain('aria-label="NITIDO"');
     expect(homeLogo).toContain("focus-visible:ring-2");
     expect(homeLogo).not.toContain('href="#"');
   });
