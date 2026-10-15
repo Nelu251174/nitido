@@ -354,3 +354,12 @@ html{scrollbar-gutter:stable}
 .report-filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;margin:24px 0}.report-filters label{display:flex;flex-direction:column;gap:6px;min-width:160px;flex:1}.report-filters input,.report-filters select{width:100%;min-height:44px}.report-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:20px 0}
 
 .organization-create-form input,.organization-create-form>button{height:44px}
+
+/* Public branding and the two booking-mode symbols. */
+.design-header .design-wordmark {
+  border: 1px solid #000;
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+.approved-home .design-mode-standard > svg { color: var(--nitido-brand-dark); }
+.approved-home .design-mode-express > svg { color: #b86e00; }
