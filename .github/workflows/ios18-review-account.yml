@@ -5,6 +5,7 @@ on:
     paths:
       - .github/workflows/ios18-review-account.yml
       - scripts/ios18-prepare-review-account.py
+      - docs/store/ios18-review-repair-public.pem
 permissions:
   contents: read
 jobs:
