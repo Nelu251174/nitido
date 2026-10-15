@@ -2,11 +2,10 @@
 // App Review client can be inserted/updated; normal users/admin configuration stay intact.
 function applyReviewClient(db, input) {
   const crypto = require('node:crypto');
-  const bcrypt = require('bcryptjs');
   if (input.e !== 'apple-review-ios18@nitido.ro' || !/^\$2[aby]\$12\$[./A-Za-z0-9]{53}$/.test(input.h)) throw Error('INVALID_REVIEW_SCOPE');
   if (input.p != null && (typeof input.p !== 'string' || input.p.length > 40)) throw Error('INVALID_REVIEW_PHONE');
     db.pragma('foreign_keys = ON');
-    if (db.pragma('integrity_check', {simple: true}) !== 'ok' || bcrypt.getRounds(input.h) !== 12) throw Error('PRECHECK_FAILED');
+    if (db.pragma('integrity_check', {simple: true}) !== 'ok') throw Error('PRECHECK_FAILED');
     const counts = () => ['firms','jobs','payments'].map(t => db.prepare('SELECT COUNT(*) n FROM ' + t).get().n);
     const before = JSON.stringify(counts());
     const existing = db.prepare('SELECT id,role,name FROM users WHERE email=?').get(input.e);
@@ -30,11 +29,12 @@ function applyReviewClient(db, input) {
 module.exports = {applyReviewClient};
 if (require.main === module) (async () => {
   const Database = require('better-sqlite3');
+  await require('node:fs/promises').mkdir('/app/data/backups', {recursive:true,mode:0o700});
   const {verifyDatabaseBackup} = await import('file:///app/scripts/verify-database-backup.mjs');
   const backup = '/app/data/backups/ios18-review-' + Date.now();
   const verified = await verifyDatabaseBackup('/app/data/nitido.db', backup);
   if (verified.status !== 'passed') throw Error('BACKUP_NOT_VERIFIED');
   const db = new Database('/app/data/nitido.db');
-  try { console.log(JSON.stringify({...applyReviewClient(db, JSON.parse(process.argv[2])),backupVerified:true})); }
+  try { console.log(JSON.stringify({...applyReviewClient(db, JSON.parse(Buffer.from(process.argv[2],'base64').toString('utf8'))),backupVerified:true})); }
   finally { db.close(); }
 })().catch(() => { console.error('REVIEW_CLIENT_PROVISION_FAILED'); process.exitCode=1; });
