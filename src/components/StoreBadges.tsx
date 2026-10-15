@@ -95,7 +95,10 @@ export function PhoneAppPromo() {
               <GooglePlayBadge className={badgeClass} />
             </UiElement>
           ) : (
-            <GooglePlayBadge className={`${badgeClass} opacity-80`} />
+            <span className="inline-flex flex-col items-center gap-1">
+              <GooglePlayBadge className={`${badgeClass} opacity-80`} />
+              <small className="text-[11px] text-[#f5a623]"><UiText text={"ÎN CURÂND"}/></small>
+            </span>
           )}
         </div>
         <p className="mt-4 text-[11px] leading-5 text-[#5f6b63]"><UiText text={"Google Play și sigla Google Play sunt mărci comerciale ale Google LLC. Apple și sigla Apple sunt mărci comerciale ale Apple Inc."}/></p>

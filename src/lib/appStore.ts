@@ -6,7 +6,9 @@
 //   NEXT_PUBLIC_APP_STORE_URL = https://apps.apple.com/...
 //   NEXT_PUBLIC_PLAY_STORE_URL = https://play.google.com/store/apps/details?id=...
 //
-// Cât timp nu sunt setate, butonul afișează starea „în curând" (pre-lansare).
+// iOS is approved: use its published, country-neutral Apple URL by default.
+// Google Play stays unavailable until its own release URL is configured.
+export const PUBLISHED_APP_STORE_URL = "https://apps.apple.com/app/id6810752486";
 
 export interface AppStoreLinks {
   appStore: string | null;
@@ -27,7 +29,7 @@ export function resolveAppStoreLinks(
 /** Linkurile din env public (inline la build de Next). */
 export function appStoreLinks(): AppStoreLinks {
   return resolveAppStoreLinks(
-    process.env.NEXT_PUBLIC_APP_STORE_URL,
+    process.env.NEXT_PUBLIC_APP_STORE_URL?.trim() || PUBLISHED_APP_STORE_URL,
     process.env.NEXT_PUBLIC_PLAY_STORE_URL
   );
 }
