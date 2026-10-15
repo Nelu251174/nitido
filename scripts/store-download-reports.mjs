@@ -17,9 +17,13 @@ export function readDelimited(text,delimiter){
 }
 function count(value){if(!/^-?\d+$/.test(value??'')||!Number.isSafeInteger(Number(value))||Math.abs(Number(value))>1e9)throw Error('INVALID_REPORT_COUNT');return Number(value);}
 function country(value){if(!/^[A-Z]{2}$/.test(value??''))throw Error('INVALID_REPORT_COUNTRY');return value;}
-export function parseAppleReport(text){
- if(!['Apple Identifier','Product Type Identifier','Country Code','Units'].every(h=>text.split(/\r?\n/,1)[0].replace(/^\uFEFF/,'').split('\t').includes(h)))throw Error('INVALID_REPORT_SCHEMA');
+export function parseAppleReport(text,expectedDate){
+ if(!['Apple Identifier','Product Type Identifier','Country Code','Units',...(expectedDate?['Begin Date','End Date']:[])].every(h=>text.split(/\r?\n/,1)[0].replace(/^\uFEFF/,'').split('\t').includes(h)))throw Error('INVALID_REPORT_SCHEMA');
  const totals=new Map();for(const r of readDelimited(text,'\t')){
+  if(expectedDate)for(const column of ['Begin Date','End Date']){
+   const parts=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(r[column]??'');
+   if(!parts||`${parts[3]}-${parts[1]}-${parts[2]}`!==expectedDate)throw Error('APPLE_REPORT_DATE_MISMATCH');
+  }
   if(r['Apple Identifier']!==APPLE_ID)continue;
   const first=['1','1F','1T'].includes(r['Product Type Identifier']),again=['3','3F','3T'].includes(r['Product Type Identifier']);if(!first&&!again)continue;
   const code=country(r['Country Code']),n=count(r.Units);if(n<0)throw Error('NEGATIVE_APP_UNITS');
@@ -52,7 +56,7 @@ export async function collectApple(date,{env=process.env,request=fetch,now=Date.
   const response=await boundedFetch('https://api.appstoreconnect.apple.com/v1/salesReports?'+query,{headers},request);
   if(!response.ok)return missing('apple',date,'APPLE_REPORT_HTTP_'+response.status,response.status===404?'pending':'blocked');
   const data=await bytes(response),decoded=data[0]===31&&data[1]===139?gunzipSync(data,{maxOutputLength:32*1024*1024}):data;
-  return {source:'apple',reportDate:date,status:'ready',metric:'app_units',countries:parseAppleReport(decoded.toString('utf8'))};
+  return {source:'apple',reportDate:date,status:'ready',metric:'app_units',countries:parseAppleReport(decoded.toString('utf8'),date)};
  }catch{return missing('apple',date,'APPLE_REPORT_UNCONFIRMED');}
 }
 export async function googleMonthlyReport(month,{env=process.env,request=fetch,now=Date.now()}={}){

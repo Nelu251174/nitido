@@ -7,7 +7,7 @@ const delivery:Record<string,string>={pending:'În așteptare',sending:'Se trimi
 export function AdminOwnerNotifications(){
  const [data,setData]=useState<Inbox|null>(null),[error,setError]=useState('');
  const refresh=useCallback(async()=>{try{const r=await fetch('/api/admin/owner-notifications',{cache:'no-store'});if(!r.ok)throw Error();setData(await r.json());setError('');}catch{setError('Alertele nu au putut fi actualizate.');}},[]);
- useEffect(()=>{void refresh();const t=setInterval(()=>{if(!document.hidden)void refresh();},15000);return()=>clearInterval(t);},[refresh]);
+ useEffect(()=>{const first=setTimeout(()=>void refresh(),0);const t=setInterval(()=>{if(!document.hidden)void refresh();},15000);return()=>{clearTimeout(first);clearInterval(t);};},[refresh]);
  async function markRead(){if(!data)return;try{const r=await fetch('/api/admin/owner-notifications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids:data.events.filter(e=>!e.read_ms).map(e=>e.id)})});if(!r.ok)throw Error();await refresh();}catch{setError('Marcarea alertelor nu a fost confirmată.');}}
  return <section id="inscrieri" className="my-6 rounded-2xl border border-slate-200 bg-white p-5 text-slate-900">
   <h2 className="text-xl font-semibold">Înregistrări și descărcări — {data?.unread??'…'} alerte necitite</h2>
