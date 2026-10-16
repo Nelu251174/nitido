@@ -1,0 +1,93 @@
+name: NITIDO iOS 1.0.1 — three screenshots and App Review
+
+# Owner authorized completion of this exact update after build 18 was validated.
+# This does not build/upload another IPA or alter the website source/deployment.
+on:
+  push:
+    branches: [codex/ios-1-0-1-build18]
+    paths:
+      - .github/workflows/ios-1-0-1-review.yml
+      - scripts/ios18-submit-review.py
+      - docs/store/ios-1.0.1-screenshots/**
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  app-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: nitido-ios-1-0-1-review
+      cancel-in-progress: false
+    env:
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      IOS18_EVIDENCE: ${{ github.workspace }}/release-receipts/ios18-release-evidence.json
+      IOS18_SCREENSHOTS: ${{ github.workspace }}/docs/store/ios-1.0.1-screenshots
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify the completed exact build run
+        env:
+          PROVENANCE_GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import json,os,urllib.request
+          req=urllib.request.Request('https://api.github.com/repos/Nelu251174/nitido/actions/runs/38739188573',headers={'Authorization':'Bearer '+os.environ['PROVENANCE_GH_TOKEN'],'Accept':'application/vnd.github+json'})
+          with urllib.request.urlopen(req,timeout=30) as response: run=json.load(response)
+          assert run['conclusion']=='success' and run['head_sha']=='0cc1ae6c8443f770878259fa472b0368dd2cc9a8'
+          print('Exact signed build/upload/processing run completed successfully.')
+          PY
+
+      - name: Retrieve only the public signed-build receipts
+        uses: actions/download-artifact@v4
+        with:
+          name: nitido-ios18-public-receipts
+          run-id: 38739188573
+          github-token: ${{ github.token }}
+          path: release-receipts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate signed-build evidence and test submission guards
+        run: |
+          node scripts/mobile-release-gate.mjs "$IOS18_EVIDENCE" ios 39b9fa6c4a9f9f78e89bd173832d4ef66ec9a79e 18 beta
+          python3 scripts/ios18-release-control.test.py
+          python3 scripts/ios18-submit-review.test.py
+          python3 - <<'PY'
+          import json
+          report=json.load(open('release-receipts/ios18-apple-confirmation.json'))
+          assert report['build']=='18' and report['version']=='1.0.1' and report['buildSelected'] and report['processingState']=='VALID'
+          PY
+
+      - name: Prepare temporary Apple API authentication
+        env:
+          ASC_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          python3 -m pip install --quiet pyjwt cryptography
+          umask 077
+          ASC_KEY_PATH="$RUNNER_TEMP/nitido-ios18-review-key.p8"
+          printf '%s\n' "ASC_KEY_PATH=$ASC_KEY_PATH" >> "$GITHUB_ENV"
+          printf '%s' "$ASC_KEY" > "$ASC_KEY_PATH"
+
+      - name: Complete large-phone screenshots and submit the verified version for review
+        run: python3 scripts/ios18-submit-review.py
+
+      - name: Retain public metadata/submission receipts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nitido-ios18-app-review-receipts
+          path: ${{ runner.temp }}/ios18-*.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Remove temporary Apple API key
+        if: ${{ always() }}
+        run: rm -f "$ASC_KEY_PATH"

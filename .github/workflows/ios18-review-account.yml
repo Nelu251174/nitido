@@ -1,0 +1,35 @@
+name: NITIDO dedicated Apple review client preparation
+on:
+  push:
+    branches: [codex/ios-1-0-1-build18]
+    paths:
+      - .github/workflows/ios18-review-account.yml
+      - scripts/ios18-prepare-review-account.py
+      - docs/store/ios18-review-repair-public.pem
+permissions:
+  contents: read
+jobs:
+  prepare-review-client:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Prepare private Apple authentication
+        env:
+          ASC_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          python3 -m pip install --quiet pyjwt cryptography bcrypt
+          umask 077
+          ASC_KEY_PATH="$RUNNER_TEMP/ios18-account-review-key.p8"
+          printf '%s\n' "ASC_KEY_PATH=$ASC_KEY_PATH" >> "$GITHUB_ENV"
+          printf '%s' "$ASC_KEY" > "$ASC_KEY_PATH"
+      - name: Prepare dedicated client credentials in App Store Connect and encrypted verifier handoff
+        run: python3 scripts/ios18-prepare-review-account.py
+      - name: Remove temporary Apple key
+        if: ${{ always() }}
+        run: rm -f "$ASC_KEY_PATH"
