@@ -5,7 +5,7 @@ const sourceMetadata = publicPageMetadata("/cookie-uri");
 const content = {
   "eyebrow": "COOKIE-URI ȘI STOCARE LOCALĂ",
   "title": "Cookie-uri și date păstrate în browser: ce fac și cum le controlezi",
-  "intro": "Această pagină descrie mecanismele folosite de versiunea aplicației revizuită la 24 septembrie 2026: autentificare, preferințe locale, rezervări în curs și interacțiuni cu furnizori externi. Cookie-urile și stocarea locală au roluri diferite; ștergerea lor poate schimba modul în care funcționează contul pe dispozitivul respectiv.",
+  "intro": "Informații despre autentificare, preferințe locale și cookie-uri publicitare.",
   "sections": [
     {
       "title": "Ce este un cookie și de ce este folosit",
@@ -38,8 +38,8 @@ const content = {
     {
       "title": "Analiză de trafic și publicitate",
       "paragraphs": [
-        "În versiunea de cod revizuită nu sunt identificate integrări generale de analytics sau pixeli de marketing pe paginile informaționale. Acest lucru nu înseamnă că serverul nu prelucrează informații tehnice necesare funcționării și securității, cum ar fi solicitările și erorile.",
-        "Un eventual instrument nou trebuie descris înainte de utilizare. Pentru stocarea ori accesarea informațiilor care nu sunt strict necesare serviciului solicitat, se aplică cerințele legale privind informarea și consimțământul. Cookie-urile necesare autentificării nu trebuie confundate cu cele pentru publicitate."
+        "Eticheta Google Ads se încarcă pe paginile publice din browser numai după acceptarea cookie-urilor publicitare. Poți refuza sau modifica alegerea din „Preferințe cookie-uri” din subsolul site-ului.",
+        "Alegerea este păstrată local timp de șase luni. Google Ads poate folosi cookie-uri cu prefixul _gcl_ pentru atribuirea reclamelor. Personalizarea reclamelor și conversiile optimizate sunt dezactivate. Refuzul nu afectează autentificarea sau rezervările."
       ]
     },
     {

@@ -362,3 +362,13 @@ html{scrollbar-gutter:stable}
 }
 .approved-home .design-mode-standard > svg { color: var(--nitido-brand-dark); }
 .approved-home .design-mode-express > svg { color: #b86e00; }
+
+/* Consent controls stay separate from the mobile account navigation. */
+.nitido-cookie-consent { position:fixed; z-index:10000; inset:auto 16px calc(16px + env(safe-area-inset-bottom)) auto; width:min(580px,calc(100% - 32px)); max-height:70dvh; overflow:auto; padding:20px; background:#fff; color:#111827; border:1px solid #cbd5e1; border-radius:16px; box-shadow:0 8px 40px #11182730; font:400 14px/1.5 var(--font-inter),sans-serif; }
+.nitido-cookie-consent h2 { margin:0 0 8px; font-size:18px; font-weight:700; }
+.nitido-cookie-consent p { margin:0 0 16px; }
+.nitido-cookie-consent a { color:#006b43; text-decoration:underline; }
+.nitido-cookie-consent > div { display:flex; flex-wrap:wrap; gap:10px; }
+.nitido-cookie-consent button { flex:1 1 200px; padding:11px 14px; background:#fff; border:1px solid #006b43; border-radius:8px; color:#006b43; cursor:pointer; font-weight:600; }
+.nitido-cookie-consent button:focus-visible { outline:3px solid #006b43; outline-offset:3px; }
+.nitido-cookie-consent button:hover { background:#eaf7f1; }

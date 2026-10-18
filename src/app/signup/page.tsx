@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Field, inputClass, Button } from "@/components/ui";
 import { AuthLayout } from "@/components/AuthLayout";
 import { EmailVerificationNotice } from "@/components/EmailVerificationNotice";
+import {trackCompanySignup} from "@/lib/googleAds";
 import {postAuthDestination,authSwitchHref} from "@/lib/authRedirect";
 
 export default function SignupPage() {
@@ -70,6 +71,8 @@ function SignupForm() {
         role,
         destination: postAuthDestination(searchParams.get("next"), role),
       });
+      // Measurement must never affect creation or the confirmation screen.
+      try { if (res.status === 201 && data.ok === true && data.role === "firma") trackCompanySignup("firma"); } catch { /* Optional measurement. */ }
       setPassword("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Eroare necunoscută");

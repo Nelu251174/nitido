@@ -7,6 +7,7 @@ import "./mobile-layout.css";
 import "./pro.css";
 import "./workspace-theme.css";
 import "@fontsource-variable/instrument-sans";
+import { GoogleAdsConsent } from "@/components/GoogleAdsConsent";
 import { WebAlerts } from "@/components/WebAlerts";
 import { PwaProvider } from "@/components/PwaProvider";
 import {NextIntlClientProvider} from 'next-intl';
@@ -109,6 +110,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <PwaProvider />
         <WebAlerts />
+        <GoogleAdsConsent conversionLabel={process.env.GOOGLE_ADS_COMPANY_SIGNUP_LABEL} />
         </NextIntlClientProvider>
       </body>
     </html>
