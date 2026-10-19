@@ -67,7 +67,7 @@ export function PhoneAppPromo() {
         </p>
         <div className="store-badges mt-5 flex flex-wrap items-start gap-6">
           {links.appStore ? (
-            <UiElement as="a" className="inline-flex shrink-0 rounded-[7px]" href={links.appStore} target="_blank" rel="noopener noreferrer" aria-label="Descărcați de pe App Store">
+            <UiElement as="a" className="inline-flex shrink-0 rounded-[7px]" href={links.appStore} aria-label="Descărcați de pe App Store">
               <AppStoreBadge className={badgeClass} />
             </UiElement>
           ) : (
