@@ -7,7 +7,7 @@
 //   NEXT_PUBLIC_PLAY_STORE_URL = https://play.google.com/store/apps/details?id=...
 //
 // Published store pages stay available when no deployment override is set.
-export const PUBLISHED_APP_STORE_URL = "https://apps.apple.com/app/id6810752486";
+export const PUBLISHED_APP_STORE_URL = "https://apps.apple.com/ro/app/nitido-cur%C4%83%C8%9Benie/id6810752486";
 export const PUBLISHED_PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=ro.nitido.app";
 
 export interface AppStoreLinks {
