@@ -6,9 +6,9 @@
 //   NEXT_PUBLIC_APP_STORE_URL = https://apps.apple.com/...
 //   NEXT_PUBLIC_PLAY_STORE_URL = https://play.google.com/store/apps/details?id=...
 //
-// iOS is approved: use its published, country-neutral Apple URL by default.
-// Google Play stays unavailable until its own release URL is configured.
+// Published store pages stay available when no deployment override is set.
 export const PUBLISHED_APP_STORE_URL = "https://apps.apple.com/app/id6810752486";
+export const PUBLISHED_PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=ro.nitido.app";
 
 export interface AppStoreLinks {
   appStore: string | null;
@@ -30,7 +30,7 @@ export function resolveAppStoreLinks(
 export function appStoreLinks(): AppStoreLinks {
   return resolveAppStoreLinks(
     process.env.NEXT_PUBLIC_APP_STORE_URL?.trim() || PUBLISHED_APP_STORE_URL,
-    process.env.NEXT_PUBLIC_PLAY_STORE_URL
+    process.env.NEXT_PUBLIC_PLAY_STORE_URL?.trim() || PUBLISHED_PLAY_STORE_URL
   );
 }
 
