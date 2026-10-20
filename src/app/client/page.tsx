@@ -1,4 +1,7 @@
 "use client";
+import {BOOKING_DURATION_NOTICE,BOOKING_TEAM_NOTICE} from "@/lib/bookingTerms";
+import {CREDIT_POLICY_NOTICE} from "@/lib/referral";
+import {calcServiceDuration} from "@/lib/pricing";
 import {UiSpaceType} from '@/components/UiText';
 import {useLocale} from 'next-intl';
 import {UiDate} from '@/components/UiDate';
@@ -666,7 +669,7 @@ export default function ClientPage() {
             {hostEventId&&<p role="status" className="mb-4 rounded-xl border border-aqua bg-mist p-4 text-sm"><UiText text={"Curățenie între rezervări. Proprietatea și intervalul sunt verificate din nou la publicare. "}/><Link href="/client/host" className="underline"><UiText text={"Înapoi la calendar"}/></Link></p>}
             {draftNotice&&<p role="status" className="mb-4 rounded-xl border border-aqua bg-mist p-4 text-sm">{draftNotice}</p>}
             <h1 className="font-display font-extrabold text-xl text-ink mb-1"><UiText text={"Postează o lucrare"}/></h1>
-            <p className="text-sm text-muted mb-5 leading-relaxed"><UiText text={"Completează detaliile — vezi prețul instant, apoi firmele din zonă primesc alerta."}/></p>
+            <p className="text-sm text-muted mb-5 leading-relaxed"><UiText text={"Completează detaliile — vezi prețul înainte de publicare."}/></p><p className="text-sm text-muted mb-3"><UiText text={BOOKING_DURATION_NOTICE}/></p>{Number.isFinite(Number(sqm))&&Number(sqm)>0&&validWindowsSqm(windowsSqm)&&<p className="text-sm text-muted mb-3"><UiText text={"Intervenție programată la locație: "}/>{calcServiceDuration(Number(sqm),windowsSqm)}<UiText text={" minute, plus buffer separat."}/></p>}<p className="text-sm text-muted mb-3"><UiText text={BOOKING_TEAM_NOTICE}/></p><p className="text-sm text-muted mb-3"><UiText text={CREDIT_POLICY_NOTICE}/></p>
 
             <Field label="Instrucțiuni speciale (opțional)"><UiElement as="textarea" className={inputClass} rows={3} maxLength={500} value={details} onChange={e=>setDetails(e.target.value)} placeholder="Materiale sensibile, animale de companie, preferințe de curățenie…"/><small>{details.length}<UiText text={"/500 · Vizibile firmei după alocare. Nu introduce coduri de acces sau parole."}/></small></Field>
             <BookingAddressLocation address={{city,street,postalCode}} onDetected={value=>{setCity(value.city);setStreet(value.street);setPostalCode(value.postalCode)}} enabled={!propertyId&&!hostEventId&&!new URLSearchParams(typeof window!=="undefined"?window.location.search:"").has("propertyId")}/><Field label="Stradă și număr">
@@ -725,7 +728,7 @@ export default function ClientPage() {
                 className={`text-left p-3 rounded-xl border ${mode === "express" ? "border-coral bg-coral/10" : "border-line"}`}
               >
                 <span className="block font-display font-bold text-xs text-ink"><UiText text={"⚡ Express (urgent)"}/></span>
-                <span className="block text-[11px] text-muted mt-0.5 leading-tight"><UiText text={"Prima firmă disponibilă preia imediat."}/></span>
+                <span className="block text-[11px] text-muted mt-0.5 leading-tight"><UiText text={"Preluare de o firmă eligibilă, în funcție de disponibilitate și de acceptarea validă."}/></span>
               </button>
             </div>
 

@@ -1,4 +1,5 @@
-import {jobPhotoRules,freezeExecutionRules} from '@/lib/executionTemplates';
+import {bookingTerms} from '@/lib/bookingTerms';
+import {jobExecutionRules,jobPhotoRules,freezeExecutionRules} from '@/lib/executionTemplates';
 import {configuredServiceMarket,ServiceMarketError} from '@/lib/serviceMarkets';
 import {assertCustomerCanCreate,CustomerRestrictionError} from '@/lib/customerRestrictions';
 import {jobAssistedOperation} from '@/lib/assistedOperations';
@@ -22,6 +23,7 @@ import { db, newId, getFirmByUserId } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import {
   AUTOMATIC_MAX_SQM,
+  MIN_CLEANING_DURATION_MINUTES,
   calcServicePrice,
   calcServiceDuration,
   validWindowsSqm,
@@ -338,6 +340,13 @@ export async function POST(req: NextRequest) {
       acceptedPrice=accepted.snapshot;
       priceGross=acceptedPrice.grossBani/100;creditUsed=acceptedPrice.creditBani/100;
     }
+    if(!manual&&!managedPricing){
+      const current=db.prepare('SELECT credit_balance FROM users WHERE id=?').get(user.id) as {credit_balance:number}|undefined;
+      if(!current||!Number.isFinite(current.credit_balance)||current.credit_balance<0)throw new MarginError('Soldul creditului necesită verificare.',409);
+      creditUsed=applyCredit(priceGross,current.credit_balance).creditUsed;
+    }
+    if(durationMinutes<MIN_CLEANING_DURATION_MINUTES||acceptedPrice&&acceptedPrice.durationMinutes!==durationMinutes)throw new MarginError("Planul sau oferta necesită reconfirmare pentru minimum 3 ore la locație, fără schimbare automată de preț.",409);
+    if(priceGross-creditUsed<calcNetForFirm(priceGross))throw new MarginError("Creditul necesită reconciliere: totalul afișat nu poate fi autorizat identic prin regula de plată existentă. Nu s-a consumat credit și nu s-a făcut o plată.",409);
     let hostLink:{eventId:string;revision:string}|null=null;
     if(body.hostEventId){
       const replay=turnoverReplay(db,user.id,String(body.hostEventId));if(replay)return {job:replay,replayed:true};
@@ -354,12 +363,14 @@ export async function POST(req: NextRequest) {
     ).run(id,user.id,street,postalCode ?? null,city,floor ?? null,typeof details === "string" ? details.trim() || null : null,requestId,sqm,spaceType,whenType,scheduledAt.toISOString(),priceGross,creditUsed,durationMinutes,bufferMinutes,ownedPhotoIds.length,jobMode,isExpress60?1:0,express60Fee,isExpress60?express60Deadline(new Date().toISOString()).toISOString():null,isExpress60?"pending":null);
     if(body.entrance)db.prepare("INSERT INTO job_navigation(job_id,latitude,longitude,confirmed_at) VALUES(?,?,?,?)").run(id,body.entrance.lat,body.entrance.lng,new Date().toISOString());
     if (card.stripeConfigured) saveJobCard(db,user.id,id,body.cardId);
-    db.prepare("UPDATE jobs SET pricing_snapshot=?, windows_sqm=? WHERE id=?").run(JSON.stringify(manualSnapshot??acceptedPrice??pricingSnapshot({spaceType,sqm,windowsSqm,expressFeeLei:express60Fee,creditLei:creditUsed})),windowsSqm,id);
     if(manual){linkManualOfferJob(db,user.id,body.manualOfferId,id);if(assisted)db.prepare('INSERT INTO assisted_job_plans VALUES(?,?,?)').run(id,body.manualOfferId,body.assistedRevision);}
     if(acceptedPrice)linkBookingQuote(db,user.id,acceptedPrice.quoteId,id);
     let executionScope=jobMode;
     if(manual){const category=db.prepare('SELECT a.payload FROM assessment_offer_jobs l JOIN assessment_offers o ON o.id=l.offer_id JOIN service_assessments a ON a.id=o.assessment_id WHERE l.job_id=?').get(id) as {payload:string};executionScope=JSON.parse(category.payload).category;}
     freezeExecutionRules(db,id,executionScope);
+    const operation=jobAssistedOperation(db,id);
+    const frozenTerms=bookingTerms({durationMinutes,bufferMinutes,grossLei:priceGross,creditLei:creditUsed,inclusions:jobExecutionRules(db,id).items,team:operation?{id:operation.teamId,name:operation.teamName}:null});
+    db.prepare("UPDATE jobs SET pricing_snapshot=?, windows_sqm=? WHERE id=?").run(JSON.stringify({...manualSnapshot??acceptedPrice??pricingSnapshot({spaceType,sqm,windowsSqm,expressFeeLei:express60Fee,creditLei:creditUsed}),bookingTerms:frozenTerms}),windowsSqm,id);
     if (ownedPhotoIds.length > 0) {
       const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL AND NOT EXISTS(SELECT 1 FROM assessment_photos a WHERE a.photo_id=job_photos.id)");
       for (const photoId of ownedPhotoIds) linkPhoto.run(id, photoId, user.id);

@@ -10,6 +10,7 @@ export const PLATFORM_COMMISSION = 0.18; // 18% comision platformă, fix — spe
 
 export const SLOT_HOURS = [8, 10, 12, 14, 16, 18] as const;
 export const MIN_LEAD_HOURS = 1; // prag minim obligatoriu (anunț minim înainte de ora programată) — spec secțiunea 5d
+export const MIN_CLEANING_DURATION_MINUTES = 180; // New bookings: on-site team time, not person-hours.
 export const BUFFER_MINUTES = 30; // buffer obligatoriu între lucrări consecutive — spec secțiunea 5d
 
 export const APARTMENT_TIERS: { max: number; price: number }[] = [
@@ -82,10 +83,7 @@ export function calcNetForFirm(grossPrice: number): number {
  */
 export function calcDurationMinutes(sqm: number): number {
   if (!Number.isFinite(sqm) || sqm <= 0) throw new Error("Suprafața trebuie să fie pozitivă");
-  if (sqm <= 40) return 90;
-  if (sqm <= 60) return 120;
-  if (sqm <= 80) return 150;
-  if (sqm <= 100) return 180;
+  if (sqm <= 100) return MIN_CLEANING_DURATION_MINUTES;
   const extraChunks = Math.ceil((sqm - 100) / 40);
   return 180 + extraChunks * 30;
 }

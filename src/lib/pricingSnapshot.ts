@@ -1,9 +1,10 @@
+import {bookingTerms} from './bookingTerms';
 import {calcGrossPrice,calcWindowsPrice,calcServiceDuration,PRICING_VERSION,BUFFER_MINUTES,type SpaceType} from './pricing';
 import {configuredServiceMarket} from './serviceMarkets';
 
 // Identifies the existing tariff; changing prices requires a new version.
 export {PRICING_VERSION} from './pricing';
-export function pricingSnapshot(input:{spaceType:SpaceType;sqm:number;windowsSqm?:number;expressFeeLei:number;creditLei:number;createdAt?:string;countryCode?:unknown;currency?:unknown}){
+export function pricingSnapshot(input:{spaceType:SpaceType;sqm:number;windowsSqm?:number;expressFeeLei:number;creditLei:number;createdAt?:string;countryCode?:unknown;currency?:unknown;inclusions?:readonly {key:string;label:string}[]}){
  const market=configuredServiceMarket(input);
  const {spaceType,sqm,expressFeeLei,creditLei}=input;
  if(!['apartament','casa','birou','altul'].includes(spaceType)||!Number.isSafeInteger(sqm)||sqm<=0)throw new Error('Parametri de tarif invalizi');
@@ -14,7 +15,7 @@ export function pricingSnapshot(input:{spaceType:SpaceType;sqm:number;windowsSqm
  if(!Number.isSafeInteger(total)||credit>total)throw new Error('Credit invalid');
  const createdAt=input.createdAt??new Date().toISOString();
  if(!Number.isFinite(Date.parse(createdAt)))throw new Error('Dată invalidă');
- return {version:PRICING_VERSION,...market,recordedAt:createdAt,spaceType,sqm,windowsSqm,durationMinutes:calcServiceDuration(sqm,windowsSqm),bufferMinutes:BUFFER_MINUTES,lines:[{code:'cleaning',amountBani:service},...(windows>0?[{code:'windows',amountBani:windows}]:[]),{code:'express60',amountBani:extra},{code:'platform_credit',amountBani:-credit}],grossBani:total,creditBani:credit,clientTotalBani:total-credit};
+ return {bookingTerms:bookingTerms({durationMinutes:calcServiceDuration(sqm,windowsSqm),bufferMinutes:BUFFER_MINUTES,grossLei:total/100,creditLei:credit/100,inclusions:input.inclusions}),version:PRICING_VERSION,...market,recordedAt:createdAt,spaceType,sqm,windowsSqm,durationMinutes:calcServiceDuration(sqm,windowsSqm),bufferMinutes:BUFFER_MINUTES,lines:[{code:'cleaning',amountBani:service},...(windows>0?[{code:'windows',amountBani:windows}]:[]),{code:'express60',amountBani:extra},{code:'platform_credit',amountBani:-credit}],grossBani:total,creditBani:credit,clientTotalBani:total-credit};
 }
 
 export const PRICING_SNAPSHOT_LOCK_SQL=`CREATE TRIGGER IF NOT EXISTS jobs_pricing_snapshot_immutable BEFORE UPDATE OF pricing_snapshot ON jobs WHEN OLD.pricing_snapshot IS NOT NULL AND NEW.pricing_snapshot IS NOT OLD.pricing_snapshot BEGIN SELECT RAISE(ABORT, 'Published pricing snapshot is immutable'); END;`;

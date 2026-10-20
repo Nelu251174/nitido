@@ -24,8 +24,8 @@ describe("applyCredit", () => {
   it("scade creditul disponibil din preț", () => {
     expect(applyCredit(400, 20)).toEqual({ finalPrice: 380, creditUsed: 20 });
   });
-  it("nu lasă prețul să scadă sub zero — plafonează la valoarea lucrării", () => {
-    expect(applyCredit(15, 20)).toEqual({ finalPrice: 0, creditUsed: 15 });
+  it("plafonează creditul la partea platformei, păstrând remunerația firmei", () => {
+    expect(applyCredit(15, 20)).toEqual({ finalPrice: 12, creditUsed: 3 });
   });
   it("fără credit disponibil, prețul rămâne neschimbat", () => {
     expect(applyCredit(400, 0)).toEqual({ finalPrice: 400, creditUsed: 0 });
@@ -37,3 +37,5 @@ describe("applyCredit", () => {
     expect(REFERRAL_BONUS_LEI).toBe(20);
   });
 });
+
+it('applies only 99 of 150 lei credit to 550 lei; 51 remains available',()=>{const result=applyCredit(550,150);expect(result).toEqual({finalPrice:451,creditUsed:99});expect(150-result.creditUsed).toBe(51)});

@@ -50,10 +50,10 @@ describe("calcNetForFirm — comision 18% (spec secțiunea 7)", () => {
 
 describe("calcDurationMinutes / calcBlockedMinutes (spec secțiunea 5d)", () => {
   it.each([
-    [30, 90],
-    [40, 90],
-    [55, 120],
-    [70, 150],
+    [30, 180],
+    [40, 180],
+    [55, 180],
+    [70, 180],
     [95, 180],
     [140, 210], // 100 + 40 => +30 min peste 180
     [180, 240], // 100 + 80 => +60 min peste 180
@@ -62,7 +62,7 @@ describe("calcDurationMinutes / calcBlockedMinutes (spec secțiunea 5d)", () => 
   });
 
   it("blocked = durată + buffer 30 min", () => {
-    expect(calcBlockedMinutes(75)).toBe(150 + 30);
+    expect(calcBlockedMinutes(75)).toBe(180 + 30);
   });
 });
 
