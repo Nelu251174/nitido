@@ -31,5 +31,5 @@ Rollback cod: dezactivarea runnerului nou, revenire la pinul 77396f8 și redeplo
 ## Limite care rămân
 
 - Nu există dispozitiv fizic Android/iPhone, adb, emulator sau Xcode în mediul de execuție. Verificarea nativă login/cameră/deep link/revenire din plată rămâne BLOCATĂ. Shellul Capacitor din repository încarcă nitido.ro; asta nu dovedește versiunea binarului instalat pe telefon.
-- Nu există evidențe suficiente despre efectivul și costul real al echipelor. Nu se deduce numărul de persoane din conturile firmei și nu se declară marjă netă din comisionul de 18%.
+- Clarificare a proprietarului, ulterioară acestui lot: firma care acceptă lucrarea decide personalul și suportă propriile costuri. Aceste date nu sunt o condiție pentru prețul automat sau acceptarea lucrării. Lipsa lor nu mai reprezintă un blocaj al implementării. Comisionul de 18% rămâne distinct de profitul net.
 - Prețurile existente se păstrează. Finalizarea validă nu este prelungită artificial și nu se facturează ore fictive. Nu se activează taxe noi, operațiuni suplimentare sau o nouă politică de taxare la finalizarea anticipată.
