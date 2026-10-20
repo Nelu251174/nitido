@@ -1,7 +1,8 @@
-import {freezeExecutionRules} from '@/lib/executionTemplates';
+import {bookingTerms} from './bookingTerms';
+import {jobExecutionRules,freezeExecutionRules} from '@/lib/executionTemplates';
 import type { Database } from "better-sqlite3";
 import { randomUUID } from "node:crypto";
-import { calcServiceDuration, BUFFER_MINUTES } from "@/lib/pricing";
+import { calcServiceDuration, BUFFER_MINUTES,MIN_CLEANING_DURATION_MINUTES,PRICING_VERSION } from "@/lib/pricing";
 
 /**
  * Nitido Guaranteed (Etapa 3) — re-curățare gratuită.
@@ -62,7 +63,7 @@ export function requestReclean(
   if (existing) return { ok: false, error: "Ai cerut deja o re-curățare pentru această lucrare", status: 409 };
 
   const newId = `job_${randomUUID()}`;
-  const duration = job.duration_minutes ?? calcServiceDuration(job.sqm, job.windows_sqm ?? 0);
+  const duration = Math.max(MIN_CLEANING_DURATION_MINUTES,job.duration_minutes ?? calcServiceDuration(job.sqm, job.windows_sqm ?? 0));
   const assignFirm = job.accepted_firm_id;
   db.prepare(
     `INSERT INTO jobs
@@ -89,6 +90,8 @@ export function requestReclean(
   );
   if (job.windows_sqm) db.prepare("UPDATE jobs SET windows_sqm = ? WHERE id = ?").run(job.windows_sqm, newId);
   freezeExecutionRules(db,newId,'standard',jobId);
+  const terms=bookingTerms({durationMinutes:duration,bufferMinutes:BUFFER_MINUTES,grossLei:0,creditLei:0,inclusions:jobExecutionRules(db,newId).items});
+  db.prepare('UPDATE jobs SET pricing_snapshot=? WHERE id=?').run(JSON.stringify({version:PRICING_VERSION,guaranteeOf:jobId,currency:'RON',grossBani:0,creditBani:0,clientTotalBani:0,durationMinutes:duration,bufferMinutes:BUFFER_MINUTES,bookingTerms:terms}),newId);
   return { ok: true, jobId: newId };
  }).immediate();
 }

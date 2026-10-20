@@ -1,4 +1,4 @@
-import {freezeExecutionRules} from '@/lib/executionTemplates';
+import {executionTemplate,freezeExecutionRules} from '@/lib/executionTemplates';
 import {assertCustomerCanCreate,CustomerRestrictionError} from '@/lib/customerRestrictions';
 import {requirePropertyModule,enforceOrganizationBooking,OrganizationError} from "./organizations";
 import {snapshotInstructions,notice} from "./visitCare";
@@ -339,7 +339,7 @@ export async function generateDueRecurringJobs(
         if(scheduled.getTime()>=now.getTime()+3600000&&!paused&&!db.prepare('SELECT 1 FROM recurring_occurrences WHERE plan_id=? AND schedule_generation=? AND occurrence_date=?').get(id,plan.schedule_generation,date)){
           if(db.prepare("SELECT 1 FROM recurring_occurrences o JOIN jobs j ON j.id=o.job_id WHERE o.plan_id=? AND j.scheduled_at=? AND j.status NOT IN ('cancelled','no_show')").get(id,scheduled.toISOString()))throw new AccessError('O vizită existentă ocupă noul interval al seriei. Soluționează reprogramarea înainte de generare.',409);
           const jobId=`job_${randomUUID()}`;
-          const snapshot=pricingSnapshot({spaceType:plan.space_type,sqm:plan.sqm,expressFeeLei:0,creditLei:0,createdAt:now.toISOString()});
+          const snapshot=pricingSnapshot({spaceType:plan.space_type,sqm:plan.sqm,expressFeeLei:0,creditLei:0,createdAt:now.toISOString(),inclusions:executionTemplate(db,'standard').items});
           db.prepare(`INSERT INTO jobs(id,client_id,street,postal_code,city,floor,details,sqm,space_type,when_type,scheduled_at,price_gross,credit_applied,duration_minutes,buffer_minutes,photos_count,mode,status,pricing_snapshot)
             VALUES(?,?,?,?,?,?,?,?,?,'scheduled',?,?,0,?,?,0,'standard','waiting',?)`).run(jobId,plan.client_id,plan.street,plan.postal_code,plan.city,plan.floor,plan.details,plan.sqm,plan.space_type,scheduled.toISOString(),calcGrossPrice(plan.space_type,plan.sqm),calcDurationMinutes(plan.sqm),BUFFER_MINUTES,JSON.stringify(snapshot));
           freezeExecutionRules(db,jobId,'standard');

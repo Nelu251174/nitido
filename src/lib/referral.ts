@@ -1,3 +1,7 @@
+import {calcNetForFirm} from './pricing';
+
+export const CREDIT_POLICY_VERSION='platform-share-only-2026-10-20-v1';
+export const CREDIT_POLICY_NOTICE='Creditul se aplică până la partea disponibilă a platformei pentru această rezervare. Suma nefolosită rămâne în cont; remunerația firmei nu se reduce.';
 /**
  * Program de recomandare ("adu un prieten") — inspirat din motorul de
  * creștere clasic al piețelor cu doi versanți (Uber, Airbnb, Helpling):
@@ -30,13 +34,15 @@ export function generateReferralCode(name: string): string {
 
 /**
  * Calculează prețul final după aplicarea creditului disponibil — reducerea
- * nu poate depăși prețul brut (nu oferim lucrări "negative") și consumă din
+ * este finanțată doar din partea platformei (nu din partea firmei) și consumă din
  * credit exact cât s-a folosit efectiv.
  */
 export function applyCredit(
   priceGross: number,
   creditBalance: number
 ): { finalPrice: number; creditUsed: number } {
-  const creditUsed = Math.max(0, Math.min(creditBalance, priceGross));
-  return { finalPrice: priceGross - creditUsed, creditUsed };
+  if(!Number.isFinite(priceGross)||priceGross<0||!Number.isFinite(creditBalance))throw Error("Valori de credit invalide");
+  const available=Math.round(Math.max(0,priceGross-calcNetForFirm(priceGross))*100)/100;
+  const creditUsed=Math.round(Math.max(0,Math.min(creditBalance,available))*100)/100;
+  return { finalPrice: Math.round((priceGross-creditUsed)*100)/100, creditUsed };
 }

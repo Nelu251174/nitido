@@ -1,3 +1,4 @@
+import {applyCredit} from './referral';
 import type {Database} from 'better-sqlite3';
 import {configuredServiceMarket,ServiceMarketError} from './serviceMarkets';
 import {randomUUID} from 'node:crypto';
@@ -55,7 +56,7 @@ export function issueBookingQuote(db:Database,clientId:string,context:BookingPri
     if(zones.some(r=>{const s=JSON.parse(r.scope_json);return s.kind==='zone'&&s.city===context.city;}))throw new ManagedPricingError('Localitatea are tarife pe zone; adresa trebuie validată înainte de calcul.',422);
     const price=resolveManagedPrice(db,{city:context.city},context,now);
     const extra=context.express60?Math.round(EXPRESS_60_FEE_LEI*100):0,grossBani=price.totalBani+extra;
-    const credit=Math.min(creditBani(db,clientId),grossBani),id=randomUUID();
+    const credit=Math.round(applyCredit(grossBani/100,creditBani(db,clientId)/100).creditUsed*100),id=randomUUID();
     const expiresAt=new Date(now.getTime()+15*60*1000).toISOString();
     const snapshot:BookingPriceSnapshot={version:`managed:${price.tariffId}:${price.revision}`,quoteId:id,currency:'RON',recordedAt:now.toISOString(),expiresAt,spaceType:context.spaceType,sqm:context.sqm,windowsSqm:context.windowsSqm,durationMinutes:calcServiceDuration(context.sqm,context.windowsSqm),bufferMinutes:BUFFER_MINUTES,lines:[...price.lines,{code:'express60',amountBani:extra},{code:'platform_credit',amountBani:-credit}],grossBani,creditBani:credit,clientTotalBani:grossBani-credit};
     db.prepare('INSERT INTO booking_price_quotes VALUES(?,?,?,?,?,?,NULL)').run(id,clientId,JSON.stringify(context),JSON.stringify(snapshot),now.toISOString(),expiresAt);
