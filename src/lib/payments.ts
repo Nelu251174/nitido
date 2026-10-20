@@ -1,3 +1,4 @@
+import {assertCoverageAttemptReusable,ensureAuthorizationCoverage} from './authorizationCoverage';
 import {authorizationCard} from "./savedCards";
 import type { Database } from "better-sqlite3";
 import Stripe from "stripe";
@@ -9,13 +10,13 @@ import { assertCompletionProof, auditWorkflow } from "@/lib/proofOfWork";
 
 export type TransferStatus = "not_started" | "blocked" | "pending" | "processed" | "failed" | "reversed";
 
-export function getStripeClient(): Stripe | null {
+export function getStripeClient(options?: Stripe.StripeConfig): Stripe | null {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) {
     if (process.env.NODE_ENV === "production") throw new Error("STRIPE_SECRET_KEY lipsește în production");
     return null;
   }
-  return new Stripe(key);
+  return new Stripe(key,options);
 }
 
 export function connectTransfersEnabled(): boolean {
@@ -29,7 +30,7 @@ export function calculatePaymentSplit(grossAmount: number, discountAmount = 0) {
 }
 
 /** Authorize the authoritative client amount on the platform. No transfer is made here. */
-export async function authorizePayment(db: Database, jobId: string, grossAmount: number, _firmAccountId?: string | null, discountAmount = 0, onAuthorized?: (paymentId: string) => void): Promise<string> {
+export async function authorizePayment(db: Database, jobId: string, grossAmount: number, _firmAccountId?: string | null, discountAmount = 0, onAuthorized?: (paymentId: string) => void, coverage?:{requiredUntil:number}): Promise<string> {
   const {clientAmount,firmAmount,platformAmount}=calculatePaymentSplit(grossAmount,discountAmount);
   const stripe=getStripeClient();
   const stopCancelledAuthorization=async()=>{
@@ -38,6 +39,7 @@ export async function authorizePayment(db: Database, jobId: string, grossAmount:
     throw Error('PAYMENT_AUTHORIZATION_CANCELLED');
   };
   if(authorizationMustStop(db,jobId))await stopCancelledAuthorization();
+  if(stripe&&coverage)await assertCoverageAttemptReusable(db,stripe,jobId);
   const rows=db.prepare("SELECT * FROM payments WHERE job_id=?").all(jobId) as {id:string;status:string;amount_gross:number;stripe_payment_intent_id:string|null}[];
   if(rows.length>1)throw new Error("PAYMENT_AUTHORIZATION_RECONCILIATION_REQUIRED");
   const existing=rows[0];
@@ -54,6 +56,7 @@ export async function authorizePayment(db: Database, jobId: string, grossAmount:
         throw new Error("PAYMENT_AUTHORIZATION_EXPIRED_OR_CANCELLED");
       }
       if(intent.status!=="requires_capture"||intent.amount_capturable!==clientAmount*100)throw new Error("PAYMENT_AUTHORIZATION_NOT_CONFIRMED");
+      if(coverage)await ensureAuthorizationCoverage(db,stripe,intent,{jobId,paymentId:existing.id,amountMinor:clientAmount*100,requiredUntil:coverage.requiredUntil});
     }
     db.transaction(()=>{
       if(authorizationMustStop(db,jobId))throw Error('PAYMENT_AUTHORIZATION_CANCELLED');
@@ -87,6 +90,7 @@ export async function authorizePayment(db: Database, jobId: string, grossAmount:
     }
     if(authorizationMustStop(db,jobId))await stopCancelledAuthorization();
     if(intent.status!=="requires_capture" || intent.currency!=="ron" || intent.amount!==clientAmount*100 || intent.amount_capturable!==clientAmount*100) throw new Error("PAYMENT_AUTHORIZATION_NOT_CONFIRMED");
+    if(coverage)await ensureAuthorizationCoverage(db,stripe,intent,{jobId,paymentId:id,amountMinor:clientAmount*100,requiredUntil:coverage.requiredUntil});
     intentId=intent.id;
   }
   try{db.transaction(()=>{

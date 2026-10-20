@@ -9,7 +9,7 @@ import {capturePayment} from './payments';
 const api=vi.hoisted(()=>({paymentIntents:{create:vi.fn(),retrieve:vi.fn(),capture:vi.fn()},transfers:{create:vi.fn()}}));
 vi.mock('stripe',()=>({default:class {paymentIntents=api.paymentIntents;transfers=api.transfers}}));
 const paymentId=`pay_${createHash('sha256').update('lifecycle-job').digest('hex')}`;
-const authorized={id:'pi_lifecycle',currency:'ron',amount:50000,amount_capturable:50000,amount_received:0,status:'requires_capture',metadata:{jobId:'lifecycle-job',paymentId},latest_charge:'ch_lifecycle'};
+const authorized={id:'pi_lifecycle',currency:'ron',amount:50000,amount_capturable:50000,amount_received:0,status:'requires_capture',metadata:{jobId:'lifecycle-job',paymentId},capture_method:'manual',latest_charge:{id:'ch_lifecycle',payment_method_details:{card:{capture_before:Math.floor(Date.now()/1000)+7*86400}}}};
 let db:Database.Database;
 function proof(type:'ARRIVAL'|'COMPLETION'){
   db.prepare(`INSERT INTO job_photos(id,job_id,owner_user_id,uploaded_by_firm_id,proof_type,filename,mime_type,file_size,status,validated_at)

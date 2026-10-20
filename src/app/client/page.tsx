@@ -1,4 +1,5 @@
 "use client";
+import {AUTHORIZATION_NOTICE,confirmationOpensAt} from '@/lib/authorizationPolicy';
 import {BOOKING_DURATION_NOTICE,BOOKING_TEAM_NOTICE} from "@/lib/bookingTerms";
 import {CREDIT_POLICY_NOTICE} from "@/lib/referral";
 import {calcServiceDuration} from "@/lib/pricing";
@@ -669,7 +670,7 @@ export default function ClientPage() {
             {hostEventId&&<p role="status" className="mb-4 rounded-xl border border-aqua bg-mist p-4 text-sm"><UiText text={"Curățenie între rezervări. Proprietatea și intervalul sunt verificate din nou la publicare. "}/><Link href="/client/host" className="underline"><UiText text={"Înapoi la calendar"}/></Link></p>}
             {draftNotice&&<p role="status" className="mb-4 rounded-xl border border-aqua bg-mist p-4 text-sm">{draftNotice}</p>}
             <h1 className="font-display font-extrabold text-xl text-ink mb-1"><UiText text={"Postează o lucrare"}/></h1>
-            <p className="text-sm text-muted mb-5 leading-relaxed"><UiText text={"Completează detaliile — vezi prețul înainte de publicare."}/></p><p className="text-sm text-muted mb-3"><UiText text={BOOKING_DURATION_NOTICE}/></p>{Number.isFinite(Number(sqm))&&Number(sqm)>0&&validWindowsSqm(windowsSqm)&&<p className="text-sm text-muted mb-3"><UiText text={"Intervenție programată la locație: "}/>{calcServiceDuration(Number(sqm),windowsSqm)}<UiText text={" minute, plus buffer separat."}/></p>}<p className="text-sm text-muted mb-3"><UiText text={BOOKING_TEAM_NOTICE}/></p><p className="text-sm text-muted mb-3"><UiText text={CREDIT_POLICY_NOTICE}/></p>
+            <p className="text-sm text-muted mb-5 leading-relaxed"><UiText text={"Completează detaliile — vezi prețul înainte de publicare."}/></p><p className="text-sm text-muted mb-3"><UiText text={BOOKING_DURATION_NOTICE}/></p>{Number.isFinite(Number(sqm))&&Number(sqm)>0&&validWindowsSqm(windowsSqm)&&<p className="text-sm text-muted mb-3"><UiText text={"Intervenție programată la locație: "}/>{calcServiceDuration(Number(sqm),windowsSqm)}<UiText text={" minute, plus buffer separat."}/></p>}<p className="text-sm text-muted mb-3"><UiText text={BOOKING_TEAM_NOTICE}/></p><p className="text-sm text-muted mb-3"><UiText text={AUTHORIZATION_NOTICE}/></p><p className="text-sm text-muted mb-3"><UiText text={CREDIT_POLICY_NOTICE}/></p>
 
             <Field label="Instrucțiuni speciale (opțional)"><UiElement as="textarea" className={inputClass} rows={3} maxLength={500} value={details} onChange={e=>setDetails(e.target.value)} placeholder="Materiale sensibile, animale de companie, preferințe de curățenie…"/><small>{details.length}<UiText text={"/500 · Vizibile firmei după alocare. Nu introduce coduri de acces sau parole."}/></small></Field>
             <BookingAddressLocation address={{city,street,postalCode}} onDetected={value=>{setCity(value.city);setStreet(value.street);setPostalCode(value.postalCode)}} enabled={!propertyId&&!hostEventId&&!new URLSearchParams(typeof window!=="undefined"?window.location.search:"").has("propertyId")}/><Field label="Stradă și număr">
@@ -936,7 +937,7 @@ export default function ClientPage() {
             <h1 className="font-display font-extrabold text-xl text-ink mb-1"><UiText text={"Lucrare postată!"}/></h1>
             {job.mode === "standard" ? (
               <>
-                <p className="text-sm text-muted mb-3"><UiText text={"Firmele verificate din zonă trimit oferte. Alege firma care îți place — pe calitate, nu pe noroc."}/></p>
+                <p className="text-sm text-muted mb-3"><UiText text={AUTHORIZATION_NOTICE}/></p><p className="text-sm text-muted mb-3"><UiText text={"Firmele verificate din zonă trimit oferte. Alege firma care îți place — pe calitate, nu pe noroc."}/></p>
                 {offers.length === 0 ? (
                   <div className="rounded-xl border border-line bg-mist p-4 text-sm text-muted"><UiText text={"Așteptăm primele oferte… firmele din zonă au fost notificate."}/></div>
                 ) : (
@@ -960,7 +961,7 @@ export default function ClientPage() {
                         {o.message && (
                           <p className="text-sm text-muted mt-2 border-t border-line pt-2">{o.message}</p>
                         )}
-                        <Button className="offer-select-button" onClick={() => chooseOffer(o.offerId)} disabled={choosing !== null}>
+                        <Button className="offer-select-button" onClick={() => chooseOffer(o.offerId)} disabled={choosing !== null||(confirmationOpensAt(job)!==null&&Date.now()<confirmationOpensAt(job)!)}>
                           {choosing === o.offerId ? <UiText text={"Se alege…"}/> : <UiText text={"Alege această firmă"}/>}
                         </Button>
                       </div>

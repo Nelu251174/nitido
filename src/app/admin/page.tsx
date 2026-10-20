@@ -90,6 +90,7 @@ export default function AdminPage() {
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [firms, setFirms] = useState<FirmRow[]>([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [coverageIssues,setCoverageIssues]=useState<{job_id:string;state:string;required_until_ms:number;capture_before_ms:number|null;attempts:number;next_retry_ms:number;last_error:string|null}[]>([]);
   const [authorizationIssues,setAuthorizationIssues]=useState<AuthorizationIssue[]>([]);
   const [recoveryRuns,setRecoveryRuns]=useState<RecoveryRun[]>([]);
   const [recoveryParked,setRecoveryParked]=useState<RecoveryParked[]>([]);
@@ -133,6 +134,7 @@ export default function AdminPage() {
     setCancellationIssues(data.cancellationIssues??[]);
     setWebhookIssues(data.webhookIssues??[]);
     setAuthorizationIssues(data.authorizationIssues??[]);
+    setCoverageIssues(data.coverageIssues??[]);
     setNotifications(data.notifications ?? []);
     setProofs(data.proofs ?? []);
     setReviews(data.reviews ?? []);
@@ -510,6 +512,7 @@ export default function AdminPage() {
         <section aria-label="Autorizări de verificat">
           <h2 className="font-display font-bold text-ink mb-3">Autorizări de plată de verificat</h2>
           <p className="text-sm text-muted mb-3">Cererile cu rezultat neclar trebuie reconciliate înainte de o nouă blocare pe card.</p>
+          {coverageIssues.length>0&&<div className="mb-4 rounded-xl border border-line p-4"><h3 className="font-bold">Autorizări care nu acoperă intervenția</h3><p className="text-sm text-muted">Rezervarea nu este confirmată. Se eliberează numai autorizarea nefolosită; o plată asociată unei rezervări necesită reconciliere manuală. Nu se reautorizează automat cardul.</p><table className="workspace-table"><thead><tr><th>Lucrare</th><th>Stare</th><th>Expirare HOLD</th><th>Final + buffer</th></tr></thead><tbody>{coverageIssues.map(c=><tr key={c.job_id}><td>{c.job_id}</td><td>{c.state==='released'?'HOLD eliberat':c.state==='release_pending'?'Eliberare în curs':'Necesită reconciliere'}</td><td>{c.capture_before_ms?new Date(c.capture_before_ms).toLocaleString('ro-RO',{timeZone:'Europe/Bucharest'}):'Termen neconfirmat'}</td><td>{new Date(c.required_until_ms).toLocaleString('ro-RO',{timeZone:'Europe/Bucharest'})}</td></tr>)}</tbody></table></div>}
           {authorizationIssues.length===0?<p className="text-sm text-muted">Nu sunt înregistrate solicitări care necesită verificare.</p>:<div className="overflow-x-auto"><table className="w-full text-sm bg-white border border-line"><thead className="bg-mist text-muted"><tr><th className="text-left p-3">Lucrare</th><th className="text-left p-3">Stare</th><th className="text-left p-3">Solicitată la</th><th className="text-left p-3">Referință Stripe</th></tr></thead><tbody>{authorizationIssues.map(a=><tr key={a.job_id} className="border-t border-line"><td className="p-3 break-all">{a.job_id}</td><td className="p-3">{authorizationLabels[a.status]??"Necesită verificare"}</td><td className="p-3">{new Date(a.created_ms).toLocaleString("ro-RO",{timeZone:"Europe/Bucharest"})}</td><td className="p-3 break-all">{a.stripe_payment_intent_id??"Încă neconfirmată"}</td></tr>)}</tbody></table></div>}
         </section>
         <section aria-label="Viramente bancare Stripe">

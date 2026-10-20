@@ -26,7 +26,7 @@ import {assignTeam} from '@/lib/workspace';
 import {POST,GET} from './route';
 import {POST as propose} from '../admin/assisted-operations/route';
 let folder:string,file:string;
-const now=new Date('2026-10-01T06:00:00.000Z');
+const now=new Date('2026-10-01T07:00:00.000Z');
 const definition={startsAt:'2026-10-03T07:00:00.000Z',durationMinutes:360,bufferMinutes:45,requiredTeams:1,source:'Mesurare și fotografii',reason:'Plan intern'};
 const request=(body:unknown,url='/api/jobs',origin?:string)=>new NextRequest('https://sandbox.nitido.ro'+url,{method:'POST',headers:origin?{Origin:origin}:{},body:JSON.stringify(body)});
 beforeEach(()=>{

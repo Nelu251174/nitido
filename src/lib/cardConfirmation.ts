@@ -1,3 +1,5 @@
+import {authorizationRequiredUntil,confirmationOpensAt,assertCoverageAttemptReusable,ensureAuthorizationCoverage,AuthorizationCoverageError} from './authorizationCoverage';
+import type {JobTiming} from './firmAvailability';
 import type {Database} from 'better-sqlite3';
 import type Stripe from 'stripe';
 import {createHash} from 'node:crypto';
@@ -8,9 +10,11 @@ const idOf=(value:string|{id:string}|null)=>typeof value==='string'?value:value?
 
 /** Only the booking owner can confirm an existing, server-priced manual authorization. */
 export async function cardConfirmation(db:Database,stripe:Stripe,userId:string,jobId:string,action:'start'|'verify'){
- const job=db.prepare('SELECT j.*,u.stripe_customer_id FROM jobs j JOIN users u ON u.id=j.client_id WHERE j.id=? AND j.client_id=?').get(jobId,userId) as {status:string;price_gross:number;credit_applied:number;stripe_customer_id:string|null}|undefined;
+ const job=db.prepare('SELECT j.*,u.stripe_customer_id FROM jobs j JOIN users u ON u.id=j.client_id WHERE j.id=? AND j.client_id=?').get(jobId,userId) as (JobTiming&{status:string;price_gross:number;credit_applied:number;stripe_customer_id:string|null})|undefined;
  if(!job)throw new CardConfirmationError('Lucrarea nu a fost găsită.',404);
  if(job.status!=='waiting'||authorizationMustStop(db,jobId))throw new CardConfirmationError('Starea lucrării s-a schimbat. Revino la lucrare.');
+ const opens=confirmationOpensAt(job);if(opens!==null&&Date.now()<opens)throw new CardConfirmationError('Confirmarea cardului se deschide cu 48 de ore înainte de începere.');
+ try{await assertCoverageAttemptReusable(db,stripe,jobId)}catch(error){if(error instanceof AuthorizationCoverageError)throw new CardConfirmationError('Autorizarea nu poate fi reluată automat. Verifică eliberarea HOLD-ului și reconfigurează cererea sau contactează asistența.');throw error;}
  const attempt=db.prepare('SELECT * FROM payment_authorization_attempts WHERE job_id=?').get(jobId) as {request_json:string;provider_key_hash:string;stripe_payment_intent_id:string|null}|undefined;
  if(!attempt?.stripe_payment_intent_id)throw new CardConfirmationError('Plata necesită verificare înainte de confirmarea cardului.');
  if(attempt.provider_key_hash!==createHash('sha256').update(process.env.STRIPE_SECRET_KEY??'').digest('hex'))throw new CardConfirmationError('Plata necesită reconciliere.');
@@ -23,6 +27,7 @@ export async function cardConfirmation(db:Database,stripe:Stripe,userId:string,j
  if(!currentJob||currentJob.status!=='waiting'||authorizationMustStop(db,jobId)||currentJob.price_gross!==job.price_gross||currentJob.credit_applied!==job.credit_applied||currentJob.stripe_customer_id!==job.stripe_customer_id)throw new CardConfirmationError('Rezervarea s-a schimbat în timpul verificării.');
  if(intent.payment_method&&idOf(intent.payment_method)!==params.payment_method)throw new CardConfirmationError('Cardul plății necesită verificare.');
  if(intent.status==='requires_capture'&&intent.amount_capturable===params.amount){
+   try{await ensureAuthorizationCoverage(db,stripe,intent,{jobId,paymentId:params.metadata.paymentId,amountMinor:params.amount,requiredUntil:authorizationRequiredUntil(job)})}catch(error){if(error instanceof AuthorizationCoverageError)throw new CardConfirmationError('Autorizarea nu acoperă intervenția și bufferul. Rezervarea nu este confirmată; verifică eliberarea HOLD-ului înainte de o cerere nouă.');throw error;}
    db.transaction(()=>{
      const current=db.prepare('SELECT status,price_gross,credit_applied FROM jobs WHERE id=? AND client_id=?').get(jobId,userId) as typeof job|undefined;
      if(!current||current.status!=='waiting'||authorizationMustStop(db,jobId)||current.price_gross!==job.price_gross||current.credit_applied!==job.credit_applied)throw new CardConfirmationError('Rezervarea s-a schimbat în timpul confirmării.');

@@ -13,6 +13,7 @@ let directory: string;
 let selected: string;
 let losing: string;
 beforeEach(() => {
+  vi.spyOn(Date,'now').mockReturnValue(Date.parse('2030-09-12T08:00:00Z'));
   vi.stubEnv('NODE_ENV', 'test'); vi.stubEnv('STRIPE_SECRET_KEY', '');
   directory = mkdtempSync(join(tmpdir(), 'nitido-selection-')); path = join(directory, 'db.sqlite');
   db = new Sqlite(path, { timeout: 0 }); db.pragma('journal_mode=WAL'); initializeDatabase(db);
@@ -23,7 +24,7 @@ beforeEach(() => {
   const a = createOffer(db, 'j', 'f'), b = createOffer(db, 'j', 'g');
   if (!a.ok || !b.ok) throw Error('fixture'); selected = a.offerId; losing = b.offerId;
 });
-afterEach(() => { db.close(); rmSync(directory, { recursive: true, force: true }); vi.unstubAllEnvs(); });
+afterEach(() => { db.close(); rmSync(directory, { recursive: true, force: true }); vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 function failFinalization() { db.exec("CREATE TRIGGER fail_offer BEFORE UPDATE ON offers WHEN NEW.status='rejected' BEGIN SELECT RAISE(ABORT,'private-db-error'); END"); }
 async function interrupted() { failFinalization(); expect(await selectOffer(db, 'j', selected, 'c')).toMatchObject({ ok: false, status: 503 }); db.exec('DROP TRIGGER fail_offer'); }
 const financial = () => db.prepare('SELECT * FROM payments').all();
