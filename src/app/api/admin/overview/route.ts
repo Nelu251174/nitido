@@ -19,6 +19,7 @@ export async function GET(_req: NextRequest) {
   const payments = db.prepare("SELECT id,job_id,amount_gross,commission_amount,amount_net,status,stripe_fee_amount,transfer_status,payout_status,refund_status,dispute_status,created_at FROM payments ORDER BY created_at DESC").all();
   const webhookIssues=db.prepare("SELECT event_id,event_type,resource_id,status,attempts,last_error,received_at FROM stripe_webhook_inbox WHERE status IN ('received','failed','needs_review') ORDER BY received_at LIMIT 100").all();
   const authorizationIssues=db.prepare("SELECT job_id,status,created_ms,stripe_payment_intent_id FROM payment_authorization_attempts WHERE status NOT IN ('requires_capture','succeeded') ORDER BY created_ms DESC LIMIT 100").all();
+  const coverageIssues=db.prepare("SELECT job_id,state,required_until_ms,capture_before_ms,attempts,next_retry_ms,last_error,updated_ms FROM authorization_coverage WHERE state!='verified' ORDER BY updated_ms DESC LIMIT 100").all();
   const recoveryRuns=db.prepare("SELECT CASE WHEN status='running' AND started_ms<=? THEN 'unconfirmed' ELSE status END AS status,started_ms,completed_ms,attempted,processed,deferred,failed FROM financial_recovery_runs ORDER BY started_ms DESC LIMIT 10").all(Date.now()-120000);
   const recoveryParked=db.prepare(`SELECT i.kind,i.resource_id,i.attempts,i.last_error FROM financial_recovery_items i
     WHERE i.parked=1 AND ((i.kind='event' AND EXISTS(SELECT 1 FROM stripe_webhook_inbox e WHERE e.event_id=i.resource_id AND e.status IN ('received','failed','needs_review')))
@@ -87,5 +88,5 @@ export async function GET(_req: NextRequest) {
     topFirms,
   };
 
-  return NextResponse.json({ jobs, firms, payments, bankPayouts, authorizationIssues, webhookIssues, cancellationIssues, recoveryRuns, recoveryParked, notifications:[...pushNotifications,...notifications].sort((a,b)=>String((b as Record<string,unknown>).created_at).localeCompare(String((a as Record<string,unknown>).created_at))).slice(0,100), proofs, reviews, stats });
+  return NextResponse.json({ jobs, firms, payments, bankPayouts, authorizationIssues, coverageIssues, webhookIssues, cancellationIssues, recoveryRuns, recoveryParked, notifications:[...pushNotifications,...notifications].sort((a,b)=>String((b as Record<string,unknown>).created_at).localeCompare(String((a as Record<string,unknown>).created_at))).slice(0,100), proofs, reviews, stats });
 }

@@ -1,4 +1,5 @@
 "use client";
+import {AUTHORIZATION_NOTICE,confirmationOpensAt} from '@/lib/authorizationPolicy';
 import {UiSpaceType} from '@/components/UiText';
 import {UiDate} from '@/components/UiDate';
 
@@ -387,7 +388,7 @@ export default function FirmaPage() {
                     </div>
                   )
                 ) : (
-                  <Button className="w-full" onClick={() => accept(job.id)}><UiText text={"Accept lucrarea"}/></Button>
+                  <><p className="text-xs text-muted mb-2"><UiText text={AUTHORIZATION_NOTICE}/></p><Button className="w-full" disabled={confirmationOpensAt(job)!==null&&Date.now()<confirmationOpensAt(job)!} onClick={() => accept(job.id)}><UiText text={"Accept lucrarea"}/></Button></>
                 )}
               </div>
             ))}

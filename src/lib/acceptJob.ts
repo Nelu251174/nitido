@@ -1,3 +1,4 @@
+import {AuthorizationCoverageError,authorizationRequiredUntil,confirmationOpensAt} from './authorizationCoverage';
 import {confirmInvitationWinner} from './providerInvitations';
 import {jobAssistedOperation,reserveAssistedTeam} from './assistedOperations';
 import {MarginError} from './operationalMargin';
@@ -42,10 +43,8 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
       }
       if (job.status !== 'waiting' || authorizationMustStop(db, jobId)) return fail('Lucrarea nu mai este disponibilă', 409,
         ['accepted', 'arrived'].includes(job.status) && job.accepted_firm_id && job.accepted_firm_id !== firmId ? 'ALREADY_TAKEN' : 'JOB_UNAVAILABLE');
-      if (db.prepare('SELECT 1 FROM recurring_occurrences WHERE job_id=?').get(jobId)
-        && Date.parse(job.scheduled_at ?? '') > Date.now() + 48 * 3600000) {
-        return fail('Vizita este generată anticipat. Confirmarea firmei și autorizarea cardului se deschid cu 48 de ore înainte de programare.',409,'RECURRING_CONFIRMATION_NOT_OPEN');
-      }
+      const opens=confirmationOpensAt(job);
+      if(opens!==null&&Date.now()<opens)return fail('La această programare, acceptarea finală și HOLD-ul se deschid cu 48 de ore înainte de începere. Cererea și ofertele rămân disponibile până atunci.',409,'CONFIRMATION_NOT_OPEN');
       if (!firmCoversCity(firm.coverage_city, firm.coverage_cities_extra, job.city)) return fail('Lucrarea este în afara zonei firmei', 403);
       const unavailable = firmAvailabilityError(db, firmId, job);
       if (unavailable) return fail(unavailable, 409, 'CAPACITY_UNAVAILABLE');
@@ -61,8 +60,8 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
   }
   if (!reserved.ok) return reserved;
   try {
-    await authorizePayment(db, jobId, reserved.job.price_gross, reserved.firm.stripe_account_id, reserved.job.credit_applied ?? 0, selection ? paymentId => recordSelectionConfirmation(db, {jobId,claim,offerId:selection.offerId,clientId:selection.clientId,firmId,priceGross:reserved.job.price_gross,creditApplied:reserved.job.credit_applied}, paymentId) : undefined);
-  } catch {
+    await authorizePayment(db, jobId, reserved.job.price_gross, reserved.firm.stripe_account_id, reserved.job.credit_applied ?? 0, selection ? paymentId => recordSelectionConfirmation(db, {jobId,claim,offerId:selection.offerId,clientId:selection.clientId,firmId,priceGross:reserved.job.price_gross,creditApplied:reserved.job.credit_applied}, paymentId) : undefined,{requiredUntil:authorizationRequiredUntil(reserved.job)});
+  } catch (error) {
     try {
       db.transaction(()=>{const released=db.prepare(`UPDATE jobs SET status='waiting',accepted_firm_id=NULL,accepted_at=NULL
         WHERE id=? AND status='accepted' AND accepted_firm_id=?
@@ -72,6 +71,7 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
     } catch {
       return fail('Starea preluării necesită verificare. Reîncarcă lucrarea; rezervarea nu a fost eliberată.', 503);
     }
+    if(error instanceof AuthorizationCoverageError)return fail(error.code==='HOLD_RELEASE_PENDING'?'Autorizarea nu acoperă intervenția. Eliberarea HOLD-ului este în curs; nu iniția o plată nouă.':'Autorizarea cardului nu acoperă intervenția și bufferul. Rezervarea nu a fost confirmată. Nu se va crea automat alt HOLD; reconfigurează cererea sau contactează asistența.',409,error.code);
     return fail('Autorizarea plății nu a putut fi confirmată. Reîncarcă starea lucrării.', 502);
   }
   try {

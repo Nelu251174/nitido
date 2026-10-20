@@ -14,6 +14,7 @@ let other: Sqlite.Database;
 let directory: string;
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.spyOn(Date,'now').mockReturnValue(Date.parse('2030-09-12T08:00:00Z'));
   provider.transfers.mockReturnValue(false);
   provider.authorize.mockResolvedValue('payment');
   directory = mkdtempSync(join(tmpdir(), 'nitido-allocation-'));
