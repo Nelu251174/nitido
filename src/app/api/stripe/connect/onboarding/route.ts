@@ -20,5 +20,5 @@ export async function POST(req:NextRequest){
 // Stripe refresh links are browser GET requests. Preserve that return path,
 // but require an explicit authenticated POST before creating another link.
 export async function GET(req:NextRequest){
-  return NextResponse.redirect(new URL('/firma?stripe=refresh-required',req.url),303);
+  return NextResponse.redirect(new URL('/firma?stripe=refresh-required',process.env.NEXT_PUBLIC_SITE_URL??req.url),303);
 }

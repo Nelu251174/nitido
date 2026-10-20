@@ -13,3 +13,5 @@ describe('onboarding method safety',()=>{
  it('scopes retry idempotency to the authenticated firm and preserves public return origin',async()=>{const headers={origin:'https://nitido.ro','idempotency-key':'test-action-1234567890'};expect((await POST(req('POST',headers))).status).toBe(200);const first=mocks.create.mock.calls[0];await POST(req('POST',headers));expect(mocks.create.mock.calls[1]).toEqual(first);expect(first[1]).toBe('test-firm');expect(first[2]).toBe('https://nitido.ro');expect(first[3]).toMatch(/^nitido-onboarding-[a-f0-9]{64}$/)});
  it('keeps existing POST callers without an action key compatible',async()=>{expect((await POST(req('POST'))).status).toBe(200);expect(mocks.create).toHaveBeenCalledWith(mocks.db,'test-firm','https://nitido.ro',undefined)});
 });
+
+it('refresh uses configured public origin behind the production reverse proxy',async()=>{const r=await GET(new NextRequest('http://0.0.0.0:3000/api/stripe/connect/onboarding'));expect(r.headers.get('location')).toBe('https://nitido.ro/firma?stripe=refresh-required');expect(mocks.create).not.toHaveBeenCalled()});
