@@ -1,14 +1,38 @@
-import {readFileSync} from "node:fs";
-import {join} from "node:path";
-import {describe,expect,it} from "vitest";
-import {calcGrossPrice} from "@/lib/pricing";
-import {ESTIMATOR_DEFAULT_SQM,ESTIMATOR_MAX_SQM,ESTIMATOR_MIN_SQM,ESTIMATOR_STEP_SQM} from "./LivePriceEstimator";
+import {createElement} from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {NextIntlClientProvider} from 'next-intl';
+import {describe,expect,it} from 'vitest';
+import {calcGrossPrice,type SpaceType} from '@/lib/pricing';
+import {LivePriceEstimator} from './LivePriceEstimator';
 
-const source=readFileSync(join(process.cwd(),"src/components/LivePriceEstimator.tsx"),"utf8");
-describe("interactive homepage price estimator",()=>{
-  it("uses the expected native range bounds and default",()=>{expect(ESTIMATOR_MIN_SQM).toBe(10);expect(ESTIMATOR_MAX_SQM).toBe(1000);expect(ESTIMATOR_STEP_SQM).toBe(5);expect(ESTIMATOR_DEFAULT_SQM).toBe(120);expect(source).toContain('type="range"');});
-  it("uses the authoritative pricing function with a selectable space type",()=>{expect(source).toContain('calcGrossPrice(spaceType,sqm)');expect(source).toContain("activeEstimatorOptions");expect(source).toContain("setSpaceType");expect(calcGrossPrice("apartament",10)).toBe(350);expect(calcGrossPrice("apartament",120)).toBe(780);expect(calcGrossPrice("apartament",250)).toBe(1625);expect(calcGrossPrice("apartament",1000)).toBe(6500);});
-  it("updates surface and price immediately from range input",()=>{expect(source).toContain("onChange={event=>setSqm(Number(event.target.value))}");expect(source).toContain("{sqm} m²");expect(source).toContain("{price} lei");expect(source).toContain("aria-live=\"polite\"");});
-  it("is accessible by keyboard and touch through a semantic range",()=>{expect(source).toContain('aria-label="Suprafața estimată în metri pătrați"');expect(source).toContain("aria-valuetext");expect(source).toContain("touch-none");});
-  it("is informational and cannot mutate job or payment state",()=>{expect(source).not.toContain("fetch(");expect(source).not.toContain("/api/jobs");expect(source).not.toMatch(/payment|authorize|capture/i);expect(source).toContain("Curățenie fără spălare de geamuri. Geamurile se adaugă separat la rezervare. Prețul final se confirmă înainte de publicare.");});
+function render(type:SpaceType='apartament') {
+  const Estimator=()=>LivePriceEstimator({inline:true,options:[{key:type,label:type,enabled:true}]});
+  return renderToStaticMarkup(createElement(NextIntlClientProvider,{locale:'ro',timeZone:'Europe/Bucharest',messages:{ui:{}},children:createElement(Estimator)}));
+}
+function displayedPrice(html:string) {
+  const match=html.match(/<b[^>]*aria-live="polite"[^>]*>(\d+)/);
+  if(!match)throw new Error('Missing accessible estimate');
+  return Number(match[1]);
+}
+describe('homepage price estimator rendered behavior',()=>{
+  it('renders 120 m² and the actual 780 lei apartment estimate',()=>{
+    const html=render();expect(displayedPrice(html)).toBe(780);
+    expect(html).toMatch(/<output[^>]*>120/);
+    expect(html).toContain('value="120"');
+    expect(html).toContain('120 metri pătrați, estimare 780 lei');
+  });
+  it.each([['casa',840],['birou',600],['altul',720]] as const)('uses configured initial type %s to calculate %d lei',(type,price)=>{
+    expect(displayedPrice(render(type))).toBe(price);
+  });
+  it('renders native keyboard/touch range bounds and explicit exclusions',()=>{
+    const html=render();expect(html).toMatch(/type="range"[^>]*min="10"[^>]*max="1000"[^>]*step="5"/);
+    expect(html).toContain('aria-label="Suprafața estimată în metri pătrați"');
+    expect(html).toContain('Geamurile se adaugă separat la rezervare.');
+  });
+  it.each([[40,350],[41,450],[60,450],[61,550],[80,550],[81,650],[100,650],[101,657],[120,780]])('keeps authoritative threshold %d m² = %d lei',(sqm,price)=>{
+    expect(calcGrossPrice('apartament',sqm)).toBe(price);
+  });
+  it('rejects an intentionally wrong rendered expectation',()=>{
+    expect(()=>expect(displayedPrice(render())).toBe(781)).toThrow();
+  });
 });

@@ -10,7 +10,7 @@ import Link from "next/link";
 
 const services = [
   ["link", "Conectăm rapid", "Punem în legătură clienții cu firme eligibile din zona potrivită, fără timp pierdut cu zeci de apeluri."],
-  ["check", "Alocăm corect", "Lucrarea este atribuită printr-un flux clar, controlat de server: la Standard clientul alege dintre ofertele firmelor verificate, iar la Nitido Express (urgențe) prima firmă disponibilă preia lucrarea."],
+  ["check", "Alocăm corect", "La Standard alegi firma dintre ofertele disponibile. La Express, lucrarea poate fi preluată de o firmă eligibilă, în funcție de disponibilitate și de acceptarea validă. Condițiile și costul sunt afișate înainte de confirmare."],
   ["shield", "Protejăm procesul", "Identitatea, accesul la date și pașii sensibili sunt controlați astfel încât fiecare parte să vadă doar informațiile de care are nevoie."],
   ["star", "Construim reputație", "Ratingurile, istoricul și comportamentul pe platformă ajută la formarea unui ecosistem mai serios și mai responsabil."],
 ] as const;
