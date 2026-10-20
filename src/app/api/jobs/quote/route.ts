@@ -9,7 +9,7 @@ import { getCurrentUser } from "@/lib/auth";
 import {
   AUTOMATIC_MAX_SQM,
   calcGrossPrice,
-  calcServicePrice,
+  calcServicePrice,validBathroomCount,
   calcServiceDuration,
   validWindowsSqm,
   MIN_LEAD_HOURS,
@@ -48,17 +48,19 @@ export async function POST(req: NextRequest) {
 
   if(sqm>AUTOMATIC_MAX_SQM)return NextResponse.json({error:"Suprafața necesită evaluare asistată înainte de rezervare.",assessmentRequired:true,assessmentUrl:"/client/evaluari"},{status:422});
 
+  const bathroomCount=body?.bathroomCount;
+  if(!validBathroomCount(bathroomCount))return NextResponse.json({error:"Confirmă numărul de băi, întreg între 0 și 20."},{status:400});
   const windowsSqm=body?.windowsSqm??0;
   if(!validWindowsSqm(windowsSqm))return NextResponse.json({error:"Suprafață geamuri invalidă"},{status:400});
   return NextResponse.json({
     quote: {
       spaceType,
       sqm,
-      windowsSqm,
-      priceGross: calcServicePrice(spaceType as SpaceType, sqm,windowsSqm),
+      windowsSqm,bathroomCount,
+      priceGross: calcServicePrice(spaceType as SpaceType, sqm,windowsSqm,bathroomCount),
       durationMinutes: calcServiceDuration(sqm,windowsSqm),
       ...market,
-      pricing: pricingSnapshot({spaceType:spaceType as SpaceType,sqm,windowsSqm,expressFeeLei:0,creditLei:0}),
+      pricing: pricingSnapshot({spaceType:spaceType as SpaceType,sqm,windowsSqm,bathroomCount,expressFeeLei:0,creditLei:0}),
     },
     scheduling: { slotHours: SLOT_HOURS, minLeadHours: MIN_LEAD_HOURS },
   });

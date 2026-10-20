@@ -3,7 +3,7 @@ import {UiDate} from '@/components/UiDate';
 import {UiText} from '@/components/UiText';
 import {readPublishedPrice} from '@/lib/publishedPrice';
 const money=(bani:number)=>new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON'}).format(bani/100);
-const labels:Record<string,string>={cleaning:'Serviciu de curățenie',windows:'Spălare geamuri (separat)',express60:'Supliment Express 60',platform_credit:'Credit aplicat'};
+const labels:Record<string,string>={cleaning:'Serviciu de curățenie',additional_bathrooms:'Băi suplimentare',windows:'Spălare geamuri (separat)',express60:'Supliment Express 60',platform_credit:'Credit aplicat'};
 export function PublishedPriceBreakdown({snapshot}:{snapshot?:string|null}){
  const price=readPublishedPrice(snapshot);
  return <section className="design-panel published-price"><h2><UiText text={"Prețul la publicare"}/></h2>{price?<><p className="booking-muted"><UiText text={"Înregistrat la "}/>{<UiDate value={new Date(price.recordedAt)} kind="dateTime" options={{timeZone:'Europe/Bucharest',dateStyle:'medium',timeStyle:'short'}}/>}</p><dl>{price.lines.filter(l=>l.code==='cleaning'||l.amountBani!==0).map(l=><div key={l.code}><dt>{<UiText text={labels[l.code]}/>}</dt><dd>{money(l.amountBani)}</dd></div>)}<div className="published-price-total"><dt><UiText text={"Total client la publicare"}/></dt><dd>{money(price.clientTotalBani)}</dd></div></dl><p className="booking-muted"><UiText text={"Aceasta este valoarea inițială a rezervării. Încasările, ajustările și rambursările sunt afișate separat în detaliile plății."}/></p></>:<p className="booking-muted"><UiText text={"Defalcarea inițială nu este disponibilă pentru această rezervare. Consultă detaliile plății pentru starea actuală."}/></p>}</section>

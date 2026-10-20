@@ -29,6 +29,7 @@ export interface JobRow {
   express_60_deadline?: string | null;
   express_60_status?: "pending" | "met" | "breached" | null;
   scheduled_at: string | null;
+  bathroom_count?: number | null;
   price_gross: number;
   windows_sqm?: number;
   pricing_snapshot?: string | null;

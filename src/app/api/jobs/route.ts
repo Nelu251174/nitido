@@ -24,7 +24,7 @@ import { getCurrentUser } from "@/lib/auth";
 import {
   AUTOMATIC_MAX_SQM,
   MIN_CLEANING_DURATION_MINUTES,
-  calcServicePrice,
+  calcServicePrice,validBathroomCount,
   calcServiceDuration,
   validWindowsSqm,
   PRICING_VERSION,
@@ -130,6 +130,7 @@ export async function GET(req: NextRequest) {
       when_type: j.when_type,
       mode: j.mode,
       scheduled_at: j.scheduled_at,
+      bathroom_count: j.bathroom_count,
       price_gross: j.price_gross,
       firm_payout: calcNetForFirm(j.price_gross),
       duration_minutes: j.duration_minutes,
@@ -297,11 +298,13 @@ export async function POST(req: NextRequest) {
   // abia la acceptare, deci se percepe DOAR dacă o firmă chiar preia; dacă
   // garanția nu e respectată, suplimentul se scoate din nou (vezi express60.ts).
   const express60Fee = isExpress60 ? EXPRESS_60_FEE_LEI : 0;
+  const bathroomCount=body.bathroomCount;
+  if(!manual&&!validBathroomCount(bathroomCount))return NextResponse.json({error:"Confirmă numărul de băi, întreg între 0 și 20, înainte de publicare."},{status:400});
   const windowsSqm=body.windowsSqm??0;
   if(!validWindowsSqm(windowsSqm))return NextResponse.json({error:"Suprafața geamurilor trebuie să fie între 0 și 200 m², fără zecimale"},{status:400});
   const managedPricing=!manual&&managedBookingEnabled();
   if(!managedPricing&&body.quoteId)return NextResponse.json({error:"Configurarea tarifelor s-a schimbat. Solicită o ofertă nouă."},{status:409});
-  let priceGross = manual?0:calcServicePrice(spaceType, sqm,windowsSqm) + express60Fee;
+  let priceGross = manual?0:calcServicePrice(spaceType, sqm,windowsSqm,bathroomCount) + express60Fee;
   if(!manual&&!managedPricing&&((body.pricingVersion!==undefined&&body.pricingVersion!==PRICING_VERSION)||(body.expectedPriceGross!==undefined&&body.expectedPriceGross!==priceGross)))return NextResponse.json({error:"Tariful s-a actualizat. Reîncarcă pagina și verifică noul preț înainte de publicare."},{status:409});
   if(!Number.isSafeInteger(priceGross*100))return NextResponse.json({error:"Suprafața depășește limita de calcul"},{status:400});
   let durationMinutes = assisted?0:calcServiceDuration(sqm,windowsSqm);
@@ -369,8 +372,8 @@ export async function POST(req: NextRequest) {
     if(manual){const category=db.prepare('SELECT a.payload FROM assessment_offer_jobs l JOIN assessment_offers o ON o.id=l.offer_id JOIN service_assessments a ON a.id=o.assessment_id WHERE l.job_id=?').get(id) as {payload:string};executionScope=JSON.parse(category.payload).category;}
     freezeExecutionRules(db,id,executionScope);
     const operation=jobAssistedOperation(db,id);
-    const frozenTerms=bookingTerms({durationMinutes,bufferMinutes,grossLei:priceGross,creditLei:creditUsed,inclusions:jobExecutionRules(db,id).items,team:operation?{id:operation.teamId,name:operation.teamName}:null});
-    db.prepare("UPDATE jobs SET pricing_snapshot=?, windows_sqm=? WHERE id=?").run(JSON.stringify({...manualSnapshot??acceptedPrice??pricingSnapshot({spaceType,sqm,windowsSqm,expressFeeLei:express60Fee,creditLei:creditUsed}),bookingTerms:frozenTerms}),windowsSqm,id);
+    const frozenTerms=bookingTerms({durationMinutes,bufferMinutes,grossLei:priceGross,creditLei:creditUsed,bathroomCount:manual?undefined:bathroomCount,inclusions:jobExecutionRules(db,id).items,team:operation?{id:operation.teamId,name:operation.teamName}:null});
+    db.prepare("UPDATE jobs SET pricing_snapshot=?, windows_sqm=?, bathroom_count=? WHERE id=?").run(JSON.stringify({...manualSnapshot??acceptedPrice??pricingSnapshot({spaceType,sqm,windowsSqm,bathroomCount,expressFeeLei:express60Fee,creditLei:creditUsed}),bookingTerms:frozenTerms}),windowsSqm,manual?null:bathroomCount,id);
     if (ownedPhotoIds.length > 0) {
       const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL AND NOT EXISTS(SELECT 1 FROM assessment_photos a WHERE a.photo_id=job_photos.id)");
       for (const photoId of ownedPhotoIds) linkPhoto.run(id, photoId, user.id);

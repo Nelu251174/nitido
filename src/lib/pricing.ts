@@ -29,7 +29,17 @@ export const PER_SQM_RATES: Record<Exclude<SpaceType, "apartament">, number> = {
 export const MINIMUM_PRICES = {casa:350,birou:250,altul:300} as const;
 export const WINDOWS_RATE_LEI = 8;
 export const WINDOWS_MAX_SQM = 200;
-export const PRICING_VERSION = 'nitido-2026-09-15-v2';
+export const PRICING_VERSION = 'nitido-2026-10-20-bathrooms-v1';
+export const EXTRA_BATHROOM_FEE_LEI = 50;
+export const BATHROOM_MAX_COUNT = 20;
+export const BATHROOM_PRICING_NOTICE = 'Pachetul include o baie și o bucătărie, pentru curățenie obișnuită. Fiecare baie suplimentară: +50 lei pentru obiecte sanitare, cadă/duș, baterii și oglinzi. Pardoseala este deja inclusă în suprafață și nu se taxează din nou. Interiorul electrocasnicelor, degresarea dificilă și bucătăriile suplimentare necesită evaluare.';
+export function validBathroomCount(value:unknown):value is number {
+ return typeof value==='number' && Number.isSafeInteger(value) && value>=0 && value<=BATHROOM_MAX_COUNT;
+}
+export function calcBathroomPrice(count:number=1):number {
+ if(!validBathroomCount(count))throw new Error('Numărul de băi trebuie să fie întreg, între 0 și 20; pentru alte situații solicită evaluare.');
+ return Math.max(0,count-1)*EXTRA_BATHROOM_FEE_LEI;
+}
 /** Glass area is measured once. Price includes both accessible faces and frames. */
 export function validWindowsSqm(value:unknown):value is number {
   return typeof value==='number' && Number.isSafeInteger(value) && value>=0 && value<=WINDOWS_MAX_SQM;
@@ -38,7 +48,7 @@ export function calcWindowsPrice(sqm:number=0):number {
   if(!validWindowsSqm(sqm))throw new Error('Suprafața geamurilor trebuie să fie între 0 și 200 m², fără zecimale');
   return sqm*WINDOWS_RATE_LEI;
 }
-export function calcServicePrice(type:SpaceType,sqm:number,windowsSqm=0){return calcGrossPrice(type,sqm)+calcWindowsPrice(windowsSqm);}
+export function calcServicePrice(type:SpaceType,sqm:number,windowsSqm=0,bathroomCount=1){return calcGrossPrice(type,sqm)+calcWindowsPrice(windowsSqm)+calcBathroomPrice(bathroomCount);}
 export function calcServiceDuration(sqm:number,windowsSqm=0){
   calcWindowsPrice(windowsSqm);
   return calcDurationMinutes(sqm)+(windowsSqm?Math.ceil(windowsSqm/5)*15:0);

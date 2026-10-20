@@ -13,7 +13,7 @@ import {createTariff,simulateTariff,publishTariff} from '@/lib/managedPricingSto
 import {POST as quote} from './quote/route';
 import {POST as book} from './route';
 const now=new Date('2026-10-01T06:00:00Z');
-const body={street:'Test 1',city:'București',spaceType:'apartament',sqm:80,windowsSqm:10,mode:'standard',whenType:'asap',photoIds:[]};
+const body={bathroomCount:1,street:'Test 1',city:'București',spaceType:'apartament',sqm:80,windowsSqm:10,mode:'standard',whenType:'asap',photoIds:[]};
 const req=(path:string,data:unknown,key?:string)=>new NextRequest(`https://sandbox.nitido.ro/api/jobs${path}`,{method:'POST',headers:{'Content-Type':'application/json',...(key?{'Idempotency-Key':key}:{})},body:JSON.stringify(data)});
 async function offer(data=body){const r=await quote(req('/quote',data));expect(r.status).toBe(200);return (await r.json()).quote;}
 beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime(now);vi.stubEnv('NITIDO_MANAGED_PRICING_SANDBOX','true');vi.stubEnv('NEXT_PUBLIC_SITE_URL','https://sandbox.nitido.ro');vi.stubEnv('STRIPE_SECRET_KEY','');state.user='c';state.db=new Database(':memory:');state.db.pragma('foreign_keys=ON');initializeDatabase(state.db);state.db.exec("INSERT INTO users(id,role,name,credit_balance) VALUES('c','client','Test',20),('other','client','Other',0)");const t=createTariff(state.db,'Test'),sim=simulateTariff(state.db,t.id,0);publishTariff(state.db,t.id,0,sim.simulationId,now.toISOString(),null,now);});
@@ -47,3 +47,20 @@ it('captures the configured checklist in the real booking transaction and keeps 
 it('caps credit to the platform share consistently in quote, snapshot, balance debit and existing payment split',async()=>{state.db!.exec("UPDATE users SET credit_balance=150 WHERE id='c'");const q=await offer();expect(q.pricing.creditBani).toBe(11300);expect(q.pricing.clientTotalBani).toBe(51700);const result=await book(req('',{...body,quoteId:q.id},'credit-reconcile'));expect(result.status).toBe(201);const job=(await result.json()).job;expect(job.credit_applied).toBe(113);expect(JSON.parse(job.pricing_snapshot).clientTotalBani).toBe(51700);expect(state.db!.prepare("SELECT credit_balance FROM users WHERE id='c'").get()).toEqual({credit_balance:37});});
 
 it('uses the same capped credit on the normal live booking path and never spends the remaining balance twice',async()=>{vi.stubEnv('NITIDO_MANAGED_PRICING_SANDBOX','false');state.db!.exec("UPDATE users SET credit_balance=150 WHERE id='c'");const first=await book(req('',body,'normal-credit-first'));expect(first.status).toBe(201);const a=(await first.json()).job;expect(a.duration_minutes).toBe(210);expect(a.credit_applied).toBe(113);const snapshot=JSON.parse(a.pricing_snapshot);expect(snapshot.clientTotalBani).toBe(51700);expect(snapshot.bookingTerms.settlement.quotedClientBani).toBe(51700);expect(state.db!.prepare("SELECT credit_balance FROM users WHERE id='c'").get()).toEqual({credit_balance:37});const second=await book(req('',body,'normal-credit-second'));expect(second.status).toBe(201);expect((await second.json()).job.credit_applied).toBe(37);expect(state.db!.prepare("SELECT credit_balance FROM users WHERE id='c'").get()).toEqual({credit_balance:0});expect((await book(req('',body,'normal-credit-first'))).status).toBe(200);expect(state.db!.prepare('SELECT duration_minutes,credit_applied,pricing_snapshot FROM jobs WHERE id=?').get(a.id)).toEqual({duration_minutes:210,credit_applied:113,pricing_snapshot:a.pricing_snapshot});});
+
+it('authoritatively prices the approved bathroom supplement, preserves retries and never creates payment at posting',async()=>{
+ vi.stubEnv('NITIDO_MANAGED_PRICING_SANDBOX','false');
+ state.db!.exec("UPDATE users SET credit_balance=0 WHERE id='c'");
+ const data={...body,sqm:60,windowsSqm:0,bathroomCount:2,expectedPriceGross:500};
+ const first=await book(req('',{...data,price_gross:1,bathroomFee:0},'bathrooms'));
+ expect(first.status).toBe(201);const job=(await first.json()).job;
+ expect(job).toMatchObject({price_gross:500,bathroom_count:2,credit_applied:0,duration_minutes:180});
+ const frozen=job.pricing_snapshot;expect(JSON.parse(frozen)).toMatchObject({grossBani:50000,bathroomCount:2,bookingTerms:{bathrooms:{additionalCount:1},commission:{rate:0.18,firmAmountBani:41000}}});
+ expect(state.db!.prepare('SELECT COUNT(*) n FROM payments').get()).toEqual({n:0});
+ const retry=await book(req('',{...data,bathroomCount:undefined},'bathrooms'));expect(retry.status).toBe(200);expect((await retry.json()).job.pricing_snapshot).toBe(frozen);
+ for(const bathroomCount of [undefined,null,-1,1.2,'2',21])expect((await book(req('',{...data,bathroomCount},'invalid-'+String(bathroomCount)))).status).toBe(400);
+ expect((await book(req('',{...data,expectedPriceGross:450},'stale-bathroom-total'))).status).toBe(409);
+ expect(state.db!.prepare('SELECT COUNT(*) n FROM jobs').get()).toEqual({n:1});
+ expect(state.db!.prepare('SELECT pricing_snapshot FROM jobs WHERE id=?').get(job.id)).toEqual({pricing_snapshot:frozen});
+});
+it('includes bathroom extras in the sandbox authoritative quote without changing its gate',async()=>{const data={...body,sqm:60,windowsSqm:0,bathroomCount:2},q=await offer(data);expect(q.priceGross).toBe(500);const r=await book(req('',{...data,quoteId:q.id},'sandbox-bathrooms'));expect(r.status).toBe(201);expect((await r.json()).job.price_gross).toBe(500)});

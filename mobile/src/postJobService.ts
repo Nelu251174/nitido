@@ -5,14 +5,14 @@ type Requester = <T>(path: string, init?: RequestInit) => Promise<T>;
 export async function requestAuthoritativeQuote(draft: PostJobDraft, request: Requester) {
   return request<{ quote: JobQuote; scheduling: SchedulingConfig }>("/api/jobs/quote", {
     method: "POST",
-    body: JSON.stringify({ spaceType: draft.spaceType, sqm: Number(draft.sqm) }),
+    body: JSON.stringify({ spaceType: draft.spaceType, sqm: Number(draft.sqm),bathroomCount:Number(draft.bathroomCount) }),
   });
 }
 
-export async function publishClientJob(draft: PostJobDraft, idempotencyKey: string, request: Requester) {
+export async function publishClientJob(draft: PostJobDraft, idempotencyKey: string, request: Requester,quote?:JobQuote) {
   return request<CreatedJobResponse>("/api/jobs", {
     method: "POST",
     headers: { "Idempotency-Key": idempotencyKey },
-    body: JSON.stringify({...buildCreatePayload(draft), ...(draft.approvalId?{approvalId:draft.approvalId}:{}), ...(draft.propertyId?{propertyId:draft.propertyId}:{})}),
+    body: JSON.stringify({...buildCreatePayload(draft),...(quote?{expectedPriceGross:quote.priceGross,pricingVersion:quote.pricing?.version}:{}), ...(draft.approvalId?{approvalId:draft.approvalId}:{}), ...(draft.propertyId?{propertyId:draft.propertyId}:{})}),
   });
 }
