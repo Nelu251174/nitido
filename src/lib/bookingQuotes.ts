@@ -5,7 +5,7 @@ import {randomUUID} from 'node:crypto';
 import {ManagedPricingError,PRICING_SPACES} from './managedPricing';
 import {resolveManagedPrice} from './managedPricingStore';
 import {normalizeCity} from './text';
-import {BUFFER_MINUTES,calcServiceDuration,type SpaceType} from './pricing';
+import {BUFFER_MINUTES,calcServiceDuration,validBathroomCount,calcBathroomPrice,type SpaceType} from './pricing';
 import {EXPRESS_60_FEE_LEI} from './express60';
 
 // Deliberately restricted to the existing sandbox; a production rollout needs its own gate.
@@ -29,19 +29,20 @@ CREATE TRIGGER IF NOT EXISTS booking_quote_immutable BEFORE UPDATE ON booking_pr
 CREATE TRIGGER IF NOT EXISTS booking_quote_no_delete BEFORE DELETE ON booking_price_quotes
  BEGIN SELECT RAISE(ABORT,'Quote history is retained'); END;
 `;
-export type BookingPriceContext={city:string;spaceType:SpaceType;sqm:number;windowsSqm:number;mode:'standard'|'express';express60:boolean};
+export type BookingPriceContext={city:string;spaceType:SpaceType;sqm:number;windowsSqm:number;mode:'standard'|'express';express60:boolean;bathroomCount?:number};
 export function bookingPriceContext(body:Record<string,unknown>):BookingPriceContext {
   try{configuredServiceMarket(body);}catch(error){if(error instanceof ServiceMarketError)throw new ManagedPricingError(error.message,error.status);throw error;}
   if(typeof body.city!=='string'||!body.city.trim()||body.city.length>120)throw new ManagedPricingError('Localitate invalidă.');
   if(!PRICING_SPACES.includes(body.spaceType as SpaceType)||!Number.isSafeInteger(body.sqm)||Number(body.sqm)<1||Number(body.sqm)>1000)throw new ManagedPricingError('Parametri de serviciu invalizi.');
+  if(body.bathroomCount!==undefined&&!validBathroomCount(body.bathroomCount))throw new ManagedPricingError("Număr de băi invalid.");
   const windowsSqm=body.windowsSqm??0;
   if(!Number.isSafeInteger(windowsSqm)||Number(windowsSqm)<0||Number(windowsSqm)>200)throw new ManagedPricingError('Suprafață geamuri invalidă.');
   if(body.contractId!=null||body.zone!=null||body.hours!=null)throw new ManagedPricingError('Acest flux nu validează încă tarifele de contract, zonă sau orare.',422);
   if(body.mode!=null&&body.mode!=='standard'&&body.mode!=='express')throw new ManagedPricingError('Mod de rezervare invalid.');
   if(body.express60!=null&&typeof body.express60!=='boolean')throw new ManagedPricingError('Opțiune Express invalidă.');
-  return {city:normalizeCity(body.city),spaceType:body.spaceType as SpaceType,sqm:Number(body.sqm),windowsSqm:Number(windowsSqm),mode:body.express60?'express':body.mode==='standard'?'standard':'express',express60:body.express60===true};
+  return {city:normalizeCity(body.city),spaceType:body.spaceType as SpaceType,sqm:Number(body.sqm),windowsSqm:Number(windowsSqm),mode:body.express60?'express':body.mode==='standard'?'standard':'express',express60:body.express60===true,...(body.bathroomCount===undefined?{}:{bathroomCount:body.bathroomCount as number})};
 }
-export type BookingPriceSnapshot={version:string;quoteId:string;currency:'RON';recordedAt:string;expiresAt:string;spaceType:SpaceType;sqm:number;windowsSqm:number;durationMinutes:number;bufferMinutes:number;lines:{code:string;amountBani:number}[];grossBani:number;creditBani:number;clientTotalBani:number};
+export type BookingPriceSnapshot={version:string;quoteId:string;currency:'RON';recordedAt:string;expiresAt:string;spaceType:SpaceType;sqm:number;windowsSqm:number;bathroomCount?:number;durationMinutes:number;bufferMinutes:number;lines:{code:string;amountBani:number}[];grossBani:number;creditBani:number;clientTotalBani:number};
 export type BookingQuote={id:string;client_id:string;context_json:string;snapshot_json:string;created_at:string;expires_at:string;job_id:string|null};
 function creditBani(db:Database,clientId:string){
   const user=db.prepare("SELECT credit_balance FROM users WHERE id=? AND role='client'").get(clientId) as {credit_balance:number}|undefined;
@@ -55,10 +56,10 @@ export function issueBookingQuote(db:Database,clientId:string,context:BookingPri
     const zones=db.prepare("SELECT scope_json FROM managed_tariffs WHERE status='published' AND valid_from<=? AND (valid_until IS NULL OR valid_until>?)").all(now.toISOString(),now.toISOString()) as {scope_json:string}[];
     if(zones.some(r=>{const s=JSON.parse(r.scope_json);return s.kind==='zone'&&s.city===context.city;}))throw new ManagedPricingError('Localitatea are tarife pe zone; adresa trebuie validată înainte de calcul.',422);
     const price=resolveManagedPrice(db,{city:context.city},context,now);
-    const extra=context.express60?Math.round(EXPRESS_60_FEE_LEI*100):0,grossBani=price.totalBani+extra;
+    const extra=context.express60?Math.round(EXPRESS_60_FEE_LEI*100):0,bathrooms=calcBathroomPrice(context.bathroomCount??1)*100,grossBani=price.totalBani+bathrooms+extra;
     const credit=Math.round(applyCredit(grossBani/100,creditBani(db,clientId)/100).creditUsed*100),id=randomUUID();
     const expiresAt=new Date(now.getTime()+15*60*1000).toISOString();
-    const snapshot:BookingPriceSnapshot={version:`managed:${price.tariffId}:${price.revision}`,quoteId:id,currency:'RON',recordedAt:now.toISOString(),expiresAt,spaceType:context.spaceType,sqm:context.sqm,windowsSqm:context.windowsSqm,durationMinutes:calcServiceDuration(context.sqm,context.windowsSqm),bufferMinutes:BUFFER_MINUTES,lines:[...price.lines,{code:'express60',amountBani:extra},{code:'platform_credit',amountBani:-credit}],grossBani,creditBani:credit,clientTotalBani:grossBani-credit};
+    const snapshot:BookingPriceSnapshot={version:`managed:${price.tariffId}:${price.revision}`,quoteId:id,currency:'RON',recordedAt:now.toISOString(),expiresAt,spaceType:context.spaceType,sqm:context.sqm,windowsSqm:context.windowsSqm,...(context.bathroomCount===undefined?{}:{bathroomCount:context.bathroomCount}),durationMinutes:calcServiceDuration(context.sqm,context.windowsSqm),bufferMinutes:BUFFER_MINUTES,lines:[...price.lines,...(bathrooms?[{code:'additional_bathrooms',amountBani:bathrooms}]:[]),{code:'express60',amountBani:extra},{code:'platform_credit',amountBani:-credit}],grossBani,creditBani:credit,clientTotalBani:grossBani-credit};
     db.prepare('INSERT INTO booking_price_quotes VALUES(?,?,?,?,?,?,NULL)').run(id,clientId,JSON.stringify(context),JSON.stringify(snapshot),now.toISOString(),expiresAt);
     return {id,expiresAt,priceGross:grossBani/100,pricing:snapshot};
   }).immediate();

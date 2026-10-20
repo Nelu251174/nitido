@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getClientCardInfo } from "@/lib/clientPayments";
 import { validateRecurringPlan, type RecurringPlanInput, createRecurringPlan, listPlansForClient, listRecurringOccurrences, generateDueRecurringJobs } from "@/lib/recurring";
-import type { SpaceType } from "@/lib/pricing";
+import {validBathroomCount,calcServicePrice,PRICING_VERSION,type SpaceType} from "@/lib/pricing";
 
 // GET — citire fără generare de lucrări sau operațiuni financiare.
 export async function GET(req: NextRequest) {
@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
     city: b?.city,
     floor: b?.floor ?? null,
     sqm: b?.sqm,
+    bathroomCount:b.bathroomCount,
     spaceType: b?.spaceType as SpaceType,
     hour: b?.hour,
     details: b?.details ?? null,
@@ -53,6 +54,9 @@ export async function POST(req: NextRequest) {
   };
   const invalid=validateRecurringPlan(input);
   if(invalid)return NextResponse.json({error:invalid.error},{status:invalid.status});
+  if(!validBathroomCount(b.bathroomCount))return NextResponse.json({error:"Confirmă numărul de băi, întreg între 0 și 20."},{status:400});
+  const expectedPrice=calcServicePrice(input.spaceType,input.sqm,0,b.bathroomCount);
+  if((b.pricingVersion!==undefined&&b.pricingVersion!==PRICING_VERSION)||(b.expectedPriceGross!==undefined&&b.expectedPriceGross!==expectedPrice))return NextResponse.json({error:"Tariful s-a actualizat. Verifică prețul pe vizită înainte de creare."},{status:409});
   // Metodă salvată pentru confirmarea financiară separată a fiecărei vizite.
   const card = getClientCardInfo(db, user.id);
   if (card.stripeConfigured && !card.hasCard) {

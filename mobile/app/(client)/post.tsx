@@ -10,7 +10,7 @@ import { api } from "@/api";
 import { DateSelector } from "@/DateSelector";
 import { JOB_TYPE_LABELS, jobTypeLabel } from "@/jobTypes";
 import { AppScreen, PremiumCard, PrimaryButton, Pill } from "@/mobileUi";
-import { canAddPhoto, draftFromProperty, EMPTY_DRAFT, isDateAllowed, isSlotAllowed, MAX_DETAILS_LENGTH, MAX_PHOTOS, nextPostStep, postJobError, previousPostStep, quoteMatchesDraft, validateSqm, type JobQuote, type PostJobDraft, type SchedulingConfig } from "@/postJobCore";
+import { canAddPhoto, draftFromProperty, EMPTY_DRAFT, isDateAllowed, isSlotAllowed, MAX_DETAILS_LENGTH, MAX_PHOTOS, nextPostStep, postJobError, previousPostStep, quoteMatchesDraft, validateSqm, validateBathrooms, type JobQuote, type PostJobDraft, type SchedulingConfig } from "@/postJobCore";
 import { uploadClientPhoto, type LocalPhoto } from "@/photoUpload";
 import { publishClientJob, requestAuthoritativeQuote } from "@/postJobService";
 import { colors } from "@/theme";
@@ -42,12 +42,12 @@ export default function PostJob() {
 
   function update<K extends keyof PostJobDraft>(key: K, value: PostJobDraft[K]) {
     setDraft(old => ({ ...old, [key]: value }));
-    if (key === "spaceType" || key === "sqm") { setQuote(null); setScheduling(null); }
+    if (key === "spaceType" || key === "sqm" || key === "bathroomCount") { setQuote(null); setScheduling(null); }
     setError(null);
   }
 
   async function requestQuote() {
-    if (!draft.spaceType || validateSqm(draft.sqm)) return false;
+    if (!draft.spaceType || validateSqm(draft.sqm) || validateBathrooms(draft.bathroomCount)) return false;
     if (Number(draft.sqm) > 1000) { setError("Pentru suprafețe de peste 1000 m², solicită o evaluare personalizată."); return false; }
     setQuoteLoading(true); setError(null);
     try {
@@ -61,7 +61,7 @@ export default function PostJob() {
 
   function validationForCurrentStep() {
     if (step === 0 && !draft.spaceType) return "Alege tipul serviciului.";
-    if (step === 1) return validateSqm(draft.sqm);
+    if (step === 1) return validateSqm(draft.sqm)||validateBathrooms(draft.bathroomCount);
     if (step === 2 && (!draft.city.trim() || !draft.street.trim())) return "Completează orașul și strada cu număr.";
     if (step === 3 && !isDateAllowed(draft.scheduledDate)) return "Alege o dată de astăzi sau din viitor.";
     if (step === 4 && !isSlotAllowed(draft.scheduledDate, draft.scheduledHour, new Date(), scheduling?.slotHours, scheduling?.minLeadHours)) return "Alege un interval disponibil conform programării NITIDO.";
@@ -121,7 +121,7 @@ export default function PostJob() {
     setSubmitting(true); setError(null);
     requestId.current ??= `mobile-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     try {
-      const result = await publishClientJob(draft, requestId.current, api);
+      const result = await publishClientJob(draft, requestId.current, api,quote??undefined);
       setCreatedId(result.job.id);
     } catch (cause) { setError(postJobError(cause)); }
     finally { setSubmitting(false); }
@@ -136,7 +136,7 @@ export default function PostJob() {
   return <AppScreen eyebrow={`PASUL ${step + 1} DIN ${STEPS.length}`} title="Postează o lucrare" subtitle={STEPS[step]}>
     <View accessibilityLabel={`Pasul ${step + 1} din ${STEPS.length}`} style={styles.progress}><View style={[styles.fill, { width: `${((step + 1) / STEPS.length) * 100}%` }]}/></View>
     {step === 0 ? <ServiceStep value={draft.spaceType} onChange={value => update("spaceType", value)}/> : null}
-    {step === 1 ? <PremiumCard><Field label="Suprafața spațiului" value={draft.sqm} onChange={value => update("sqm", value.replace(/\D/g, ""))} keyboard="number-pad" suffix="m²"/><Text style={styles.note}>Introdu suprafața în metri pătrați. Vei vedea estimarea înainte de confirmare.</Text></PremiumCard> : null}
+    {step === 1 ? <PremiumCard><Field label="Suprafața spațiului" value={draft.sqm} onChange={value => update("sqm", value.replace(/\D/g, ""))} keyboard="number-pad" suffix="m²"/><Field label="Număr total de băi" value={draft.bathroomCount} onChange={value=>update("bathroomCount",value.replace(/\D/g,""))} keyboard="number-pad"/><Text style={styles.note}>O baie și o bucătărie incluse. Fiecare baie suplimentară: +50 lei pentru obiectele sanitare; pardoseala rămâne inclusă în suprafață. Interiorul electrocasnicelor și degresarea dificilă necesită evaluare.</Text><Text style={styles.note}>Introdu suprafața în metri pătrați. Vei vedea estimarea înainte de confirmare.</Text></PremiumCard> : null}
     {step === 1 && Number(draft.sqm) > 1000 ? <PremiumCard><Text style={styles.note}>Suprafața depășește limita estimării automate. Trimite detaliile către echipa NITIDO.</Text><PrimaryButton title="Solicită o evaluare" onPress={() => { if(!user)return; const handoffId=assessmentHandoff.put(user.id,assessmentFromBooking(draft)); router.push({pathname:"/(client)/assessments",params:{handoffId}}); }}/></PremiumCard> : null}
     {step === 2 ? <PremiumCard><Field label="Oraș" value={draft.city} onChange={value => update("city", value)} placeholder="București"/><Field label="Stradă și număr" value={draft.street} onChange={value => update("street", value)} placeholder="Strada Exemplu 10"/><Field label="Cod poștal (opțional)" value={draft.postalCode} onChange={value => update("postalCode", value)} keyboard="number-pad"/><Field label="Etaj / acces (opțional)" value={draft.floor} onChange={value => update("floor", value)}/><Text style={styles.privacy}><Ionicons name="lock-closed"/> Adresa exactă rămâne protejată înainte de alocarea firmei.</Text></PremiumCard> : null}
     {step === 3 ? <PremiumCard><Text style={styles.label}>Data lucrării</Text><DateSelector value={draft.scheduledDate} onChange={value => update("scheduledDate", value)}/><Text style={styles.note}>Alege ziua în care dorești să înceapă curățenia.</Text></PremiumCard> : null}
@@ -156,6 +156,6 @@ export default function PostJob() {
 
 function ServiceStep({ value, onChange }: { value: SpaceType | null; onChange: (value: SpaceType) => void }) { return <View style={styles.grid}>{Object.entries(JOB_TYPE_LABELS).map(([key, label]) => <Pressable accessibilityRole="radio" accessibilityState={{ checked: value === key }} key={key} onPress={() => onChange(key as SpaceType)} style={[styles.service, value === key && styles.selected]}><View style={styles.serviceIcon}><Ionicons name={key === "birou" ? "business-outline" : "home-outline"} size={23} color={colors.green}/></View><Text style={styles.serviceTitle}>{label}</Text><Text style={styles.serviceBody}>Alege spațiul pentru care dorești curățenie.</Text></Pressable>)}</View>; }
 function Field({ label, value, onChange, placeholder, keyboard = "default", suffix }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; keyboard?: "default" | "number-pad"; suffix?: string }) { return <View><Text style={styles.label}>{label}</Text><View style={styles.fieldRow}><TextInput accessibilityLabel={label} keyboardType={keyboard} value={value} onChangeText={onChange} placeholder={placeholder} style={styles.field}/>{suffix ? <Text style={styles.suffix}>{suffix}</Text> : null}</View></View>; }
-function Review({ draft, dateText, quote }: { draft: PostJobDraft; dateText: string; quote: JobQuote | null }) { const rows = [["Tip lucrare", draft.spaceType ? jobTypeLabel(draft.spaceType) : "—"], ["Suprafață", `${draft.sqm} m²`], ["Adresă", `${draft.street}, ${draft.city}`], ["Dată", dateText], ["Oră", draft.scheduledHour === null ? "—" : `${String(draft.scheduledHour).padStart(2, "0")}:00`], ["Detalii", draft.details || "Fără observații"], ["Fotografii", String(draft.photoIds.length)], ["Preț total", quote ? `${quote.priceGross} lei` : "—"]]; return <PremiumCard>{rows.map(([label, value]) => <View key={label} style={styles.reviewRow}><Text style={styles.reviewLabel}>{label}</Text><Text style={styles.reviewValue}>{value}</Text></View>)}</PremiumCard>; }
+function Review({ draft, dateText, quote }: { draft: PostJobDraft; dateText: string; quote: JobQuote | null }) { const rows = [["Tip lucrare", draft.spaceType ? jobTypeLabel(draft.spaceType) : "—"], ["Suprafață", `${draft.sqm} m²`], ["Băi",draft.bathroomCount], ["Adresă", `${draft.street}, ${draft.city}`], ["Dată", dateText], ["Oră", draft.scheduledHour === null ? "—" : `${String(draft.scheduledHour).padStart(2, "0")}:00`], ["Detalii", draft.details || "Fără observații"], ["Fotografii", String(draft.photoIds.length)], ["Preț total", quote ? `${quote.priceGross} lei` : "—"]]; return <PremiumCard>{rows.map(([label, value]) => <View key={label} style={styles.reviewRow}><Text style={styles.reviewLabel}>{label}</Text><Text style={styles.reviewValue}>{value}</Text></View>)}</PremiumCard>; }
 
 const styles = StyleSheet.create({progress:{height:6,borderRadius:99,backgroundColor:"#D9DED9",overflow:"hidden"},fill:{height:"100%",backgroundColor:colors.green,borderRadius:99},grid:{flexDirection:"row",flexWrap:"wrap",gap:10},service:{width:"48%",minHeight:150,borderRadius:20,borderWidth:1,borderColor:colors.border,backgroundColor:colors.white,padding:17,gap:9},selected:{borderColor:colors.green,backgroundColor:colors.greenSoft},selectedText:{color:colors.greenDark},serviceIcon:{width:42,height:42,borderRadius:14,backgroundColor:colors.greenSoft,alignItems:"center",justifyContent:"center"},serviceTitle:{fontSize:16,fontWeight:"800",color:colors.ink},serviceBody:{fontSize:11,lineHeight:16,color:colors.muted},label:{fontSize:13,fontWeight:"800",color:colors.ink,marginBottom:7},fieldRow:{flexDirection:"row",alignItems:"center",borderWidth:1,borderColor:colors.border,borderRadius:16,backgroundColor:colors.white,paddingHorizontal:15},field:{flex:1,minHeight:56,fontSize:16,color:colors.ink},suffix:{fontSize:17,fontWeight:"800",color:colors.muted},note:{fontSize:12,lineHeight:18,color:colors.muted},privacy:{fontSize:12,lineHeight:18,color:colors.greenDark,backgroundColor:colors.greenSoft,padding:12,borderRadius:13},slots:{flexDirection:"row",flexWrap:"wrap",gap:9},slot:{minWidth:"30%",minHeight:50,borderWidth:1,borderColor:colors.border,borderRadius:15,alignItems:"center",justifyContent:"center"},slotText:{fontSize:15,fontWeight:"800",color:colors.ink},textarea:{minHeight:130,borderWidth:1,borderColor:colors.border,borderRadius:16,padding:14,textAlignVertical:"top",fontSize:15,lineHeight:21,color:colors.ink},counter:{fontSize:11,color:colors.muted,textAlign:"right"},photoActions:{gap:5},photos:{flexDirection:"row",flexWrap:"wrap",gap:9},photo:{width:82,height:82},photoImage:{width:82,height:82,borderRadius:14},remove:{position:"absolute",right:-5,top:-5,width:28,height:28,borderRadius:14,backgroundColor:colors.ink,alignItems:"center",justifyContent:"center"},priceCard:{alignItems:"center",paddingVertical:28},price:{fontSize:43,fontWeight:"800",letterSpacing:-1.5,color:colors.ink},duration:{fontSize:14,fontWeight:"700",color:colors.greenDark},reviewRow:{flexDirection:"row",gap:16,justifyContent:"space-between",paddingVertical:9,borderBottomWidth:1,borderBottomColor:colors.border},reviewLabel:{fontSize:12,color:colors.muted},reviewValue:{flex:1,fontSize:13,fontWeight:"700",color:colors.ink,textAlign:"right"},confirmTitle:{fontSize:20,fontWeight:"800",color:colors.ink},success:{alignItems:"center",paddingVertical:28},error:{fontSize:13,lineHeight:19,color:colors.danger,backgroundColor:"#F8E3E1",padding:13,borderRadius:14},actions:{gap:5,marginTop:8}});

@@ -8,17 +8,17 @@ vi.mock("@/lib/auth", () => ({ getCurrentUser }));
 import { POST } from "./route";
 
 function request(body: unknown) {
-  return new Request("http://localhost/api/jobs/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }) as never;
+  return new Request("http://localhost/api/jobs/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({...{bathroomCount:1},...(body as object)}) }) as never;
 }
 
 describe("authoritative mobile job quote", () => {
   beforeEach(() => getCurrentUser.mockReset());
   it("requires an authenticated client", async () => { getCurrentUser.mockResolvedValue(null); expect((await POST(request({ spaceType: "apartament", sqm: 80 }))).status).toBe(401); });
   it("rejects unsupported service types and invalid surfaces", async () => { getCurrentUser.mockResolvedValue({ id: "client", role: "client" }); expect((await POST(request({ spaceType: "hotel", sqm: 80 }))).status).toBe(400); expect((await POST(request({ spaceType: "apartament", sqm: 12.5 }))).status).toBe(400); });
-  it("returns the existing server pricing result", async () => { getCurrentUser.mockResolvedValue({ id: "client", role: "client" }); const response = await POST(request({ spaceType: "apartament", sqm: 80 })); expect(response.status).toBe(200); expect(await response.json()).toMatchObject({ quote: { priceGross: 550, durationMinutes: 150, currency: "RON" }, scheduling: { slotHours: [8, 10, 12, 14, 16, 18], minLeadHours: 1 } }); });
+  it("returns the existing server pricing result", async () => { getCurrentUser.mockResolvedValue({ id: "client", role: "client" }); const response = await POST(request({ spaceType: "apartament", sqm: 80 })); expect(response.status).toBe(200); expect(await response.json()).toMatchObject({ quote: { priceGross: 550, durationMinutes: 180, currency: "RON" }, scheduling: { slotHours: [8, 10, 12, 14, 16, 18], minLeadHours: 1 } }); });
   it('keeps a Romanian work in RON when the visitor uses French or a foreign IP country',async()=>{
     getCurrentUser.mockResolvedValue({id:'client',role:'client'});
-    const req=new Request('http://localhost/api/jobs/quote',{method:'POST',headers:{'Content-Type':'application/json','Accept-Language':'fr-FR','Cookie':'nitido-language=fr','x-nitido-country':'DE'},body:JSON.stringify({spaceType:'apartament',sqm:80,countryCode:'RO'})});
+    const req=new Request('http://localhost/api/jobs/quote',{method:'POST',headers:{'Content-Type':'application/json','Accept-Language':'fr-FR','Cookie':'nitido-language=fr','x-nitido-country':'DE'},body:JSON.stringify({spaceType:'apartament',sqm:80,countryCode:'RO',bathroomCount:1})});
     expect(await (await POST(req as never)).json()).toMatchObject({quote:{countryCode:'RO',currency:'RON',priceGross:550,pricing:{countryCode:'RO',currency:'RON',grossBani:55000}}});
   });
   it('rejects a forged currency and an unpriced foreign country without returning a price',async()=>{
@@ -31,4 +31,11 @@ describe("authoritative mobile job quote", () => {
   it("keeps creation idempotency, credit and photo linking in one transaction", () => { const source=readFileSync(join(process.cwd(),"src/app/api/jobs/route.ts"),"utf8"); expect(source).toContain('req.headers.get("Idempotency-Key")'); expect(source).toContain("db.transaction"); expect(source).toContain("client_request_id"); expect(source.indexOf("db.transaction")).toBeLessThan(source.lastIndexOf("UPDATE job_photos SET job_id")); });
 });
 
-it('quotes windows separately and rejects tampered quantities',async()=>{getCurrentUser.mockResolvedValue({id:'client',role:'client'});const r=await POST(request({spaceType:'apartament',sqm:60,windowsSqm:10}));expect(r.status).toBe(200);expect(await r.json()).toMatchObject({quote:{priceGross:530,durationMinutes:150,windowsSqm:10}});for(const windowsSqm of [-1,1.5,201,'10'])expect((await POST(request({spaceType:'apartament',sqm:60,windowsSqm}))).status).toBe(400);});
+it('quotes windows separately and rejects tampered quantities',async()=>{getCurrentUser.mockResolvedValue({id:'client',role:'client'});const r=await POST(request({spaceType:'apartament',sqm:60,windowsSqm:10}));expect(r.status).toBe(200);expect(await r.json()).toMatchObject({quote:{priceGross:530,durationMinutes:210,windowsSqm:10}});for(const windowsSqm of [-1,1.5,201,'10'])expect((await POST(request({spaceType:'apartament',sqm:60,windowsSqm}))).status).toBe(400);});
+
+it('quotes bathroom fixtures separately and rejects absent or tampered counts',async()=>{
+ getCurrentUser.mockResolvedValue({id:'client',role:'client'});
+ for(const [bathroomCount,priceGross] of [[0,450],[1,450],[2,500],[3,550]]){const response=await POST(request({spaceType:'apartament',sqm:60,bathroomCount}));expect(response.status).toBe(200);expect(await response.json()).toMatchObject({quote:{bathroomCount,priceGross,pricing:{bathroomCount}}})}
+ expect(await (await POST(request({spaceType:'apartament',sqm:60,bathroomCount:2,windowsSqm:10}))).json()).toMatchObject({quote:{priceGross:580}});
+ for(const bathroomCount of [undefined,null,'2',-1,1.5,21])expect((await POST(request({spaceType:'apartament',sqm:60,bathroomCount}))).status).toBe(400);
+});

@@ -13,9 +13,11 @@ export function canAddPhoto(count: number): boolean { return count >= 0 && count
 export type JobQuote = {
   spaceType: SpaceType;
   sqm: number;
+  bathroomCount: number;
   priceGross: number;
   durationMinutes: number;
   currency: "RON";
+  pricing?:{version:string};
 };
 export type SchedulingConfig = { slotHours: number[]; minLeadHours: number };
 
@@ -25,6 +27,7 @@ export type PostJobDraft = {
   approvalId?: string;
   spaceType: SpaceType | null;
   sqm: string;
+  bathroomCount: string;
   city: string;
   street: string;
   postalCode: string;
@@ -38,6 +41,7 @@ export type PostJobDraft = {
 export const EMPTY_DRAFT: PostJobDraft = {
   spaceType: null,
   sqm: "",
+  bathroomCount: "1",
   city: "",
   street: "",
   postalCode: "",
@@ -62,6 +66,9 @@ export function validateSqm(value: string): string | null {
   return null;
 }
 
+export function validateBathrooms(value:string):string|null {
+ return /^\d+$/.test(value)&&Number(value)<=20?null:"Introdu numărul de băi, întreg între 0 și 20.";
+}
 export function localIsoDate(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -82,17 +89,17 @@ export function isSlotAllowed(date: string, hour: number | null, now = new Date(
   return slot.getTime() - now.getTime() >= minLeadHours * 60 * 60 * 1000;
 }
 
-export function quoteKey(draft: Pick<PostJobDraft, "spaceType" | "sqm">): string | null {
-  if (!draft.spaceType || validateSqm(draft.sqm)) return null;
-  return `${draft.spaceType}:${Number(draft.sqm)}`;
+export function quoteKey(draft: Pick<PostJobDraft, "spaceType" | "sqm" | "bathroomCount">): string | null {
+  if (!draft.spaceType || validateSqm(draft.sqm) || validateBathrooms(draft.bathroomCount)) return null;
+  return `${draft.spaceType}:${Number(draft.sqm)}:${Number(draft.bathroomCount)}`;
 }
 
 export function quoteMatchesDraft(quote: JobQuote | null, draft: PostJobDraft): boolean {
-  return Boolean(quote && quoteKey(draft) === `${quote.spaceType}:${quote.sqm}`);
+  return Boolean(quote && quoteKey(draft) === `${quote.spaceType}:${quote.sqm}:${quote.bathroomCount}`);
 }
 
 export function buildCreatePayload(draft: PostJobDraft) {
-  if (!draft.spaceType || validateSqm(draft.sqm) || !draft.city.trim() || !draft.street.trim() || !isDateAllowed(draft.scheduledDate) || draft.scheduledHour === null) {
+  if (!draft.spaceType || validateSqm(draft.sqm) || validateBathrooms(draft.bathroomCount) || !draft.city.trim() || !draft.street.trim() || !isDateAllowed(draft.scheduledDate) || draft.scheduledHour === null) {
     throw new Error("Datele lucrării nu sunt complete.");
   }
   return {
@@ -103,6 +110,7 @@ export function buildCreatePayload(draft: PostJobDraft) {
     floor: draft.floor.trim() || undefined,
     details: draft.details.trim() || undefined,
     sqm: Number(draft.sqm),
+    bathroomCount:Number(draft.bathroomCount),
     spaceType: draft.spaceType,
     whenType: "scheduled" as const,
     scheduledDate: `${draft.scheduledDate}T00:00:00`,

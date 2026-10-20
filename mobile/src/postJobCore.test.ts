@@ -9,7 +9,7 @@ beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime(new Date("2026-08-30T12:00:0
 afterEach(()=>vi.useRealTimers());
 
 const draft = (overrides: Partial<PostJobDraft> = {}): PostJobDraft => ({ ...EMPTY_DRAFT, spaceType: "apartament", sqm: "80", city: "București", street: "Strada Test 10", scheduledDate: "2026-09-02", scheduledHour: 10, ...overrides });
-const quote: JobQuote = { spaceType: "apartament", sqm: 80, priceGross: 550, durationMinutes: 150, currency: "RON" };
+const quote: JobQuote = { spaceType: "apartament", sqm: 80, bathroomCount:1, priceGross: 550, durationMinutes: 150, currency: "RON" };
 
 describe("client post-job validation", () => {
   it("uses only canonical job types", () => { expect(buildCreatePayload(draft()).spaceType).toBe("apartament"); });
@@ -52,3 +52,5 @@ it("does not reuse a past property booking date", () => {
 });
 
 it("sends the selected local card with the booking without Stripe customer data",async()=>{const request=vi.fn().mockResolvedValue({job:{id:"card-job"}});await publishClientJob(draft({cardId:"card_choice"}),"card-booking",request);const body=JSON.parse(String(request.mock.calls[0][1].body));expect(body.cardId).toBe("card_choice");expect(body).not.toHaveProperty("stripe_customer_id");expect(body).not.toHaveProperty("payment_method");});
+
+it('invalidates the native quote when bathrooms change and sends the confirmed count and amount',async()=>{expect(quoteMatchesDraft(quote,draft({bathroomCount:'2'}))).toBe(false);const changed={...quote,bathroomCount:2,priceGross:600,pricing:{version:'test-tariff'}};expect(quoteMatchesDraft(changed,draft({bathroomCount:'2'}))).toBe(true);const request=vi.fn().mockResolvedValue({job:{id:'j'}});await publishClientJob(draft({bathroomCount:'2'}),'bathroom-count-key',request,changed);expect(JSON.parse(String(request.mock.calls[0][1].body))).toMatchObject({bathroomCount:2,expectedPriceGross:600,pricingVersion:'test-tariff'});});

@@ -7,7 +7,7 @@ export { bucharestScheduledAt } from "@/lib/scheduling";
 import type { Database } from "better-sqlite3";
 import { randomUUID, createHash } from "node:crypto";
 import {
-  calcGrossPrice,
+  calcServicePrice,validBathroomCount,
   calcDurationMinutes,
   BUFFER_MINUTES,
   type SpaceType,
@@ -25,6 +25,7 @@ import {enforcePropertyBudget,AccessError} from './collaborationAccess';
 export type Frequency = "weekly" | "biweekly" | "monthly";
 
 export interface RecurringPlanInput {
+  bathroomCount?: number;
   requestId?: string;
   propertyId?: string | null;
   clientId: string;
@@ -76,6 +77,7 @@ export function validateRecurringPlan(input: RecurringPlanInput): Extract<PlanRe
   if (!Number.isInteger(input.sqm) || input.sqm <= 0) {
     return { ok: false, error: "Suprafața trebuie să fie un număr întreg pozitiv", status: 400 };
   }
+  if(input.bathroomCount!==undefined&&!validBathroomCount(input.bathroomCount))return {ok:false,error:"Număr de băi invalid",status:400};
   if(input.sqm>1000)return {ok:false,error:"Suprafețele peste 1000 m² necesită evaluare personalizată înainte de abonare.",status:422};
   if (!VALID_SPACE.includes(input.spaceType)) {
     return { ok: false, error: "Tip spațiu invalid", status: 400 };
@@ -100,7 +102,7 @@ export function validateRecurringPlan(input: RecurringPlanInput): Extract<PlanRe
 
 export function createRecurringPlan(db: Database, input: RecurringPlanInput): PlanResult {
   const invalid=validateRecurringPlan(input);if(invalid)return invalid;
-  const payloadHash=createHash("sha256").update(JSON.stringify([input.preferredFirmId??null,input.frequency,input.street.trim(),input.postalCode??null,input.city.trim(),input.floor??null,input.sqm,input.spaceType,input.hour,input.details?.trim()||null,input.startDate,input.endDate??null,input.propertyId??null])).digest("hex");
+  const payloadHash=createHash("sha256").update(JSON.stringify([input.preferredFirmId??null,input.frequency,input.street.trim(),input.postalCode??null,input.city.trim(),input.floor??null,input.sqm,input.spaceType,input.hour,input.details?.trim()||null,input.startDate,input.endDate??null,input.propertyId??null,...(input.bathroomCount===undefined?[]:[input.bathroomCount])])).digest("hex");
   return db.transaction(():PlanResult=>{
   if(input.propertyId!=null&&(typeof input.propertyId!=='string'||!db.prepare('SELECT 1 FROM workspace_properties WHERE id=? AND owner_id=? AND archived=0').get(input.propertyId,input.clientId)))return {ok:false,status:404,error:'Proprietate indisponibilă.'};
   if(input.propertyId){try{requirePropertyModule(db,input.propertyId);}catch(e){if(e instanceof OrganizationError)return {ok:false,status:e.status,error:e.message};throw e;}}
@@ -132,6 +134,7 @@ export function createRecurringPlan(db: Database, input: RecurringPlanInput): Pl
     Number(input.startDate.slice(8,10)),
     input.endDate ?? null
   );
+  if(input.bathroomCount!==undefined)db.prepare('UPDATE recurring_plans SET bathroom_count=? WHERE id=?').run(input.bathroomCount,planId);
   if(input.propertyId)db.prepare('UPDATE recurring_plans SET property_id=? WHERE id=?').run(input.propertyId,planId);
   if(input.requestId)db.prepare("INSERT INTO recurring_creation_requests(client_id,request_id,payload_hash,plan_id) VALUES(?,?,?,?)").run(input.clientId,input.requestId,payloadHash,planId);
   return { ok: true, planId };
@@ -139,6 +142,7 @@ export function createRecurringPlan(db: Database, input: RecurringPlanInput): Pl
 }
 
 interface PlanRow {
+  bathroom_count: number | null;
   schedule_generation: number;
   property_id: string | null;
   id: string;
@@ -339,9 +343,10 @@ export async function generateDueRecurringJobs(
         if(scheduled.getTime()>=now.getTime()+3600000&&!paused&&!db.prepare('SELECT 1 FROM recurring_occurrences WHERE plan_id=? AND schedule_generation=? AND occurrence_date=?').get(id,plan.schedule_generation,date)){
           if(db.prepare("SELECT 1 FROM recurring_occurrences o JOIN jobs j ON j.id=o.job_id WHERE o.plan_id=? AND j.scheduled_at=? AND j.status NOT IN ('cancelled','no_show')").get(id,scheduled.toISOString()))throw new AccessError('O vizită existentă ocupă noul interval al seriei. Soluționează reprogramarea înainte de generare.',409);
           const jobId=`job_${randomUUID()}`;
-          const snapshot=pricingSnapshot({spaceType:plan.space_type,sqm:plan.sqm,expressFeeLei:0,creditLei:0,createdAt:now.toISOString(),inclusions:executionTemplate(db,'standard').items});
+          const snapshot=pricingSnapshot({spaceType:plan.space_type,sqm:plan.sqm,bathroomCount:plan.bathroom_count??undefined,expressFeeLei:0,creditLei:0,createdAt:now.toISOString(),inclusions:executionTemplate(db,'standard').items});
           db.prepare(`INSERT INTO jobs(id,client_id,street,postal_code,city,floor,details,sqm,space_type,when_type,scheduled_at,price_gross,credit_applied,duration_minutes,buffer_minutes,photos_count,mode,status,pricing_snapshot)
-            VALUES(?,?,?,?,?,?,?,?,?,'scheduled',?,?,0,?,?,0,'standard','waiting',?)`).run(jobId,plan.client_id,plan.street,plan.postal_code,plan.city,plan.floor,plan.details,plan.sqm,plan.space_type,scheduled.toISOString(),calcGrossPrice(plan.space_type,plan.sqm),calcDurationMinutes(plan.sqm),BUFFER_MINUTES,JSON.stringify(snapshot));
+            VALUES(?,?,?,?,?,?,?,?,?,'scheduled',?,?,0,?,?,0,'standard','waiting',?)`).run(jobId,plan.client_id,plan.street,plan.postal_code,plan.city,plan.floor,plan.details,plan.sqm,plan.space_type,scheduled.toISOString(),calcServicePrice(plan.space_type,plan.sqm,0,plan.bathroom_count??1),calcDurationMinutes(plan.sqm),BUFFER_MINUTES,JSON.stringify(snapshot));
+          if(plan.bathroom_count!=null)db.prepare('UPDATE jobs SET bathroom_count=? WHERE id=?').run(plan.bathroom_count,jobId);
           freezeExecutionRules(db,jobId,'standard');
           db.prepare('INSERT INTO recurring_occurrences(plan_id,schedule_generation,occurrence_date,job_id,scheduled_at) VALUES(?,?,?,?,?)').run(id,plan.schedule_generation,date,jobId,scheduled.toISOString());
           if(plan.property_id){db.prepare('INSERT INTO workspace_property_jobs(job_id,property_id) VALUES(?,?)').run(jobId,plan.property_id);enforceOrganizationBooking(db,plan.property_id,jobId);enforcePropertyBudget(db,plan.property_id,jobId);snapshotInstructions(db,jobId,plan.property_id,plan.client_id);}

@@ -335,7 +335,7 @@ export default function FirmaPage() {
                 </div>
                 <div className="text-xs text-muted mb-2"><UiText text={"Adresa exactă devine vizibilă după acceptare."}/></div>
                 <div className="flex gap-2 flex-wrap mb-2">
-                  <span className="text-[11px] bg-mist px-2 py-1 rounded-md">{job.sqm}<UiText text={" mp"}/></span>{(job.windows_sqm??0)>0&&<span className="text-[11px] bg-mist px-2 py-1 rounded-md"><UiText text={"Spălare geamuri: "}/>{job.windows_sqm}<UiText text={" m², ambele fețe accesibile"}/></span>}
+                  <span className="text-[11px] bg-mist px-2 py-1 rounded-md">{job.sqm}<UiText text={" mp"}/></span>{job.bathroom_count!=null&&<span className="text-[11px] bg-mist px-2 py-1 rounded-md">{job.bathroom_count}<UiText text=" băi · o bucătărie"/></span>}{(job.windows_sqm??0)>0&&<span className="text-[11px] bg-mist px-2 py-1 rounded-md"><UiText text={"Spălare geamuri: "}/>{job.windows_sqm}<UiText text={" m², ambele fețe accesibile"}/></span>}
                   <span className="text-[11px] bg-mist px-2 py-1 rounded-md"><UiSpaceType value={job.space_type}/></span>
                   {job.scheduled_at && (
                     <span className="text-[11px] bg-mist px-2 py-1 rounded-md">

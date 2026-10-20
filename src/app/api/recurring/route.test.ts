@@ -9,7 +9,7 @@ vi.mock('@/lib/recurring',async original=>({...await original<typeof import('@/l
 import {GET,POST} from './route';
 import {POST as change} from './[id]/route';
 const req=(body='{}',origin='https://sandbox.nitido.ro')=>new NextRequest('https://sandbox.nitido.ro/api/recurring',{method:'POST',body,headers:{origin,'content-type':'application/json'}});
-const input={frequency:'weekly',street:'Test',city:'Constanța',sqm:75,spaceType:'apartament',hour:10,startDate:'2026-10-01'};
+const input={bathroomCount:1,frequency:'weekly',street:'Test',city:'Constanța',sqm:75,spaceType:'apartament',hour:10,startDate:'2026-10-01'};
 const params={params:Promise.resolve({id:'p'})};
 beforeEach(()=>{vi.clearAllMocks();mocks.user.mockResolvedValue({id:'c',role:'client'});mocks.rate.mockReturnValue(true);mocks.card.mockReturnValue({stripeConfigured:false,hasCard:false});mocks.create.mockReturnValue({ok:true,planId:'p'});mocks.change.mockReturnValue({ok:true,planId:'p'})});
 describe('recurring request boundaries',()=>{
@@ -64,3 +64,5 @@ describe('recurring request boundaries',()=>{
  });
 
 });
+
+it('requires bathroom confirmation and rejects stale visit totals before card or creation',async()=>{for(const bathroomCount of [undefined,-1,'2',1.2,21])expect((await POST(req(JSON.stringify({...input,bathroomCount})))).status).toBe(400);expect((await POST(req(JSON.stringify({...input,sqm:60,bathroomCount:2,expectedPriceGross:450})))).status).toBe(409);expect(mocks.card).not.toHaveBeenCalled();expect(mocks.create).not.toHaveBeenCalled();expect((await POST(req(JSON.stringify({...input,sqm:60,bathroomCount:2,expectedPriceGross:500})))).status).toBe(201);expect(mocks.create).toHaveBeenCalledWith({},expect.objectContaining({bathroomCount:2}));});

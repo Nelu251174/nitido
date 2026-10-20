@@ -17,6 +17,7 @@ import {RescheduleVisit} from '@/components/RescheduleVisit';
 import { logoutWithNativePush } from "@/lib/nativePushClient";
 import {bookingCalendarDays,bookingDateKey,bucharestDateKey,isBookableRomanianSlot,nextBucharestSlot} from "@/lib/scheduling";
 import {BookingAddressLocation} from "@/components/BookingAddressLocation";
+import {BathroomExtra} from "@/components/BathroomExtra";
 import {WindowsExtra} from "@/components/WindowsExtra";
 import {saveBookingDraft,takeBookingDraft,clearBookingDraft} from "@/lib/bookingDraft";
 import {ClientCards,type ClientCardView} from "@/components/ClientCards";
@@ -34,7 +35,7 @@ import {JOB_STATUS} from "@/lib/workspaceShared";
 import { Logo, Card, Field, inputClass, Button, StatusTrack, StarRating } from "@/components/ui";
 import {
   AUTOMATIC_MAX_SQM,
-  calcGrossPrice,
+  calcGrossPrice,calcServicePrice,calcBathroomPrice,validBathroomCount,
   calcWindowsPrice,
   validWindowsSqm,
   priceExplanation,
@@ -74,6 +75,7 @@ interface OfferView {
 }
 
 interface PlanView {
+  bathroom_count?:number|null;
   preferred_firm_id?:string|null;
   preferred_firm_name?:string|null;
   next_visit_at?: string|null;
@@ -137,6 +139,7 @@ export default function ClientPage() {
   const [city, setCity] = useState("");
   const [floor, setFloor] = useState("");
   const [details,setDetails]=useState("");
+  const [bathroomCount,setBathroomCount]=useState(1);
   const [windowsSqm,setWindowsSqm]=useState(0);
   const [sqm, setSqm] = useState(75);
   const [spaceType, setSpaceType] = useState<SpaceType>("apartament");
@@ -223,7 +226,7 @@ export default function ClientPage() {
       if(draft){
         // eslint-disable-next-line react-hooks/set-state-in-effect -- restore external tab storage only after the authenticated account is known
         setEntrance(draft.entrance??null);setStreet(draft.street);setPostalCode(draft.postalCode);setCity(draft.city);setFloor(draft.floor);setDetails(draft.details);
-        setWindowsSqm(draft.windowsSqm??0);setSqm(draft.sqm);setSpaceType(draft.spaceType);setWhenType(draft.whenType);setMode(draft.mode);setExpress60(draft.express60);
+        setBathroomCount(draft.bathroomCount??1);setWindowsSqm(draft.windowsSqm??0);setSqm(draft.sqm);setSpaceType(draft.spaceType);setWhenType(draft.whenType);setMode(draft.mode);setExpress60(draft.express60);
         setScheduledDate(draft.scheduledDate);setScheduledHour(draft.scheduledHour);
         restoredCardId.current=draft.cardId??null;
         setHostEventId(draft.hostEventId??null);setHostRevision(draft.hostRevision??null);setPropertyId(draft.propertyId);setApprovalId(draft.approvalId);setPhotos(draft.photos);setShowBooking(true);
@@ -234,6 +237,7 @@ export default function ClientPage() {
     const type=params.get("spaceType");if(type&&["apartament","casa","birou","altul"].includes(type))setSpaceType(type as SpaceType);
     const area=Number(params.get("sqm"));if(Number.isInteger(area)&&area>0&&area<=1000)setSqm(area);
     if(params.get("mode")==="express")setMode("express");
+    if(params.has("bathroomCount")&&validBathroomCount(Number(params.get("bathroomCount"))))setBathroomCount(Number(params.get("bathroomCount")));
     if(params.has("windowsSqm")&&validWindowsSqm(Number(params.get("windowsSqm"))))setWindowsSqm(Number(params.get("windowsSqm")));
     const requestedCity=params.get("city");if(requestedCity)setCity(requestedCity.slice(0,100));
     const requestedDate=params.get("date"),requestedHour=Number(params.get("hour"));
@@ -338,7 +342,7 @@ export default function ClientPage() {
       }
       if(showBooking){
         let saved=false;
-        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{street,postalCode,city,floor,details,sqm,windowsSqm,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,hostEventId,hostRevision,photos,cardId:selectedCardId,entrance:entrance&&validEntrance(entrance,{street,city,postalCode})?entrance:undefined}));}catch{/* Storage can be blocked by the browser. */}
+        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{street,postalCode,city,floor,details,sqm,windowsSqm,bathroomCount,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,hostEventId,hostRevision,photos,cardId:selectedCardId,entrance:entrance&&validEntrance(entrance,{street,city,postalCode})?entrance:undefined}));}catch{/* Storage can be blocked by the browser. */}
         if(!saved){setCardError('Rezervarea nu poate fi păstrată în această filă. Permite stocarea pentru site și încearcă din nou.');setCardBusy(false);return;}
       }else{try{clearBookingDraft(window.sessionStorage);}catch{/* No draft to preserve. */}}
       window.location.href = d.url; // redirect către pagina de card găzduită de Stripe
@@ -383,7 +387,8 @@ export default function ClientPage() {
   const express60Fee = express60Active ? EXPRESS_60_FEE_LEI : 0;
   const windowsValid=validWindowsSqm(windowsSqm);
   const windowsPrice=windowsValid?calcWindowsPrice(windowsSqm):0;
-  const price = basePrice + windowsPrice + express60Fee;
+  const bathroomPrice=validBathroomCount(bathroomCount)?calcBathroomPrice(bathroomCount):0;
+  const price = basePrice + windowsPrice + bathroomPrice + express60Fee;
 
   const creditBalance = user?.credit_balance ?? 0;
   const { finalPrice, creditUsed } = applyCredit(price, creditBalance);
@@ -400,6 +405,7 @@ export default function ClientPage() {
 
   async function postJob() {
     setError(null);
+    if(!validBathroomCount(bathroomCount)){setError("Introdu numărul de băi, întreg între 0 și 20.");return;}
     setSubmitting(true);
     try {
       const body: Record<string, unknown> = {
@@ -407,7 +413,7 @@ export default function ClientPage() {
         street,
         postalCode,
         city,
-        windowsSqm,
+        windowsSqm,bathroomCount,
         pricingVersion:PRICING_VERSION,
         expectedPriceGross:price,
         floor,
@@ -712,6 +718,7 @@ export default function ClientPage() {
               </select>
             </Field>
 
+            <BathroomExtra value={bathroomCount} onChange={setBathroomCount}/>
             <WindowsExtra value={windowsSqm} onChange={setWindowsSqm}/>
             <span className="block text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1"><UiText text={"Cum vrei să alegi firma?"}/></span>
             <div className="grid grid-cols-2 gap-2 mb-3">
@@ -892,7 +899,7 @@ export default function ClientPage() {
             </div>
 
             {needsAssessment?<section className="design-panel"><h2><UiText text={"Este necesară o evaluare"}/></h2><p><UiText text={"Suprafața depășește limita calculatorului automat."}/></p><Link className="design-button" href={`/client/evaluari?${new URLSearchParams({city,sqm:String(sqm)})}`}><UiText text={"Trimite spre evaluare"}/></Link></section>:confirmedOffer?null:<div className="bg-mist border border-aqua rounded-xl p-3.5 my-4">
-              <p className="text-sm mb-2">{priceExplanation(spaceType,sqm)}<UiText text={". Camerele nu se taxează separat."}/></p><p className="text-sm mb-2"><UiText text={"Curățenie: "}/>{basePrice}<UiText text={" lei · Geamuri: "}/>{windowsSqm}<UiText text={" m² × 8 lei = "}/>{windowsPrice}<UiText text={" lei"}/></p>
+              <p className="text-sm mb-2">{priceExplanation(spaceType,sqm)}<UiText text={". Camerele nu se taxează separat."}/></p><p className="text-sm mb-2"><UiText text={"Curățenie: "}/>{basePrice}<UiText text=" lei · Supliment băi: "/>{bathroomPrice}<UiText text={" lei · Geamuri: "}/>{windowsSqm}<UiText text={" m² × 8 lei = "}/>{windowsPrice}<UiText text={" lei"}/></p>
               {express60Active && (
                 <div className="flex justify-between items-center text-[11.5px] text-muted mb-1.5 pb-1.5 border-b border-line/60">
                   <span><UiText text={"Curățenie "}/>{basePrice}<UiText text={" lei · 🔥 Express 60 +"}/>{<UiText text={express60Fee}/>}<UiText text={" lei"}/></span>
@@ -1084,6 +1091,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
  const locale=useLocale();
 
   const [address, setAddress] = useState(defaults);
+  const [seriesBathrooms,setSeriesBathrooms]=useState(1);
   const [visitDetails, setVisitDetails] = useState("");
   const [preferredFirm,setPreferredFirm]=useState(''),[previousFirms,setPreviousFirms]=useState<Array<{id:string;name:string}>>([]);
   const [seriesPropertyId,setSeriesPropertyId]=useState('');
@@ -1124,7 +1132,8 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
     if(statusLock.current)return;
     statusLock.current=true;setBusy(true);setMsg(null);
     try {
-      const input={...address,preferredFirmId:preferredFirm||null,propertyId:seriesPropertyId||null,details:visitDetails,frequency,hour,startDate,endDate:endDate||null};
+      if(!validBathroomCount(seriesBathrooms))throw new Error("Introdu numărul de băi, întreg între 0 și 20.");
+      const input={...address,bathroomCount:seriesBathrooms,pricingVersion:PRICING_VERSION,expectedPriceGross:calcServicePrice(address.spaceType,address.sqm,0,seriesBathrooms),preferredFirmId:preferredFirm||null,propertyId:seriesPropertyId||null,details:visitDetails,frequency,hour,startDate,endDate:endDate||null};
       const payload=JSON.stringify(input);
       if(!creationRequest.current||creationRequest.current.payload!==payload)creationRequest.current={payload,id:crypto.randomUUID()};
       const r=await fetch("/api/recurring",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...input,requestId:creationRequest.current.id})});
@@ -1244,7 +1253,7 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
                 {p.end_date&&<span className="block text-xs text-muted"><UiText text={"Ultima zi a seriei: "}/>{p.end_date}<UiText text={" inclusiv"}/></span>}
                 {p.pause_start&&p.pause_end&&<span className="block text-xs text-aqua-deep"><UiText text={"Pauză programată: "}/>{p.pause_start} – {p.pause_end}<UiText text={" inclusiv"}/><button type="button" disabled={statusBusy||busy} onClick={()=>void removePause(p)} className="block mt-2 underline disabled:opacity-50"><UiText text={"Elimină pauza programată"}/></button></span>}
                 <label className="block text-xs my-2"><UiText text={"Firma preferată"}/><select className={inputClass} disabled={statusBusy||busy} value={p.preferred_firm_id??''} onChange={async e=>{const firmId=e.target.value||null;setStatusBusy(true);try{const r=await fetch(`/api/recurring/${encodeURIComponent(p.id)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'preferred_firm',firmId})});const d=await r.json();if(!r.ok)throw Error(d.error);await load();setMsg('Preferința a fost salvată. Firmele deja alocate rămân neschimbate.')}catch(e){setMsg(e instanceof Error?e.message:'Salvarea a eșuat.')}finally{setStatusBusy(false)}}}><option value=""><UiText text={"Aleg la fiecare vizită"}/></option>{previousFirms.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}{p.preferred_firm_id&&!previousFirms.some(f=>f.id===p.preferred_firm_id)&&<option value={p.preferred_firm_id}>{p.preferred_firm_name??<UiText text={'Firmă indisponibilă'}/>}</option>}</select></label>
-                <b className="text-sm block truncate">{<UiText text={FREQ_LABELS[p.frequency]}/>} · <UiSpaceType value={p.space_type}/> · {p.city}</b>
+                <b className="text-sm block truncate">{<UiText text={FREQ_LABELS[p.frequency]}/>} · <UiSpaceType value={p.space_type}/> · {p.city}</b>{p.bathroom_count!=null&&<span className="block text-xs text-muted">{p.bathroom_count}<UiText text=" băi · o bucătărie inclusă"/></span>}
                 <span className="text-xs text-[#6b756f]">{p.next_visit_at?<UiTemplate text={"Următoarea vizită: {p0}"} values={[new Intl.DateTimeFormat(locale,{timeZone:'Europe/Bucharest',dateStyle:'medium',timeStyle:'short'}).format(new Date(p.next_visit_at))]}/>:p.end_date&&p.next_run_date>p.end_date?<UiText text={"Generarea seriei s-a încheiat"}/>:<UiTemplate text={"Următoarea dată de generat: {p0}"} values={[p.next_run_date]}/>} · {p.status === "active" ? <UiText text={"activ"}/> : p.status === "paused" ? <UiText text={"pe pauză"}/> : p.status}</span>
                 <span className="block text-xs text-muted"><UiText text={"Ora "}/>{String(p.hour).padStart(2,"0")}<UiText text={":00 · ora României"}/></span>
               </span>
@@ -1315,6 +1324,8 @@ function RecurringSection({ defaults }: { defaults: { street: string; postalCode
             <Field label="Suprafață, m²"><input className={inputClass} type="number" min={1} max={1000} step={1} value={address.sqm} onChange={event=>setAddress({...address,sqm:Number(event.target.value)})}/></Field>
             <Field label="Tip spațiu"><select className={inputClass} value={address.spaceType} onChange={event=>setAddress({...address,spaceType:event.target.value as SpaceType})}><option value="apartament"><UiText text={"Apartament"}/></option><option value="casa"><UiText text={"Casă"}/></option><option value="birou"><UiText text={"Birou"}/></option><option value="altul"><UiText text={"Alt spațiu"}/></option></select></Field>
           </div>
+          <BathroomExtra value={seriesBathrooms} onChange={setSeriesBathrooms}/>
+          {Number.isSafeInteger(address.sqm)&&address.sqm>0&&validBathroomCount(seriesBathrooms)&&<p className="text-sm font-bold mb-3"><UiText text="Preț pe vizită, înainte de credit: "/>{calcServicePrice(address.spaceType,address.sqm,0,seriesBathrooms)}<UiText text=" lei. Geamurile nu sunt incluse. Plata și firma se confirmă separat pentru fiecare vizită."/></p>}
           <Field label="Preferințe pentru vizite"><UiElement as="textarea" className={inputClass} maxLength={500} rows={3} value={visitDetails} onChange={event=>setVisitDetails(event.target.value)} placeholder="Materiale sensibile, animale de companie, preferințe de curățenie…"/></Field>
           <span className="block text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1"><UiText text={"Frecvență"}/></span>
           <div className="grid grid-cols-3 gap-2 mb-3">
