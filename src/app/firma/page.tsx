@@ -9,7 +9,7 @@ import {RescheduleVisit} from '@/components/RescheduleVisit';
 import { logoutWithNativePush } from "@/lib/nativePushClient";
 import {EmailVerificationNotice} from "@/components/EmailVerificationNotice";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {BoardSidebar} from "@/components/BoardSidebar";
@@ -39,6 +39,10 @@ export default function FirmaPage() {
   const [filter,setFilter]=useState("all");
   const [search,setSearch]=useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [onboardingBusy,setOnboardingBusy]=useState(false);
+  const [onboardingRefresh,setOnboardingRefresh]=useState(false);
+  const onboardingAction=useRef<string|null>(null),onboardingInFlight=useRef(false);
+  useEffect(()=>{setOnboardingRefresh(new URLSearchParams(window.location.search).get('stripe')==='refresh-required')},[]);
   const [settlingJob,setSettlingJob]=useState<string|null>(null);
   const [uploadingProof, setUploadingProof] = useState<string | null>(null);
   const [trustProfile, setTrustProfile] = useState<{firms:{average_rating:number|null;review_count:number;completed_jobs:number;verified:number}[];reviews:{id:string;rating:number;reviewText:string|null;reviewer:string;badge:string}[]}>({firms:[],reviews:[]});
@@ -179,9 +183,15 @@ export default function FirmaPage() {
   }
   async function reportReview(reviewId:string){const reason=reportReasons[reviewId]||"alt_motiv";const res=await fetch(`/api/reviews/${reviewId}/report`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({reason})});const data=await res.json();setMessage(res.ok?"Recenzia a fost raportată pentru analiză.":data.error??"Raportarea nu a putut fi trimisă");}
   async function startStripeOnboarding(){
-    setMessage(null);const res=await fetch("/api/stripe/connect/onboarding",{method:"POST"});const data=await res.json();
-    if(!res.ok)return setMessage(data.error??"Conectarea contului Stripe nu este disponibilă");
-    window.location.assign(data.url);
+    if(onboardingInFlight.current)return;
+    onboardingInFlight.current=true;setOnboardingBusy(true);setMessage(null);
+    onboardingAction.current??=crypto.randomUUID();
+    try{
+      const res=await fetch("/api/stripe/connect/onboarding",{method:"POST",headers:{"Idempotency-Key":onboardingAction.current}});const data=await res.json();
+      if(!res.ok){onboardingAction.current=null;return setMessage(data.error??"Conectarea contului Stripe nu este disponibilă");}
+      window.location.assign(data.url);
+    }catch{setMessage("Conexiune întreruptă. Poți relua aceeași solicitare în siguranță.");}
+    finally{onboardingInFlight.current=false;setOnboardingBusy(false);}
   }
 
   async function logout() {
@@ -441,10 +451,11 @@ export default function FirmaPage() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="font-display font-bold text-ink"><UiText text={"Încasări prin Stripe"}/></h2>
+              {onboardingRefresh&&<p role="status"><UiText text={"Linkul Stripe trebuie reînnoit. Apasă Reia configurarea Stripe pentru a continua; revenirea pe această pagină nu inițiază un transfer."}/></p>}
               <p className="mt-1 text-xs leading-5 text-muted"><UiText text={"Plata clientului este autorizată la confirmarea lucrării și încasată după finalizare și validarea fotografiilor. Încasarea de la client și viramentul către firmă sunt afișate separat în situația câștigurilor."}/></p>
               {process.env.NEXT_PUBLIC_STRIPE_CONNECT_ONBOARDING==="true" && <p className="mt-1 text-xs leading-5 text-muted"><UiText text={"Configurează contul firmei prin formularul securizat Stripe."}/></p>}
             </div>
-            {process.env.NEXT_PUBLIC_STRIPE_CONNECT_ONBOARDING==="true" && <Button variant="outline" onClick={startStripeOnboarding}><UiText text={"Configurează încasările"}/></Button>}
+            {(process.env.NEXT_PUBLIC_STRIPE_CONNECT_ONBOARDING==="true"||onboardingRefresh) && <Button variant="outline" disabled={onboardingBusy} onClick={startStripeOnboarding}><UiText text={onboardingRefresh?"Reia configurarea Stripe":"Configurează încasările"}/></Button>}
           </div>
         </section>
 

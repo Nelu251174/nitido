@@ -38,15 +38,12 @@ import { applyCredit } from "@/lib/referral";
 import { getClientCardInfo } from "@/lib/clientPayments";
 import { JobRow } from "@/lib/types";
 import { scanRoomLabel } from "@/lib/nitidoScan";
-import { EXPRESS_60_FEE_LEI, express60Deadline, expireExpress60Guarantees } from "@/lib/express60";
+import { EXPRESS_60_FEE_LEI, express60Deadline } from "@/lib/express60";
 
 export async function GET(req: NextRequest) {
-  const user = await getCurrentUser(req);
+  const user = await getCurrentUser(req,{readOnly:true});
   if (!user) return NextResponse.json({ error: "Autentificare necesară" }, { status: 401 });
-  // Express 60: retrogradează lazy lucrările premium cu garanția expirată, la
-  // orice încărcare de feed — astfel breach-ul funcționează și fără cron extern
-  // (backstop-ul programat /api/cron/express60 rămâne disponibil în plus).
-  expireExpress60Guarantees(db);
+  // Expiration is processed by the configured local POST maintenance runner.
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
 

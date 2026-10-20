@@ -81,14 +81,14 @@ function getSessionRow(sessionId: string): { user_id: string; expires_at: string
  * mobilă îi pasează `req`; restul pot apela fără argument (comportament
  * neschimbat, doar cookie).
  */
-export async function getCurrentUser(req?: NextRequest): Promise<UserRow | null> {
+export async function getCurrentUser(req?: NextRequest, options?: {readOnly?:boolean}): Promise<UserRow | null> {
   const bearerSessionId = getBearerSessionId(req);
   if (bearerSessionId) {
     const session = getSessionRow(bearerSessionId);
     if (session && new Date(session.expires_at) >= new Date()) {
       return getUserById(session.user_id) ?? null;
     }
-    if (session) db.prepare("DELETE FROM sessions WHERE id = ?").run(bearerSessionId);
+    if (session&&!options?.readOnly) db.prepare("DELETE FROM sessions WHERE id = ?").run(bearerSessionId);
     return null;
   }
 
@@ -99,7 +99,7 @@ export async function getCurrentUser(req?: NextRequest): Promise<UserRow | null>
   const session = getSessionRow(sessionId);
   if (!session) return null;
   if (new Date(session.expires_at) < new Date()) {
-    db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionId);
+    if(!options?.readOnly)db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionId);
     return null;
   }
 

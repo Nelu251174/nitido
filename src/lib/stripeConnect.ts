@@ -26,11 +26,11 @@ export async function createOrReuseRecipientAccount(db:Database,userId:string):P
   return account.id;
 }
 
-export async function createOnboardingLink(db:Database,userId:string,baseUrl:string):Promise<string>{
+export async function createOnboardingLink(db:Database,userId:string,baseUrl:string,idempotencyKey?:string):Promise<string>{
   const accountId=await createOrReuseRecipientAccount(db,userId);
   const stripe=getStripeClient();
   if(!stripe)throw new Error("STRIPE_NOT_CONFIGURED");
-  const link=await stripe.v2.core.accountLinks.create({account:accountId,use_case:{type:"account_onboarding",account_onboarding:{configurations:["recipient"],collection_options:{fields:"eventually_due",future_requirements:"include"},refresh_url:`${baseUrl}/api/stripe/connect/onboarding`,return_url:`${baseUrl}/firma?stripe=returned`}}});
+  const link=await stripe.v2.core.accountLinks.create({account:accountId,use_case:{type:"account_onboarding",account_onboarding:{configurations:["recipient"],collection_options:{fields:"eventually_due",future_requirements:"include"},refresh_url:`${baseUrl}/api/stripe/connect/onboarding`,return_url:`${baseUrl}/firma?stripe=returned`}}},idempotencyKey?{idempotencyKey}:undefined);
   return link.url;
 }
 

@@ -43,6 +43,7 @@ RUN groupadd --system --gid 1001 nodejs \
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/express60-runner.mjs ./scripts/express60-runner.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/recurring-runner.mjs ./scripts/recurring-runner.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/financial-recovery-runner.mjs ./scripts/financial-recovery-runner.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/notification-recovery-runner.mjs ./scripts/notification-recovery-runner.mjs
