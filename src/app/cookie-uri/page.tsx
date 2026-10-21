@@ -39,6 +39,7 @@ const content = {
       "title": "Analiză de trafic și publicitate",
       "paragraphs": [
         "Eticheta Google Ads se încarcă pe paginile publice din browser numai după acceptarea cookie-urilor publicitare. Poți refuza sau modifica alegerea din „Preferințe cookie-uri” din subsolul site-ului.",
+        "Cu același acord, NITIDO măsoară pașii configurării și categoriile erorilor, pe mobil sau desktop. Identificatorul aleator al sesiunii este limitat la fila browserului și nu este legat de cont. Nu trimitem în aceste evenimente localitatea, adresa, conținutul rezervării sau datele de plată. Refuzul oprește această măsurare; rapoartele operaționale ale cererilor deja publicate rămân distincte.",
         "Alegerea este păstrată local timp de șase luni. Google Ads poate folosi cookie-uri cu prefixul _gcl_ pentru atribuirea reclamelor. Personalizarea reclamelor și conversiile optimizate sunt dezactivate. Refuzul nu afectează autentificarea sau rezervările."
       ]
     },

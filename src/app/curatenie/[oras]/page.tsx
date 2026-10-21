@@ -51,14 +51,14 @@ export default async function CityPage({ params }: { params: Promise<{ oras: str
         eyebrow={t("Curățenie · {p0}",[city.county])}
         title={t("Curățenie în {p0}",[city.name])}
         intro={city.intro}
-        cta={{ label: "Postează o lucrare", href: "/signup?role=client" }}
+        cta={{ label: "Calculează prețul", href: `/rezervare?city=${encodeURIComponent(city.name)}` }}
         sections={[
           {
             title: "Cum funcționează",
             items: [
               t("Postezi lucrarea (adresă în {p0}, tip spațiu, suprafață) și vezi prețul înainte de publicare.",[city.name]),
-              "La Standard alegi firma dintre ofertele disponibile. La Express, lucrarea poate fi preluată de o firmă eligibilă, în funcție de disponibilitate și de acceptarea validă. Condițiile și costul sunt afișate înainte de confirmare.",
-              "La acceptare se autorizează HOLD-ul. Capturarea plății urmează finalizarea validă a lucrării; sosirea banilor în contul bancar depinde de procesator și de bancă.",
+              "La Standard vezi prețul fix și alegi dintre firmele interesate. La Express, lucrarea poate fi preluată de o firmă eligibilă, în funcție de disponibilitate și de acceptarea validă. Condițiile și costul sunt afișate înainte de confirmare.",
+              "Banii se rezervă pe card la acceptarea validă a lucrării și se încasează la finalizarea validă. Transferul către firmă este separat; sosirea în cont depinde de procesator și de bancă.",
             ],
           },
           {
@@ -67,6 +67,10 @@ export default async function CityPage({ params }: { params: Promise<{ oras: str
               t("Totalul clientului se calculează din suprafață; suma firmei ține cont de comisionul contractual. Orientativ în {p0}: până în 40 mp ~{p1} lei, până în 60 mp ~{p2} lei, până în 80 mp ~{p3} lei, până în 100 mp ~{p4} lei.",[city.name,...[40,60,80,100].map(sqm=>calcGrossPrice("apartament",sqm))]),
               "Case, birouri și alte spații se calculează pe metru pătrat. Vezi regulile complete de preț pe pagina de prețuri.",
             ],
+          },
+          {
+            title: `Pregătirea cererii în ${city.name}`,
+            paragraphs: [({bucuresti:'Precizează sectorul și localitatea reală. Pentru Pipera sau alte zone de la limita București–Ilfov, confirmă adresa înainte de publicare.', 'cluj-napoca':'Florești și Cluj-Napoca sunt localități distincte. Introdu localitatea reală, etajul și condițiile de acces; acestea ajută firma să confirme programarea.',timisoara:'Pentru Dumbrăvița sau Giroc, folosește localitatea reală din adresă. Confirmă accesul și programarea pentru spațiul concret.',iasi:'Precizează cartierul, etajul și accesul în clădire. Pentru Copou, Bucium sau alte zone, disponibilitatea se verifică pentru adresa cererii.',constanta:'Mamaia și Năvodari pot avea condiții de acces diferite de centrul Constanței. Confirmă localitatea și intervalul de acces; pentru turnover, menționează ora predării spațiului.',brasov:'Ghimbav și Brașov sunt localități distincte. Precizează adresa reală și eventualele restricții de acces în clădire.',oradea:'Precizează cartierul și condițiile de acces în clădire. Pentru spații în renovare sau geamuri greu accesibile, solicită evaluare separată.',sibiu:'Șelimbăr și Sibiu sunt localități distincte. Introdu localitatea reală și condițiile de acces, înainte de confirmarea programării.'} as Record<string,string>)[city.slug]],
           },
           {
             title: "Zone și disponibilitate",

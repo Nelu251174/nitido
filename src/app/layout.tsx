@@ -107,10 +107,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider locale={locale} messages={messages} timeZone="Europe/Bucharest">
         {catalogsReady() && <div className="nitido-language-bar"><LanguageSelector/></div>}
+        <GoogleAdsConsent conversionLabel={process.env.GOOGLE_ADS_COMPANY_SIGNUP_LABEL} />
         {children}
         <PwaProvider />
         <WebAlerts />
-        <GoogleAdsConsent conversionLabel={process.env.GOOGLE_ADS_COMPANY_SIGNUP_LABEL} />
         </NextIntlClientProvider>
       </body>
     </html>

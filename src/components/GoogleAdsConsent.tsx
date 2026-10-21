@@ -27,6 +27,7 @@ export function AdsCookieSettingsButton() {
 }
 
 export function GoogleAdsConsent({ conversionLabel }: { conversionLabel?: string }) {
+  const panel=useRef<HTMLElement>(null);
   const platform = useAppPlatform();
   const pathname = usePathname();
   const consent = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
@@ -58,6 +59,7 @@ export function GoogleAdsConsent({ conversionLabel }: { conversionLabel?: string
     }
   }, [eligible, consent, pathname, conversionLabel]);
 
+  useEffect(()=>{if(settingsOpen){panel.current?.scrollIntoView({block:'start'});panel.current?.querySelector('button')?.focus();}},[settingsOpen]);
   if (!eligible || !(settingsOpen || consent === 'unset')) return null;
   function choose(accept: boolean) {
     const reload = !accept && Boolean(window.nitidoAds?.configured);
@@ -66,9 +68,9 @@ export function GoogleAdsConsent({ conversionLabel }: { conversionLabel?: string
     // A new document unloads an already loaded third-party library on withdrawal.
     if (reload) window.location.reload();
   }
-  return <section className="nitido-cookie-consent" aria-label={t('Preferințe cookie-uri')}>
+  return <section ref={panel} className="nitido-cookie-consent" aria-label={t('Preferințe cookie-uri')}>
     <h2><UiText text="Cookie-uri publicitare" /></h2>
-    <p><UiText text="Cu acordul tău, folosim Google Ads pentru a măsura rezultatele reclamelor. Poți refuza și continua să folosești NITIDO." />{' '}<a href="/cookie-uri"><UiText text="Detalii despre cookie-uri" /></a>{' '}<a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener noreferrer"><UiText text="Cum folosește Google datele" /></a></p>
+    <p><UiText text="Cu acordul tău, folosim cookie-uri publicitare pentru măsurarea reclamelor. Poți refuza și continua rezervarea." />{' '}<a href="/cookie-uri"><UiText text="Detalii despre cookie-uri" /></a></p>
     <div><button type="button" onClick={() => choose(false)}><UiText text="Refuz cookie-urile publicitare" /></button><button type="button" onClick={() => choose(true)}><UiText text="Accept cookie-urile publicitare" /></button></div>
   </section>;
 }

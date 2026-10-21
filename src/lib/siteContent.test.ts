@@ -70,7 +70,7 @@ describe("footer and information pages", () => {
     expect(policy).toContain("30 de zile");
     expect(policy).toContain("nitido_admin_session");
     expect(policy).toContain("8 ore");
-    expect(policy).toContain("nu sunt identificate integrări generale de analytics sau pixeli de marketing");
+    expect(policy).toContain("Google Ads");expect(policy).toContain("refuz");
   });
 });
 

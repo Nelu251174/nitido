@@ -39,24 +39,23 @@ export default function Page() {
       <section className="pro-hero">
         <div>
           <p className="pro-eyebrow"><UiText text={"Pentru portofolii de proprietăți"}/></p>
-          <h1><UiText text={"NITIDO Pro"}/></h1>
-          <h2><UiText text={"Operațiuni controlate pentru proprietățile tale."}/></h2>
-          <p className="pro-muted"><UiText text={"Sistemul de operare pentru proprietăți care centralizează lucrările recurente, mentenanța, verificările, aprobările, dovezile foto, costurile și furnizorii într-un singur flux controlat."}/></p>
+          <h1><UiText text="Curățenie și mentenanță pentru portofoliul tău de proprietăți."/></h1>
+          <p className="pro-muted"><UiText text={"Urmărești lucrările, responsabilii, dovezile foto și costurile într-un singur loc. Platforma organizează activitatea; firmele partenere execută serviciile agreate."}/></p>
           <div className="pro-actions">
             <Link href="/nitido-pro/aplica" className="v2-btn v2-btn-primary"><UiText text={"Solicită evaluarea portofoliului"}/></Link>
-            <a href="#cum-functioneaza" className="v2-btn v2-btn-secondary"><UiText text={"Vezi cum funcționează"}/></a>
+            <a href="#demonstratie" className="v2-btn v2-btn-secondary"><UiText text={"Vezi demonstrația"}/></a>
           </div>
-          <p className="text-xs pro-muted"><UiText text={"Disponibil inițial pentru portofolii eligibile din zonele acoperite de NITIDO Pro."}/></p>
+          <p className="text-xs pro-muted"><UiText text={"Pilot: minimum 5 proprietăți în Constanța, Mamaia și Mamaia-Sat, după evaluarea acoperirii și a capacității. Curățenie recurentă, turnover programat manual, verificări, consumabile și mentenanță ușoară aprobată. Condiții contractuale; fără sincronizare Airbnb/Booking sau plăți automate Pro."}/></p>
         </div>
         <UiElement as="div"
-          className="pro-preview"
+          id="demonstratie" className="pro-preview"
           aria-label="Previzualizare cu date demonstrative"
         >
           <div className="pro-preview-head">
             <strong><UiText text={"Portofoliul tău, la vedere."}/></strong>
             <span className="pro-demo"><UiText text={"DEMO"}/></span>
           </div>
-          <div className="pro-stats">
+          <ol className="pro-demo-flow">{['Portofoliu demonstrativ · 5 proprietăți','Lucrare · curățenie programată manual','Dovezi · checklist și fotografii fictive','Cost propus · persoana autorizată decide','Raport · rezultat și istoric demonstrativ'].map(x=><li key={x}><UiText text={x}/></li>)}</ol><div className="pro-stats">
             {[
               ["18", "Proprietăți active"],
               ["7", "Lucrări astăzi"],

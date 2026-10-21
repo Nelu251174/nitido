@@ -28,7 +28,7 @@ describe("payment trust section", () => {
   });
 
   it("explains payment states without a fabricated balance", () => {
-    expect(homepage).toContain("Autorizarea și încasarea sunt etape distincte");
+    expect(homepage).toContain("Banii se rezervă pe card la acceptarea validă a lucrării și se încasează la finalizarea validă");
     expect(homepage).not.toContain("escrow");
   });
 });
