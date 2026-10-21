@@ -1,4 +1,8 @@
 "use client";
+import type {FlexibleWindow} from "@/lib/flexibleShared";
+import {validateFlexibleWindows} from "@/lib/flexibleShared";
+import {FlexibleChoice} from "@/components/FlexibleChoice";
+import {FlexibleClientPanel} from "@/components/FlexibleClientPanel";
 import {AUTHORIZATION_NOTICE,confirmationOpensAt} from '@/lib/authorizationPolicy';
 import {BOOKING_DURATION_NOTICE,BOOKING_TEAM_NOTICE} from "@/lib/bookingTerms";
 import {CREDIT_POLICY_NOTICE} from "@/lib/referral";
@@ -32,7 +36,10 @@ import {DesignIcon} from "@/components/DesignIcon";
 import {WorkspaceNav} from "@/components/WorkspaceNav";
 import {JobExecutionDetail} from "@/components/JobExecutionDetail";
 import {JOB_STATUS} from "@/lib/workspaceShared";
-import { Logo, Card, Field, inputClass, Button, StatusTrack, StarRating } from "@/components/ui";
+import {OwnedHomePicker} from "@/components/OwnedHomePicker";
+import {homeBookingValues} from "@/lib/homeBooking";
+import {ReviewForm} from "@/components/ReviewForm";
+import { Logo, Card, Field, inputClass, Button, StatusTrack } from "@/components/ui";
 import {
   AUTOMATIC_MAX_SQM,
   calcGrossPrice,calcServicePrice,calcBathroomPrice,validBathroomCount,
@@ -62,6 +69,7 @@ interface UploadedPhoto {
 }
 
 interface OfferView {
+ flexible?:import("@/lib/flexibleScheduling").FlexibleProposal|null;
   offerId: string;
   firmId: string;
   firmName: string;
@@ -143,6 +151,7 @@ export default function ClientPage() {
   const [windowsSqm,setWindowsSqm]=useState(0);
   const [sqm, setSqm] = useState(75);
   const [spaceType, setSpaceType] = useState<SpaceType>("apartament");
+  const [flexibleWindows,setFlexibleWindows]=useState<FlexibleWindow[]|null>(null);
   const [whenType, setWhenType] = useState<"asap" | "scheduled">("asap");
   const [mode, setMode] = useState<"express" | "standard">("standard");
   const [express60, setExpress60] = useState(false);
@@ -227,10 +236,11 @@ export default function ClientPage() {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- restore external tab storage only after the authenticated account is known
         setEntrance(draft.entrance??null);setStreet(draft.street);setPostalCode(draft.postalCode);setCity(draft.city);setFloor(draft.floor);setDetails(draft.details);
         setBathroomCount(draft.bathroomCount??1);setWindowsSqm(draft.windowsSqm??0);setSqm(draft.sqm);setSpaceType(draft.spaceType);setWhenType(draft.whenType);setMode(draft.mode);setExpress60(draft.express60);
-        setScheduledDate(draft.scheduledDate);setScheduledHour(draft.scheduledHour);
+        setFlexibleWindows(draft.flexibleWindows??null);setScheduledDate(draft.scheduledDate);setScheduledHour(draft.scheduledHour);
         restoredCardId.current=draft.cardId??null;
         setHostEventId(draft.hostEventId??null);setHostRevision(draft.hostRevision??null);setPropertyId(draft.propertyId);setApprovalId(draft.approvalId);setPhotos(draft.photos);setShowBooking(true);
         setDraftNotice(params.get('card')==='cancelled'?'Adăugarea cardului a fost anulată. Rezervarea ta este păstrată.':'Rezervarea ta a fost restaurată. Verifică detaliile înainte de publicare.');
+        return;
       }
     }
     if(window.location.hash==="#sec-form"||params.has("propertyId")||params.has("spaceType")||params.has("mode"))setShowBooking(true);
@@ -242,10 +252,11 @@ export default function ClientPage() {
     const requestedCity=params.get("city");if(requestedCity)setCity(requestedCity.slice(0,100));
     const requestedDate=params.get("date"),requestedHour=Number(params.get("hour"));
     if(requestedDate&&bookingDateKey(requestedDate)===requestedDate){setWhenType("scheduled");setScheduledDate(requestedDate);if(params.has("hour")&&(SLOT_HOURS as readonly number[]).includes(requestedHour))setScheduledHour(requestedHour)}
+    if(params.get("flexibleWindows")){try{setFlexibleWindows(validateFlexibleWindows(JSON.parse(params.get("flexibleWindows")!)));setMode("standard");setExpress60(false);}catch{setError("Intervalele flexibile nu mai sunt valide. Alege alte intervale.");}}
     const approval=params.get("approvalId");if(approval){void fetch("/api/collaboration").then(r=>r.json()).then(d=>{const a=d.approvals?.find((a:{id:string;status:string})=>a.id===approval&&a.status==='approved');if(!a||!bookingDateKey(a.date)){setError("Aprobarea nu este disponibilă sau data ei este invalidă.");return}setApprovalId(a.id);setWhenType("scheduled");setScheduledDate(bookingDateKey(a.date)!);setScheduledHour(null)}).catch(()=>setError("Aprobarea nu a putut fi încărcată."))}
     const hostEvent=params.get('hostEventId'),hostVersion=params.get('hostRevision');
     if(hostEvent&&hostVersion&&/^[a-f0-9]{64}$/.test(hostVersion)){setHostEventId(hostEvent);setHostRevision(hostVersion);setMode('standard');setExpress60(false);}
-    const id=params.get("propertyId");if(id){void fetch("/api/workspace").then(r=>{if(!r.ok)throw new Error();return r.json()}).then(d=>{const p=d.properties.find((p:{id:string})=>p.id===id);if(!p){setError("Proprietatea nu este disponibilă.");return}setPropertyId(p.id);setStreet(p.street);setPostalCode(p.postal_code??"");setFloor(p.floor??"");setCity(p.city);setSqm(p.sqm);setSpaceType(p.space_type);setTimeout(()=>document.getElementById("sec-form")?.scrollIntoView({behavior:"smooth",block:"start"}),60)}).catch(()=>setError("Proprietatea nu a putut fi încărcată."))}
+    const id=params.get("propertyId");if(id){void fetch(hostEvent||approval?"/api/workspace":"/api/workspace?view=homes").then(r=>{if(!r.ok)throw new Error();return r.json()}).then(d=>{const p=d.properties.find((p:{id:string})=>p.id===id);if(!p){setError("Proprietatea nu este disponibilă.");return}const v=homeBookingValues(p,Object.fromEntries(params));setPropertyId(p.id);setStreet(v.street);setPostalCode(v.postalCode);setFloor(v.floor);setCity(v.city);setSqm(v.sqm);setSpaceType(v.spaceType);setBathroomCount(v.bathroomCount);setDetails(v.details);setTimeout(()=>document.getElementById("sec-form")?.scrollIntoView({behavior:"smooth",block:"start"}),60)}).catch(()=>setError("Proprietatea nu a putut fi încărcată."))}
   },[user?.id,user?.role]);
 
   const refreshMyJobs = useCallback(async () => {
@@ -342,7 +353,7 @@ export default function ClientPage() {
       }
       if(showBooking){
         let saved=false;
-        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{street,postalCode,city,floor,details,sqm,windowsSqm,bathroomCount,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,hostEventId,hostRevision,photos,cardId:selectedCardId,entrance:entrance&&validEntrance(entrance,{street,city,postalCode})?entrance:undefined}));}catch{/* Storage can be blocked by the browser. */}
+        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{flexibleWindows,street,postalCode,city,floor,details,sqm,windowsSqm,bathroomCount,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,hostEventId,hostRevision,photos,cardId:selectedCardId,entrance:entrance&&validEntrance(entrance,{street,city,postalCode})?entrance:undefined}));}catch{/* Storage can be blocked by the browser. */}
         if(!saved){setCardError('Rezervarea nu poate fi păstrată în această filă. Permite stocarea pentru site și încearcă din nou.');setCardBusy(false);return;}
       }else{try{clearBookingDraft(window.sessionStorage);}catch{/* No draft to preserve. */}}
       window.location.href = d.url; // redirect către pagina de card găzduită de Stripe
@@ -408,12 +419,13 @@ export default function ClientPage() {
     if(!validBathroomCount(bathroomCount)){setError("Introdu numărul de băi, întreg între 0 și 20.");return;}
     setSubmitting(true);
     try {
+      if(flexibleWindows)validateFlexibleWindows(flexibleWindows);
       const body: Record<string, unknown> = {
         entrance:entrance&&validEntrance(entrance,{street,city,postalCode})?entrance:undefined,
         street,
         postalCode,
         city,
-        windowsSqm,bathroomCount,
+        windowsSqm,bathroomCount,flexibleWindows,
         pricingVersion:PRICING_VERSION,
         expectedPriceGross:price,
         floor,
@@ -509,12 +521,12 @@ export default function ClientPage() {
     } catch(cause) {if(!signal.aborted)setError(cause instanceof Error?cause.message:"Eroare de conexiune.")}
   }, [selectedJobId]);
 
-  async function chooseOffer(offerId: string) {
+  async function chooseOffer(offerId: string,proposalId?:string) {
     if (!job) return;
     setError(null);
     setChoosing(offerId);
     try {
-      const res = await fetch(`/api/jobs/${job.id}/offers/${offerId}`, { method: "POST" });
+      const res = await fetch(`/api/jobs/${job.id}/offers/${offerId}`, { method: "POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({proposalId}) });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Nu s-a putut alege oferta");
@@ -549,7 +561,10 @@ export default function ClientPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ stars, reviewText }),
     });
-    if (res.ok) setRatingDone(true);
+    const result=await res.json().catch(()=>({}));
+    if(!res.ok)throw new Error(result.error||"Evaluarea nu a fost salvată. Reîncearcă.");
+    setRatingDone(true);
+    await poll(new AbortController().signal);
   }
 
   function requestGuarantee() {
@@ -678,8 +693,8 @@ export default function ClientPage() {
             <h1 className="font-display font-extrabold text-xl text-ink mb-1"><UiText text={"Postează o lucrare"}/></h1>
             <p className="text-sm text-muted mb-5 leading-relaxed"><UiText text={"Completează detaliile — vezi prețul înainte de publicare."}/></p><p className="text-sm text-muted mb-3"><UiText text={BOOKING_DURATION_NOTICE}/></p>{Number.isFinite(Number(sqm))&&Number(sqm)>0&&validWindowsSqm(windowsSqm)&&<p className="text-sm text-muted mb-3"><UiText text={"Intervenție programată la locație: "}/>{calcServiceDuration(Number(sqm),windowsSqm)}<UiText text={" minute, plus buffer separat."}/></p>}<p className="text-sm text-muted mb-3"><UiText text={BOOKING_TEAM_NOTICE}/></p><p className="text-sm text-muted mb-3"><UiText text={AUTHORIZATION_NOTICE}/></p><p className="text-sm text-muted mb-3"><UiText text={CREDIT_POLICY_NOTICE}/></p>
 
-            <Field label="Instrucțiuni speciale (opțional)"><UiElement as="textarea" className={inputClass} rows={3} maxLength={500} value={details} onChange={e=>setDetails(e.target.value)} placeholder="Materiale sensibile, animale de companie, preferințe de curățenie…"/><small>{details.length}<UiText text={"/500 · Vizibile firmei după alocare. Nu introduce coduri de acces sau parole."}/></small></Field>
-            <BookingAddressLocation address={{city,street,postalCode}} onDetected={value=>{setCity(value.city);setStreet(value.street);setPostalCode(value.postalCode)}} enabled={!propertyId&&!hostEventId&&!new URLSearchParams(typeof window!=="undefined"?window.location.search:"").has("propertyId")}/><Field label="Stradă și număr">
+            <Field label="Instrucțiuni speciale (opțional)"><UiElement as="textarea" className={inputClass} rows={3} maxLength={propertyId?4000:500} value={details} onChange={e=>setDetails(e.target.value)} placeholder="Materiale sensibile, animale de companie, preferințe de curățenie…"/><small>{details.length}<UiText text={(propertyId?"/4000":"/500")+" · Vizibile firmei după alocare. Nu introduce coduri de acces sau parole."}/></small></Field>
+            {!hostEventId&&!approvalId&&<OwnedHomePicker value={propertyId??''} onSelect={p=>{setPropertyId(p?.id??null);if(!p){setStreet('');setPostalCode('');setFloor('');setDetails('');return;}const v=homeBookingValues(p);setStreet(v.street);setPostalCode(v.postalCode);setFloor(v.floor);setCity(v.city);setSqm(v.sqm);setSpaceType(v.spaceType);setBathroomCount(v.bathroomCount);setDetails(v.details);}}/>}<BookingAddressLocation address={{city,street,postalCode}} onDetected={value=>{setCity(value.city);setStreet(value.street);setPostalCode(value.postalCode)}} enabled={!propertyId&&!hostEventId&&!new URLSearchParams(typeof window!=="undefined"?window.location.search:"").has("propertyId")}/><Field label="Stradă și număr">
               <input className={inputClass} value={street} onChange={(e) => setStreet(e.target.value)} />
             </Field>
             <div className="grid grid-cols-2 gap-3">
@@ -772,18 +787,19 @@ export default function ClientPage() {
               <div className="text-[11px] text-coral bg-coral/5 rounded-lg px-3 py-2 mb-3"><UiText text={"Express 60 e disponibil doar pentru „Cât mai curând”. Alege-l mai jos."}/></div>
             )}
 
+            {!hostEventId&&!approvalId&&<FlexibleChoice city={city} value={flexibleWindows} onChange={w=>{setFlexibleWindows(w);if(w){setMode('standard');setExpress60(false);setWhenType('scheduled');setScheduledDate(w[0].date);setScheduledHour(w[0].from);}}}/>}
             <span className="block text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1"><UiText text={"Când?"}/></span>
             <div className="flex gap-2 mb-3">
               <button
                 type="button"
-                onClick={() => setWhenType("asap")}
+                onClick={() => {setFlexibleWindows(null);setWhenType("asap");}}
                 className={`flex-1 py-2.5 rounded-lg border font-display font-bold text-xs ${
                   whenType === "asap" ? "border-aqua bg-aqua/10 text-ink" : "border-line text-muted"
                 }`}
               ><UiText text={"Cât mai curând"}/></button>
               <button
                 type="button"
-                onClick={() => setWhenType("scheduled")}
+                onClick={() => {setFlexibleWindows(null);setWhenType("scheduled");}}
                 className={`flex-1 py-2.5 rounded-lg border font-display font-bold text-xs ${
                   whenType === "scheduled" ? "border-aqua bg-aqua/10 text-ink" : "border-line text-muted"
                 }`}
@@ -798,7 +814,7 @@ export default function ClientPage() {
               </div>
             )}
 
-            {whenType === "scheduled" && (
+            {whenType === "scheduled" && !flexibleWindows && (
               <div className="mb-3">
                 <div className="flex gap-1.5 overflow-x-auto pb-1.5 mb-2">
                   {next14Days.map((d) => (
@@ -883,8 +899,7 @@ export default function ClientPage() {
                 <div className="flex gap-1.5 mt-2.5 flex-wrap">
                   {photos.map((p) => (
                     <div key={p.id} className="relative w-14">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <UiElement as="img"
+                              <UiElement as="img"
                         src={p.url}
                         alt={`Poză ${scanRoomLabel(p.room)}`}
                         className="w-14 h-14 rounded-lg object-cover border border-line"
@@ -936,7 +951,7 @@ export default function ClientPage() {
         )}
 
         {job && <PublishedPriceBreakdown snapshot={job.pricing_snapshot}/>}
-        {job&&!job.express_60&&<RescheduleVisit key={job.id} jobId={job.id} scheduledAt={job.scheduled_at} status={job.status} role="client" onChanged={async()=>{const r=await fetch(`/api/jobs/${encodeURIComponent(job.id)}`);if(r.ok)setJob((await r.json()).job)}}/>}
+        {job&&!job.express_60&&!(job.flexible&&job.status==="waiting")&&<RescheduleVisit key={job.id} jobId={job.id} scheduledAt={job.scheduled_at} status={job.status} role="client" onChanged={async()=>{const r=await fetch(`/api/jobs/${encodeURIComponent(job.id)}`);if(r.ok)setJob((await r.json()).job)}}/>}
         {job&&job.accepted_firm_id&&<VisitCare key={job.id} jobId={job.id}/>}
         {job?.details && <section className="design-panel"><h2><UiText text={"Instrucțiunile tale"}/></h2><p className="whitespace-pre-wrap break-words">{job.details}</p></section>}
         {job && job.status === "waiting" && (
@@ -965,12 +980,14 @@ export default function ClientPage() {
                           </div>
                         </div>
                         <div className="offer-price"><b>{job.price_gross}<UiText text={" lei"}/></b><span><UiText text={"Preț fix pentru această solicitare"}/></span></div>
+                        {o.flexible&&<p className="my-3 text-sm">Propunere: {new Date(o.flexible.starts_at).toLocaleString('ro-RO',{timeZone:'Europe/Bucharest'})} · ora României. Valabilă până la {new Date(o.flexible.expires_at).toLocaleTimeString('ro-RO',{timeZone:'Europe/Bucharest'})}. Firma și prețul de mai sus se confirmă numai după acceptarea validă.</p>}
                         {o.message && (
                           <p className="text-sm text-muted mt-2 border-t border-line pt-2">{o.message}</p>
                         )}
-                        <Button className="offer-select-button" onClick={() => chooseOffer(o.offerId)} disabled={choosing !== null||(confirmationOpensAt(job)!==null&&Date.now()<confirmationOpensAt(job)!)}>
-                          {choosing === o.offerId ? <UiText text={"Se alege…"}/> : <UiText text={"Alege această firmă"}/>}
+                        <Button className="offer-select-button" onClick={() => chooseOffer(o.offerId,o.flexible?.proposal_id)} disabled={choosing !== null||(confirmationOpensAt(job)!==null&&calendarNow.getTime()<confirmationOpensAt(job)!)}>
+                          {choosing === o.offerId ? <UiText text={"Se alege…"}/> : <UiText text={o.flexible?"Confirmă programarea":"Alege această firmă"}/>}
                         </Button>
+                        {o.flexible&&<button type="button" className="mt-2 min-h-11 underline" disabled={choosing!==null} onClick={async()=>{try{const r=await fetch(`/api/jobs/${job.id}/flexible`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'reject',offerId:o.offerId})});const b=await r.json();if(!r.ok)throw new Error(b.error);await poll(new AbortController().signal);}catch(e){setError(e instanceof Error?e.message:'Propunerea nu a fost refuzată.');}}}>Refuză propunerea</button>}
                       </div>
                     ))}
                   </div>
@@ -1003,12 +1020,13 @@ export default function ClientPage() {
           </Card>
         )}
 
+        {job?.flexible&&job.status==="waiting"&&<FlexibleClientPanel jobId={job.id} windows={job.flexible.windows} onSaved={()=>poll(new AbortController().signal)}/>}
         {job && job.status === "completed" && !ratingDone && !job.ownReview && (
           <Card>
             <h1 className="font-display font-bold text-lg text-ink text-center mb-1"><UiText text={"Cum a fost curățenia?"}/></h1>
             <p className="text-sm text-muted text-center mb-2">
               {firmName ?? <UiText text={"Firma"}/>}<UiText text={" a finalizat lucrarea. Poți lăsa o recenzie. Starea plății este afișată separat."}/></p>
-            <RatingBlock onSubmit={submitRating} />
+            <RatingBlock key={job.id} onSubmit={submitRating} />
           </Card>
         )}
 
@@ -1487,14 +1505,4 @@ function BusinessSection() {
   );
 }
 
-function RatingBlock({ onSubmit }: { onSubmit: (stars: number, reviewText: string) => void }) {
-  const [stars, setStars] = useState(0);
-  const [reviewText, setReviewText] = useState("");
-  return (
-    <div className="space-y-3">
-      <StarRating value={stars} onChange={setStars} />
-      <label className="block text-sm font-bold text-ink"><UiText text={"Recenzie opțională"}/><UiElement as="textarea" className={`${inputClass} mt-2 min-h-24 resize-y`} maxLength={2000} value={reviewText} onChange={event=>setReviewText(event.target.value)} placeholder="Spune pe scurt cum a fost experiența."/></label>
-      <Button className="w-full" disabled={stars === 0} onClick={() => onSubmit(stars,reviewText)}><UiText text={"Trimite recenzia verificată"}/></Button>
-    </div>
-  );
-}
+function RatingBlock({onSubmit}:{onSubmit:(stars:number,reviewText:string)=>Promise<void>}) {return <ReviewForm onSubmit={onSubmit}/>;}

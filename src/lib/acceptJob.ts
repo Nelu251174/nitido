@@ -1,3 +1,4 @@
+import {flexiblePreference,validateFlexibleConfirmation,FlexibleError} from "./flexibleScheduling";
 import {AuthorizationCoverageError,authorizationRequiredUntil,confirmationOpensAt} from './authorizationCoverage';
 import {confirmInvitationWinner} from './providerInvitations';
 import {jobAssistedOperation,reserveAssistedTeam} from './assistedOperations';
@@ -11,7 +12,7 @@ import { firmCoversCity } from '@/lib/text';
 import { firmAvailabilityError, type JobTiming } from '@/lib/firmAvailability';
 
 export type AcceptResult = { ok: true } | { ok: false; error: string; status: number; code?: string };
-type Selection = { offerId: string; clientId: string };
+type Selection = { offerId: string; clientId: string;proposalId?:string };
 type Firm = {
   id: string; suspended_until: string | null; stripe_account_id: string | null;
   stripe_account_status: string; stripe_transfers_capability: string; verified: number;
@@ -43,6 +44,10 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
       }
       if (job.status !== 'waiting' || authorizationMustStop(db, jobId)) return fail('Lucrarea nu mai este disponibilă', 409,
         ['accepted', 'arrived'].includes(job.status) && job.accepted_firm_id && job.accepted_firm_id !== firmId ? 'ALREADY_TAKEN' : 'JOB_UNAVAILABLE');
+      const flex=flexiblePreference(db,jobId);
+      if(flex&&!selection)return fail('Alege și confirmă propunerea firmei în Standard.');
+      const proposal=selection?validateFlexibleConfirmation(db,jobId,firmId,selection.offerId,selection.proposalId):null;
+      if(proposal){job.scheduled_at=proposal.starts_at;job.when_type='scheduled';}
       const opens=confirmationOpensAt(job);
       if(opens!==null&&Date.now()<opens)return fail('La această programare, acceptarea finală și HOLD-ul se deschid cu 48 de ore înainte de începere. Cererea și ofertele rămân disponibile până atunci.',409,'CONFIRMATION_NOT_OPEN');
       if (!firmCoversCity(firm.coverage_city, firm.coverage_cities_extra, job.city)) return fail('Lucrarea este în afara zonei firmei', 403);
@@ -50,11 +55,17 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
       if (unavailable) return fail(unavailable, 409, 'CAPACITY_UNAVAILABLE');
       const updated = db.prepare("UPDATE jobs SET status='accepted',accepted_firm_id=?,accepted_at=datetime('now') WHERE id=? AND status='waiting'").run(firmId, jobId);
       if (updated.changes !== 1) return fail('Lucrarea nu mai este disponibilă');
+      if(proposal){
+        db.prepare("UPDATE jobs SET scheduled_at=?,when_type='scheduled' WHERE id=?").run(proposal.starts_at,jobId);
+        const fu=db.prepare('SELECT user_id FROM firms WHERE id=?').get(firmId) as {user_id:string};
+        db.prepare('INSERT INTO workspace_assignments(job_id,team_id,assigned_by,created_at) VALUES(?,?,?,?)').run(jobId,proposal.team_id,fu.user_id,new Date().toISOString());
+      }
       reserveAssistedTeam(db,jobId,firmId);
       db.prepare('INSERT INTO job_acceptance_claims(job_id,token) VALUES(?,?) ON CONFLICT(job_id) DO UPDATE SET token=excluded.token').run(jobId, claim);
       return { ok: true as const, job, firm };
     }).immediate();
   } catch (e) {
+    if(e instanceof FlexibleError)return fail(e.message,e.status,'FLEXIBLE_UNAVAILABLE');
     if(e instanceof MarginError)return fail(e.message,e.status,'ASSISTED_CAPACITY_UNAVAILABLE');
     return fail('Preluarea nu a putut fi rezervată. Reîncarcă lucrarea și reîncearcă.', 503);
   }
@@ -66,7 +77,7 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
       db.transaction(()=>{const released=db.prepare(`UPDATE jobs SET status='waiting',accepted_firm_id=NULL,accepted_at=NULL
         WHERE id=? AND status='accepted' AND accepted_firm_id=?
         AND EXISTS(SELECT 1 FROM job_acceptance_claims WHERE job_id=? AND token=?)`).run(jobId, firmId, jobId, claim);
-      if(released.changes){const p=jobAssistedOperation(db,jobId);if(p)db.prepare('DELETE FROM workspace_assignments WHERE job_id=? AND team_id=?').run(jobId,p.teamId);}
+      if(released.changes){if(flexiblePreference(db,jobId))db.prepare('DELETE FROM workspace_assignments WHERE job_id=?').run(jobId);const p=jobAssistedOperation(db,jobId);if(p)db.prepare('DELETE FROM workspace_assignments WHERE job_id=? AND team_id=?').run(jobId,p.teamId);}
       }).immediate();
     } catch {
       return fail('Starea preluării necesită verificare. Reîncarcă lucrarea; rezervarea nu a fost eliberată.', 503);

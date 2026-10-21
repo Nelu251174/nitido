@@ -1,3 +1,4 @@
+import {flexiblePreference,prepareFlexibleProposal,storeFlexibleProposal,FlexibleError,type FlexibleProposal} from "./flexibleScheduling";
 import {invitationEvent} from './providerInvitations';
 import {jobAssistedOperation,checkAssistedTeam} from './assistedOperations';
 import {MarginError} from './operationalMargin';
@@ -52,6 +53,7 @@ export type OfferSummary = {
   completedJobs: number;
   qualityScore: number; // Nitido Quality Index (0–100)
   createdAt: string;
+  flexible?:FlexibleProposal|null;
 };
 
 /** O firmă verificată din zonă trimite (sau reactivează) o ofertă la o lucrare 'standard'. */
@@ -59,16 +61,18 @@ export function createOffer(
   db: Database,
   jobId: string,
   firmId: string,
-  message?: string | null
+  message?: string | null,
+  flexible?:{teamId:string;startsAt:string}
 ): OfferResult {
   try {
-    return db.transaction(() => createOfferLocked(db, jobId, firmId, message)).immediate();
-  } catch {
+    return db.transaction(() => createOfferLocked(db, jobId, firmId, message,flexible)).immediate();
+  } catch(error) {
+    if(error instanceof FlexibleError)return {ok:false,error:error.message,status:error.status};
     return { ok: false, error: "Oferta nu a putut fi salvată. Reîncarcă lucrarea și reîncearcă.", status: 503 };
   }
 }
 
-function createOfferLocked(db: Database, jobId: string, firmId: string, message?: string | null): OfferResult {
+function createOfferLocked(db: Database, jobId: string, firmId: string, message?: string | null,flexible?:{teamId:string;startsAt:string}): OfferResult {
   const firm = db
     .prepare(
       "SELECT id, suspended_until, verified, coverage_city, coverage_cities_extra FROM firms WHERE id = ?"
@@ -93,7 +97,11 @@ function createOfferLocked(db: Database, jobId: string, firmId: string, message?
   if (!firmCoversCity(firm.coverage_city, firm.coverage_cities_extra, job.city)) {
     return { ok: false, error: "Lucrarea este în afara zonei firmei", status: 403 };
   }
-  const unavailable = firmAvailabilityError(db, firmId, job);
+  const pref=flexiblePreference(db,jobId);
+  if(pref&&!flexible)return {ok:false,error:'Propune o echipă și o oră exactă în intervalele acceptate.',status:409};
+  if(flexible&&!pref)return {ok:false,error:'Cererea nu mai folosește intervale flexibile.',status:409};
+  const proposed=flexible?prepareFlexibleProposal(db,jobId,firmId,flexible.teamId,flexible.startsAt):null;
+  const unavailable = firmAvailabilityError(db, firmId, proposed?.timing??job);
   if (unavailable) return { ok: false, error: unavailable, status: 409 };
 
   const plan = jobAssistedOperation(db, jobId);
@@ -112,6 +120,10 @@ function createOfferLocked(db: Database, jobId: string, firmId: string, message?
   const existing = db
     .prepare("SELECT id, status FROM offers WHERE job_id = ? AND firm_id = ?")
     .get(jobId, firmId) as { id: string; status: string } | undefined;
+  if(existing&&flexible&&['pending','withdrawn','rejected'].includes(existing.status)){
+    storeFlexibleProposal(db,existing.id,jobId,firmId,flexible.teamId,flexible.startsAt);
+    db.prepare("UPDATE offers SET status='pending',message=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(trimmed,existing.id);return {ok:true,offerId:existing.id};
+  }
   if (existing) {
     if (existing.status === "withdrawn") {
       db.prepare(
@@ -127,6 +139,7 @@ function createOfferLocked(db: Database, jobId: string, firmId: string, message?
   db.prepare(
     "INSERT INTO offers (id, job_id, firm_id, message, status) VALUES (?, ?, ?, ?, 'pending')"
   ).run(offerId, jobId, firmId, trimmed);
+  if(flexible)storeFlexibleProposal(db,offerId,jobId,firmId,flexible.teamId,flexible.startsAt);
   invitationEvent(db,jobId,firmId,'offered',offerId);
   return { ok: true, offerId };
 }
@@ -150,6 +163,7 @@ export function listOffersForJob(db: Database, jobId: string): OfferSummary[] {
   return rows
     .map(({ strikes90d, ...r }) => ({
       ...r,
+      ...(flexiblePreference(db,jobId)?{flexible:db.prepare('SELECT * FROM flexible_offer_details WHERE offer_id=?').get(r.offerId) as FlexibleProposal|undefined}:{}),
       qualityScore: computeQualityScore({
         avgStars: r.ratingAvg,
         ratingCount: r.ratingCount,
@@ -170,7 +184,8 @@ export async function selectOffer(
   db: Database,
   jobId: string,
   offerId: string,
-  clientId: string
+  clientId: string,
+  proposalId?:string
 ): Promise<AcceptResult> {
   const job = db
     .prepare("SELECT id, client_id, city, status, mode FROM jobs WHERE id = ?")
@@ -186,7 +201,7 @@ export async function selectOffer(
   if (!offer) return { ok: false, error: "Ofertă inexistentă", status: 404 };
   if (offer.status !== "pending") return { ok: false, error: "Oferta nu mai este validă", status: 409 };
 
-  return acceptJobAtomic(db, jobId, offer.firm_id, { offerId: offer.id, clientId });
+  return acceptJobAtomic(db, jobId, offer.firm_id, { offerId: offer.id, clientId,proposalId });
 }
 
 /** O firmă își retrage oferta (doar cât timp e 'pending'). */

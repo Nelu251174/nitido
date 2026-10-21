@@ -125,13 +125,15 @@ export function StatusTrack({
 export function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const ui=useUiText();
   return (
-    <div className="flex gap-2 justify-center my-4">
+    <div role="radiogroup" aria-label="Evaluarea lucrării" className="flex gap-1 justify-center my-4">
       {[1, 2, 3, 4, 5].map((v) => (
         <UiElement as="button"
           key={v}
           type="button"
+          role="radio" aria-checked={value===v} tabIndex={value===v||(!value&&v===1)?0:-1}
+          onKeyDown={event=>{if(["ArrowRight","ArrowUp","ArrowLeft","ArrowDown","Home","End"].includes(event.key)){event.preventDefault();const next=event.key==="Home"?1:event.key==="End"?5:Math.max(1,Math.min(5,v+(["ArrowRight","ArrowUp"].includes(event.key)?1:-1)));onChange(next);(event.currentTarget.parentElement?.children[next-1] as HTMLElement)?.focus();}}}
           onClick={() => onChange(v)}
-          className={`text-3xl leading-none transition ${
+          className={`min-h-11 min-w-11 rounded focus-visible:outline focus-visible:outline-2 text-3xl leading-none transition ${
             v <= value ? "text-coral" : "text-line"
           }`}
           aria-label={`${ui('Rating')}: ${v}/5`}

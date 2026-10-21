@@ -1,4 +1,5 @@
 "use client";
+import {FlexibleFirmOffer} from "@/components/FlexibleFirmOffer";
 import {AUTHORIZATION_NOTICE,confirmationOpensAt} from '@/lib/authorizationPolicy';
 import {UiSpaceType} from '@/components/UiText';
 import {UiDate} from '@/components/UiDate';
@@ -43,7 +44,9 @@ export default function FirmaPage() {
   const [onboardingBusy,setOnboardingBusy]=useState(false);
   const [onboardingRefresh,setOnboardingRefresh]=useState(false);
   const onboardingAction=useRef<string|null>(null),onboardingInFlight=useRef(false);
-  useEffect(()=>{setOnboardingRefresh(new URLSearchParams(window.location.search).get('stripe')==='refresh-required')},[]);
+  useEffect(()=>{const frame=requestAnimationFrame(()=>setOnboardingRefresh(new URLSearchParams(window.location.search).get('stripe')==='refresh-required'));return()=>cancelAnimationFrame(frame);},[]);
+  const [clock,setClock]=useState(()=>new Date().getTime());
+  useEffect(()=>{const timer=setInterval(()=>setClock(new Date().getTime()),30000);return()=>clearInterval(timer);},[]);
   const [settlingJob,setSettlingJob]=useState<string|null>(null);
   const [uploadingProof, setUploadingProof] = useState<string | null>(null);
   const [trustProfile, setTrustProfile] = useState<{firms:{average_rating:number|null;review_count:number;completed_jobs:number;verified:number}[];reviews:{id:string;rating:number;reviewText:string|null;reviewer:string;badge:string}[]}>({firms:[],reviews:[]});
@@ -355,7 +358,6 @@ export default function FirmaPage() {
                     <div className="flex gap-1.5 flex-wrap">
                       {job.scan.map((s) => (
                         <a key={s.id} href={s.url} target="_blank" rel="noreferrer" className="w-16">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <UiElement as="img"
                             src={s.url}
                             alt={`Context: ${s.roomLabel}`}
@@ -373,7 +375,7 @@ export default function FirmaPage() {
                 <div className="font-display font-extrabold text-lg text-aqua-deep mb-3">
                   {job.firm_payout ?? job.financial?.firmPayout ?? "—"}<UiText text={" lei"}/></div>
                 {job.mode === "standard" ? (
-                  offeredJobIds.includes(job.id) ? (
+                  job.flexible?<FlexibleFirmOffer jobId={job.id} windows={job.flexible.windows} onSaved={()=>{void refresh();}}/>:offeredJobIds.includes(job.id) ? (
                     <div className="text-center text-sm font-display font-bold text-aqua-deep bg-aqua/10 rounded-lg py-2.5"><UiText text={"✓ Candidatură trimisă — clientul alege"}/></div>
                   ) : (
                     <div className="space-y-2">
@@ -388,7 +390,7 @@ export default function FirmaPage() {
                     </div>
                   )
                 ) : (
-                  <><p className="text-xs text-muted mb-2"><UiText text={AUTHORIZATION_NOTICE}/></p><Button className="w-full" disabled={confirmationOpensAt(job)!==null&&Date.now()<confirmationOpensAt(job)!} onClick={() => accept(job.id)}><UiText text={"Accept lucrarea"}/></Button></>
+                  <><p className="text-xs text-muted mb-2"><UiText text={AUTHORIZATION_NOTICE}/></p><Button className="w-full" disabled={confirmationOpensAt(job)!==null&&clock<confirmationOpensAt(job)!} onClick={() => accept(job.id)}><UiText text={"Accept lucrarea"}/></Button></>
                 )}
               </div>
             ))}
