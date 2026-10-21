@@ -26,8 +26,6 @@ jobs:
       ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      IOS19_EVIDENCE: ${{ runner.temp }}/ios19-release-evidence.json
-      IOS19_SCREENSHOTS: ${{ github.workspace }}/approved-assets/docs/store/ios-1.0.1-screenshots
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,6 +69,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Resolve only local evidence and screenshot paths
+        run: |
+          echo "IOS19_EVIDENCE=$RUNNER_TEMP/ios19-release-evidence.json" >> "$GITHUB_ENV"
+          echo "IOS19_SCREENSHOTS=$GITHUB_WORKSPACE/approved-assets/docs/store/ios-1.0.1-screenshots" >> "$GITHUB_ENV"
       - name: Verify unchanged signed IPA checksum, signature, receipt and source
         run: |
           python3 - <<'PY'
