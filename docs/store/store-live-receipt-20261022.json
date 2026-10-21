@@ -1,0 +1,22 @@
+{
+  "sourceSha": "5a5d1b0eece25f1233a448f15ca9cfa385a1d8d4",
+  "appId": "ro.nitido.app",
+  "platform": "ios",
+  "verifiedAt": "2026-10-21T22:15:20.888674+00:00",
+  "live": {
+    "sourceSha": "5a5d1b0eece25f1233a448f15ca9cfa385a1d8d4",
+    "origin": "https://nitido.ro",
+    "verified": true,
+    "receipt": "Coolify deployment qqlnwotbxm6jvakgr12nffj8 finished 2026-10-21T22:13:03Z; live-new-http.json: 27 checks passed, 18 JS/CSS resources; PR121 tree e56ac19138feba64308880153c798d77cb25c95a matches sandbox candidate.",
+    "backup": {
+      "verified": true,
+      "receipt": "Checkpoint /app/data/release-checkpoints/20261022-before-store-update: online SQLite, upload hashes and isolated restore verified by immutable script commit 986dbf11c0718cdc1e69856ffdf50fce97f5dd81; LIVE backup execution 4dz2jhft057t3eozcksmfxnk success 2026-10-21T22:05:23Z; protected-data comparison execution v7mqy194ajobsi5slc2zzbe6 success 2026-10-21T22:13:57Z."
+    }
+  },
+  "limits": [
+    "No new physical-device QA claimed. Owner confirmed booking, review and homes on installed app before this change.",
+    "Photo AI inference tested with stubs, not live customer photos.",
+    "Weekly provider pilot has no approved city or invented availability.",
+    "Upload is not approval or publication; App Review state requires an authenticated Apple receipt."
+  ]
+}
