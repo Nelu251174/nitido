@@ -1,3 +1,4 @@
+import {openingRequest} from './weeklyAvailability';
 import {validateHostReschedule} from './hostTurnover';
 import {notifySchedule} from "./visitCare";
 import type {Database} from 'better-sqlite3';
@@ -34,6 +35,7 @@ export function applyConfirmedReschedule(db:Database,job:JobRow,request:RequestR
  if(assignment){const firm=db.prepare('SELECT user_id FROM firms WHERE id=?').get(job.accepted_firm_id) as {user_id:string};assignTeam(db,firm.user_id,assignment.team_id,job.id)}
 }
 function movable(db:Database,job:JobRow){
+ if(job.status==='waiting'&&openingRequest(db,job.id))fail('Pentru alt interval al firmei, anulează această cerere și configurează una nouă.');
  if(!['waiting','accepted'].includes(job.status)||!job.scheduled_at||job.express_60)fail('Această rezervare nu poate fi reprogramată. Lucrările începute și Express 60 își păstrează programul.');
  if(authorizationMustStop(db,job.id))fail('Rezervarea are o operațiune de anulare în curs.');
 }

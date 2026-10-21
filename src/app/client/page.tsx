@@ -19,7 +19,7 @@ import {VisitCare} from "@/components/VisitCare";
 import {SeriesChanges} from "@/components/SeriesChanges";
 import {RescheduleVisit} from '@/components/RescheduleVisit';
 import { logoutWithNativePush } from "@/lib/nativePushClient";
-import {bookingCalendarDays,bookingDateKey,bucharestDateKey,isBookableRomanianSlot,nextBucharestSlot} from "@/lib/scheduling";
+import {bookingCalendarDays,bookingDateKey,bucharestScheduledAt,bucharestDateKey,isBookableRomanianSlot,nextBucharestSlot} from "@/lib/scheduling";
 import {BookingAddressLocation} from "@/components/BookingAddressLocation";
 import {BathroomExtra} from "@/components/BathroomExtra";
 import {WindowsExtra} from "@/components/WindowsExtra";
@@ -52,6 +52,8 @@ import {
   SpaceType,
 } from "@/lib/pricing";
 import { JobRow } from "@/lib/types";
+import {FamilyBookingFields,FamilySharing,type BeneficiaryInput} from '@/components/FamilyBooking';
+import type {BookingDraft} from '@/lib/bookingDraft';
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { applyCredit } from "@/lib/referral";
 import { PROPERTY_TYPE_LABELS } from "@/lib/jobTypeLabels";
@@ -133,6 +135,10 @@ export default function ClientPage() {
   const router = useRouter();
   const { user, loading } = useCurrentUser();
 
+  const [beneficiary,setBeneficiary]=useState<BeneficiaryInput|null>(null);
+  const [weekSlot,setWeekSlot]=useState<BookingDraft['weekSlot']>(null);
+  const [photoDraftId,setPhotoDraftId]=useState<string|null>(null);
+  const [featureLoading,setFeatureLoading]=useState(false);
   const [approvalId,setApprovalId]=useState<string|null>(null);
   const [hostEventId,setHostEventId]=useState<string|null>(null),[hostRevision,setHostRevision]=useState<string|null>(null);
   const [propertyId,setPropertyId]=useState<string|null>(null);
@@ -236,14 +242,17 @@ export default function ClientPage() {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- restore external tab storage only after the authenticated account is known
         setEntrance(draft.entrance??null);setStreet(draft.street);setPostalCode(draft.postalCode);setCity(draft.city);setFloor(draft.floor);setDetails(draft.details);
         setBathroomCount(draft.bathroomCount??1);setWindowsSqm(draft.windowsSqm??0);setSqm(draft.sqm);setSpaceType(draft.spaceType);setWhenType(draft.whenType);setMode(draft.mode);setExpress60(draft.express60);
-        setFlexibleWindows(draft.flexibleWindows??null);setScheduledDate(draft.scheduledDate);setScheduledHour(draft.scheduledHour);
+        setBeneficiary(draft.beneficiary??null);setWeekSlot(draft.weekSlot??null);setPhotoDraftId(draft.photoDraftId??null);setFlexibleWindows(draft.flexibleWindows??null);setScheduledDate(draft.scheduledDate);setScheduledHour(draft.scheduledHour);
         restoredCardId.current=draft.cardId??null;
         setHostEventId(draft.hostEventId??null);setHostRevision(draft.hostRevision??null);setPropertyId(draft.propertyId);setApprovalId(draft.approvalId);setPhotos(draft.photos);setShowBooking(true);
         setDraftNotice(params.get('card')==='cancelled'?'Adăugarea cardului a fost anulată. Rezervarea ta este păstrată.':'Rezervarea ta a fost restaurată. Verifică detaliile înainte de publicare.');
         return;
       }
     }
-    if(window.location.hash==="#sec-form"||params.has("propertyId")||params.has("spaceType")||params.has("mode"))setShowBooking(true);
+    if(params.get('forFamily')==='1')setBeneficiary({name:'',email:'',consent:false});
+    if(params.has('photoDraftId')){setFeatureLoading(true);void fetch('/api/photo-scope/drafts/'+encodeURIComponent(params.get('photoDraftId')!)).then(async r=>{const b=await r.json();if(!r.ok)throw Error(b.error);setPhotoDraftId(b.draft.id);setDetails(b.draft.description);setPhotos(b.draft.photos)}).catch(e=>setError(e.message)).finally(()=>setFeatureLoading(false));}
+    if(params.has('slotId')){setFeatureLoading(true);void fetch('/api/availability/week?'+params.toString()).then(async r=>{const b=await r.json();if(!r.ok)throw Error(b.error);const v=b.selection;setWeekSlot({slotId:v.slotId,revision:v.revision,startsAt:v.startsAt,firmName:v.firmName});setWhenType('scheduled');setMode('standard');setExpress60(false);setFlexibleWindows(null);setScheduledDate(bucharestDateKey(new Date(v.startsAt)));setScheduledHour(Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Bucharest',hour:'2-digit',hourCycle:'h23'}).format(new Date(v.startsAt))))}).catch(e=>setError(e.message)).finally(()=>setFeatureLoading(false));}
+    if(window.location.hash==="#sec-form"||params.has("propertyId")||params.has("spaceType")||params.has("mode")||params.has("forFamily")||params.has("photoDraftId")||params.has("slotId"))setShowBooking(true);
     const type=params.get("spaceType");if(type&&["apartament","casa","birou","altul"].includes(type))setSpaceType(type as SpaceType);
     const area=Number(params.get("sqm"));if(Number.isInteger(area)&&area>0&&area<=1000)setSqm(area);
     if(params.get("mode")==="express")setMode("express");
@@ -353,7 +362,7 @@ export default function ClientPage() {
       }
       if(showBooking){
         let saved=false;
-        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{flexibleWindows,street,postalCode,city,floor,details,sqm,windowsSqm,bathroomCount,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,hostEventId,hostRevision,photos,cardId:selectedCardId,entrance:entrance&&validEntrance(entrance,{street,city,postalCode})?entrance:undefined}));}catch{/* Storage can be blocked by the browser. */}
+        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{beneficiary,weekSlot,photoDraftId,flexibleWindows,street,postalCode,city,floor,details,sqm,windowsSqm,bathroomCount,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,hostEventId,hostRevision,photos,cardId:selectedCardId,entrance:entrance&&validEntrance(entrance,{street,city,postalCode})?entrance:undefined}));}catch{/* Storage can be blocked by the browser. */}
         if(!saved){setCardError('Rezervarea nu poate fi păstrată în această filă. Permite stocarea pentru site și încearcă din nou.');setCardBusy(false);return;}
       }else{try{clearBookingDraft(window.sessionStorage);}catch{/* No draft to preserve. */}}
       window.location.href = d.url; // redirect către pagina de card găzduită de Stripe
@@ -417,10 +426,14 @@ export default function ClientPage() {
   async function postJob() {
     setError(null);
     if(!validBathroomCount(bathroomCount)){setError("Introdu numărul de băi, întreg între 0 și 20.");return;}
+    if(featureLoading){setError('Așteaptă încărcarea detaliilor selectate.');return;}
+    if(beneficiary&&(!beneficiary.name.trim()||!/^\S+@\S+\.\S+$/.test(beneficiary.email)||!beneficiary.consent)){setError('Completează numele, emailul și acordul beneficiarului.');return;}
+    if(weekSlot&&(mode!=='standard'||express60||flexibleWindows||whenType!=='scheduled'||scheduledHour===null||bookingDateKey(scheduledDate)!==scheduledDate||bucharestScheduledAt(scheduledDate,scheduledHour).toISOString()!==weekSlot.startsAt)){setError('Programul ales diferă de intervalul firmei. Revino la intervalul selectat sau renunță la el înainte de publicare.');return;}
     setSubmitting(true);
     try {
       if(flexibleWindows)validateFlexibleWindows(flexibleWindows);
       const body: Record<string, unknown> = {
+        beneficiary,weekSlot,photoDraftId,
         entrance:entrance&&validEntrance(entrance,{street,city,postalCode})?entrance:undefined,
         street,
         postalCode,
@@ -693,6 +706,10 @@ export default function ClientPage() {
             <h1 className="font-display font-extrabold text-xl text-ink mb-1"><UiText text={"Postează o lucrare"}/></h1>
             <p className="text-sm text-muted mb-5 leading-relaxed"><UiText text={"Completează detaliile — vezi prețul înainte de publicare."}/></p><p className="text-sm text-muted mb-3"><UiText text={BOOKING_DURATION_NOTICE}/></p>{Number.isFinite(Number(sqm))&&Number(sqm)>0&&validWindowsSqm(windowsSqm)&&<p className="text-sm text-muted mb-3"><UiText text={"Intervenție programată la locație: "}/>{calcServiceDuration(Number(sqm),windowsSqm)}<UiText text={" minute, plus buffer separat."}/></p>}<p className="text-sm text-muted mb-3"><UiText text={BOOKING_TEAM_NOTICE}/></p><p className="text-sm text-muted mb-3"><UiText text={AUTHORIZATION_NOTICE}/></p><p className="text-sm text-muted mb-3"><UiText text={CREDIT_POLICY_NOTICE}/></p>
 
+            <FamilyBookingFields value={beneficiary} onChange={setBeneficiary}/>
+            {featureLoading&&<p role="status">Se încarcă detaliile selectate…</p>}
+            {photoDraftId&&<p className="rounded border p-3">Descrierea și pozele au fost aduse din ciorna ta privată. Le poți corecta mai jos înainte de publicare.</p>}
+            {weekSlot&&<div className="rounded border p-4 my-4"><b>Interval solicitat la {weekSlot.firmName}</b><p>{new Date(weekSlot.startsAt).toLocaleString('ro-RO',{timeZone:'Europe/Bucharest'})} · ora României. Cererea va fi adresată acestei firme, care trebuie să trimită candidatura. Alegerea ei rămâne la tine.</p><button type="button" className="underline min-h-11" onClick={()=>setWeekSlot(null)}>Renunță la interval și continuă cu o cerere obișnuită</button></div>}
             <Field label="Instrucțiuni speciale (opțional)"><UiElement as="textarea" className={inputClass} rows={3} maxLength={propertyId?4000:500} value={details} onChange={e=>setDetails(e.target.value)} placeholder="Materiale sensibile, animale de companie, preferințe de curățenie…"/><small>{details.length}<UiText text={(propertyId?"/4000":"/500")+" · Vizibile firmei după alocare. Nu introduce coduri de acces sau parole."}/></small></Field>
             {!hostEventId&&!approvalId&&<OwnedHomePicker value={propertyId??''} onSelect={p=>{setPropertyId(p?.id??null);if(!p){setStreet('');setPostalCode('');setFloor('');setDetails('');return;}const v=homeBookingValues(p);setStreet(v.street);setPostalCode(v.postalCode);setFloor(v.floor);setCity(v.city);setSqm(v.sqm);setSpaceType(v.spaceType);setBathroomCount(v.bathroomCount);setDetails(v.details);}}/>}<BookingAddressLocation address={{city,street,postalCode}} onDetected={value=>{setCity(value.city);setStreet(value.street);setPostalCode(value.postalCode)}} enabled={!propertyId&&!hostEventId&&!new URLSearchParams(typeof window!=="undefined"?window.location.search:"").has("propertyId")}/><Field label="Stradă și număr">
               <input className={inputClass} value={street} onChange={(e) => setStreet(e.target.value)} />
@@ -951,7 +968,8 @@ export default function ClientPage() {
         )}
 
         {job && <PublishedPriceBreakdown snapshot={job.pricing_snapshot}/>}
-        {job&&!job.express_60&&!(job.flexible&&job.status==="waiting")&&<RescheduleVisit key={job.id} jobId={job.id} scheduledAt={job.scheduled_at} status={job.status} role="client" onChanged={async()=>{const r=await fetch(`/api/jobs/${encodeURIComponent(job.id)}`);if(r.ok)setJob((await r.json()).job)}}/>}
+        {job?.for_family&&<FamilySharing key={job.id} jobId={job.id}/>}{job?.week_slot&&job.status==="waiting"&&<p className="design-panel">Cerere adresată firmei intervalului ales. Confirmarea depinde de candidatura firmei și de reverificarea calendarului. Pentru alt interval, anulează cererea și configurează una nouă.</p>}
+        {job&&!job.express_60&&!(job.week_slot&&job.status==="waiting")&&!(job.flexible&&job.status==="waiting")&&<RescheduleVisit key={job.id} jobId={job.id} scheduledAt={job.scheduled_at} status={job.status} role="client" onChanged={async()=>{const r=await fetch(`/api/jobs/${encodeURIComponent(job.id)}`);if(r.ok)setJob((await r.json()).job)}}/>}
         {job&&job.accepted_firm_id&&<VisitCare key={job.id} jobId={job.id}/>}
         {job?.details && <section className="design-panel"><h2><UiText text={"Instrucțiunile tale"}/></h2><p className="whitespace-pre-wrap break-words">{job.details}</p></section>}
         {job && job.status === "waiting" && (

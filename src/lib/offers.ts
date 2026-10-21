@@ -1,3 +1,4 @@
+import {validateOpeningConfirmation,AvailabilityError} from './weeklyAvailability';
 import {flexiblePreference,prepareFlexibleProposal,storeFlexibleProposal,FlexibleError,type FlexibleProposal} from "./flexibleScheduling";
 import {invitationEvent} from './providerInvitations';
 import {jobAssistedOperation,checkAssistedTeam} from './assistedOperations';
@@ -67,6 +68,7 @@ export function createOffer(
   try {
     return db.transaction(() => createOfferLocked(db, jobId, firmId, message,flexible)).immediate();
   } catch(error) {
+    if(error instanceof AvailabilityError)return {ok:false,error:error.message,status:error.status};
     if(error instanceof FlexibleError)return {ok:false,error:error.message,status:error.status};
     return { ok: false, error: "Oferta nu a putut fi salvată. Reîncarcă lucrarea și reîncearcă.", status: 503 };
   }
@@ -97,6 +99,7 @@ function createOfferLocked(db: Database, jobId: string, firmId: string, message?
   if (!firmCoversCity(firm.coverage_city, firm.coverage_cities_extra, job.city)) {
     return { ok: false, error: "Lucrarea este în afara zonei firmei", status: 403 };
   }
+  validateOpeningConfirmation(db,jobId,firmId);
   const pref=flexiblePreference(db,jobId);
   if(pref&&!flexible)return {ok:false,error:'Propune o echipă și o oră exactă în intervalele acceptate.',status:409};
   if(flexible&&!pref)return {ok:false,error:'Cererea nu mai folosește intervale flexibile.',status:409};

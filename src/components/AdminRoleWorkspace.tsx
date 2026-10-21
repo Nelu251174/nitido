@@ -20,6 +20,7 @@ export function AdminRoleWorkspace({ identity }: {
     const [jobId, setJobId] = useState(''), [message, setMessage] = useState('');
     const can = (p: Parameters<typeof hasAdminPermission>[1]) => hasAdminPermission(identity.role, p);
     return <main className="max-w-6xl mx-auto p-5 space-y-6" style={{ background: '#f7f3ec', minHeight: '100vh' }}><h1 className="workspace-title">{ADMIN_ROLES[identity.role]}</h1><p>{identity.email}</p><button className="v2-btn v2-btn-secondary" onClick={() => void fetch('/api/admin/auth/logout', { method: 'POST' }).then(() => location.reload())}>Închide sesiunea</button>
+ {can('operations')&&<Link className="v2-btn v2-btn-primary" href="/admin/azi">Ce necesită atenție azi · NEW</Link>}
  <AdminInternalJobs />
  {can('operations') && <AdminAccountDeletion />}
  <AdminCustomers />

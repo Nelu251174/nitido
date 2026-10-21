@@ -1,0 +1,12 @@
+import {NextRequest,NextResponse} from 'next/server';
+import {db,getFirmByUserId} from '@/lib/db';
+import {getCurrentUser} from '@/lib/auth';
+import {hasTrustedMutationOrigin,consumeRateLimit,requestIp} from '@/lib/security';
+import {selectedOpening,listWeekOpenings,publishOpening,withdrawOpening,AvailabilityError} from '@/lib/weeklyAvailability';
+const reply=(b:unknown,status=200)=>NextResponse.json(b,{status,headers:{'Cache-Control':'no-store'}});
+export async function GET(req:NextRequest){
+ if(req.nextUrl.searchParams.get('mine')==='1'){const u=await getCurrentUser(req),f=u?.role==='firma'?getFirmByUserId(u.id):null;if(!f)return reply({error:'Autentificare firmă necesară'},401);return reply({slots:db.prepare('SELECT s.*,t.name team_name FROM provider_open_slots s JOIN workspace_teams t ON t.id=s.team_id WHERE s.firm_id=? ORDER BY s.starts_at DESC LIMIT 100').all(f.id),teams:db.prepare('SELECT id,name FROM workspace_teams WHERE firm_id=? AND active=1 ORDER BY name').all(f.id),coverage:f.coverage_city});}
+ if(!consumeRateLimit('week-search:'+requestIp(req),60,60000))return reply({error:'Prea multe căutări. Reîncearcă într-un minut.'},429);
+ try{if(req.nextUrl.searchParams.has('slotId'))return reply({selection:selectedOpening(db,Object.fromEntries(req.nextUrl.searchParams))});return reply({...listWeekOpenings(db,Object.fromEntries(req.nextUrl.searchParams)),checkedAt:new Date().toISOString(),timezone:'Europe/Bucharest',bookingConfirmed:false});}catch(e){return reply({error:e instanceof AvailabilityError?e.message:'Căutarea nu a putut fi executată.'},e instanceof AvailabilityError?e.status:503);}
+}
+export async function POST(req:NextRequest){const u=await getCurrentUser(req),f=u?.role==='firma'?getFirmByUserId(u.id):null;if(!u||!f)return reply({error:'Autentificare firmă necesară'},401);if(!hasTrustedMutationOrigin(req))return reply({error:'Origine invalidă'},403);if(!consumeRateLimit('week-publish:'+u.id,30,3600000))return reply({error:'Prea multe solicitări'},429);const b=await req.json().catch(()=>null);try{if(b?.action==='withdraw'){withdrawOpening(db,f.id,String(b.id));return reply({ok:true});}if(b?.action!=='publish')return reply({error:'Acțiune invalidă'},400);return reply({ok:true,id:publishOpening(db,f.id,b)},201);}catch(e){return reply({error:e instanceof AvailabilityError?e.message:'Intervalul nu a fost salvat.'},e instanceof AvailabilityError?e.status:503);}}

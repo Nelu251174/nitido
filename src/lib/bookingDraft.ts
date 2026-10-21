@@ -4,6 +4,10 @@ import {bookingDateKey} from './scheduling';
 import {SLOT_HOURS,validWindowsSqm,validBathroomCount,type SpaceType} from './pricing';
 
 export interface BookingDraft {
+ beneficiary?:{name:string;email:string;consent:boolean}|null;
+ weekSlot?:{slotId:string;revision:number;startsAt:string;firmName:string}|null;
+ photoDraftId?:string|null;
+
  flexibleWindows?:import("./flexibleShared").FlexibleWindow[]|null;
  street:string;postalCode:string;city:string;floor:string;details:string;
  entrance?:Entrance;
@@ -38,11 +42,15 @@ function decode(raw:string|null,userId:string,now:number):BookingDraft|null{
   if(d.cardId!==undefined&&!nullableId(d.cardId))return null;
   if(d.hostEventId!==undefined&&!nullableId(d.hostEventId))return null;
   if(d.hostRevision!==undefined&&d.hostRevision!==null&&(typeof d.hostRevision!=='string'||!/^[a-f0-9]{64}$/.test(d.hostRevision)))return null;
+  if(d.beneficiary!=null&&(!record(d.beneficiary)||!bounded(d.beneficiary.name,100)||!bounded(d.beneficiary.email,254)||typeof d.beneficiary.consent!=='boolean'))return null;
+  if(d.weekSlot!=null&&(!record(d.weekSlot)||!id(d.weekSlot.slotId)||!Number.isInteger(d.weekSlot.revision)||!bounded(d.weekSlot.startsAt,30)||!bounded(d.weekSlot.firmName,300)))return null;
+  if(d.photoDraftId!=null&&!id(d.photoDraftId))return null;
+  const features={...(d.beneficiary!==undefined?{beneficiary:d.beneficiary as BookingDraft['beneficiary']}:{}),...(d.weekSlot!==undefined?{weekSlot:d.weekSlot as BookingDraft['weekSlot']}:{}),...(d.photoDraftId!==undefined?{photoDraftId:d.photoDraftId as BookingDraft['photoDraftId']}:{} )};
   const photos:BookingDraft['photos']=[];
   for(const p of d.photos){if(!record(p)||!id(p.id)||(p.room!==null&&!bounded(p.room,100)))return null;photos.push({id:p.id,url:`/api/uploads/${p.id}`,room:p.room as string|null});}
   // Reconstruct explicitly: never restore prices, card state, arbitrary image URLs or authorization.
   let flexibleWindows=null;if(d.flexibleWindows){flexibleWindows=validateFlexibleWindows(d.flexibleWindows,new Date(now));}
-  return {...(d.flexibleWindows!==undefined?{flexibleWindows}:{}),...(validEntrance(d.entrance,{street:d.street,city:d.city,postalCode:d.postalCode})?{entrance:d.entrance}:{}),street:d.street,postalCode:d.postalCode,city:d.city,floor:d.floor,details:d.details,sqm:d.sqm,...(typeof d.bathroomCount==='number'?{bathroomCount:d.bathroomCount}:{}),windowsSqm:typeof d.windowsSqm==='number'?d.windowsSqm:0,spaceType:d.spaceType as SpaceType,whenType:d.whenType as BookingDraft['whenType'],mode:d.mode as BookingDraft['mode'],express60:d.express60,scheduledDate:d.scheduledDate,scheduledHour:d.scheduledHour as number|null,propertyId:d.propertyId as string|null,approvalId:d.approvalId as string|null,photos,...(d.hostEventId!==undefined?{hostEventId:d.hostEventId as string|null}:{}),...(d.hostRevision!==undefined?{hostRevision:d.hostRevision as string|null}:{}),...(d.cardId!==undefined?{cardId:d.cardId as string|null}:{})};
+  return {...features,...(d.flexibleWindows!==undefined?{flexibleWindows}:{}),...(validEntrance(d.entrance,{street:d.street,city:d.city,postalCode:d.postalCode})?{entrance:d.entrance}:{}),street:d.street,postalCode:d.postalCode,city:d.city,floor:d.floor,details:d.details,sqm:d.sqm,...(typeof d.bathroomCount==='number'?{bathroomCount:d.bathroomCount}:{}),windowsSqm:typeof d.windowsSqm==='number'?d.windowsSqm:0,spaceType:d.spaceType as SpaceType,whenType:d.whenType as BookingDraft['whenType'],mode:d.mode as BookingDraft['mode'],express60:d.express60,scheduledDate:d.scheduledDate,scheduledHour:d.scheduledHour as number|null,propertyId:d.propertyId as string|null,approvalId:d.approvalId as string|null,photos,...(d.hostEventId!==undefined?{hostEventId:d.hostEventId as string|null}:{}),...(d.hostRevision!==undefined?{hostRevision:d.hostRevision as string|null}:{}),...(d.cardId!==undefined?{cardId:d.cardId as string|null}:{})};
  }catch{return null;}
 }
 

@@ -1,3 +1,4 @@
+import {validateOpeningConfirmation,AvailabilityError} from './weeklyAvailability';
 import {flexiblePreference,hasFlexibleCapacity} from './flexibleScheduling';
 import type { Database } from 'better-sqlite3';
 import type { JobRow } from './types';
@@ -14,6 +15,7 @@ export function canPreviewOpportunity(db: Database, firmId: string, job: JobRow)
   } | undefined;
   if (!firm?.verified || !firmCoversCity(firm.coverage_city, firm.coverage_cities_extra, job.city)) return false;
   if (firm.suspended_until && (!Number.isFinite(Date.parse(firm.suspended_until)) || Date.parse(firm.suspended_until) > Date.now())) return false;
+  try{validateOpeningConfirmation(db,job.id,firmId);}catch(e){if(e instanceof AvailabilityError)return false;throw e;}
   if(flexiblePreference(db,job.id))return hasFlexibleCapacity(db,job.id,firmId);
   if (firmAvailabilityError(db, firmId, job)) return false;
   const plan = jobAssistedOperation(db, job.id);
