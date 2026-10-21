@@ -43,9 +43,30 @@ def apple(path, method='GET', data=None):
     request = urllib.request.Request(url, method=method,
         data=None if data is None else json.dumps(data).encode(),
         headers={'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'})
-    with urllib.request.build_opener(NoRedirect).open(request, timeout=30) as response:
-        body = response.read()
-        return json.loads(body) if body else None
+    try:
+        with urllib.request.build_opener(NoRedirect).open(request, timeout=30) as response:
+            body = response.read()
+            return json.loads(body) if body else None
+    except urllib.error.HTTPError as error:
+        try:errors=json.loads(error.read()).get('errors',[])
+        except Exception:errors=[]
+        private=[]
+        def redact_values(value):
+            if isinstance(value,dict):
+                for key,item in value.items():
+                    if key.startswith(('contact','demoAccount')) and isinstance(item,str):private.append(item)
+                    else:redact_values(item)
+            elif isinstance(value,list):
+                for item in value:redact_values(item)
+        redact_values(data)
+        def safe(value):
+            text=str(value)
+            for secret in private:
+                if secret:text=text.replace(secret,'[redacted]')
+            return text[:900]
+        report={'path':urllib.parse.urlsplit(url).path,'method':method,'httpStatus':error.code,'errors':[{'code':safe(e.get('code','')),'title':safe(e.get('title','')),'detail':safe(e.get('detail','')),'pointer':safe(e.get('source',{}).get('pointer',''))} for e in errors[:5]]}
+        save_report('ios19-api-failure.json',report);print(json.dumps(report),flush=True)
+        raise
 
 
 def rows(path):

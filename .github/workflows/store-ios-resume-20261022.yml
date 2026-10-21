@@ -1,0 +1,118 @@
+name: NITIDO iOS 1.0.2 build 19 — resume verified package submission
+on:
+  push:
+    branches: [codex/store-update-20261022]
+    paths:
+      - .github/workflows/store-ios-resume-20261022.yml
+      - scripts/ios19-release-control.py
+      - scripts/ios19-submit-review.py
+permissions:
+  contents: read
+  actions: read
+jobs:
+  ios-resume:
+    runs-on: macos-26
+    timeout-minutes: 25
+    concurrency:
+      group: nitido-ios-1-0-2-build19
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: source
+    env:
+      NITIDO_SOURCE_SHA: 5a5d1b0eece25f1233a448f15ca9cfa385a1d8d4
+      NITIDO_IOS_BUILD_NUMBER: '19'
+      NITIDO_MARKETING_VERSION: '1.0.2'
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      IOS19_EVIDENCE: ${{ runner.temp }}/ios19-release-evidence.json
+      IOS19_SCREENSHOTS: ${{ github.workspace }}/approved-assets/docs/store/ios-1.0.1-screenshots
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 5a5d1b0eece25f1233a448f15ca9cfa385a1d8d4
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: release-control
+          persist-credentials: false
+          sparse-checkout: scripts
+      - uses: actions/checkout@v4
+        with:
+          ref: af5be0036d313dd60a04b71142922945aec45b54
+          path: approved-assets
+          persist-credentials: false
+          sparse-checkout: docs/store/ios-1.0.1-screenshots
+      - name: Verify exact completed signed-build steps before reusing the artifact
+        env:
+          GH_PROVENANCE_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import json,os,urllib.request
+          base='https://api.github.com/repos/Nelu251174/nitido/actions/'
+          def get(path):
+              req=urllib.request.Request(base+path,headers={'Authorization':'Bearer '+os.environ['GH_PROVENANCE_TOKEN'],'Accept':'application/vnd.github+json'})
+              with urllib.request.urlopen(req,timeout=30) as r:return json.load(r)
+          run=get('runs/39685213383');assert run['head_sha']=='7ce2082714d17d2557a8165f11c751b7912f8cad' and run['status']=='completed'
+          job=get('runs/39685213383/jobs')['jobs'][0];steps={s['name']:s['conclusion'] for s in job['steps']}
+          for name in ['Verify signed IPA and prepare fresh beta release evidence','Refresh Apple state and enforce existing source release gate','Retain signed IPA and public evidence']:assert steps.get(name)=='success'
+          assert steps.get('Upload the verified 1.0.2 (19) IPA to App Store Connect')=='skipped'
+          print('Exact previously signed build verified; no earlier upload occurred.')
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: nitido-ios-1.0.2-build19
+          run-id: 39685213383
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify unchanged signed IPA checksum, signature, receipt and source
+        run: |
+          python3 - <<'PY'
+          import json,os,pathlib,hashlib
+          root=pathlib.Path(os.environ['RUNNER_TEMP']);e=json.loads((root/'ios19-release-evidence.json').read_text());files=list((root/'export').glob('*.ipa'));assert len(files)==1
+          assert hashlib.sha256(files[0].read_bytes()).hexdigest()==e['ipaSha256'];assert e['sourceSha']==os.environ['NITIDO_SOURCE_SHA'] and e['build']==19 and e['marketingVersion']=='1.0.2'
+          print('Previously signed IPA bytes match the original verified receipt.')
+          PY
+          IPA_FILES=("$RUNNER_TEMP"/export/*.ipa)
+          python3 scripts/mobile-verify-ios.py "${IPA_FILES[0]}" 19 1.0.2
+          node scripts/mobile-release-gate.mjs "$IOS19_EVIDENCE" ios "$NITIDO_SOURCE_SHA" 19 beta
+      - name: Prepare temporary Apple API authentication
+        env:
+          ASC_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          python3 -m pip install --quiet --break-system-packages pyjwt cryptography
+          umask 077
+          ASC_KEY_PATH="$RUNNER_TEMP/ios19-resume.p8"
+          printf '%s\n' "ASC_KEY_PATH=$ASC_KEY_PATH" >> "$GITHUB_ENV"
+          printf '%s' "$ASC_KEY" > "$ASC_KEY_PATH"
+      - name: Recheck authenticated Apple maximum before any new upload
+        run: python3 scripts/mobile-apple-preflight.py
+      - name: Complete only the update metadata and approved screenshots
+        run: python3 "$GITHUB_WORKSPACE/release-control/scripts/ios19-submit-review.py" prepare
+      - name: Upload the existing signed 1.0.2 (19) package once
+        run: |
+          IPA_FILES=("$RUNNER_TEMP"/export/*.ipa)
+          [ "${#IPA_FILES[@]}" -eq 1 ] || exit 1
+          xcrun altool --upload-app -f "${IPA_FILES[0]}" --type ios --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+      - name: Confirm processing and select the exact update build
+        run: python3 "$GITHUB_WORKSPACE/release-control/scripts/ios19-release-control.py" confirm
+      - name: Submit only this update to App Review
+        run: python3 "$GITHUB_WORKSPACE/release-control/scripts/ios19-submit-review.py"
+      - name: Retain only public submission receipts and sanitized API diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nitido-ios19-resume-public-receipts
+          path: |
+            ${{ runner.temp }}/ios19-*.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Remove temporary Apple key
+        if: ${{ always() }}
+        run: rm -f "$ASC_KEY_PATH"
