@@ -513,3 +513,14 @@ it("allows assigned partners to upload before photos before starting and keeps o
     expect((await upload("before", "yellow")).status).toBe(404);
   } finally { cwd.mockRestore(); fs.rmSync(temp,{recursive:true,force:true}); }
 });
+
+it('deduplicates public lead retries atomically and rejects key reuse with changed content',async()=>{
+ state.user=null;const key=crypto.randomUUID(),b={name:'Synthetic',email:'synthetic@example.test',phone:'0700000000',city:'Iași',property_count:5,consent:true};
+ const responses=await Promise.all([post('leads',b,key),post('leads',b,key)]);
+ const results=await Promise.all(responses.map(r=>r.json()));expect(responses.map(r=>r.status)).toEqual([201,201]);expect(results[0].id).toBe(results[1].id);
+ for(let i=0;i<6;i++)expect((await post('leads',b,key)).status).toBe(201);
+ expect((await post('leads',{...b,city:'Cluj'},key)).status).toBe(409);
+ expect(state.db.prepare('SELECT count(*) n FROM pro_leads').get()).toEqual({n:1});
+ expect(state.db.prepare("SELECT count(*) n FROM pro_idempotency WHERE actor='pro-lead-email-v1'").get()).toEqual({n:1});
+ expect(sendEmail).not.toHaveBeenCalled();
+});

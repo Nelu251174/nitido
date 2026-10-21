@@ -2,6 +2,7 @@ import {NextRequest,NextResponse} from 'next/server';
 import {timingSafeEqual} from 'node:crypto';
 import {db} from '@/lib/db';
 import {enqueueOwnerEvent,processOwnerEmails} from '@/lib/adminOwnerEvents';
+import {processLeadNotifications} from '@/lib/pro/leadNotifications';
 import {saveStoreReports} from '@/lib/adminOwnerReports';
 export const runtime='nodejs';
 export const maxDuration=60;
@@ -18,5 +19,7 @@ export async function POST(req:NextRequest){
    else return reply({error:'INVALID_ACTION'},400);
   }
  }catch{return reply({error:'INVALID_REPORT'},400);}
- return reply(await processOwnerEmails(db,{ids}));
+ const result=await processOwnerEmails(db,{ids});
+ if(!raw&&process.env.NEXT_PUBLIC_NITIDO_PRO_PUBLIC==='true'&&db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='pro_idempotency'").get())await processLeadNotifications(db);
+ return reply(result);
 }

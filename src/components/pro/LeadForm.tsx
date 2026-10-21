@@ -1,6 +1,6 @@
 "use client";
 import {UiText} from '@/components/UiText';
-import { useState, type FormEvent } from "react";
+import { useState,useRef, type FormEvent } from "react";
 import Link from "next/link";
 import { SERVICES } from "@/lib/pro/shared";
 export default function LeadForm({ partner = false }: { partner?: boolean }) {
@@ -8,14 +8,17 @@ export default function LeadForm({ partner = false }: { partner?: boolean }) {
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [done, setDone] = useState(false);
+  const inFlight=useRef(false),requestKey=useRef<string|null>(null),requestBody=useRef('');
+  const [reference,setReference]=useState('');
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if(inFlight.current)return;
     const form = e.currentTarget;
     if (step === 1) {
       setStep(2);
       return;
     }
-    setBusy(true);
+    inFlight.current=true;setBusy(true);
     setError("");
     const fd = new FormData(form),
       b = {
@@ -26,30 +29,34 @@ export default function LeadForm({ partner = false }: { partner?: boolean }) {
         services: fd.getAll("services"),
         policy_version: "pro-v1.1",
       };
+    const serialized=JSON.stringify(b);
+    if(requestBody.current!==serialized){requestBody.current=serialized;requestKey.current=crypto.randomUUID();}
     try {
       const r = await fetch("/api/pro/leads", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(b),
+          headers: { "Content-Type": "application/json", "Idempotency-Key":requestKey.current! },
+          signal:AbortSignal.timeout(15000),
+          body: serialized,
         }),
         data = await r.json();
       if (!r.ok) throw new Error(data.error);
-      setDone(true);
+      if(typeof data.id!=='string'||!data.id)throw new Error("Confirmarea nu a fost primită. Reîncearcă; solicitarea nu se dublează.");
+      setReference(data.id);setDone(true);
     } catch (e) {
       setError(
         e instanceof Error
-          ? e.message
+          ? e.name==='TimeoutError'?"Confirmarea întârzie. Datele sunt păstrate; poți reîncerca fără dublarea cererii.":e.message
           : "Cererea nu a fost trimisă. Reîncearcă.",
       );
     } finally {
-      setBusy(false);
+      inFlight.current=false;setBusy(false);
     }
   }
   if (done)
     return (
       <div className="pro-form">
         <div className="pro-success">
-          <h1><UiText text={"Cererea ta a fost înregistrată."}/></h1>
+          <h1><UiText text={"Cererea ta a fost înregistrată."}/></h1><p><UiText text="Referință solicitare: "/><b>{reference}</b></p>
           <p><UiText text={"Un reprezentant NITIDO va analiza"}/>{" "}
             {partner
               ? <UiText text={"solicitarea de parteneriat"}/>
@@ -74,7 +81,7 @@ export default function LeadForm({ partner = false }: { partner?: boolean }) {
       </p>
       <p className="my-6 text-sm"><UiText text={"Pasul "}/>{step}<UiText text={" din 2 · "}/>{step === 1 ? <UiText text={"Descrie serviciile și zona"}/> : <UiText text={"Completează datele pentru contact"}/>}
       </p>
-      <form onSubmit={submit} className="pro-card">
+      <form onSubmit={submit} className="pro-card" onInvalidCapture={e=>{const field=e.target as HTMLInputElement;field.scrollIntoView({block:'center'});}}>
         <div hidden={step !== 1}>
           <div className="pro-form-grid">
             <label className="pro-field"><UiText text={"Oraș / zone"}/><input required={step === 1} name="city" maxLength={120} />
@@ -146,8 +153,8 @@ export default function LeadForm({ partner = false }: { partner?: boolean }) {
           <label className="pro-field">
             {partner
               ? <UiText text={"Experiență și disponibilitate"}/>
-              : <UiText text={"Cea mai mare problemă operațională actuală"}/>}
-            <textarea name="notes" maxLength={2000} required={step === 1} />
+              : <UiText text={"Detalii suplimentare (opțional)"}/>}
+            <textarea name="notes" maxLength={2000} />
           </label>
           {!partner && (
             <p className="text-xs pro-muted mt-4"><UiText text={"Minimum 5 proprietăți în pilot. Pentru solicitări punctuale,"}/>{" "}
@@ -203,7 +210,7 @@ export default function LeadForm({ partner = false }: { partner?: boolean }) {
               onClick={() => setStep(1)}
             ><UiText text={"Înapoi"}/></button>
           )}
-          <button disabled={busy} className="v2-btn v2-btn-primary">
+          <button disabled={busy} aria-busy={busy} className="v2-btn v2-btn-primary">
             {busy
               ? <UiText text={"Se trimite…"}/>
               : step === 1

@@ -10,6 +10,7 @@ import { emailIsVerified } from "@/lib/emailVerification";
 import { emailConfigured, sendEmail } from "@/lib/email";
 import * as pro from "@/lib/pro/core";
 import { csvCell, SERVICES } from "@/lib/pro/shared";
+import {processLeadNotifications,queueLeadNotification} from "@/lib/pro/leadNotifications";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 import path from "node:path";
 import fs from "node:fs";
@@ -337,7 +338,7 @@ async function dispatchEmails() {
     );
     if (accepted) sent++;
   }
-  return { sent, configured: true };
+  return { sent, configured: true, leads: await processLeadNotifications(db) };
 }
 export async function POST(req: NextRequest, ctx: Ctx) {
   try {
@@ -356,12 +357,6 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     if (kind === "leads" && !id) {
       enabled(true);
       if (!hasTrustedMutationOrigin(req)) pro.fail("Origine invalidă.", 403);
-      pro.limit(
-        db,
-        `lead:${req.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown"}`,
-        5,
-        600000,
-      );
       const raw = await req.text();
       if (raw.length > 15000) pro.fail("Formular prea mare.");
       const b = JSON.parse(raw) as Record<string, unknown>;
@@ -373,21 +368,34 @@ export async function POST(req: NextRequest, ctx: Ctx) {
             : null;
       const email = pro.text(b.email, "Email");
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) pro.fail("Email invalid.");
-      const leadId = randomUUID();
-      db.prepare(
-        "INSERT INTO pro_leads(id,kind,name,email,phone,city,property_count,payload_json,created_at) VALUES(?,?,?,?,?,?,?,?,?)",
-      ).run(
-        leadId,
-        kind,
-        pro.text(b.name, "Nume"),
-        email,
-        pro.text(b.phone, "Telefon", 40),
-        pro.text(b.city, "Zonă"),
-        count,
-        JSON.stringify(b),
-        new Date().toISOString(),
+      const payload = {
+        kind,name:pro.text(b.name,"Nume",150),email:email.toLowerCase(),
+        phone:pro.text(b.phone,"Telefon",40),city:pro.text(b.city,"Zonă",120),property_count:count,
+        company:typeof b.company==='string'?b.company.trim().slice(0,150):'',
+        legal_id:typeof b.legal_id==='string'?b.legal_id.trim().slice(0,40):'',
+        property_type:typeof b.property_type==='string'?b.property_type.slice(0,80):'',
+        usage:typeof b.usage==='string'?b.usage.slice(0,80):'',
+        monthly_volume:b.monthly_volume?pro.int(Number(b.monthly_volume),'Frecvență estimată',1,100000):null,
+        start_date:typeof b.start_date==='string'?b.start_date.slice(0,10):'',
+        services:Array.isArray(b.services)?b.services.filter((x):x is string=>typeof x==='string'&&x in SERVICES):[],
+        notes:typeof b.notes==='string'?b.notes.trim().slice(0,2000):'',consent:true,policy_version:'pro-v1.1',
+      };
+      const key=req.headers.get('idempotency-key')??randomUUID();
+      const result=pro.atomic(db,{id:'public-pro-lead'},key,payload,()=>{
+              pro.limit(
+        db,
+        `lead:${req.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown"}`,
+        5,
+        600000,
       );
-      return json({ id: leadId }, 201);
+        const leadId=randomUUID();
+        db.prepare("INSERT INTO pro_leads(id,kind,name,email,phone,city,property_count,payload_json,created_at) VALUES(?,?,?,?,?,?,?,?,?)").run(leadId,kind,payload.name,payload.email,payload.phone,payload.city,count,JSON.stringify(payload),new Date().toISOString());
+        queueLeadNotification(db,leadId);
+        return {id:leadId};
+      });
+      // A recorded lead remains successful even when email is pending. Retry via Pro cron.
+      await processLeadNotifications(db);
+      return json(result,201);
     }
     enabled();
     const p = await principal(req);

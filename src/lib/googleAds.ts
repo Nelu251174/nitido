@@ -30,7 +30,7 @@ export function adsAllowed(): boolean {
 }
 
 export function isAdsPublicPath(path: string): boolean {
-  return ['/', '/signup', '/pentru-firme', '/inscrie-firma', '/cookie-uri', '/confidentialitate', '/termeni', '/despre-noi', '/contact', '/cum-functioneaza', '/pentru-clienti', '/preturi', '/incredere', '/siguranta', '/cariere'].includes(path) || path.startsWith('/curatenie/');
+  return ['/', '/rezervare', '/signup', '/pentru-firme', '/inscrie-firma', '/cookie-uri', '/confidentialitate', '/termeni', '/despre-noi', '/contact', '/cum-functioneaza', '/pentru-clienti', '/preturi', '/incredere', '/siguranta', '/cariere'].includes(path) || path.startsWith('/curatenie/');
 }
 
 const denied = { ad_storage: 'denied', analytics_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' };

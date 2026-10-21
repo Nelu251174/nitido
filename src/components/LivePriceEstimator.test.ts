@@ -27,7 +27,7 @@ describe('homepage price estimator rendered behavior',()=>{
   it('renders native keyboard/touch range bounds and explicit exclusions',()=>{
     const html=render();expect(html).toMatch(/type="range"[^>]*min="10"[^>]*max="1000"[^>]*step="5"/);
     expect(html).toContain('aria-label="Suprafața estimată în metri pătrați"');
-    expect(html).toContain('Geamurile se adaugă separat la rezervare.');
+    expect(html).toContain('o baie și o bucătărie incluse');expect(html).toContain('geamurile se adaugă separat');
   });
   it.each([[40,350],[41,450],[60,450],[61,550],[80,550],[81,650],[100,650],[101,657],[120,780]])('keeps authoritative threshold %d m² = %d lei',(sqm,price)=>{
     expect(calcGrossPrice('apartament',sqm)).toBe(price);
