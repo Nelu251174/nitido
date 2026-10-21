@@ -32,6 +32,7 @@ import { ASSESSMENT_SCHEMA } from "./assessments";
 import { CATALOG_CAPACITY_SCHEMA } from "./catalogCapacity";
 import { initializeCatalog } from "./serviceCatalog";
 import { PRICING_SNAPSHOT_LOCK_SQL } from "./pricingSnapshot";
+import {NEW_FEATURES_SCHEMA} from "./newFeaturesSchema";
 import {FLEXIBLE_SCHEMA} from "./flexibleSchema";
 import { WORKSPACE_SCHEMA } from "@/lib/workspace";
 import Database from "better-sqlite3";
@@ -469,6 +470,7 @@ export function initializeDatabase(db: Database.Database): void {
   initializeNotificationClaims(db);
   db.exec(WORKSPACE_SCHEMA);
   db.exec(FLEXIBLE_SCHEMA);
+  db.exec(NEW_FEATURES_SCHEMA);
   db.exec(`CREATE TABLE IF NOT EXISTS job_reschedule_requests (
    id TEXT PRIMARY KEY, job_id TEXT NOT NULL REFERENCES jobs(id), client_id TEXT NOT NULL,
    firm_id TEXT, original_at TEXT NOT NULL, proposed_at TEXT NOT NULL,

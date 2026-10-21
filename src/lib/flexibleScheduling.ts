@@ -1,3 +1,4 @@
+import {openingRequest} from './weeklyAvailability';
 import type {Database} from 'better-sqlite3';
 import {randomUUID} from 'node:crypto';
 import {firmCoversCity,normalizeCity} from './text';
@@ -16,7 +17,7 @@ export function requireFlexiblePilot(city:string){if(!flexiblePilotCity()||norma
 export function saveFlexiblePreferences(db:Database,jobId:string,clientId:string,value:unknown){
  const windows=validateFlexibleWindows(value);
  return db.transaction(()=>{const job=db.prepare('SELECT client_id,city,status,mode FROM jobs WHERE id=?').get(jobId) as {client_id:string;city:string;status:string;mode:string}|undefined;
- if(!job||job.client_id!==clientId)throw new FlexibleError('Lucrare inexistentă.',404);if(job.status!=='waiting'||job.mode!=='standard')throw new FlexibleError('Preferințele pot fi schimbate numai înaintea acceptării, în Standard.');requireFlexiblePilot(job.city);
+ if(!job||job.client_id!==clientId)throw new FlexibleError('Lucrare inexistentă.',404);if(openingRequest(db,jobId))throw new FlexibleError('Cererea folosește intervalul publicat de firmă. Pentru alt program, configurează o cerere nouă.');if(job.status!=='waiting'||job.mode!=='standard')throw new FlexibleError('Preferințele pot fi schimbate numai înaintea acceptării, în Standard.');requireFlexiblePilot(job.city);
  if(db.prepare("SELECT 1 FROM payments WHERE job_id=? AND status IN ('authorized','captured')").get(jobId))throw new FlexibleError('Există o autorizare pentru această cerere. Contactează asistența înainte de schimbare.');
  const previous=flexiblePreference(db,jobId);if(previous&&previous.windows_json===JSON.stringify(windows))return windows;
  db.prepare("INSERT INTO job_flexible_preferences(job_id,windows_json) VALUES(?,?) ON CONFLICT(job_id) DO UPDATE SET windows_json=excluded.windows_json,revision=revision+1,active=1").run(jobId,JSON.stringify(windows));

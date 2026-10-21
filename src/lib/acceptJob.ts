@@ -1,3 +1,4 @@
+import {validateOpeningConfirmation,openingRequest,AvailabilityError} from './weeklyAvailability';
 import {flexiblePreference,validateFlexibleConfirmation,FlexibleError} from "./flexibleScheduling";
 import {AuthorizationCoverageError,authorizationRequiredUntil,confirmationOpensAt} from './authorizationCoverage';
 import {confirmInvitationWinner} from './providerInvitations';
@@ -44,6 +45,8 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
       }
       if (job.status !== 'waiting' || authorizationMustStop(db, jobId)) return fail('Lucrarea nu mai este disponibilă', 409,
         ['accepted', 'arrived'].includes(job.status) && job.accepted_firm_id && job.accepted_firm_id !== firmId ? 'ALREADY_TAKEN' : 'JOB_UNAVAILABLE');
+      const weekly=validateOpeningConfirmation(db,jobId,firmId);
+      if(weekly&&!selection)return fail('Alege și confirmă candidatura firmei în Standard.');
       const flex=flexiblePreference(db,jobId);
       if(flex&&!selection)return fail('Alege și confirmă propunerea firmei în Standard.');
       const proposal=selection?validateFlexibleConfirmation(db,jobId,firmId,selection.offerId,selection.proposalId):null;
@@ -60,11 +63,13 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
         const fu=db.prepare('SELECT user_id FROM firms WHERE id=?').get(firmId) as {user_id:string};
         db.prepare('INSERT INTO workspace_assignments(job_id,team_id,assigned_by,created_at) VALUES(?,?,?,?)').run(jobId,proposal.team_id,fu.user_id,new Date().toISOString());
       }
+      if(weekly){const fu=db.prepare('SELECT user_id FROM firms WHERE id=?').get(firmId) as {user_id:string};db.prepare('INSERT INTO workspace_assignments(job_id,team_id,assigned_by,created_at) VALUES(?,?,?,?)').run(jobId,weekly.team_id,fu.user_id,new Date().toISOString());}
       reserveAssistedTeam(db,jobId,firmId);
       db.prepare('INSERT INTO job_acceptance_claims(job_id,token) VALUES(?,?) ON CONFLICT(job_id) DO UPDATE SET token=excluded.token').run(jobId, claim);
       return { ok: true as const, job, firm };
     }).immediate();
   } catch (e) {
+    if(e instanceof AvailabilityError)return fail(e.message,e.status,'WEEK_SLOT_UNAVAILABLE');
     if(e instanceof FlexibleError)return fail(e.message,e.status,'FLEXIBLE_UNAVAILABLE');
     if(e instanceof MarginError)return fail(e.message,e.status,'ASSISTED_CAPACITY_UNAVAILABLE');
     return fail('Preluarea nu a putut fi rezervată. Reîncarcă lucrarea și reîncearcă.', 503);
@@ -77,7 +82,7 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
       db.transaction(()=>{const released=db.prepare(`UPDATE jobs SET status='waiting',accepted_firm_id=NULL,accepted_at=NULL
         WHERE id=? AND status='accepted' AND accepted_firm_id=?
         AND EXISTS(SELECT 1 FROM job_acceptance_claims WHERE job_id=? AND token=?)`).run(jobId, firmId, jobId, claim);
-      if(released.changes){if(flexiblePreference(db,jobId))db.prepare('DELETE FROM workspace_assignments WHERE job_id=?').run(jobId);const p=jobAssistedOperation(db,jobId);if(p)db.prepare('DELETE FROM workspace_assignments WHERE job_id=? AND team_id=?').run(jobId,p.teamId);}
+      if(released.changes){const w=openingRequest(db,jobId);if(w)db.prepare('DELETE FROM workspace_assignments WHERE job_id=? AND team_id=?').run(jobId,w.team_id);if(flexiblePreference(db,jobId))db.prepare('DELETE FROM workspace_assignments WHERE job_id=?').run(jobId);const p=jobAssistedOperation(db,jobId);if(p)db.prepare('DELETE FROM workspace_assignments WHERE job_id=? AND team_id=?').run(jobId,p.teamId);}
       }).immediate();
     } catch {
       return fail('Starea preluării necesită verificare. Reîncarcă lucrarea; rezervarea nu a fost eliberată.', 503);

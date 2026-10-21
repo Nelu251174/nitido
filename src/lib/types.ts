@@ -7,6 +7,8 @@ export type JobStatus =
   | "no_show";
 
 export interface JobRow {
+  for_family?:boolean;
+  week_slot?:boolean;
   flexible?:{windows:import("./flexibleShared").FlexibleWindow[];revision:number}|null;
   assisted_team?: string | null;
   selectionRecovery?: "pending" | null;

@@ -1,0 +1,23 @@
+import type {Database} from 'better-sqlite3';
+export type AttentionItem={key:string;jobId:string|null;city:string;severity:'urgent'|'attention';title:string;nextAction:string;href:string;since:string};
+/** Decision support from actual stored state. Never initiates messages, bookings or financial actions. */
+export function ownerAttention(db:Database,now=new Date()){
+ const current=now.toISOString(),soon=new Date(now.getTime()+24*3600000).toISOString(),old=new Date(now.getTime()-2*3600000).toISOString();const items:AttentionItem[]=[];
+ const rows=db.prepare(`SELECT j.id,j.city,j.status,j.created_at,j.scheduled_at,j.accepted_firm_id,
+ (SELECT COUNT(*) FROM offers o WHERE o.job_id=j.id AND o.status='pending') offers,
+ EXISTS(SELECT 1 FROM workspace_assignments a JOIN workspace_teams t ON t.id=a.team_id WHERE a.job_id=j.id AND t.active=1) team
+ FROM jobs j WHERE j.status IN ('waiting','accepted','arrived') ORDER BY j.created_at LIMIT 1000`).all() as {id:string;city:string;status:string;created_at:string;scheduled_at:string|null;accepted_firm_id:string|null;offers:number;team:number}[];
+ const instant=(v:string)=>Date.parse(/[zZ]|[+-]\d\d:\d\d$/.test(v)?v:v.replace(' ','T')+'Z');
+ for(const j of rows){const link='/admin?focusJob='+encodeURIComponent(j.id)+'#operatiuni';
+  if(j.status==='waiting'&&j.offers===0&&instant(j.created_at)<=Date.parse(old))items.push({key:'no-offer:'+j.id,jobId:j.id,city:j.city,severity:'attention',title:'Cerere fără candidaturi de peste 2 ore',nextAction:'Verifică acoperirea și firmele eligibile; contactează persoanele doar după verificarea situației.',href:link,since:j.created_at});
+  if(j.status==='waiting'&&j.scheduled_at&&instant(j.scheduled_at)<=Date.parse(soon))items.push({key:'unconfirmed:'+j.id,jobId:j.id,city:j.city,severity:instant(j.scheduled_at)<=now.getTime()?'urgent':'attention',title:'Programare apropiată sau depășită, fără firmă confirmată',nextAction:'Verifică propunerile și discută confirmarea sau un alt interval cu clientul.',href:link,since:j.scheduled_at});
+  if(j.status==='accepted'&&!j.team)items.push({key:'team:'+j.id,jobId:j.id,city:j.city,severity:j.scheduled_at&&instant(j.scheduled_at)<Date.parse(soon)?'urgent':'attention',title:'Lucrare acceptată, fără echipă activă alocată',nextAction:'Verifică planificarea cu firma; numărul de persoane rămâne decizia firmei.',href:link,since:j.scheduled_at??j.created_at});
+  if(j.status==='accepted'&&j.scheduled_at&&instant(j.scheduled_at)<now.getTime())items.push({key:'arrival:'+j.id,jobId:j.id,city:j.city,severity:'urgent',title:'Ora programată a trecut; sosirea nu este confirmată',nextAction:'Verifică situația și dovezile cu firma. Nu presupune automat o absență.',href:link,since:j.scheduled_at});
+ }
+ const cases=db.prepare("SELECT c.id,c.job_id,j.city,c.created_at FROM visit_cases c JOIN jobs j ON j.id=c.job_id WHERE c.status NOT IN ('resolved','closed') ORDER BY c.created_at LIMIT 200").all() as {id:string;job_id:string;city:string;created_at:string}[];
+ for(const c of cases)items.push({key:'case:'+c.id,jobId:c.job_id,city:c.city,severity:'urgent',title:'Problemă de serviciu deschisă',nextAction:'Verifică dosarul și dovezile; stabilește următorul pas prin fluxul de remedieri.',href:'/remedieri?jobId='+encodeURIComponent(c.job_id),since:c.created_at});
+ const notification=db.prepare("SELECT COUNT(*) n FROM notification_outbox WHERE status='failed'").get() as {n:number};
+ if(notification.n)items.push({key:'notifications',jobId:null,city:'',severity:'attention',title:`${notification.n} notificări marcate eșuate`,nextAction:'Verifică istoricul și canalul configurat înainte de o retrimitere.',href:'/admin#notificari',since:current});
+ items.sort((a,b)=>(a.severity==='urgent'?0:1)-(b.severity==='urgent'?0:1)||instant(a.since)-instant(b.since)||a.key.localeCompare(b.key));
+ return {checkedAt:current,timezone:'Europe/Bucharest',urgent:items.filter(i=>i.severity==='urgent').length,attention:items.filter(i=>i.severity==='attention').length,items,limits:'Sunt semnale de verificat, nu verdict automat. Listă limitată la 1.000 de lucrări active și 200 de dosare.'};
+}
