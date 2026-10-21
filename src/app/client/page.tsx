@@ -31,6 +31,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {PublishedPriceBreakdown} from "@/components/PublishedPriceBreakdown";
+import {NewFeatures} from '@/components/NewFeatures';
 import {ClientOverview} from "@/components/ClientOverview";
 import {DesignIcon} from "@/components/DesignIcon";
 import {WorkspaceNav} from "@/components/WorkspaceNav";
@@ -649,6 +650,7 @@ export default function ClientPage() {
       <main className="flex-1 min-w-0 px-8 py-8 max-[760px]:px-[22px] max-[760px]:pb-28">
         <div className="board-topbar"><span><UiText text={"Spațiul tău NITIDO"}/></span><div><Link href="/client/mesaje" aria-label="Mesaje"><DesignIcon name="bell"/></Link><UiElement as="button" type="button" className="account-profile-link" onClick={openProfileEditor} aria-label="Deschide profilul meu"><span className="board-avatar">{user.name.slice(0,1)}</span><b>{user.name}</b></UiElement></div></div>
         {!job&&<header className="board-greeting"><div><h1><UiText text={"Bună, "}/>{user.name.split(" ")[0]}!</h1><p><UiText text={"Mulțumim că faci parte din comunitatea NITIDO.RO."}/></p></div><span className="board-greeting-note"><DesignIcon name="sparkles"/><UiText text={"Un cămin curat este începutul"}/><br/><UiText text={"unei zile mai bune."}/></span></header>}
+        {!job&&!showBooking&&<NewFeatures compact/>}
         {!job&&!showBooking&&<AssistedEntry/>}
         {!job&&!showBooking&&<ClientOverview jobs={myJobs} onSelect={setJob} onBook={goToForm}/>}
         <EmailVerificationNotice/>
