@@ -29,7 +29,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const body = await req.json().catch(() => ({}));
   const message = typeof body?.message === "string" ? body.message : null;
-  const result = createOffer(db, id, firm.id, message);
+  const result = createOffer(db, id, firm.id, message,body.flexible);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ offerId: result.offerId }, { status: 201 });
 }

@@ -1,3 +1,5 @@
+import {validateFlexibleWindows} from "@/lib/flexibleShared";
+import {flexibleContext,saveFlexiblePreferences,requireFlexiblePilot,FlexibleError} from "@/lib/flexibleScheduling";
 import {bookingTerms} from '@/lib/bookingTerms';
 import {jobExecutionRules,jobPhotoRules,freezeExecutionRules} from '@/lib/executionTemplates';
 import {configuredServiceMarket,ServiceMarketError} from '@/lib/serviceMarkets';
@@ -120,13 +122,14 @@ export async function GET(req: NextRequest) {
 
   const jobsWithPhotos = jobs.map((j) => {
     const canSeePrivate = user.role === "client" || j.accepted_firm_id === firmId;
-    if (canSeePrivate) {const payment=paymentsByJob.get(j.id)??null;return { ...j, photoRules:jobPhotoRules(db,j.id), ...(user.role==="client"?{authorizationStatus:authorizationByJob.get(j.id)??null}:{}), photos: photosByJob.get(j.id) ?? [], scan: scanByJob.get(j.id) ?? [], proofs: proofsByJob.get(j.id) ?? [], ownReview:user.role==="client"?ownReviewsByJob.get(j.id)??null:undefined, financial:payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null,...(user.role==="firma"?{firm_payout:payment?.firmPayout??calcNetForFirm(j.price_gross)}:{}) };}
+    if (canSeePrivate) {const payment=paymentsByJob.get(j.id)??null;return { ...j, flexible:flexibleContext(db,j.id), photoRules:jobPhotoRules(db,j.id), ...(user.role==="client"?{authorizationStatus:authorizationByJob.get(j.id)??null}:{}), photos: photosByJob.get(j.id) ?? [], scan: scanByJob.get(j.id) ?? [], proofs: proofsByJob.get(j.id) ?? [], ownReview:user.role==="client"?ownReviewsByJob.get(j.id)??null:undefined, financial:payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null,...(user.role==="firma"?{firm_payout:payment?.firmPayout??calcNetForFirm(j.price_gross)}:{}) };}
     return {
       id: j.id,
       city: j.city,
       sqm: j.sqm,
       windows_sqm: j.windows_sqm??0,
       space_type: j.space_type,
+      flexible:flexibleContext(db,j.id),
       when_type: j.when_type,
       mode: j.mode,
       scheduled_at: j.scheduled_at,
@@ -168,10 +171,12 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(()=>null);
   if(!body||typeof body!=="object")return NextResponse.json({error:"Cerere invalidă"},{status:400});
   try{configuredServiceMarket(body);}catch(error){if(error instanceof ServiceMarketError)return NextResponse.json({error:error.message,countryCode:error.countryCode,currency:error.currency},{status:error.status});throw error;}
+  if(body.flexibleWindows!=null){try{if(body.manualOfferId||body.hostEventId||body.approvalId||body.mode!=='standard'||body.express60)throw new FlexibleError('Programarea flexibilă este disponibilă pentru cereri Standard obișnuite.');requireFlexiblePilot(String(body.city??''));const w=validateFlexibleWindows(body.flexibleWindows);body.flexibleWindows=w;body.whenType='scheduled';body.scheduledDate=w[0].date;body.scheduledHour=w[0].from;}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Intervale invalide'},{status:400});}}
   const manual=body.manualOfferId!=null;
   let assisted=false;
   if(manual){try{const offer=prepareManualOfferBooking(db,user.id,body);if(offer.jobId){const job=db.prepare("SELECT * FROM jobs WHERE id=? AND client_id=?").get(offer.jobId,user.id);if(!job)throw new MarginError("Rezervarea nu poate fi verificată.",409);return NextResponse.json({job,replayed:true});}body.details=offer.terms.scope;assisted=Boolean(offer.operation);}catch(e){if(e instanceof MarginError)return NextResponse.json({error:e.message},{status:e.status});throw e;}}
-  if(body.propertyId){try{ownProperty(db,user.id,String(body.propertyId))}catch(e){return NextResponse.json({error:e instanceof WorkspaceError?e.message:"Proprietate invalidă"},{status:404})}}
+  let ordinaryHome=false;
+  if(body.propertyId){try{ordinaryHome=ownProperty(db,user.id,String(body.propertyId)).kind==="home"}catch(e){return NextResponse.json({error:e instanceof WorkspaceError?e.message:"Proprietate invalidă"},{status:404})}}
 
   if(body.hostEventId){const existing=turnoverReplay(db,user.id,String(body.hostEventId));if(existing)return NextResponse.json({job:existing,replayed:true});}
   const {
@@ -239,7 +244,7 @@ export async function POST(req: NextRequest) {
   if (whenType !== "asap" && whenType !== "scheduled") {
     return NextResponse.json({ error: "Tipul programării nu este valid" }, { status: 400 });
   }
-  if (details !== undefined && (typeof details !== "string" || details.length > (assisted?4000:500))) {
+  if (details !== undefined && (typeof details !== "string" || details.length > (assisted?4000:ordinaryHome?4000:500))) {
     return NextResponse.json({ error: "Detaliile pot avea maximum 500 de caractere" }, { status: 400 });
   }
 
@@ -364,6 +369,7 @@ export async function POST(req: NextRequest) {
          express_60, express_60_fee, express_60_deadline, express_60_status, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'waiting')`
     ).run(id,user.id,street,postalCode ?? null,city,floor ?? null,typeof details === "string" ? details.trim() || null : null,requestId,sqm,spaceType,whenType,scheduledAt.toISOString(),priceGross,creditUsed,durationMinutes,bufferMinutes,ownedPhotoIds.length,jobMode,isExpress60?1:0,express60Fee,isExpress60?express60Deadline(new Date().toISOString()).toISOString():null,isExpress60?"pending":null);
+    if(body.flexibleWindows)saveFlexiblePreferences(db,id,user.id,body.flexibleWindows);
     if(body.entrance)db.prepare("INSERT INTO job_navigation(job_id,latitude,longitude,confirmed_at) VALUES(?,?,?,?)").run(id,body.entrance.lat,body.entrance.lng,new Date().toISOString());
     if (card.stripeConfigured) saveJobCard(db,user.id,id,body.cardId);
     if(manual){linkManualOfferJob(db,user.id,body.manualOfferId,id);if(assisted)db.prepare('INSERT INTO assisted_job_plans VALUES(?,?,?)').run(id,body.manualOfferId,body.assistedRevision);}
@@ -382,10 +388,10 @@ export async function POST(req: NextRequest) {
     if(body.propertyId)linkPropertyJob(db,user.id,String(body.propertyId),id);
     if(body.approvalId)consumeApproval(db,user.id,String(body.approvalId),id);
     const linked=db.prepare("SELECT property_id FROM workspace_property_jobs WHERE job_id=?").get(id) as {property_id:string}|undefined;
-    if(linked){enforceOrganizationBooking(db,linked.property_id,id);enforcePropertyBudget(db,linked.property_id,id);snapshotInstructions(db,id,linked.property_id,user.id);}
+    if(linked){enforceOrganizationBooking(db,linked.property_id,id);enforcePropertyBudget(db,linked.property_id,id);snapshotInstructions(db,id,linked.property_id,user.id,ordinaryHome&&typeof details==="string"?details:undefined);}
     return { job: db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow, replayed: false };
   }).immediate();
-  } catch(e) { if(e instanceof CustomerRestrictionError || e instanceof MarginError || e instanceof ManagedPricingError || e instanceof AccessError || e instanceof OrganizationError || e instanceof WorkspaceError || e instanceof CardSetupError)return NextResponse.json({error:e.message},{status:e.status}); throw e; }
+  } catch(e) { if(e instanceof FlexibleError || e instanceof CustomerRestrictionError || e instanceof MarginError || e instanceof ManagedPricingError || e instanceof AccessError || e instanceof OrganizationError || e instanceof WorkspaceError || e instanceof CardSetupError)return NextResponse.json({error:e.message},{status:e.status}); throw e; }
   if (created.replayed) return NextResponse.json({ job: created.job, replayed: true });
   const job = created.job;
 

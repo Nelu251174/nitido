@@ -1,0 +1,23 @@
+// @vitest-environment jsdom
+import React,{act} from 'react';
+import {createRoot,type Root} from 'react-dom/client';
+import {beforeEach,afterEach,it,expect,vi} from 'vitest';
+vi.mock('next-intl',()=>({useMessages:()=>({ui:{}}),useLocale:()=> 'ro'}));
+vi.mock('@/lib/bookingFunnel',()=>({trackBookingFunnel:vi.fn()}));
+import {ReviewForm} from './ReviewForm';
+import {ReviewWorkspace} from './ReviewWorkspace';
+import {RatingEntry} from './RatingEntry';
+import {VerifiedReviews} from './VerifiedReviews';
+let root:Root,container:HTMLDivElement;
+beforeEach(()=>{Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});container=document.createElement('div');document.body.append(container);root=createRoot(container);});
+afterEach(async()=>{await act(()=>root.unmount());container.remove();vi.unstubAllGlobals();});
+async function render(node:React.ReactNode){await act(()=>root.render(node));}
+async function choose(n:number){await act(()=>container.querySelectorAll<HTMLButtonElement>('[role=radio]')[n-1].click());}
+async function submit(){await act(()=>container.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));}
+const job={id:'j',space_type:'apartament',sqm:80,completed_at:'2026-10-21T10:00:00Z',firmName:'Firma test',reviewId:null,rating:null,reviewText:null,moderationStatus:null,eligible:1};
+it.each([1,2,3,4,5])('starts unselected and sends the explicit %s stars',async n=>{const onSubmit=vi.fn().mockResolvedValue(undefined);await render(<ReviewForm onSubmit={onSubmit}/>);expect(container.querySelector('[aria-checked=true]')).toBeNull();await submit();expect(onSubmit).not.toHaveBeenCalled();await choose(n);expect(container.querySelector('[aria-checked=true]')?.getAttribute('aria-label')).toContain(`${n}/5`);await submit();expect(onSubmit).toHaveBeenCalledWith(n,'');});
+it('supports arrow keys and preserves stars/comment after connection failure',async()=>{const onSubmit=vi.fn().mockRejectedValue(new Error('Conexiune întreruptă'));await render(<ReviewForm onSubmit={onSubmit}/>);await act(()=>container.querySelector('[role=radio]')!.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true})));const text=container.querySelector('textarea')!;await act(()=>{Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value')!.set!.call(text,'Nu a fost bine');text.dispatchEvent(new Event('input',{bubbles:true}));});await submit();expect(container.textContent).toContain('Conexiune întreruptă');expect(text.value).toBe('Nu a fost bine');expect(container.textContent).toContain('2 din 5');});
+it('locks repeated submission while the request is pending',async()=>{let resolve!:()=>void;const onSubmit=vi.fn(()=>new Promise<void>(r=>{resolve=r}));await render(<ReviewForm onSubmit={onSubmit}/>);await choose(1);await submit();await submit();expect(onSubmit).toHaveBeenCalledTimes(1);expect(container.querySelector('fieldset')?.disabled).toBe(true);await act(()=>resolve());});
+it('opens the only eligible job and displays saved success only after server confirmation',async()=>{let resolve!:(r:Response)=>void;vi.stubGlobal('fetch',vi.fn(()=>new Promise<Response>(r=>{resolve=r})));await render(<ReviewWorkspace jobs={[job]}/>);await choose(3);await submit();expect(container.textContent).not.toContain('Evaluarea ta a fost înregistrată');await act(()=>resolve(Response.json({id:'review',ok:true},{status:201})));expect(container.textContent).toContain('Evaluarea ta a fost înregistrată: 3 / 5');expect(container.querySelector('form')).toBeNull();});
+it('offers a chooser for multiple jobs and refuses a second review',async()=>{await render(<ReviewWorkspace jobs={[job,{...job,id:'j2'}]}/>);expect(container.querySelector('form')).toBeNull();await render(<ReviewWorkspace key="rated" jobs={[{...job,reviewId:'r',rating:1,reviewText:'Dezamăgit',moderationStatus:'published'}]}/>);expect(container.textContent).toContain('1 / 5');expect(container.querySelector('form')).toBeNull();expect(container.textContent).toContain('Dezamăgit');});
+it('has honest empty states, both entry links and no invented numeric score',async()=>{await render(<><RatingEntry average={null} count={0}/><VerifiedReviews reviews={[]}/><ReviewWorkspace jobs={[]}/></>);expect(container.textContent).toContain('Nu există încă recenzii verificate.');expect(container.textContent).not.toContain('/ 5');expect(container.textContent).toContain('Poți evalua un serviciu după finalizarea unei lucrări rezervate prin NITIDO.');expect(container.querySelector('a[href="/#recenzii"]')).toBeTruthy();expect(container.querySelector('a[href="/client/evaluari-lucrari"]')).toBeTruthy();});

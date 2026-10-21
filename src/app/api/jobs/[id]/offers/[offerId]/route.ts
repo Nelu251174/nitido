@@ -18,7 +18,8 @@ export async function POST(
   }
   if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:"Origine nepermisă"},{status:403});
   const { id, offerId } = await params;
-  const result = await selectOffer(db, id, offerId, user.id);
+  const body=await req.json().catch(()=>({}));
+  const result = await selectOffer(db, id, offerId, user.id,body.proposalId);
   if (!result.ok) {
     return NextResponse.json(
       { error: result.error, code: result.code ?? "SELECT_FAILED" },

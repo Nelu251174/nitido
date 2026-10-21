@@ -4,6 +4,8 @@ import React,{act} from 'react';
 import {createRoot,type Root} from 'react-dom/client';
 import {beforeEach,afterEach,it,expect,vi} from 'vitest';
 const state=vi.hoisted(()=>({push:vi.fn(),gps:vi.fn()}));
+vi.mock('./OwnedHomePicker',()=>({OwnedHomePicker:()=>null}));
+vi.mock('./FlexibleChoice',()=>({FlexibleChoice:()=>null}));
 vi.mock('next/navigation',()=>({useRouter:()=>({push:state.push}),usePathname:()=>'/rezervare'}));
 vi.mock('next-intl',()=>({useMessages:()=>({ui:{}}),useLocale:()=> 'ro'}));
 vi.mock('@/lib/bookingLocation',()=>({currentBookingCity:state.gps}));

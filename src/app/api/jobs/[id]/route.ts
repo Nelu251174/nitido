@@ -1,3 +1,4 @@
+import {flexibleContext} from "@/lib/flexibleScheduling";
 import {firmJobView} from "@/lib/firmJobView";
 import {selectionRecoveryState} from "@/lib/selectionRecovery";
 import { NextRequest, NextResponse } from "next/server";
@@ -48,5 +49,5 @@ export async function GET(
   const photos=db.prepare("SELECT id FROM job_photos WHERE job_id=? AND status='VALID' AND (proof_type='CLIENT_CONTEXT' OR (uploaded_by_firm_id=? AND validated_at IS NOT NULL))").all(id,job.accepted_firm_id) as {id:string}[];
   const proofs=db.prepare("SELECT id,proof_type type,created_at createdAt FROM job_photos WHERE job_id=? AND uploaded_by_firm_id=? AND proof_type IN ('ARRIVAL','COMPLETION') AND status='VALID' AND validated_at IS NOT NULL").all(id,job.accepted_firm_id) as {id:string;type:"ARRIVAL"|"COMPLETION";createdAt:string}[];
   const safeFinancial=payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null;
-  return NextResponse.json({ job:{...(user.role==="firma"?firmJobView(job):job),...(user.role==="client"?{selectionRecovery:selectionRecoveryState(db,id,user.id)}:{}),photoRules:jobPhotoRules(db,id),executionRules:jobExecutionRules(db,id),photos:photos.map(photo=>`/api/uploads/${photo.id}`),proofs:proofs.map(proof=>({...proof,url:`/api/uploads/${proof.id}`})),ownReview:ownReview?{...ownReview,badge:"Recenzie verificată"}:null,financial:safeFinancial,...(user.role==="firma"&&payment?{firm_payout:payment.firmPayout}:{})}, firmName }, {headers:{'Cache-Control':'private, no-store'}});
+  return NextResponse.json({ job:{flexible:flexibleContext(db,id),...(user.role==="firma"?firmJobView(job):job),...(user.role==="client"?{selectionRecovery:selectionRecoveryState(db,id,user.id)}:{}),photoRules:jobPhotoRules(db,id),executionRules:jobExecutionRules(db,id),photos:photos.map(photo=>`/api/uploads/${photo.id}`),proofs:proofs.map(proof=>({...proof,url:`/api/uploads/${proof.id}`})),ownReview:ownReview?{...ownReview,badge:"Recenzie verificată"}:null,financial:safeFinancial,...(user.role==="firma"&&payment?{firm_payout:payment.firmPayout}:{})}, firmName }, {headers:{'Cache-Control':'private, no-store'}});
 }

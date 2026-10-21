@@ -8,10 +8,11 @@ import { randomUUID } from "node:crypto";
 import { db,getFirmByUserId } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { consumeRateLimit } from "@/lib/security";
-import { setInventoryThreshold,inventoryHistory,hostInventory,createInventoryItem,moveInventory,teamBlocks,createTeamBlock,cancelTeamBlock,assignTeam,hostChecks,setHostCheck,importCalendar,linkPropertyJob,requireText,saveProperty,setChecklist,WorkspaceError } from "@/lib/workspace";
+import { setInventoryThreshold,inventoryHistory,hostInventory,createInventoryItem,moveInventory,archiveProperty,teamBlocks,createTeamBlock,cancelTeamBlock,assignTeam,hostChecks,setHostCheck,importCalendar,linkPropertyJob,requireText,saveProperty,setChecklist,WorkspaceError } from "@/lib/workspace";
 const response=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:{"Cache-Control":"private, no-store"}});
 export async function GET(req:NextRequest){
  const user=await getCurrentUser(req);if(!user)return response({error:"Autentificare necesară"},401);
+ if(req.nextUrl.searchParams.get('view')==='homes')return response({properties:user.role==='client'?db.prepare("SELECT id,name,city,street,postal_code,floor,sqm,space_type,bathroom_count,notes,sensitive_materials,usual_tasks,access_notes FROM workspace_properties WHERE owner_id=? AND archived=0 AND kind='home' ORDER BY created_at DESC").all(user.id):[]});
  const firm=user.role==="firma"?getFirmByUserId(user.id):null;
  const properties=user.role==="client"?db.prepare(`SELECT p.*,
  (SELECT op.organization_id FROM workspace_organization_properties op WHERE op.property_id=p.id) AS organization_id,
@@ -55,6 +56,7 @@ export async function POST(req:NextRequest){
    case "host.check":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);if(typeof b.done!=="boolean")throw new WorkspaceError("Stare invalidă");setHostCheck(db,user.id,requireText(b.eventId,"Sejur"),requireText(b.turnoverAt,"Eliberare"),requireText(b.key,"Verificare"),b.done);break;
    case "property.preview":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);return response(previewPropertyImport(db,user.id,b.csv));
    case "property.import":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);return response(commitPropertyImport(db,user.id,b.csv));
+   case "property.archive":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);archiveProperty(db,user.id,requireText(b.propertyId,"Locuință"));break;
    case "property.save":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);return response({id:saveProperty(db,user.id,b)});
    case "property.link":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);db.transaction(()=>{const propertyId=requireText(b.propertyId,"Proprietate"),jobId=requireText(b.jobId,"Lucrare");linkPropertyJob(db,user.id,propertyId,jobId);const job=db.prepare('SELECT status FROM jobs WHERE id=?').get(jobId) as {status:string};if(!['completed','cancelled','no_show'].includes(job.status)){enforceOrganizationBooking(db,propertyId,jobId);enforcePropertyBudget(db,propertyId,jobId);}}).immediate();break;
    case "calendar.import":if(user.role!=="client")throw new WorkspaceError("Acces interzis",403);return response({count:importCalendar(db,user.id,requireText(b.propertyId,"Proprietate"),requireText(b.source,"Sursă"),requireText(b.ical,"Calendar",1_000_000))});

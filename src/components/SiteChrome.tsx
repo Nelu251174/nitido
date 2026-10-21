@@ -15,7 +15,7 @@ export const FOOTER_LINK_GROUPS = [
 ] as const;
 
 export function SiteHeader({home=false}:{home?:boolean}) {
-  return <header className={`design-header ${home?'design-header-home':''}`}><div className="design-container design-header-inner"><div><HomeLogoLink/><span className="design-logo-caption"><UiText text={"O casă mai curată. O viață mai bună."}/></span></div><UiElement as="nav" className="design-desktop-nav" aria-label="Navigare principală"><Link href="/#servicii"><UiText text={"Servicii"}/></Link><Link href="/cum-functioneaza"><UiText text={"Cum funcționează"}/></Link><Link href="/pentru-firme"><UiText text={"Pentru firme"}/></Link><Link href="/despre-noi"><UiText text={"Despre noi"}/></Link><Link href="/contact#asistent-ai"><UiText text={"Asistent AI"}/></Link></UiElement><div className="design-header-actions"><HeaderAuthButtons/><MobileMenu/></div></div></header>;
+  return <header className={`design-header ${home?'design-header-home':''}`}><div className="design-container design-header-inner"><div><HomeLogoLink/><span className="design-logo-caption"><UiText text={"O casă mai curată. O viață mai bună."}/></span></div><UiElement as="nav" className="design-desktop-nav" aria-label="Navigare principală"><Link href="/#servicii"><UiText text={"Servicii"}/></Link><Link href="/#recenzii"><UiText text="Recenzii"/></Link><Link href="/cum-functioneaza"><UiText text={"Cum funcționează"}/></Link><Link href="/pentru-firme"><UiText text={"Pentru firme"}/></Link><Link href="/despre-noi"><UiText text={"Despre noi"}/></Link><Link href="/contact#asistent-ai"><UiText text={"Asistent AI"}/></Link></UiElement><div className="design-header-actions"><HeaderAuthButtons/><MobileMenu/></div></div></header>;
 }
 
 export function SiteFooter() {

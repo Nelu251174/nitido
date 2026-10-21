@@ -23,11 +23,11 @@ ${INCIDENT_REVIEW_SCHEMA}
 ${INCIDENT_RESOLUTION_SCHEMA}
 `;
 export function notice(db:Database,userId:string,jobId:string|null,message:string,path:string){db.prepare('INSERT INTO workspace_notices(id,user_id,job_id,message,path,created_at) VALUES(?,?,?,?,?,?)').run(randomUUID(),userId,jobId,message,path,new Date().toISOString());}
-export function snapshotInstructions(db:Database,jobId:string,propertyId:string,clientId:string){
+export function snapshotInstructions(db:Database,jobId:string,propertyId:string,clientId:string,bookingNotes?:string){
  const p=db.prepare('SELECT rooms,sensitive_materials,usual_tasks,notes FROM workspace_properties WHERE id=? AND owner_id=? AND archived=0').get(propertyId,clientId) as {rooms:number|null;sensitive_materials:string;usual_tasks:string;notes:string}|undefined;
  if(!p)throw new WorkspaceError('Proprietate indisponibilă.',404);
  // Access codes are deliberately not copied into future visits.
- db.prepare('INSERT OR IGNORE INTO visit_instructions VALUES(?,?,?,?,?,?)').run(jobId,p.rooms,p.sensitive_materials,p.usual_tasks,p.notes,new Date().toISOString());
+ db.prepare('INSERT OR IGNORE INTO visit_instructions VALUES(?,?,?,?,?,?)').run(jobId,p.rooms,bookingNotes===undefined?p.sensitive_materials:'',bookingNotes===undefined?p.usual_tasks:'',bookingNotes??p.notes,new Date().toISOString());
 }
 type Actor={id:string;role:string};
 function access(db:Database,jobId:string,user:Actor){

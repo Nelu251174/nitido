@@ -1,0 +1,12 @@
+"use client";
+import {useState} from 'react';
+import Link from 'next/link';
+import type {OwnReviewJob} from '@/lib/reviews';
+import {ReviewForm} from './ReviewForm';
+export function ReviewWorkspace({jobs:initial}:{jobs:OwnReviewJob[]}){
+ const [jobs,setJobs]=useState(initial);
+ const eligible=jobs.filter(j=>j.eligible&&!j.reviewId);
+ const [selected,setSelected]=useState(eligible.length===1?eligible[0].id:jobs.length===1?jobs[0].id:'');
+ const job=jobs.find(j=>j.id===selected);
+ return <section className="space-y-5"><h1 className="text-2xl font-bold">Evaluează lucrarea</h1>{eligible.length===0&&<p>Poți evalua un serviciu după finalizarea unei lucrări rezervate prin NITIDO.</p>}{jobs.length>0&&<label className="block">{eligible.length>1?'Alege lucrarea':'Lucrările tale finalizate'}<select className="mt-2 min-h-11 w-full rounded border p-3" value={selected} onChange={e=>setSelected(e.target.value)}><option value="">Alege o lucrare</option>{jobs.map(j=><option key={j.id} value={j.id}>{j.firmName} · {j.space_type} · {j.sqm} m²{j.completed_at?` · ${new Date(j.completed_at).toLocaleDateString('ro-RO',{timeZone:'Europe/Bucharest'})}`:''}{j.reviewId?' · evaluată':!j.eligible?' · verificare în curs':''}</option>)}</select></label>}{job&&<article className="rounded-xl border p-5"><h2 className="mb-4 font-bold">{job.firmName} · {job.space_type} · {job.sqm} m²</h2>{job.reviewId?<><p role="status">Evaluarea ta a fost înregistrată: {job.rating} / 5.</p><p className="mt-3 whitespace-pre-wrap">{job.reviewText}</p><p className="mt-3 text-sm">Se păstrează o singură evaluare pentru fiecare lucrare. {job.moderationStatus==='published'?'Recenzie publicată.':'Evaluare supusă regulilor de moderare.'}</p></>:job.eligible?<ReviewForm key={job.id} onSubmit={async(stars,comment)=>{const response=await fetch(`/api/jobs/${job.id}/rating`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stars,reviewText:comment})});const body=await response.json().catch(()=>({}));if(!response.ok)throw new Error(body.error||'Evaluarea nu a fost salvată. Reîncearcă.');setJobs(old=>old.map(j=>j.id===job.id?{...j,reviewId:body.id,rating:stars,reviewText:comment,moderationStatus:'published'}:j));}}/>:<p>Evaluarea verificată va fi disponibilă după confirmarea finalizării, a dovezilor și a plății. Nu trebuie să trimiți o altă plată.</p>}</article>}<Link className="inline-flex min-h-11 items-center underline" href="/client#sec-lucrari">Vezi lucrările mele</Link></section>;
+}

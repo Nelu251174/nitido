@@ -1,6 +1,6 @@
 "use client";
 import {adsAllowed} from './googleAds';
-export type BookingFunnelEvent='start'|'space_valid'|'schedule_valid'|'summary_view'|'account_requested'|'field_error';
+export type BookingFunnelEvent='start'|'space_valid'|'schedule_valid'|'summary_view'|'account_requested'|'field_error'|'reviews_open'|'review_start'|'home_used'|'flex_start';
 /** No booking values or URL query strings. One event per session, step and error category. */
 export function trackBookingFunnel(event:BookingFunnelEvent,field?:string){
  if(!adsAllowed())return;

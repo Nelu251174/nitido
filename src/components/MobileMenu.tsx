@@ -8,6 +8,7 @@ import { HeaderAuthButtons } from "./HeaderAuthButtons";
 
 /** Public mobile navigation shares the same account entry as the desktop header. */
 const LINKS: Array<[string, string]> = [
+  ["/#recenzii", "Recenzii"],
   ["/cum-functioneaza", "Cum funcționează"],
   ["/pentru-clienti", "Pentru clienți"],
   ["/pentru-firme", "Pentru firme"],

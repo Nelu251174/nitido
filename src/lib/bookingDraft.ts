@@ -1,8 +1,10 @@
+import {validateFlexibleWindows} from "./flexibleShared";
 import {validEntrance,type Entrance} from "./entrance";
 import {bookingDateKey} from './scheduling';
 import {SLOT_HOURS,validWindowsSqm,validBathroomCount,type SpaceType} from './pricing';
 
 export interface BookingDraft {
+ flexibleWindows?:import("./flexibleShared").FlexibleWindow[]|null;
  street:string;postalCode:string;city:string;floor:string;details:string;
  entrance?:Entrance;
  windowsSqm?:number;
@@ -39,7 +41,8 @@ function decode(raw:string|null,userId:string,now:number):BookingDraft|null{
   const photos:BookingDraft['photos']=[];
   for(const p of d.photos){if(!record(p)||!id(p.id)||(p.room!==null&&!bounded(p.room,100)))return null;photos.push({id:p.id,url:`/api/uploads/${p.id}`,room:p.room as string|null});}
   // Reconstruct explicitly: never restore prices, card state, arbitrary image URLs or authorization.
-  return {...(validEntrance(d.entrance,{street:d.street,city:d.city,postalCode:d.postalCode})?{entrance:d.entrance}:{}),street:d.street,postalCode:d.postalCode,city:d.city,floor:d.floor,details:d.details,sqm:d.sqm,...(typeof d.bathroomCount==='number'?{bathroomCount:d.bathroomCount}:{}),windowsSqm:typeof d.windowsSqm==='number'?d.windowsSqm:0,spaceType:d.spaceType as SpaceType,whenType:d.whenType as BookingDraft['whenType'],mode:d.mode as BookingDraft['mode'],express60:d.express60,scheduledDate:d.scheduledDate,scheduledHour:d.scheduledHour as number|null,propertyId:d.propertyId as string|null,approvalId:d.approvalId as string|null,photos,...(d.hostEventId!==undefined?{hostEventId:d.hostEventId as string|null}:{}),...(d.hostRevision!==undefined?{hostRevision:d.hostRevision as string|null}:{}),...(d.cardId!==undefined?{cardId:d.cardId as string|null}:{})};
+  let flexibleWindows=null;if(d.flexibleWindows){flexibleWindows=validateFlexibleWindows(d.flexibleWindows,new Date(now));}
+  return {...(d.flexibleWindows!==undefined?{flexibleWindows}:{}),...(validEntrance(d.entrance,{street:d.street,city:d.city,postalCode:d.postalCode})?{entrance:d.entrance}:{}),street:d.street,postalCode:d.postalCode,city:d.city,floor:d.floor,details:d.details,sqm:d.sqm,...(typeof d.bathroomCount==='number'?{bathroomCount:d.bathroomCount}:{}),windowsSqm:typeof d.windowsSqm==='number'?d.windowsSqm:0,spaceType:d.spaceType as SpaceType,whenType:d.whenType as BookingDraft['whenType'],mode:d.mode as BookingDraft['mode'],express60:d.express60,scheduledDate:d.scheduledDate,scheduledHour:d.scheduledHour as number|null,propertyId:d.propertyId as string|null,approvalId:d.approvalId as string|null,photos,...(d.hostEventId!==undefined?{hostEventId:d.hostEventId as string|null}:{}),...(d.hostRevision!==undefined?{hostRevision:d.hostRevision as string|null}:{}),...(d.cardId!==undefined?{cardId:d.cardId as string|null}:{})};
  }catch{return null;}
 }
 

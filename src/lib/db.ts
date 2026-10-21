@@ -32,6 +32,7 @@ import { ASSESSMENT_SCHEMA } from "./assessments";
 import { CATALOG_CAPACITY_SCHEMA } from "./catalogCapacity";
 import { initializeCatalog } from "./serviceCatalog";
 import { PRICING_SNAPSHOT_LOCK_SQL } from "./pricingSnapshot";
+import {FLEXIBLE_SCHEMA} from "./flexibleSchema";
 import { WORKSPACE_SCHEMA } from "@/lib/workspace";
 import Database from "better-sqlite3";
 import path from "path";
@@ -467,6 +468,7 @@ export function initializeDatabase(db: Database.Database): void {
   db.exec(BOOKING_QUOTES_SCHEMA);
   initializeNotificationClaims(db);
   db.exec(WORKSPACE_SCHEMA);
+  db.exec(FLEXIBLE_SCHEMA);
   db.exec(`CREATE TABLE IF NOT EXISTS job_reschedule_requests (
    id TEXT PRIMARY KEY, job_id TEXT NOT NULL REFERENCES jobs(id), client_id TEXT NOT NULL,
    firm_id TEXT, original_at TEXT NOT NULL, proposed_at TEXT NOT NULL,
@@ -529,6 +531,7 @@ db.exec(JOB_ACTUAL_COSTS_SCHEMA);
   ensureColumn("workspace_properties", "postal_code", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("workspace_properties", "floor", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("workspace_properties", "rooms", "INTEGER");
+  ensureColumn("workspace_properties", "bathroom_count", "INTEGER");
   ensureColumn("workspace_properties", "sensitive_materials", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("workspace_properties", "usual_tasks", "TEXT NOT NULL DEFAULT ''");
   ensureColumn("workspace_properties", "access_notes", "TEXT NOT NULL DEFAULT ''");

@@ -161,3 +161,5 @@
 
 .ical-choice { display:flex; align-items:flex-start; gap:10px; margin:14px 0; line-height:1.5; }
 .ical-choice input[type="checkbox"] { flex:0 0 20px; width:20px; height:20px; min-height:20px; margin-top:2px; accent-color:#009E60; }
+
+.home-rating-entry{margin-top:18px;font-size:13px;line-height:1.5}.home-rating-entry p{margin:3px 0}.home-rating-entry small{display:block;color:#54645b}.home-rating-entry>div{display:flex;flex-wrap:wrap;gap:4px 18px}.home-rating-entry a{display:inline-flex;align-items:center;min-height:44px;text-decoration:underline;font-weight:700}.home-rating-entry span{white-space:nowrap}@media(max-width:760px){.home-rating-entry{font-size:12px;margin-top:12px}.home-rating-entry>div{gap:0 14px}.home-rating-entry a{font-size:12px}}
