@@ -2,6 +2,8 @@ import {beforeEach,afterEach,describe,it,expect,vi} from 'vitest';
 import Database from 'better-sqlite3';
 import {canPreviewOpportunity} from './opportunityEligibility';
 import type {JobRow} from './types';
+import {bookingFunnelReport} from './bookingFunnelReport';
+import {migratePro} from './pro/schema';
 import {initializeDatabase} from './db';
 import {saveFlexiblePreferences,clearFlexiblePreferences,flexibleContext} from './flexibleScheduling';
 import {createOffer,selectOffer,listOffersForJob} from './offers';
@@ -24,5 +26,7 @@ describe('flexible scheduling with real capacity rules and mocked payment',()=>{
  it('releases only its capacity claim after authorization failure',async()=>{const p=proposal();vi.mocked(authorizePayment).mockRejectedValueOnce(new Error('Card refuzat'));expect((await selectOffer(db,'j',p.offer,'c',p.id)).ok).toBe(false);expect(db.prepare('SELECT * FROM workspace_assignments').all()).toHaveLength(0);expect((db.prepare("SELECT status FROM jobs WHERE id='j'").get() as {status:string}).status).toBe('waiting');});
  it('withdraws stale proposals when preferences change and supports ordinary scheduling again',()=>{proposal();saveFlexiblePreferences(db,'j','c',[{date:day,from:12,to:14}]);expect(listOffersForJob(db,'j')).toHaveLength(0);clearFlexiblePreferences(db,'j','c');expect(flexibleContext(db,'j')).toBeNull();expect(createOffer(db,'j','f').ok).toBe(true);});
  it('finds a later compatible start instead of hiding a flexible request because the first start is occupied',()=>{saveFlexiblePreferences(db,'j','c',[{date:day,from:10,to:16}]);job('busy');db.exec("UPDATE jobs SET status='accepted',accepted_firm_id='f' WHERE id='busy'");const j=db.prepare("SELECT * FROM jobs WHERE id='j'").get() as JobRow;expect(canPreviewOpportunity(db,'f',j)).toBe(true);clearFlexiblePreferences(db,'j','c');expect(canPreviewOpportunity(db,'f',j)).toBe(false);});
+ it('counts actual flexible confirmations separately from requests converted back to fixed scheduling',async()=>{migratePro(db);const first=proposal();clearFlexiblePreferences(db,'j','c');expect(createOffer(db,'j','f').ok).toBe(true);expect((await selectOffer(db,'j',first.offer,'c')).ok).toBe(true);const report=bookingFunnelReport(db,'2026-10-21','2026-10-21');expect(report.proposals).toMatchObject({proposals:1,confirmed:0});});
+ it('counts a confirmed flexible proposal from the authoritative accepted offer',async()=>{migratePro(db);const first=proposal();expect((await selectOffer(db,'j',first.offer,'c',first.id)).ok).toBe(true);expect(bookingFunnelReport(db,'2026-10-21','2026-10-21').proposals).toMatchObject({proposals:1,confirmed:1});});
  it('keeps pilot closed without a configured zone',()=>{vi.stubEnv('NITIDO_FLEX_PILOT_CITY','');expect(()=>saveFlexiblePreferences(db,'j','c',windows)).toThrow(/nu este încă activă/);expect(createOffer(db,'j','f',null,{teamId:'t',startsAt:start}).ok).toBe(false);});
 });
