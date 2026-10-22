@@ -16,6 +16,14 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 describe('existing TestFlight app notification integration', () => {
+  it('opens the assigned appointment without accepting a payload-supplied destination', () => {
+    expect(nativeNotificationHref('firma', {event_type:'APPOINTMENT_REMINDER',job_id:'a/b?x=1',path:'https://example.invalid'})).toBe('/firma/programari?jobId=a%2Fb%3Fx%3D1');
+  });
+  it('rejects reminder destinations for other roles or invalid job identities', () => {
+    expect(nativeNotificationHref('client', {event_type:'APPOINTMENT_REMINDER',job_id:'j1'})).toBeNull();
+    expect(nativeNotificationHref('firma', {event_type:'APPOINTMENT_REMINDER',job_id:''})).toBeNull();
+    expect(nativeNotificationHref('firma', {event_type:'APPOINTMENT_REMINDER',job_id:'x'.repeat(201)})).toBeNull();
+  });
   it('registers the native token only after permission and persists only after server acceptance', async () => {
     const request = vi.fn().mockResolvedValue(new Response('{}')); vi.stubGlobal('fetch', request);
     await registerNativePush();

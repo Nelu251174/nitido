@@ -8,6 +8,7 @@ export const nativePushAvailable = () => Capacitor.isNativePlatform() && Capacit
 export function nativeNotificationHref(role: string, data: Record<string, unknown>): string | null {
   if (!['client', 'firma'].includes(role) || typeof data.job_id !== 'string' || !data.job_id || data.job_id.length > 200) return null;
   const id = encodeURIComponent(data.job_id);
+  if (role === 'firma' && data.event_type === 'APPOINTMENT_REMINDER') return `/firma/programari?jobId=${id}`;
   if (data.event_type === 'MESSAGE_RECEIVED') return `/${role}/mesaje?job=${id}`;
   if (role === 'client' && ['JOB_ACCEPTED', 'JOB_ARRIVED', 'JOB_COMPLETED'].includes(String(data.event_type))) return `/client?job=${id}`;
   if (role === 'firma' && data.event_type === 'JOB_CREATED') return '/firma';
