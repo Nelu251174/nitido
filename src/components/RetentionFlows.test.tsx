@@ -24,3 +24,5 @@ it('requires fresh explicit alert consent and hides unavailable external channel
   const fetcher=vi.fn(async()=>Response.json({enabled:true,channels:{inapp:true,push:false,email:false},subscriptions:[],batches:[]}));vi.stubGlobal('fetch',fetcher);await render(<AvailabilityAlerts/>);
   const checks=Array.from(container.querySelectorAll<HTMLInputElement>('input[type=checkbox]'));expect(checks).toHaveLength(4);expect(checks[0].checked).toBe(true);expect(checks[1].disabled).toBe(true);expect(checks[2].disabled).toBe(true);expect(checks[3].checked).toBe(false);expect(container.querySelector('button')!.disabled).toBe(true);expect(fetcher).toHaveBeenCalledTimes(1);expect(container.textContent).toContain('nu rezervă locul');
 });
+
+it('gives an unauthenticated visitor a login route that returns to favorites',async()=>{vi.stubGlobal('fetch',vi.fn(async()=>Response.json({error:'Autentificare client necesară'},{status:401})));await render(<FavoriteFirms/>);expect(container.querySelector('a[href="/login?role=client&next=%2Fclient%2Ffirme-preferate"]')).toBeTruthy();expect(container.querySelector('button')).toBeNull();});
