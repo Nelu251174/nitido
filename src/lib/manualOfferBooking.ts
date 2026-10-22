@@ -6,6 +6,7 @@ import {MarginError,validateManualEstimate} from './operationalMargin';
 import {manualOffersEnabled,type PublicManualOffer} from './manualOffers';
 import {calcNetForFirm,AUTOMATIC_MAX_SQM} from './pricing';
 import {normalizeCity} from './text';
+import {offerBookingFlowEnabled,validateSupplementBooking,supplementOfferAssessment} from './supplementBooking';
 export const MANUAL_OFFER_BOOKING_SCHEMA=`
 CREATE TABLE IF NOT EXISTS assessment_offer_jobs(offer_id TEXT PRIMARY KEY REFERENCES assessment_offers(id),job_id TEXT NOT NULL UNIQUE REFERENCES jobs(id),client_id TEXT NOT NULL REFERENCES users(id),created_at TEXT NOT NULL);
 CREATE TRIGGER IF NOT EXISTS assessment_offer_job_no_update BEFORE UPDATE ON assessment_offer_jobs BEGIN SELECT RAISE(ABORT,'Offer booking immutable'); END;
@@ -36,11 +37,16 @@ export function compatibleManualOffer(db:Database,clientId:string,id:unknown,all
  return {...source,windowsSqm:request.windowsSqm??0};
 }
 export function prepareManualOfferBooking(db:Database,clientId:string,body:Record<string,unknown>){
- if(!manualOfferBookingEnabled())throw new MarginError('Rezervarea ofertelor manuale nu este activată în sandbox.',403);
+ if(supplementOfferAssessment(db,body.manualOfferId)){
+  const existing=manualOfferBookingSource(db,clientId,body.manualOfferId);
+  if(existing.jobId)return {...existing,windowsSqm:0,schedule:null,operation:null};
+ }
+ if(!offerBookingFlowEnabled(db,body.manualOfferId,manualOfferBookingEnabled()))throw new MarginError('Rezervarea ofertelor manuale nu este activată.',403);
  if(body.quoteId||body.hostEventId||body.approvalId||body.propertyId||body.express60||body.mode!=='express')throw new MarginError('Oferta manuală folosește fluxul simplu de preluare, fără Express 60 sau alte oferte combinate.',422);
  const operation=typeof body.manualOfferId==='string'?latestAssistedOperation(db,body.manualOfferId):null;
  const s=compatibleManualOffer(db,clientId,body.manualOfferId,Boolean(operation));
  if(s.jobId)return {...s,schedule:null,operation:null};
+ validateSupplementBooking(db,s.row.id,clientId,body);
  if(operation){validateAssistedBooking(db,operation,s.row.assessment_id,s.row.version,body);if(s.terms.context.category==='renovation'){const evidence=requireVerifiedAssessmentEvidence(db,s.row.assessment_id);if(evidence.reviewId!==s.terms.evidence?.reviewId)throw new MarginError('Fotografiile necesită reconfirmare înainte de rezervare.',409);}}
  else if(body.assistedRevision!=null)throw new MarginError('Propunere operațională inexistentă.',409);
  const schedule=operation?null:validateOfferSchedule(db,s.row.id,body);

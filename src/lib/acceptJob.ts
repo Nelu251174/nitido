@@ -11,6 +11,7 @@ import { authorizationMustStop } from '@/lib/paymentCancellation';
 import { authorizePayment, connectTransfersEnabled } from '@/lib/payments';
 import { firmCoversCity } from '@/lib/text';
 import { firmAvailabilityError, type JobTiming } from '@/lib/firmAvailability';
+import {supplementAcceptanceError} from './supplementBooking';
 
 export type AcceptResult = { ok: true } | { ok: false; error: string; status: number; code?: string };
 type Selection = { offerId: string; clientId: string;proposalId?:string };
@@ -38,6 +39,8 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
       if (connectTransfersEnabled() && (!firm.stripe_account_id || firm.stripe_account_status !== 'ready' || firm.stripe_transfers_capability !== 'active')) return fail('Contul Stripe al firmei nu este pregătit pentru transferuri');
       const job = db.prepare('SELECT * FROM jobs WHERE id=?').get(jobId) as Job | undefined;
       if (!job) return fail('Lucrare inexistentă', 404);
+      const supplementError=supplementAcceptanceError(db,jobId,firmId);
+      if(supplementError)return fail(supplementError,409,'SUPPLEMENT_REVIEW_REQUIRED');
       if (selection) {
         if (job.client_id !== selection.clientId) return fail('Lucrarea nu îți aparține', 403);
         if (job.mode !== 'standard') return fail('Lucrarea nu se selectează prin ofertă');

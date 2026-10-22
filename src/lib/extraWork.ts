@@ -15,6 +15,15 @@ function access(db:Database,jobId:string,user:Actor){
 }
 function active(db:Database,j:Job){return ['accepted','arrived'].includes(j.status)&&j.verified===1&&(!j.suspended_until||Number.isFinite(Date.parse(j.suspended_until))&&Date.parse(j.suspended_until)<=Date.now())&&!db.prepare("SELECT 1 FROM job_reschedule_requests WHERE job_id=? AND status='pending'").get(j.id);}
 function fingerprint(j:Job){return createHash('sha256').update(JSON.stringify([j.client_id,j.accepted_firm_id,j.accepted_at,j.scheduled_at,j.city,j.street,j.postal_code,j.floor,j.space_type,j.sqm,j.bathroom_count,j.windows_sqm,j.price_gross,j.credit_applied,j.pricing_snapshot,j.duration_minutes,j.buffer_minutes])).digest('hex');}
+/** Immutable origin of an assessment. Ordinary assessments have no supplement context. */
+export function approvedExtraWorkContext(db:Database,assessmentId:string){
+ if(!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='extra_work_requests'").get())return null;
+ const r=db.prepare('SELECT * FROM extra_work_requests WHERE assessment_id=?').get(assessmentId) as Row|undefined;
+ if(!r)return null;
+ const j=access(db,r.job_id,{id:r.client_id,role:'client'}),terms=JSON.parse(r.terms_json) as ExtraWorkTerms;
+ if(r.status!=='approved'||r.firm_id!==j.accepted_firm_id||!['accepted','arrived','completed'].includes(j.status)||!j.verified||j.suspended_until&&(!Number.isFinite(Date.parse(j.suspended_until))||Date.parse(j.suspended_until)>Date.now())||terms.contextHash!==fingerprint(j)||db.prepare("SELECT 1 FROM job_reschedule_requests WHERE job_id=? AND status='pending'").get(j.id))throw new WorkspaceError('Contextul lucrării originale s-a schimbat. Suplimentul necesită o nouă verificare.',409);
+ return {proposalId:r.id,originalJobId:j.id,clientId:r.client_id,firmId:r.firm_id,city:j.city,street:j.street,postalCode:j.postal_code,floor:j.floor,spaceType:j.space_type,scheduledAt:j.scheduled_at,durationMinutes:j.duration_minutes,bufferMinutes:j.buffer_minutes};
+}
 function effective(db:Database,j:Job,r:Row){if(r.status!=='proposed')return r.status;if(r.expires_at<=new Date().toISOString())return 'expired';const t=JSON.parse(r.terms_json) as ExtraWorkTerms;return active(db,j)&&r.firm_id===j.accepted_firm_id&&r.client_id===j.client_id&&t.contextHash===fingerprint(j)?'proposed':'outdated';}
 export function readExtraWork(db:Database,jobId:string,user:Actor):ExtraWorkData{
  const j=access(db,jobId,user);
