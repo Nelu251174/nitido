@@ -117,6 +117,37 @@
   .assisted-entry > a { width: 100%; max-width: none; }
 }
 
+/* Navigation labels and NEW badges occupy separate lines, even in a narrow rail. */
+:is(.approved-client > aside, .operations-sidebar, .board-sidebar) .workspace-nav > a.workspace-nav-item {
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 50px;
+  height: auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-left: 3px solid transparent;
+  line-height: 1.4;
+}
+.workspace-nav-item > svg { flex: 0 0 22px; }
+.workspace-nav-copy {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+.workspace-nav-label { white-space: normal; overflow-wrap: anywhere; }
+.workspace-nav-copy > [aria-label] { flex-shrink: 0; white-space: nowrap; }
+.workspace-nav-item > [role=status] { flex-shrink: 0; }
+@media (max-width: 760px) {
+  :is(.approved-client > aside, .operations-sidebar, .board-sidebar) .workspace-nav > a.workspace-nav-item {
+    gap: 8px;
+    padding: 12px 8px;
+  }
+}
+
 /* Expanded navigation scrolls inside its own surface; account controls stay visible. */
 @media (min-width: 761px) {
   :is(.approved-client > aside, .operations-layout > .operations-sidebar, .board-page > .board-sidebar) {
@@ -130,8 +161,11 @@
     align-self: start;
   }
   :is(.approved-client > aside, .operations-layout > .operations-sidebar, .board-page > .board-sidebar) > .workspace-nav {
+    display: flex;
+    flex-direction: column;
     flex: 1 1 auto;
     flex-wrap: nowrap;
+    gap: 6px;
     min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
