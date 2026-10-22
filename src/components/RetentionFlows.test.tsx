@@ -11,7 +11,7 @@ let root:Root,container:HTMLDivElement;
 beforeEach(()=>{Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});container=document.createElement('div');document.body.append(container);root=createRoot(container);window.history.replaceState(null,'','/client');});
 afterEach(async()=>{await act(()=>root.unmount());container.remove();vi.unstubAllGlobals()});
 async function render(node:React.ReactNode){await act(()=>root.render(node));}
-it('offers NEW navigation from client subpages rather than only the public homepage',async()=>{await render(<ClientMobileNavigation/>);const link=container.querySelector('a[href="/client#sec-noutati"]');expect(link?.textContent).toContain('NEW');expect(container.querySelectorAll('a')).toHaveLength(5);expect(link?.getAttribute('aria-current')).toBeNull();});
+it('keeps four quick destinations without a NEW entry in the fixed bottom bar',async()=>{await render(<ClientMobileNavigation/>);expect([...container.querySelectorAll('a')].map(a=>a.textContent)).toEqual(['Acasă','Rezervări','Mesaje','Cont']);expect(container.querySelector('a[href="/client#sec-noutati"]')).toBeNull();});
 it('does not invite a firm on page load or while saving a preference',async()=>{
   const fetcher=vi.fn(async(_url:unknown,init?:RequestInit)=>Response.json(init?{ok:true}:{firms:[{id:'f',name:'Firm',coverage_city:'Constanța',verified:1,suspended_until:null,saved:0}]}));vi.stubGlobal('fetch',fetcher);await render(<FavoriteFirms/>);
   expect(fetcher).toHaveBeenCalledTimes(1);expect(container.querySelector('a[href*="preferredFirmId"]')).toBeNull();await act(()=>container.querySelector('button')!.click());
