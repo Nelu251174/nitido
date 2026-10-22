@@ -1,0 +1,70 @@
+name: Native push readiness (no messages or publishing)
+on:
+  push:
+    branches: [codex/nitido-push-20261022]
+  pull_request:
+    paths: ['src/lib/pushProviders*', 'scripts/mobile-firebase*', '.github/workflows/push-readiness-20261022.yml']
+permissions:
+  contents: read
+jobs:
+  credentials:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Record only configured binding presence
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID != '' }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL != '' }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY != '' }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
+          APNS_KEY_ID: ${{ secrets.APNS_KEY_ID != '' }}
+          APNS_TEAM_ID: ${{ secrets.APNS_TEAM_ID != '' }}
+          APNS_PRIVATE_KEY: ${{ secrets.APNS_PRIVATE_KEY != '' }}
+          APNS_BUNDLE_ID: ${{ secrets.APNS_BUNDLE_ID != '' }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN != '' }}
+        run: |
+          python3 - <<'PY'
+          import json,os
+          keys=['FIREBASE_PROJECT_ID','FIREBASE_CLIENT_EMAIL','FIREBASE_PRIVATE_KEY','GOOGLE_SERVICES_JSON','APNS_KEY_ID','APNS_TEAM_ID','APNS_PRIVATE_KEY','APNS_BUNDLE_ID','COOLIFY_TOKEN']
+          result={'configuredBindings':{k:os.environ[k]=='true' for k in keys},'deliveryTested':False}
+          print(json.dumps(result))
+          open('push-bindings.json','w').write(json.dumps(result,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: push-binding-presence-only
+          path: push-bindings.json
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --test scripts/mobile-firebase-config.test.mjs
+      - run: npx vitest run src/lib/pushProviders.test.ts src/lib/push.test.ts src/lib/pushDelivery.test.ts src/lib/nativePushClient.test.ts src/lib/notificationRecovery.test.ts
+  apple-state:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Read current official iPhone version without publishing
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: node scripts/mobile-apple-status.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: apple-current-version-only
+          path: apple-store-status.json
+          if-no-files-found: ignore

@@ -46,6 +46,11 @@ jobs:
         with:
           packages: "platform-tools platforms;android-36"
 
+      - name: Validate Firebase configuration for this Android app
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: node scripts/mobile-firebase-config.mjs
+
       - name: Sync Capacitor (regenerează configul nativ + copiază shell-ul web)
         run: npx cap sync android
 

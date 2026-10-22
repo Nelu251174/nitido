@@ -85,6 +85,11 @@ jobs:
           printf '%s' "$KS" | base64 -d > "$RUNNER_TEMP/nitido-upload.keystore"
 
 
+      - name: Validate Firebase configuration for this Android app
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: node scripts/mobile-firebase-config.mjs
+
       - name: Sync Capacitor — producție
         env:
           NITIDO_NATIVE_SERVER_URL: https://nitido.ro
