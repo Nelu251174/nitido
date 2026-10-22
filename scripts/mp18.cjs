@@ -1,0 +1,1 @@
+const Database=require('better-sqlite3');const db=new Database('/app/data/nitido.db',{readonly:true,fileMustExist:true});try{if(!db.prepare('SELECT 1 FROM margin_policies LIMIT 1').get())throw Error('MARGIN_POLICY_NOT_CONFIGURED');console.log('MARGIN_POLICY_CONFIGURED')}finally{db.close()}
