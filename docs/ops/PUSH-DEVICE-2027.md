@@ -73,4 +73,12 @@ Starea acestei reluări: **rețea verificată; conectare generată, autentificar
 - API-ul Coolify a fost consultat numai în citire pentru aplicațiile LIVE și sandbox. Ambele raportează `running:healthy`. Lipsesc bindingurile `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `GOOGLE_SERVICES_JSON`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`, `APNS_BUNDLE_ID` și `APNS_USE_SANDBOX` în ambele aplicații. LIVE nu are binding `PUSH_ENABLED`; în sandbox cheia există, dar prezența ei singură nu dovedește activarea push. Nu se afișează valori de secrete.
 - Nu s-a modificat configurația Coolify, nu s-a făcut deployment și nu s-au trimis notificări. Înregistrarea dispozitivelor și capacitatea firmelor pentru pilot nu au fost reverificate în această etapă.
 
-Următoarea dependență este finalizarea conectării cu administratorul proiectului existent, apoi identificarea aplicației Android `ro.nitido.app`. Recepția pe ambele telefoane rămâne NETESTATĂ, iar pilotul rămâne NEACTIVAT.
+La această etapă, dependența era finalizarea conectării cu administratorul proiectului existent. Recepția pe ambele telefoane rămâne NETESTATĂ, iar pilotul rămâne NEACTIVAT.
+
+### Proiectul existent identificat după reconectare
+
+- Reconectarea CLI cu contul indicat de beneficiar a reușit. `projects:list` a întors din nou succes cu o listă goală de proiecte Firebase.
+- Verificarea numai în citire a proiectelor Google Cloud disponibile pentru adăugarea Firebase, prin biblioteca CLI oficială, a identificat proiectul existent **NITIDO**, ID **`nitido-508720`**. Firebase nu este încă activat în acest proiect; autentificarea funcțională și lista Firebase goală nu sunt contradictorii.
+- Următorul pas concret este `npx -y firebase-tools@latest projects:addfirebase nitido-508720 --non-interactive`, urmat de verificarea/înregistrarea aplicației Android cu package `ro.nitido.app` și obținerea configurației prin CLI. Se păstrează proiectul Google Cloud existent.
+- Activarea nu a fost executată: verificarea automată de aprobare a respins comanda, deoarece activarea modifică proiectul cloud și poate avea efecte asupra configurației/facturării; a cerut aprobarea explicită a beneficiarului. Aceasta este o oprire înainte de execuție, nu o eroare returnată de Firebase.
+- Starea curentă: **autentificare CLI CONFIRMATĂ; proiect existent IDENTIFICAT; activare Firebase ÎN AȘTEPTAREA APROBĂRII; FCM/APNs neconfigurate; recepție fizică NETESTATĂ; pilot NEACTIVAT**. Configurația LIVE nu a fost modificată.
