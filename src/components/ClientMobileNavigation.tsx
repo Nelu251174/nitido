@@ -1,6 +1,5 @@
 "use client";
 
-import {NewBadge} from './NewBadge';
 import {UiElement,UiText} from '@/components/UiText';
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -39,7 +38,7 @@ export function ClientMobileNavigation() {
               // The dashboard restores its sections before scrolling, including repeated taps.
               window.dispatchEvent(new CustomEvent(CLIENT_NAVIGATION_EVENT, { detail: item.target }));
             }}>
-            <span><UiText text={item.label}/>{item.label==='Noutăți'&&<span className="block"><NewBadge/></span>}</span>
+            <span><UiText text={item.label}/></span>
           </Link>
         );
       })}

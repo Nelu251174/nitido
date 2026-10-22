@@ -373,4 +373,4 @@ html{scrollbar-gutter:stable}
 .nitido-cookie-consent button:focus-visible { outline:3px solid #006b43; outline-offset:3px; }
 .nitido-cookie-consent button:hover { background:#eaf7f1; }
 
-@media(max-width:760px){.client-mobile-navigation{grid-template-columns:repeat(5,minmax(0,1fr))}.client-mobile-navigation>a{padding:6px 2px}}
+@media(max-width:760px){.client-mobile-navigation{grid-template-columns:repeat(4,minmax(0,1fr))}.client-mobile-navigation>a{padding:6px 2px}}
