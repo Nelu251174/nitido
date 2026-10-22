@@ -1,7 +1,8 @@
 import Database from 'better-sqlite3';
 import {mkdir,lstat,readdir,copyFile,chmod,writeFile,readFile,rename,rm,statfs,realpath} from 'node:fs/promises';
 import {createReadStream,constants} from 'node:fs';
-import {createHash} from 'node:crypto';
+import {createHash,X509Certificate} from 'node:crypto';
+import https from 'node:https';
 import {join,resolve,isAbsolute} from 'node:path';
 import {isIP} from 'node:net';
 import {spawn} from 'node:child_process';
@@ -16,16 +17,17 @@ export function backupConfig(env,{allowLocalRepository=false}={}){
  const scope=({'https://nitido.ro':'live','https://sandbox.nitido.ro':'sandbox'})[env.NEXT_PUBLIC_SITE_URL];if(!scope)fail('BACKUP_TARGET_INVALID');
  const repository=env.RESTIC_REPOSITORY;
  if(typeof repository!=='string'||!repository||repository.length>1000)fail('BACKUP_REPOSITORY_REQUIRED');
- let local=false,backend='s3',healthUrl=null;
+ let local=false,backend='s3',healthUrl=null,tlsCA=null;
  if(allowLocalRepository&&isAbsolute(repository))local=true;
  else {
   backend=repository.startsWith('rest:https://')?'rest':'s3';
   if(!repository.startsWith(backend+':https://'))fail('BACKUP_HTTPS_S3_REQUIRED');
   let u;try{u=new URL(repository.slice(backend.length+1))}catch{fail('BACKUP_REPOSITORY_INVALID')}
   const host=u.hostname.toLowerCase();
-  if(u.protocol!=='https:'||u.username||u.password||u.search||u.hash||u.port&&u.port!=='443'||isIP(host)||host.includes(':')||!host.includes('.')||/(?:^|\.)(?:localhost|nitido\.ro|local|internal)$/.test(host))fail('BACKUP_EXTERNAL_HOST_REQUIRED');
+  if(u.protocol!=='https:'||u.username||u.password||u.search||u.hash||u.port&&!['443','18443'].includes(u.port)||isIP(host)||host.includes(':')||!host.includes('.')||/(?:^|\.)(?:localhost|nitido\.ro|local|internal)$/.test(host))fail('BACKUP_EXTERNAL_HOST_REQUIRED');
   const expectedPath=backend==='rest'?new RegExp('^/nitido-'+scope+'/backup/?$'):new RegExp('^/[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]/nitido/'+scope+'/?$');
   if(u.pathname!==decodeURI(u.pathname)||!expectedPath.test(u.pathname))fail('BACKUP_DEDICATED_PREFIX_REQUIRED');
+  if(u.port==='18443'){tlsCA=Buffer.from(env.NITIDO_BACKUP_TLS_CA_BASE64??'','base64').toString('utf8');try{const cert=new X509Certificate(tlsCA);if(!cert.checkHost(host)||Date.parse(cert.validTo)<Date.now()+30*86400000)fail('BACKUP_TLS_CERTIFICATE_INVALID')}catch{fail('BACKUP_TLS_CERTIFICATE_INVALID')}}
   if(backend==='rest'){if(env.RESTIC_REST_USERNAME!=='nitido-'+scope||!/^.{32,}$/.test(env.RESTIC_REST_PASSWORD??'')||!/^[a-f0-9]{64}$/.test(env.NITIDO_BACKUP_HEALTH_TOKEN??''))fail('BACKUP_REST_CREDENTIALS_REQUIRED');healthUrl=u.origin+'/_nitido-backup-health';}
   for(const k of backend==='s3'?['AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY','AWS_DEFAULT_REGION']:[])if(typeof env[k]!=='string'||!env[k].trim())fail('BACKUP_STORAGE_CREDENTIALS_REQUIRED');
  }
@@ -35,7 +37,7 @@ export function backupConfig(env,{allowLocalRepository=false}={}){
  // Never forward unrelated application/financial credentials to the backup process.
  const childEnv=Object.fromEntries(['PATH','HOME','TMPDIR','HTTP_PROXY','HTTPS_PROXY','ALL_PROXY','NO_PROXY','http_proxy','https_proxy','all_proxy','no_proxy','SSL_CERT_FILE','SSL_CERT_DIR','RESTIC_CACERT','AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY','AWS_SESSION_TOKEN','AWS_DEFAULT_REGION','RESTIC_REST_USERNAME','RESTIC_REST_PASSWORD'].filter(k=>env[k]!==undefined).map(k=>[k,env[k]]));
  Object.assign(childEnv,{RESTIC_REPOSITORY:repository,RESTIC_PASSWORD:env.RESTIC_PASSWORD});
- return {enabled:true,scope,host:'nitido-'+scope,local,backend,healthUrl,healthToken:env.NITIDO_BACKUP_HEALTH_TOKEN,repositoryId:env.NITIDO_OFFSITE_REPOSITORY_ID,timeoutMs:timeout*1000,childEnv};
+ return {enabled:true,scope,host:'nitido-'+scope,local,backend,healthUrl,tlsCA,healthToken:env.NITIDO_BACKUP_HEALTH_TOKEN,repositoryId:env.NITIDO_OFFSITE_REPOSITORY_ID,timeoutMs:timeout*1000,childEnv};
 }
 async function directory(path){await mkdir(path,{recursive:true,mode:0o700});const s=await lstat(path);if(!s.isDirectory()||s.isSymbolicLink())fail('BACKUP_UNSAFE_DIRECTORY');await chmod(path,0o700)}
 export async function backupLayout(appRoot){
@@ -111,9 +113,14 @@ export function assertDedicatedSnapshots(snapshots,config,stage){
  if(snapshots.some(s=>s.hostname!==config.host||!Array.isArray(s.tags)||s.tags.length!==1||s.tags[0]!==TAG||!Array.isArray(s.paths)||s.paths.length!==1||s.paths[0]!==stage))fail('BACKUP_REPOSITORY_NOT_DEDICATED');
 }
 async function saveStatus(layout,result){const temp=layout.status+'.new';await writeFile(temp,JSON.stringify(result)+'\n',{mode:0o600});await rename(temp,layout.status)}
-export async function verifyReceiver(config,{request=fetch,bootPath='/proc/sys/kernel/random/boot_id',minimumFreeBytes=2*1024**3}={}){
+export async function prepareReceiverTrust(config,layout){if(config.tlsCA){const file=join(layout.base,'receiver-ca.pem');await writeFile(file,config.tlsCA,{mode:0o600});config.childEnv.RESTIC_CACERT=file}}
+export async function receiverRequest(url,options,ca){
+ if(!ca)return fetch(url,options);
+ return new Promise((resolve,reject)=>{const req=https.request(url,{method:'GET',headers:options.headers,ca,signal:options.signal,rejectUnauthorized:true},res=>{let body='';res.setEncoding('utf8');res.on('data',b=>{body+=b;if(body.length>8192)req.destroy(new Error('BACKUP_HEALTH_TOO_LARGE'))});res.on('end',()=>resolve(new Response(body,{status:res.statusCode,headers:res.headers})))});req.on('error',reject);req.end()});
+}
+export async function verifyReceiver(config,{request=null,bootPath='/proc/sys/kernel/random/boot_id',minimumFreeBytes=2*1024**3}={}){
  if(config.local||config.backend!=='rest')return;
- const response=await request(config.healthUrl,{headers:{'x-nitido-health':config.healthToken},redirect:'error',signal:AbortSignal.timeout(20000)});if(!response.ok)fail('BACKUP_RECEIVER_NOT_CONFIRMED');
+ const response=await (request??((u,o)=>receiverRequest(u,o,config.tlsCA)))(config.healthUrl,{headers:{'x-nitido-health':config.healthToken},redirect:'error',signal:AbortSignal.timeout(20000)});if(!response.ok)fail('BACKUP_RECEIVER_NOT_CONFIRMED');
  const body=await response.json(),ownHash=createHash('sha256').update((await readFile(bootPath,'utf8')).trim()).digest('hex');
  if(body.service!=='nitido-offsite-receiver-v1'||!/^[a-f0-9]{64}$/.test(body.bootHash??''))fail('BACKUP_RECEIVER_NOT_CONFIRMED');
  if(body.bootHash===ownHash)fail('BACKUP_RECEIVER_SAME_MACHINE');
@@ -122,7 +129,7 @@ export async function verifyReceiver(config,{request=fetch,bootPath='/proc/sys/k
 }
 export async function runOffsiteBackup({env=process.env,appRoot='/app',resticBinary='/usr/local/bin/restic',allowLocalRepository=false,now=new Date(),command=resticCommand}={}){
  const config=backupConfig(env,{allowLocalRepository});if(!config.enabled)return {status:'disabled',uploaded:false};
- const layout=await backupLayout(appRoot),childEnv={...config.childEnv,RESTIC_CACHE_DIR:join(layout.base,'cache')};
+ const layout=await backupLayout(appRoot);await prepareReceiverTrust(config,layout);const childEnv={...config.childEnv,RESTIC_CACHE_DIR:join(layout.base,'cache')};
  const deadline=Date.now()+config.timeoutMs;
  const run=(args,capture='none')=>{const remaining=deadline-Date.now();if(remaining<=0)fail('BACKUP_RESTIC_TIMEOUT');return command(resticBinary,args,{env:childEnv,timeoutMs:remaining,capture})};
  let previous=null;try{previous=JSON.parse(await readFile(layout.status,'utf8'))}catch(e){if(e.code!=='ENOENT')fail('BACKUP_STATUS_INVALID')}

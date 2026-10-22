@@ -14,7 +14,7 @@ test('receiver requires protected configuration before starting a process',async
 test('real receiver authenticates health, encrypts a REST repository and isolates users and prefixes',async()=>{
  const root=await mkdtemp(join(tmpdir(),'nitido-receiver-'));await mkdir(join(root,'data'));await writeFile(join(root,'boot'),'isolated-receiver-kernel');let receiver;
  try{
-  const e=await env();receiver=await startReceiver({env:e,data:join(root,'data'),bootPath:join(root,'boot'),binary:restServer,backendPort:await port(),port:0});const base='http://127.0.0.1:'+receiver.server.address().port;
+  const e=await env();receiver=await startReceiver({env:e,allowInsecureTest:true,data:join(root,'data'),bootPath:join(root,'boot'),binary:restServer,backendPort:await port(),port:0});const base='http://127.0.0.1:'+receiver.server.address().port;
   assert.equal((await fetch(base+'/_nitido-backup-health')).status,401);
   const h=await fetch(base+'/_nitido-backup-health',{headers:{'x-nitido-health':e.NITIDO_RECEIVER_HEALTH_TOKEN}});assert.equal(h.status,200);const proof=await h.json();assert.equal(proof.service,'nitido-offsite-receiver-v1');assert.match(proof.bootHash,/^[a-f0-9]{64}$/);assert.equal(proof.quotaBytes,256*1024**2);assert.equal(JSON.stringify(proof).includes('password'),false);
   assert.equal((await fetch(base+'/unrelated')).status,404);
@@ -29,3 +29,4 @@ test('real receiver authenticates health, encrypts a REST repository and isolate
   await writeFile(join(root,'synthetic.txt'),'Synthetic backup payload');const summary=await run(['backup',join(root,'synthetic.txt'),'--json'],{},'summary');assert.match(summary.snapshot_id,/^[a-f0-9]{64}$/);await run(['check','--read-data']);
  }finally{if(receiver)await receiver.close();await rm(root,{recursive:true,force:true})}
 });
+test('production receiver refuses to expose a plaintext transport',async()=>{await assert.rejects(startReceiver({env:await env()}),/RECEIVER_TLS_REQUIRED/)});

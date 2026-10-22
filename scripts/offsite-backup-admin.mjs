@@ -2,7 +2,7 @@
 import {readFile,writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {join} from 'node:path';
-import {backupConfig,backupLayout,verifyReceiver,resticCommand,BackupError} from './offsite-backup.mjs';
+import {backupConfig,backupLayout,verifyReceiver,prepareReceiverTrust,resticCommand,BackupError} from './offsite-backup.mjs';
 const action=process.argv[2];
 async function report(result){const line=JSON.stringify({marker:'NITIDO_OFFSITE_OPERATION_V1',action,...result})+'\n';console.log(line.trim());try{await writeFile('/proc/1/fd/1',line)}catch{}}
 try{
@@ -14,7 +14,7 @@ try{
  }else{
   // Explicit operator bootstrap only; scheduled backups never initialize repositories.
   const config=backupConfig({...process.env,NITIDO_OFFSITE_BACKUP_ENABLED:'true',NITIDO_OFFSITE_REPOSITORY_ID:process.env.NITIDO_OFFSITE_REPOSITORY_ID||'0'.repeat(64)});
-  const receiver=await verifyReceiver(config);const bootHash=createHash('sha256').update((await readFile('/proc/sys/kernel/random/boot_id','utf8')).trim()).digest('hex');
+  await prepareReceiverTrust(config,layout);const receiver=await verifyReceiver(config);const bootHash=createHash('sha256').update((await readFile('/proc/sys/kernel/random/boot_id','utf8')).trim()).digest('hex');
   const env={...config.childEnv,RESTIC_CACHE_DIR:join(layout.base,'cache')};
   if(action==='init'){
    await resticCommand('/usr/local/bin/restic',['init'],{env,timeoutMs:120000});
