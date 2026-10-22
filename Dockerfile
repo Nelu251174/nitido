@@ -17,6 +17,30 @@ RUN --mount=type=secret,id=proxy_ca \
     npm ci --strict-ssl=true; \
   fi
 
+# Pinned, checksum-verified backup utility. Only the binary and flock reach the runtime image.
+FROM node:22-bookworm-slim AS backup-tools
+ARG TARGETARCH
+RUN --mount=type=secret,id=proxy_ca \
+  set -eu; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends curl bzip2 ca-certificates util-linux; \
+  rm -rf /var/lib/apt/lists/*; \
+  backup_arch="${TARGETARCH:-$(dpkg --print-architecture)}"; \
+  case "$backup_arch" in \
+    amd64) backup_sha=f415415624dcc452f2a02b8c33641791a8c6d6d3b65bbb3543fcf9a25151585c ;; \
+    arm64) backup_sha=a5f64aaab53d51e311fa3829124c5b703f2d14cf187d8640b6be3b2b49376465 ;; \
+    *) exit 1 ;; \
+  esac; \
+  if [ -f /run/secrets/proxy_ca ]; then export CURL_CA_BUNDLE=/run/secrets/proxy_ca; fi; \
+  curl --fail --location --proto '=https' --tlsv1.2 --retry 3 \
+    "https://github.com/restic/restic/releases/download/v0.19.1/restic_0.19.1_linux_${backup_arch}.bz2" \
+    --output /tmp/restic.bz2; \
+  printf '%s  /tmp/restic.bz2\n' "$backup_sha" | sha256sum --check --strict; \
+  bzip2 --decompress /tmp/restic.bz2; \
+  install -m 0755 /tmp/restic /usr/local/bin/restic; \
+  rm /tmp/restic; \
+  restic version
+
 FROM node:22-bookworm-slim AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
@@ -33,6 +57,9 @@ RUN node scripts/pro-build-migration.mjs
 
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
+COPY --from=backup-tools /usr/local/bin/restic /usr/local/bin/restic
+COPY --from=backup-tools /usr/bin/flock /usr/local/bin/flock
+COPY --from=backup-tools /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -53,6 +80,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/scripts/availability-alerts-runne
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/owner-notifications-runner.mjs ./scripts/owner-notifications-runner.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/store-download-report-runner.mjs ./scripts/store-download-report-runner.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/store-download-reports.mjs ./scripts/store-download-reports.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/offsite-backup.mjs ./scripts/offsite-backup.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/offsite-backup-runner.mjs ./scripts/offsite-backup-runner.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/offsite-backup-admin.mjs ./scripts/offsite-backup-admin.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/healthcheck.mjs ./scripts/healthcheck.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/verify-database-backup.mjs ./scripts/verify-database-backup.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/recovery.mjs ./scripts/recovery.mjs
