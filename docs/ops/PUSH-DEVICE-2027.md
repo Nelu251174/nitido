@@ -35,3 +35,12 @@ Intervalele se verifică în planificare pentru conflicte și se aprobă numai d
 ## Regula de acceptanță
 
 Configurat ≠ provider acceptat ≠ telefon confirmat. Cele trei rezultate sunt păstrate separat. Zonele fără configurare ori dispozitiv rămân BLOCATE/NETESTATE, fără marcaj VERDE fabricat.
+
+## Dovezi actualizate — 22 octombrie 2026, UTC
+
+- Contul support@nitido.ro există: verificare numai în citire reușită la 20:32:07.
+- Niciun dispozitiv Android sau iPhone activ nu a îndeplinit verificarea de înregistrare pentru acest cont la 20:33:13. Nu au fost citite sau afișate tokenuri.
+- Există firme verificate. Verificarea intervalelor active aprobate și a echipelor active pentru martie–august 2027 nu a trecut; nu se declară disponibilitate reală confirmată.
+- 65 de teste push/interfață și 3 teste ale configurației Firebase au trecut local. Buildul web, TypeScript și lintul au trecut. Testele providerilor folosesc simulări; recepția fizică rămâne NETESTATĂ.
+- GitHub Actions nu a pornit joburile: «The job was not started because your account is locked due to a billing issue.» Dovadă: https://github.com/Nelu251174/nitido/actions/runs/39849441149 . Din acest motiv, prezența credențialelor în GitHub și starea actuală Apple nu au putut fi reverificate prin joburile pregătite.
+- Nu s-a schimbat configurația push LIVE, nu s-a trimis un nou build în magazine și nu s-au trimis notificări de demonstrație utilizatorilor. Corecțiile sunt în PR-ul 135; publicarea se face după verificarea candidatului.

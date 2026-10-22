@@ -46,7 +46,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --test scripts/mobile-firebase-config.test.mjs
-      - run: npx vitest run src/lib/pushProviders.test.ts src/lib/push.test.ts src/lib/pushDelivery.test.ts src/lib/nativePushClient.test.ts src/lib/notificationRecovery.test.ts
+      - run: npx vitest run src/lib/pushProviders.test.ts src/lib/push.test.ts src/lib/pushDelivery.test.ts src/lib/nativePushClient.test.ts src/lib/notificationRecovery.test.ts src/app/api/push/status/route.test.ts src/components/NativePushControls.test.tsx
   apple-state:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
