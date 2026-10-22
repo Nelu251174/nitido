@@ -3,7 +3,7 @@ import {checkOfferMargin,recordOfferMargin} from './marginPolicy';
 import type {Database} from 'better-sqlite3';
 import {randomUUID} from 'node:crypto';
 import {MarginError,validateManualEstimate,calculateOperationalMargin} from './operationalMargin';
-export function manualOffersEnabled(){return process.env.NITIDO_MANUAL_OFFERS_SANDBOX==='true'&&process.env.NEXT_PUBLIC_SITE_URL==='https://sandbox.nitido.ro'&&!process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_');}
+export function manualOffersEnabled(){return process.env.NITIDO_MANUAL_OFFERS_SANDBOX==='true'&&process.env.NEXT_PUBLIC_SITE_URL==='https://sandbox.nitido.ro'&&!/^(?:sk|rk)_live_/.test(process.env.STRIPE_SECRET_KEY??'');}
 export const MANUAL_OFFERS_SCHEMA=`
 CREATE TABLE IF NOT EXISTS assessment_offers(
  id TEXT PRIMARY KEY,assessment_id TEXT NOT NULL REFERENCES service_assessments(id),estimate_revision INTEGER NOT NULL,
