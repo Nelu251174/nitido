@@ -5,13 +5,14 @@ import {processAvailabilityAlerts,availabilityAlertsEnabled} from '@/lib/availab
 import {retentionMetrics} from '@/lib/retentionMetrics';
 import {readFile} from 'node:fs/promises';
 export const runtime='nodejs';
-function authorized(req:NextRequest){const secret=process.env.CRON_SECRET??'',actual=Buffer.from(req.headers.get('x-cron-secret')??''),expected=Buffer.from(secret);return secret.length>=32&&actual.length===expected.length&&timingSafeEqual(actual,expected);}
+function authorized(req:NextRequest){const secret=process.env.NITIDO_AVAILABILITY_CRON_SECRET??'',actual=Buffer.from(req.headers.get('x-cron-secret')??''),expected=Buffer.from(secret);return secret.length>=32&&actual.length===expected.length&&timingSafeEqual(actual,expected);}
 /** Authenticated deployment evidence, containing counts and checks, no identities or credentials. */
 export async function GET(req:NextRequest){
   if(!authorized(req))return NextResponse.json({error:'Neautorizat'},{status:401});
   let checkpoint:unknown=null;
   try{const v=JSON.parse(await readFile('/app/data/release-checkpoints/20261022-before-retention/verification.json','utf8'));checkpoint={status:v.status,createdAt:v.createdAt,baseCommit:v.baseCommit,snapshotSha256:v.snapshotSha256,uploadFileCount:v.uploadFileCount,method:v.method};}catch{}
-  return NextResponse.json({enabled:availabilityAlertsEnabled(),metrics:retentionMetrics(db),checkpoint},{headers:{'Cache-Control':'private, no-store'}});
+  let sandboxVerification:unknown=null;if(process.env.NEXT_PUBLIC_SITE_URL==='https://sandbox.nitido.ro'){try{sandboxVerification=JSON.parse(await readFile('/app/data/release-checkpoints/retention-api-verification.json','utf8'));}catch{}}
+  return NextResponse.json({enabled:availabilityAlertsEnabled(),metrics:retentionMetrics(db),checkpoint,sandboxVerification},{headers:{'Cache-Control':'private, no-store'}});
 }
 export async function POST(req:NextRequest){
   if(!authorized(req))return NextResponse.json({error:'Neautorizat'},{status:401});

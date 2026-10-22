@@ -101,12 +101,13 @@ type Senders={email?:typeof sendEmail;push?:(platform:PushPlatform,token:string,
 /** Rechecks cancellation, current recipient and live capacity immediately before each dispatch. */
 export async function processAvailabilityAlerts(db:Database,senders:Senders={}){
   if(!availabilityAlertsEnabled())return {queued:0,sent:0,suppressed:0};
-  const {queued}=queueAvailabilityAlerts(db);let sent=0,suppressed=0;
+  const tickStarted=Date.now();const {queued}=queueAvailabilityAlerts(db);let sent=0,suppressed=0;
   // Expired claims after dispatch are quarantined; do not duplicate an uncertain push.
   db.prepare("UPDATE availability_alert_deliveries SET status=CASE WHEN dispatch_ms IS NULL THEN 'failed' ELSE 'unknown' END,last_error='LEASE_EXPIRED',next_ms=? WHERE status='sending' AND claimed_ms<?").run(Date.now(),Date.now()-5*60000);
   const rows=db.prepare(`SELECT d.*,b.client_id,b.created_ms FROM availability_alert_deliveries d JOIN availability_alert_batches b ON b.id=d.batch_id
     WHERE d.status IN ('pending','failed') AND d.attempts<3 AND d.next_ms<=? ORDER BY b.created_ms,d.id LIMIT 5`).all(Date.now()) as Delivery[];
   for(const d of rows){
+    if(Date.now()-tickStarted>=30000)break;
     const claim=randomUUID();if(!db.prepare("UPDATE availability_alert_deliveries SET status='sending',claim=?,claimed_ms=?,dispatch_ms=NULL,attempts=attempts+1 WHERE id=? AND status IN ('pending','failed') AND attempts<3 AND next_ms<=?").run(claim,Date.now(),d.id,Date.now()).changes)continue;
     const finish=(status:string,error:string|null=null)=>db.prepare("UPDATE availability_alert_deliveries SET status=?,last_error=?,sent_ms=CASE WHEN ?='sent' THEN ? ELSE sent_ms END,next_ms=? WHERE id=? AND claim=? AND status='sending'").run(status,error,status,Date.now(),Date.now()+5*60000,d.id,claim);
     const valid=()=>availabilityAlertsEnabled()&&batchMatches(db,d.client_id,d.batch_id,d.channel).length>0&&(db.prepare("SELECT role FROM users WHERE id=?").get(d.client_id) as {role:string}|undefined)?.role==='client';

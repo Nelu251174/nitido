@@ -1,5 +1,5 @@
 // Executes inside the existing application container; the secret only reaches loopback.
-const secret=process.env.CRON_SECRET,port=process.env.PORT??'3000';
+const secret=process.env.NITIDO_AVAILABILITY_CRON_SECRET,port=process.env.PORT??'3000';
 try{
   if(!secret||secret.length<32||!/^\d+$/.test(port)||Number(port)<1||Number(port)>65535)throw Error('Configurația procesării alertelor este incompletă.');
   const r=await fetch(`http://127.0.0.1:${port}/api/cron/availability-alerts`,{method:'POST',redirect:'error',headers:{'x-cron-secret':secret},signal:AbortSignal.timeout(55000)});
