@@ -1,0 +1,13 @@
+import {beforeEach,it,expect,vi} from 'vitest';
+import {NextRequest} from 'next/server';
+const m=vi.hoisted(()=>({user:vi.fn(),firm:vi.fn(),rate:vi.fn(),planning:vi.fn()}));
+vi.mock('@/lib/auth',()=>({getCurrentUser:m.user}));
+vi.mock('@/lib/db',()=>({db:{},getFirmByUserId:m.firm}));
+vi.mock('@/lib/security',()=>({consumeRateLimit:m.rate}));
+vi.mock('@/lib/providerPlanning',()=>({providerPlanning:m.planning}));
+import {GET} from './route';
+const req=()=>new NextRequest('https://sandbox.nitido.ro/api/availability/planning?from=2027-03-28&firmId=other');
+beforeEach(()=>{vi.clearAllMocks();m.user.mockResolvedValue({id:'owner',role:'firma'});m.firm.mockReturnValue({id:'own'});m.rate.mockReturnValue(true);m.planning.mockReturnValue({days:[]})});
+it.each([null,{id:'c',role:'client'},{id:'a',role:'admin'}])('rejects unauthenticated or wrong-role access',async user=>{m.user.mockResolvedValue(user);expect((await GET(req())).status).toBe(401);expect(m.planning).not.toHaveBeenCalled()});
+it('uses the session firm, ignores a forged firm ID, and disables caching',async()=>{const r=await GET(req());expect(r.status).toBe(200);expect(r.headers.get('cache-control')).toBe('private, no-store');expect(m.firm).toHaveBeenCalledWith('owner');expect(m.planning).toHaveBeenCalledWith({},'own','2027-03-28')});
+it('handles missing firm, throttling and storage errors without exposing internals',async()=>{m.firm.mockReturnValueOnce(null);expect((await GET(req())).status).toBe(403);m.rate.mockReturnValueOnce(false);expect((await GET(req())).status).toBe(429);m.planning.mockImplementationOnce(()=>{throw Error('sensitive database details')});const r=await GET(req());expect(r.status).toBe(503);expect(JSON.stringify(await r.json())).not.toContain('sensitive')});

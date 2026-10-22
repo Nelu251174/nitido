@@ -26,7 +26,7 @@ import {FlexibleChoice} from "./FlexibleChoice";
 import {validateFlexibleWindows,readFlexibleDraft,type FlexibleWindow} from "@/lib/flexibleShared";
 
 const STEPS=['Spațiu','Programare','Verificare'];
-export function BookingConfigurator({initial,options}:{initial:Record<string,string>;options:EstimatorOption[]}){
+export function BookingConfigurator({initial,options,occasion}:{initial:Record<string,string>;options:EstimatorOption[];occasion?:'spring'}){
  const locale=useLocale();
 
  const router=useRouter(),heading=useRef<HTMLHeadingElement>(null);
@@ -84,7 +84,8 @@ export function BookingConfigurator({initial,options}:{initial:Record<string,str
   startTransition(()=>router.push(`/client?${params}#sec-form`));
  }
  return <div className="booking-wizard">
-  <div className="booking-heading"><div><p className="booking-eyebrow"><UiText text={"REZERVAREA TA ÎNCEPE AICI"}/></p><h1><UiText text={"Curățenia ta, în 3 pași."}/></h1><p><UiText text={"Configurezi acum. Verifici prețul înainte de publicare."}/></p></div><span className="booking-no-charge"><DesignIcon name="shield" size={18}/><UiText text={"Fără plată la acest pas"}/></span></div>
+  <div className="booking-heading"><div><p className="booking-eyebrow"><UiText text={"REZERVAREA TA ÎNCEPE AICI"}/></p><h1><UiText text={occasion==='spring'?"Pregătește casa pentru primăvară":"Curățenia ta, în 3 pași."}/></h1><p><UiText text={"Configurezi acum. Verifici prețul înainte de publicare."}/></p></div><span className="booking-no-charge"><DesignIcon name="shield" size={18}/><UiText text={"Fără plată la acest pas"}/></span></div>
+  {occasion==='spring'&&<section className="season-intro" aria-label="Despre curățenia de primăvară"><p><UiText text="Pornești de la curățenia generală a spațiului. Confirmă suprafața și băile; adaugă geamuri numai dacă le dorești. Vezi ce este inclus și fiecare supliment în rezumat."/></p><p><UiText text="Pentru lucrări după renovare, suprafețe speciale sau cerințe care depășesc serviciul general, solicită o evaluare înainte de rezervare."/> <Link href="/client/evaluari"><UiText text="Solicită evaluare"/></Link></p><p><UiText text="Nu se aplică o reducere sezonieră automată. Folosim tarifele curente, iar disponibilitatea firmei se confirmă prin fluxul rezervării."/></p></section>}
   <UiElement as="nav" aria-label="Pașii configurării"><ol className="booking-steps booking-wizard-steps">{STEPS.map((name,i)=><li key={name} className={step===i?'active':i<step?'complete':''}><button type="button" disabled={i>step} aria-current={i===step?'step':undefined} onClick={()=>move(i)}><span>{i<step?<DesignIcon name="check" size={18}/>:i+1}</span><b>{<UiText text={name}/>}</b><small>{<UiText text={['Tipul spațiului și suprafața','Data și alegerea firmei','Detaliile înainte de cont'][i]}/>}</small></button></li>)}</ol></UiElement>
   <form className="booking-grid" noValidate onSubmit={e=>{e.preventDefault();submit()}}>
    <div className="booking-main"><section className="design-panel booking-step-panel">

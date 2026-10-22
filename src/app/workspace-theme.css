@@ -294,3 +294,17 @@ main [class*="text-[#7b847e]"] { color: #52616a; }
     scroll-margin-top: 16px;
   }
 }
+
+/* Season planning keeps long labels usable at narrow widths. */
+.season-intro { padding:20px; margin-block:20px; border:1px solid var(--line); border-radius:14px; background:var(--workspace-surface,#fbf7ef); }
+.season-intro p { line-height:1.7; margin-block:8px; }
+.season-intro a,.planning-links a { text-decoration:underline; text-underline-offset:3px; }
+.planning-controls,.planning-links { display:flex; flex-wrap:wrap; gap:12px; margin-block:20px; align-items:end; }
+.planning-controls label { display:grid; gap:6px; }
+.planning-controls :is(input,button),.planning-links a { min-height:44px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; }
+.planning-controls button:disabled { opacity:.5; }
+.planning-controls :is(input,button):focus-visible,.planning-links a:focus-visible { outline:2px solid var(--nitido-brand-dark); outline-offset:3px; }
+.planning-days { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:16px; }
+.planning-days article { min-width:0; overflow-wrap:anywhere; }
+.planning-days li { padding-block:12px; border-top:1px solid var(--line); line-height:1.6; }
+@media(max-width:760px) { .planning-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); } .planning-controls label { grid-column:1/-1; } .planning-controls input { width:100%; min-width:0; font-size:16px; } .planning-links a { width:100%; } }
