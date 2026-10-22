@@ -1,0 +1,16 @@
+{
+  "verifiedAt": "2026-10-15T12:56:14.505763+00:00",
+  "sourceSha": "39b9fa6c4a9f9f78e89bd173832d4ef66ec9a79e",
+  "appId": "ro.nitido.app",
+  "platform": "ios",
+  "live": {
+    "sourceSha": "39b9fa6c4a9f9f78e89bd173832d4ef66ec9a79e",
+    "origin": "https://nitido.ro",
+    "verified": true,
+    "receipt": "Coolify production running:healthy at exact source SHA; deployment rdvd9442rquewdcbrjbyrj57; HTTPS health, homepage, reservation and login returned 200.",
+    "backup": {
+      "verified": true,
+      "receipt": "2026-10-15 owner-alerts release receipt: production backup task e0oovtvbr16jkzcojsjdm3ke, execution ah0bhqrreh85h4sdddm8q0is succeeded; isolated preview clone and schema checks succeeded; backup retained at /app/data/owner-alerts-backup-20261015-0700."
+    }
+  }
+}
