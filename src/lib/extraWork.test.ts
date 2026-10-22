@@ -28,3 +28,5 @@ it('lets the client reject and the firm withdraw once without creating an assess
 it('blocks rewriting proposal terms or deleting the audit history',()=>{const id=propose();expect(()=>db.prepare('UPDATE extra_work_requests SET terms_json=? WHERE id=?').run('{}',id)).toThrow('immutable');expect(()=>db.prepare('DELETE FROM extra_work_requests WHERE id=?').run(id)).toThrow('retained');});
 
 it("invalidates an earlier proposal after the same firm is accepted again",()=>{const id=propose();db.exec("UPDATE jobs SET accepted_at='2027-03-27T12:01:00Z'");expect(()=>approve(id)).toThrow("contextul")});
+
+it("does not expose or resolve a prior client’s proposal after an ownership change",()=>{const id=propose();db.exec("UPDATE jobs SET client_id='other'");const other={id:"other",role:"client"};expect(readExtraWork(db,"j",other).proposals).toEqual([]);expect(readExtraWork(db,"j",firm).proposals).toEqual([]);expect(()=>changeExtraWork(db,"j",other,{action:"reject",id,revision:1})).toThrow("inexistentă");expect(()=>readExtraWork(db,"j",client)).toThrow("Acces interzis")});

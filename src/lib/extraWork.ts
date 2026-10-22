@@ -18,7 +18,7 @@ function fingerprint(j:Job){return createHash('sha256').update(JSON.stringify([j
 function effective(db:Database,j:Job,r:Row){if(r.status!=='proposed')return r.status;if(r.expires_at<=new Date().toISOString())return 'expired';const t=JSON.parse(r.terms_json) as ExtraWorkTerms;return active(db,j)&&r.firm_id===j.accepted_firm_id&&r.client_id===j.client_id&&t.contextHash===fingerprint(j)?'proposed':'outdated';}
 export function readExtraWork(db:Database,jobId:string,user:Actor):ExtraWorkData{
  const j=access(db,jobId,user);
- const rows=db.prepare(`SELECT * FROM extra_work_requests WHERE job_id=? ${user.role==='firma'?'AND firm_id=?':''} ORDER BY created_at DESC,id LIMIT 100`).all(jobId,...(user.role==='firma'?[j.accepted_firm_id]:[])) as Row[];
+ const rows=db.prepare(`SELECT * FROM extra_work_requests WHERE job_id=? AND client_id=? ${user.role==='firma'?'AND firm_id=?':''} ORDER BY created_at DESC,id LIMIT 100`).all(jobId,j.client_id,...(user.role==='firma'?[j.accepted_firm_id]:[])) as Row[];
  return {role:user.role as 'client'|'firma',canPropose:user.role==='firma'&&active(db,j),proposals:rows.map(r=>{const {contextHash:_,...terms}=JSON.parse(r.terms_json) as ExtraWorkTerms;void _;return {id:r.id,revision:r.revision,terms,status:effective(db,j,r),createdAt:r.created_at,expiresAt:r.expires_at,assessmentId:user.role==='client'?r.assessment_id:null} satisfies ExtraWorkView;})};
 }
 function text(v:unknown,max:number){if(typeof v!=='string'||!v.trim()||v.length>max)throw new WorkspaceError('Completează descrierea și identificatorul cererii.',400);return v.trim();}
@@ -39,7 +39,7 @@ export function changeExtraWork(db:Database,jobId:string,user:Actor,b:Record<str
    return {ok:true,id};
   }
   const id=text(b.id,100),r=db.prepare('SELECT * FROM extra_work_requests WHERE id=? AND job_id=?').get(id,jobId) as Row|undefined;
-  if(!r||user.role==='firma'&&r.firm_id!==j.accepted_firm_id)throw new WorkspaceError('Propunere inexistentă.',404);
+  if(!r||r.client_id!==j.client_id||user.role==='firma'&&r.firm_id!==j.accepted_firm_id)throw new WorkspaceError('Propunere inexistentă.',404);
   if(b.action==='approve'&&user.role!=='client'||b.action==='reject'&&user.role!=='client'||b.action==='withdraw'&&user.role!=='firma')throw new WorkspaceError('Acțiune nepermisă.',403);
   if(!['approve','reject','withdraw'].includes(String(b.action)))throw new WorkspaceError('Acțiune invalidă.',400);
   if(b.action==='approve'&&b.acknowledgeNoPayment!==true)throw new WorkspaceError('Confirmă că trimiterea la evaluare nu reprezintă plată sau autorizarea lucrării.',400);
