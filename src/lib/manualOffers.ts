@@ -3,6 +3,7 @@ import {checkOfferMargin,recordOfferMargin} from './marginPolicy';
 import type {Database} from 'better-sqlite3';
 import {randomUUID} from 'node:crypto';
 import {MarginError,validateManualEstimate,calculateOperationalMargin} from './operationalMargin';
+import {supplementAssessment,validateSupplementOffer} from './supplementBooking';
 export function manualOffersEnabled(){return process.env.NITIDO_MANUAL_OFFERS_SANDBOX==='true'&&process.env.NEXT_PUBLIC_SITE_URL==='https://sandbox.nitido.ro'&&!/^(?:sk|rk)_live_/.test(process.env.STRIPE_SECRET_KEY??'');}
 export const MANUAL_OFFERS_SCHEMA=`
 CREATE TABLE IF NOT EXISTS assessment_offers(
@@ -38,6 +39,7 @@ export function publishManualOffer(db:Database,args:{id:unknown;revision:unknown
  return db.transaction(()=>{
  const a=db.prepare('SELECT version,status,payload FROM service_assessments WHERE id=?').get(assessmentId) as {version:number;status:string;payload:string}|undefined;
  if(!a)throw new MarginError('Cerere inexistentă.',404);
+ supplementAssessment(db,assessmentId);
  if(['cancelled','declined'].includes(a.status))throw new MarginError('Cererea este închisă.',409);
  const evidence=JSON.parse(a.payload).category==='renovation'?requireVerifiedAssessmentEvidence(db,assessmentId):null;
  const estimate=db.prepare('SELECT * FROM assessment_estimates WHERE assessment_id=? ORDER BY revision DESC LIMIT 1').get(assessmentId) as {revision:number;assessment_version:number;definition_json:string}|undefined;
@@ -45,6 +47,7 @@ export function publishManualOffer(db:Database,args:{id:unknown;revision:unknown
  const definition=validateManualEstimate(JSON.parse(estimate.definition_json)),margin=calculateOperationalMargin(definition);
  if(margin.status==='incomplete')throw new MarginError('Completează sursele și costurile înainte de publicarea ofertei.',409);
  const request=JSON.parse(a.payload);
+ validateSupplementOffer(db,assessmentId,scope,request,definition);
  const publicJson=JSON.stringify({currency:'RON',scope,...(evidence?{evidence}:{}),context:{category:request.category,city:request.city,sqm:request.sqm},lines:definition.lines,grossBani:margin.grossBani,discountBani:margin.platformDiscountBani,totalBani:margin.clientDueBani});
  const old=db.prepare('SELECT * FROM assessment_offers WHERE assessment_id=? AND estimate_revision=?').get(assessmentId,args.revision) as OfferRow|undefined;
  if(old){if(old.public_json!==publicJson||old.expires_at!==expires)throw new MarginError('Această revizie a fost deja publicată cu alți termeni.',409);return view(old,now);}
@@ -67,6 +70,7 @@ export function decideManualOffer(db:Database,clientId:string,args:{id:unknown;a
  const result=args.action==='accept'?'accepted':'rejected';
  if(result==='accepted'&&(args.confirmed!==true||args.totalBani!==JSON.parse(r.public_json).totalBani))throw new MarginError('Confirmă explicit totalul ofertei afișate.',409);
  if(r.status===result)return view(r,now);
+ if(result==='accepted')supplementAssessment(db,r.assessment_id);
  if(r.status!=='offered'||r.expires_at<=now.toISOString())throw new MarginError('Oferta a expirat sau nu mai este disponibilă. Solicită o ofertă nouă.',409);
  const a=db.prepare('SELECT version,status FROM service_assessments WHERE id=?').get(r.assessment_id) as {version:number;status:string};if(a.version!==r.assessment_version||['cancelled','declined'].includes(a.status))throw new MarginError('Cererea s-a schimbat. Este necesară o ofertă actualizată.',409);
  const terms=JSON.parse(r.public_json);if(result==='accepted'&&terms.context.category==='renovation'){const current=requireVerifiedAssessmentEvidence(db,r.assessment_id);if(current.reviewId!==terms.evidence?.reviewId)throw new MarginError('Verificarea fotografiilor s-a schimbat. Solicită o ofertă actualizată.',409);}

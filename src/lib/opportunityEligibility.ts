@@ -6,10 +6,12 @@ import { firmCoversCity } from './text';
 import { firmAvailabilityError } from './firmAvailability';
 import { checkAssistedTeam, jobAssistedOperation } from './assistedOperations';
 import { MarginError } from './operationalMargin';
+import {supplementAcceptanceError} from './supplementBooking';
 
 /** Read-only preview gate. Acceptance must still recheck inside its writer transaction. */
 export function canPreviewOpportunity(db: Database, firmId: string, job: JobRow): boolean {
   if (job.status !== 'waiting') return false;
+  if (supplementAcceptanceError(db,job.id,firmId))return false;
   const firm = db.prepare('SELECT verified,suspended_until,coverage_city,coverage_cities_extra FROM firms WHERE id=?').get(firmId) as {
     verified: number; suspended_until: string | null; coverage_city: string; coverage_cities_extra: string | null;
   } | undefined;

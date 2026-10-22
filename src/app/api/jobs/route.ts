@@ -11,6 +11,7 @@ import {configuredServiceMarket,ServiceMarketError} from '@/lib/serviceMarkets';
 import {assertCustomerCanCreate,CustomerRestrictionError} from '@/lib/customerRestrictions';
 import {jobAssistedOperation} from '@/lib/assistedOperations';
 import {prepareManualOfferBooking,linkManualOfferJob} from '@/lib/manualOfferBooking';
+import {supplementOriginForJob} from '@/lib/supplementBooking';
 import {MarginError} from '@/lib/operationalMargin';
 import {managedBookingEnabled,bookingPriceContext,acceptedBookingQuote,linkBookingQuote,type BookingPriceSnapshot} from "@/lib/bookingQuotes";
 import {ManagedPricingError} from "@/lib/managedPricing";
@@ -412,7 +413,7 @@ export async function POST(req: NextRequest) {
   const job = created.job;
 
   try {
-    const notificationIds=queueNewJobFirmPushes(db,{id:job.id,city,spaceType,sqm,targetFirmId:openingRequest(db,job.id)?.firm_id??jobAssistedOperation(db,job.id)?.firmId});
+    const notificationIds=queueNewJobFirmPushes(db,{id:job.id,city,spaceType,sqm,targetFirmId:supplementOriginForJob(db,job.id)?.firmId??openingRequest(db,job.id)?.firm_id??jobAssistedOperation(db,job.id)?.firmId});
     if(notificationIds.length)after(()=>processPushOutbox(db,notificationIds));
   } catch {
     console.error("[push-outbox] enqueue_failed JOB_CREATED_FIRM_PUSH");

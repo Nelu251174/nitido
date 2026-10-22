@@ -7,6 +7,7 @@ import {hasTrustedMutationOrigin} from '@/lib/security';
 import {MarginError} from '@/lib/operationalMargin';
 import {compatibleManualOffer,manualOfferBookingEnabled} from '@/lib/manualOfferBooking';
 import {latestOfferSchedule,publicOfferSchedule,saveOfferSchedule,scheduleOwner} from '@/lib/manualOfferSchedule';
+import {offerBookingFlowEnabled,supplementBookingEnabled,validateSupplementSchedule} from '@/lib/supplementBooking';
 const response=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{'Cache-Control':'private, no-store'}});
 export async function GET(req:NextRequest){
  const admin=req.nextUrl.searchParams.get('admin')==='true';
@@ -16,21 +17,23 @@ export async function GET(req:NextRequest){
  try{
   const id=req.nextUrl.searchParams.get('id');scheduleOwner(db,id,admin?null:user!.id);
   const schedule=latestOfferSchedule(db,id!);
-  return response({schedule:admin?schedule:publicOfferSchedule(schedule),enabled:manualOfferBookingEnabled()});
+  return response({schedule:admin?schedule:publicOfferSchedule(schedule),enabled:offerBookingFlowEnabled(db,id,manualOfferBookingEnabled())});
  }catch(e){if(e instanceof MarginError)return response({error:e.message},e.status);throw e;}
 }
 export async function POST(req:NextRequest){
  const actor=await getAdminActorId('operations');if(!actor)return response({error:'Neautorizat'},401);
  if(!hasTrustedMutationOrigin(req))return response({error:'Origine invalidă'},403);
- if(!manualOfferBookingEnabled())return response({error:'Programarea ofertelor nu este activată în sandbox.'},403);
+ if(!manualOfferBookingEnabled()&&!supplementBookingEnabled())return response({error:'Programarea ofertelor nu este activată.'},403);
  try{
   const raw=await req.text();if(Buffer.byteLength(raw)>5000)return response({error:'Cerere prea mare'},413);
   const input=JSON.parse(raw);if(!input||typeof input!=='object'||Array.isArray(input))return response({error:'Cerere invalidă'},400);
+  if(!offerBookingFlowEnabled(db,input.id,manualOfferBookingEnabled()))return response({error:'Programarea nu este activată pentru această ofertă.'},403);
   const schedule=db.transaction(()=>{
    if(latestAssistedOperation(db,input.id))throw new MarginError('Folosește propunerea operațională pentru schimbarea intervalului.',409);
    const owner=scheduleOwner(db,input.id,null),source=compatibleManualOffer(db,owner,input.id);
    if(source.jobId)throw new MarginError('Rezervarea există deja. Folosește fluxul de reprogramare a lucrării.',409);
    const result=saveOfferSchedule(db,input.id,input,actor);
+   if(result.action==='propose')validateSupplementSchedule(db,input.id,result.scheduled_date,result.scheduled_hour);
    auditAdminAction('assessment.schedule_'+result.action,source.row.assessment_id,{actorId:actor,offerId:input.id,revision:result.revision});
    return result;
   }).immediate();
