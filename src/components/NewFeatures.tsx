@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import {NewBadge} from './NewBadge';
-export function NewFeatures({compact=false}:{compact?:boolean}){return <section id="sec-noutati" className={compact?"mb-6":"design-container py-8"} aria-labelledby="new-features"><h2 id="new-features" className="text-2xl font-bold mb-5">Mai simplu, pentru tine și cei dragi</h2><div className="grid gap-4 md:grid-cols-3">{[
+import {UiText} from './UiText';
+export function NewFeatures({compact=false}:{compact?:boolean}){return <section id="sec-noutati" className={compact?"mb-6":"design-container py-8"} aria-labelledby="new-features"><h2 id="new-features" className="text-2xl font-bold mb-5"><UiText text="Mai simplu, pentru tine și cei dragi"/></h2><div className="grid gap-4 md:grid-cols-3">{[
  ['/client/planul-casei','Planul casei pentru tot anul','Alegi lunile dorite pentru locuințele tale; confirmi separat fiecare rezervare.'],
  ['/client/pregatire-oaspeti','Locuința pregătită pentru oaspeți','Urmărești ferestrele dintre sejururi, termenul de pregătire și raportul lucrării.'],
  ['/curatenie-de-primavara','Pregătește casa pentru primăvară','Configurezi curățenia generală, alegi suplimentele și verifici prețul înainte de publicare.'],
@@ -11,4 +12,4 @@ export function NewFeatures({compact=false}:{compact?:boolean}){return <section 
  ['/pentru-cei-dragi','Curățenie pentru cei dragi','Rezervi pentru cineva din România. Tu urmărești lucrarea, iar beneficiarul vede programarea partajată.'],
  ['/intervale-libere','Am liber săptămâna aceasta','Vezi intervalele publicate de firme și verificate pentru spațiul tău.'],
  ['/client/descrie-prin-poze','Descrie lucrarea prin poze','Încarci fotografii, verifici propunerea AI și continui rezervarea.']
-].map(([href,title,text])=><Link key={href} href={href} className="v2-card p-5 block focus-visible:outline-2"><NewBadge/><h3 className="font-bold text-lg my-3">{title}</h3><p className="text-sm leading-6">{text}</p><span className="inline-block underline font-semibold mt-4">Descoperă →</span></Link>)}</div></section>}
+].map(([href,title,text])=><Link key={href} href={href} className="v2-card p-5 block focus-visible:outline-2"><NewBadge/><h3 className="font-bold text-lg my-3"><UiText text={title}/></h3><p className="text-sm leading-6"><UiText text={text}/></p><span className="inline-block underline font-semibold mt-4"><UiText text="Descoperă →"/></span></Link>)}</div></section>}

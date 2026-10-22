@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import React,{act} from 'react';
+import {NextIntlClientProvider} from 'next-intl';
 import {createRoot,type Root} from 'react-dom/client';
 import {beforeEach,afterEach,it,expect,vi} from 'vitest';
 vi.mock('next/navigation',()=>({useRouter:()=>({push:vi.fn()})}));
@@ -11,7 +12,7 @@ import {FamilyBookingFields,FamilySharing} from './FamilyBooking';
 let root:Root,container:HTMLDivElement;
 beforeEach(()=>{Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});container=document.createElement('div');document.body.append(container);root=createRoot(container)});
 afterEach(async()=>{await act(()=>root.unmount());container.remove();vi.unstubAllGlobals()});
-async function render(node:React.ReactNode){await act(()=>root.render(node))}
+async function render(node:React.ReactNode){await act(()=>root.render(<NextIntlClientProvider locale="ro" messages={{ui:{}}} timeZone="Europe/Bucharest">{node}</NextIntlClientProvider>))}
 it('offers the customer entry points with NEW and an explicitly optional family beneficiary',async()=>{const change=vi.fn();await render(<><NewFeatures/><FamilyBookingFields value={null} onChange={change}/></>);expect(container.querySelector('a[href="/pentru-cei-dragi"]')).toBeTruthy();expect(container.querySelector('a[href="/intervale-libere"]')).toBeTruthy();expect(container.querySelector('a[href="/client/descrie-prin-poze"]')).toBeTruthy();expect(container.querySelector('a[href="/curatenie-de-primavara"]')).toBeTruthy();expect(container.querySelector('a[href="/client/rutina"]')).toBeTruthy();expect(container.textContent?.match(/NEW/g)).toHaveLength(11);await act(()=>container.querySelector('input')!.click());expect(change).toHaveBeenCalledWith({name:'',email:'',consent:false})});
 it('does not run photo analysis without consent, and states the manual fallback honestly',async()=>{vi.stubGlobal('fetch',vi.fn(async()=>Response.json({aiAvailable:false})));await render(<PhotoDescription/>);expect(fetch).toHaveBeenCalledTimes(1);expect(container.textContent).toContain('Analiza AI este momentan indisponibilă');expect(container.querySelector('textarea')?.maxLength).toBe(500);const use=Array.from(container.querySelectorAll('button')).find(b=>b.textContent==='Folosește în rezervare')!;expect(use.disabled).toBe(true);expect(container.querySelector<HTMLInputElement>('input[type=checkbox]')?.checked).toBe(false)});
 it('shows a real empty weekly result and never invents a bookable interval',async()=>{vi.stubGlobal('fetch',vi.fn(async()=>Response.json({options:[],pilotReady:false,pilotCity:null,checkedAt:'2026-10-21T15:00:00Z'})));await render(<WeekAvailability/>);await act(()=>container.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));expect(container.textContent).toContain('Firmele pregătesc primele intervale');expect(container.textContent).not.toContain('Solicită acest interval');expect(container.querySelector('a[href="/client#sec-form"]')).toBeTruthy()});
