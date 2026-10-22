@@ -22,3 +22,7 @@ Revenirea constă în republicarea sursei `66d75f172deabd8c032a546957b8b3d36ecb0
 ## Puncte care rămân deschise
 
 Rezervarea și plata separate ale suplimentului nu sunt activate de acest lot. Porțile pentru ofertele și rezervările administrate rămân limitate la sandbox. Configurațiile push FCM/APNs, destinația de backup extern și probele native rămân necesare; nu sunt înlocuite prin traduceri sau teste DOM.
+
+## Verificarea pregătirii financiare
+
+La revizia codului au fost identificate două porți de sandbox care respingeau `sk_live_`, dar nu și `rk_live_`. Ambele resping acum cele două tipuri de chei LIVE; gazda de producție și activarea explicită sunt verificate în continuare. Cele nouă teste noi acoperă aceste combinații, fără apeluri către Stripe și fără acces la chei reale. API-urile de plată, SDK-ul, prețurile, comisionul și mecanismul existent de HOLD/captură nu se schimbă.

@@ -12,7 +12,7 @@ import {EXPRESS_60_FEE_LEI} from './express60';
 export function managedBookingEnabled():boolean {
   return process.env.NITIDO_MANAGED_PRICING_SANDBOX==='true'
     && process.env.NEXT_PUBLIC_SITE_URL==='https://sandbox.nitido.ro'
-    && !process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_');
+    && !/^(?:sk|rk)_live_/.test(process.env.STRIPE_SECRET_KEY??'');
 }
 export const BOOKING_QUOTES_SCHEMA=`
 CREATE TABLE IF NOT EXISTS booking_price_quotes(
