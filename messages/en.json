@@ -4582,5 +4582,18 @@
   "t3c9be748_a446145c": "Open cases only",
   "tec44ced5_e61933b1": "Appointment reminders",
   "tf0aa30d_85592389": "Planning",
-  "tb8204ade_d0329f6a": "Spring cleaning"
+  "tb8204ade_d0329f6a": "Spring cleaning",
+  "t1ba66d2_411aa05e": "Additional work proposed for assessment",
+  "tb54408c0_db437484": "The company describes the additional work and proposed amount. The client can agree to submit it for assessment. The final price and separate booking require later confirmation; this step does not authorize the card or allow the additional work to start.",
+  "t46a76b0e_eb3fb64a": "I agree to submit this for assessment. I understand that I am not confirming a payment, a booking or the start of additional work.",
+  "t1ecb9bc7_8b87499b": "Accept for assessment",
+  "tde128525_70363a01": "Reject proposal",
+  "t944d5f0_78f8427c": "Proposed amount for assessment, lei",
+  "t7e482ed5_8e5058d9": "Additional area for assessment, m²",
+  "te0d1d455_342e8c71": "What does the additional work include and why is it needed?",
+  "t1a1bd545_6ea56ac9": "Send proposal to client",
+  "tfdec292a_c6de2d36": "Propose additional work",
+  "ted992e5d_71a8c061": "Accepted for assessment",
+  "tfcd871a5_10a17a09": "Proposed for assessment",
+  "t319f84c6_238a1712": "The proposal was submitted for assessment. No booking was created and the card was not authorized."
 }

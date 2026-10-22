@@ -19,6 +19,7 @@ import {BOOKING_QUOTES_SCHEMA} from "./bookingQuotes";
 import {MANAGED_PRICING_SCHEMA} from "./managedPricingStore";
 import {JOB_NAVIGATION_SCHEMA} from "./entrance";
 import {SEASON_CARE_SCHEMA} from './seasonCareSchema';
+import {EXTRA_WORK_SCHEMA} from './extraWorkSchema';
 import {APPOINTMENT_REMINDER_SCHEMA} from './appointmentReminderSchema';
 import {VISIT_CARE_SCHEMA} from "./visitCare";
 import {SAVED_CARDS_SCHEMA,initializeSavedCards} from "./savedCards";
@@ -509,6 +510,7 @@ export function initializeDatabase(db: Database.Database): void {
   initializeCatalog(db);
   db.exec(CATALOG_CAPACITY_SCHEMA);
   db.exec(ASSESSMENT_SCHEMA);
+  db.exec(EXTRA_WORK_SCHEMA);
   db.exec(MANUAL_ESTIMATE_SCHEMA);
   db.exec(MANUAL_OFFERS_SCHEMA);
 db.exec(MARGIN_POLICY_SCHEMA);

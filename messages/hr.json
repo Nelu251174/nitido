@@ -4582,5 +4582,18 @@
   "t3c9be748_a446145c": "Samo otvoreni predmeti",
   "tec44ced5_e61933b1": "Podsjetnici za termine",
   "tf0aa30d_85592389": "Planiranje",
-  "tb8204ade_d0329f6a": "Proljetno čišćenje"
+  "tb8204ade_d0329f6a": "Proljetno čišćenje",
+  "t1ba66d2_411aa05e": "Dodatni radovi predloženi za procjenu",
+  "tb54408c0_db437484": "Tvrtka opisuje dodatne radove i predloženi iznos. Klijent može prihvatiti slanje na procjenu. Konačna cijena i zasebna rezervacija zahtijevaju naknadnu potvrdu; ovaj korak ne autorizira karticu niti dopušta početak dodatnih radova.",
+  "t46a76b0e_eb3fb64a": "Prihvaćam slanje na procjenu. Razumijem da ne potvrđujem plaćanje, rezervaciju ni početak dodatnih radova.",
+  "t1ecb9bc7_8b87499b": "Prihvati za procjenu",
+  "tde128525_70363a01": "Odbij prijedlog",
+  "t944d5f0_78f8427c": "Predloženi iznos za procjenu, lei",
+  "t7e482ed5_8e5058d9": "Dodatna površina za procjenu, m²",
+  "te0d1d455_342e8c71": "Što uključuju dodatni radovi i zašto su potrebni?",
+  "t1a1bd545_6ea56ac9": "Pošalji prijedlog klijentu",
+  "tfdec292a_c6de2d36": "Predloži dodatne radove",
+  "ted992e5d_71a8c061": "Prihvaćeno za procjenu",
+  "tfcd871a5_10a17a09": "Predloženo za procjenu",
+  "t319f84c6_238a1712": "Prijedlog je poslan na procjenu. Rezervacija nije stvorena i kartica nije autorizirana."
 }
