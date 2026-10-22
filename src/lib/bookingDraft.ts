@@ -4,6 +4,9 @@ import {bookingDateKey} from './scheduling';
 import {SLOT_HOURS,validWindowsSqm,validBathroomCount,type SpaceType} from './pricing';
 
 export interface BookingDraft {
+ alertBatchId?:string|null;
+ preferredFirmId?:string|null;
+ repeatJobId?:string|null;
  beneficiary?:{name:string;email:string;consent:boolean}|null;
  weekSlot?:{slotId:string;revision:number;startsAt:string;firmName:string}|null;
  photoDraftId?:string|null;
@@ -45,7 +48,9 @@ function decode(raw:string|null,userId:string,now:number):BookingDraft|null{
   if(d.beneficiary!=null&&(!record(d.beneficiary)||!bounded(d.beneficiary.name,100)||!bounded(d.beneficiary.email,254)||typeof d.beneficiary.consent!=='boolean'))return null;
   if(d.weekSlot!=null&&(!record(d.weekSlot)||!id(d.weekSlot.slotId)||!Number.isInteger(d.weekSlot.revision)||!bounded(d.weekSlot.startsAt,30)||!bounded(d.weekSlot.firmName,300)))return null;
   if(d.photoDraftId!=null&&!id(d.photoDraftId))return null;
-  const features={...(d.beneficiary!==undefined?{beneficiary:d.beneficiary as BookingDraft['beneficiary']}:{}),...(d.weekSlot!==undefined?{weekSlot:d.weekSlot as BookingDraft['weekSlot']}:{}),...(d.photoDraftId!==undefined?{photoDraftId:d.photoDraftId as BookingDraft['photoDraftId']}:{} )};
+  if(d.alertBatchId!=null&&!id(d.alertBatchId))return null;
+  if(d.preferredFirmId!=null&&!id(d.preferredFirmId)||d.repeatJobId!=null&&!id(d.repeatJobId))return null;
+  const features={...(d.alertBatchId!==undefined?{alertBatchId:d.alertBatchId as string|null}:{}),...(d.preferredFirmId!==undefined?{preferredFirmId:d.preferredFirmId as string|null}:{}),...(d.repeatJobId!==undefined?{repeatJobId:d.repeatJobId as string|null}:{}),...(d.beneficiary!==undefined?{beneficiary:d.beneficiary as BookingDraft['beneficiary']}:{}),...(d.weekSlot!==undefined?{weekSlot:d.weekSlot as BookingDraft['weekSlot']}:{}),...(d.photoDraftId!==undefined?{photoDraftId:d.photoDraftId as BookingDraft['photoDraftId']}:{} )};
   const photos:BookingDraft['photos']=[];
   for(const p of d.photos){if(!record(p)||!id(p.id)||(p.room!==null&&!bounded(p.room,100)))return null;photos.push({id:p.id,url:`/api/uploads/${p.id}`,room:p.room as string|null});}
   // Reconstruct explicitly: never restore prices, card state, arbitrary image URLs or authorization.
