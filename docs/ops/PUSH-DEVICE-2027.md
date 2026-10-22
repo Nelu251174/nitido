@@ -65,3 +65,12 @@ Pluginul Firebase are instrucțiuni disponibile, dar catalogul de unelte al aces
 După autentificare: se identifică proiectul existent și aplicația Android exactă, se obține și se validează configurația Firebase prin canal securizat, apoi se verifică separat FCM și APNs. Pentru fiecare telefon se completează dovezile din «Proba fizică» înainte de închiderea probei native. Fluxul comercial folosește numai Stripe TEST; pilotul martie–august 2027 așteaptă confirmarea firmelor și verificarea capacității reale.
 
 Starea acestei reluări: **rețea verificată; conectare generată, autentificare în așteptare; recepție Android/iPhone NETESTATĂ; pilot NEACTIVAT**. Constatările LIVE și blocajul GitHub Actions din secțiunea precedentă sunt dovezi istorice și nu au fost reverificate în această reluare.
+
+### Verificarea accesului și a bindingurilor după primul răspuns OAuth
+
+- Autentificarea CLI a reușit, dar `projects:list --json` a întors succes cu lista goală. Acest rezultat înseamnă că primul cont conectat nu vede proiecte Firebase; nu dovedește inexistența proiectului NÍTIDO. Nu s-a creat un proiect nou.
+- Sesiunea inițială a fost deconectată, iar revocarea OAuth a fost confirmată cu HTTP 200. A fost generată o conectare nouă pentru contul administrator indicat ulterior de beneficiar. Codurile și tokenurile nu se includ în acest document.
+- API-ul Coolify a fost consultat numai în citire pentru aplicațiile LIVE și sandbox. Ambele raportează `running:healthy`. Lipsesc bindingurile `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `GOOGLE_SERVICES_JSON`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`, `APNS_BUNDLE_ID` și `APNS_USE_SANDBOX` în ambele aplicații. LIVE nu are binding `PUSH_ENABLED`; în sandbox cheia există, dar prezența ei singură nu dovedește activarea push. Nu se afișează valori de secrete.
+- Nu s-a modificat configurația Coolify, nu s-a făcut deployment și nu s-au trimis notificări. Înregistrarea dispozitivelor și capacitatea firmelor pentru pilot nu au fost reverificate în această etapă.
+
+Următoarea dependență este finalizarea conectării cu administratorul proiectului existent, apoi identificarea aplicației Android `ro.nitido.app`. Recepția pe ambele telefoane rămâne NETESTATĂ, iar pilotul rămâne NEACTIVAT.
