@@ -1,0 +1,2 @@
+import Link from 'next/link';import {HostReadiness} from '@/components/SeasonCareViews';import {UiText} from '@/components/UiText';
+export default function Page(){return <main id="main-content" className="design-container max-w-5xl py-10"><Link href="/client"><UiText text="Contul meu"/></Link><h1 className="text-2xl font-bold my-6"><UiText text="Locuința pregătită pentru oaspeți"/></h1><HostReadiness/></main>}

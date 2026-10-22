@@ -48,6 +48,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/scripts/express60-runner.mjs ./sc
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/recurring-runner.mjs ./scripts/recurring-runner.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/financial-recovery-runner.mjs ./scripts/financial-recovery-runner.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/notification-recovery-runner.mjs ./scripts/notification-recovery-runner.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/appointment-reminders-runner.mjs ./scripts/appointment-reminders-runner.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/availability-alerts-runner.mjs ./scripts/availability-alerts-runner.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/owner-notifications-runner.mjs ./scripts/owner-notifications-runner.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/store-download-report-runner.mjs ./scripts/store-download-report-runner.mjs

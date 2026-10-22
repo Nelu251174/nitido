@@ -1,0 +1,8 @@
+import {afterEach,beforeEach,it,expect,vi} from 'vitest';import {NextRequest} from 'next/server';
+const m=vi.hoisted(()=>({run:vi.fn(),metrics:vi.fn(),enabled:false}));vi.mock('@/lib/db',()=>({db:{}}));vi.mock('@/lib/appointmentReminders',()=>({processAppointmentReminders:m.run,appointmentReminderMetrics:m.metrics,appointmentReminderConfig:()=>({enabled:m.enabled})}));
+import {GET,POST} from './route';
+const key='synthetic-test-secret-not-a-live-key';const req=(secret='',method='POST')=>new NextRequest('https://sandbox.nitido.ro/api/cron/appointment-reminders',{method,headers:{'x-cron-secret':secret}});
+beforeEach(()=>{vi.clearAllMocks();vi.stubEnv('NITIDO_APPOINTMENT_CRON_SECRET',key);m.enabled=false;m.metrics.mockReturnValue({deliveries:[]});m.run.mockResolvedValue({queued:0,sent:0,suppressed:0,blocked:0})});afterEach(()=>vi.unstubAllEnvs());
+it('denies missing/wrong secrets and never runs dispatch on a status read',async()=>{expect((await POST(req())).status).toBe(401);expect((await GET(req('wrong','GET'))).status).toBe(401);expect((await GET(req(key,'GET'))).status).toBe(200);expect(m.run).not.toHaveBeenCalled()});
+it('is disabled by default and runs only after explicit activation',async()=>{expect((await (await POST(req(key))).json()).status).toBe('disabled');expect(m.run).not.toHaveBeenCalled();m.enabled=true;expect((await (await POST(req(key))).json()).status).toBe('completed');expect(m.run).toHaveBeenCalledOnce()});
+it('does not leak internal errors in failed dispatch',async()=>{m.enabled=true;m.run.mockRejectedValue(Error('private error'));const r=await POST(req(key));expect(r.status).toBe(503);expect(JSON.stringify(await r.json())).not.toContain('private error')});
