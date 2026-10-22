@@ -1,0 +1,28 @@
+name: NITIDO retention and availability verification
+on:
+  push:
+    branches: [codex/retention-availability-20261022]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Feature lint
+        run: npx eslint src/lib/clientRetention.ts src/lib/retentionSchema.ts src/lib/availabilityAlerts.ts src/lib/availabilityAlertsSchema.ts src/lib/availabilityAlertDates.ts src/components/FavoriteFirms.tsx src/components/AvailabilityAlerts.tsx src/components/ClientMobileNavigation.tsx src/app/api/client/favorites/route.ts src/app/api/client/availability-alerts/route.ts 'src/app/api/jobs/[id]/repeat/route.ts' src/app/api/cron/availability-alerts/route.ts src/app/client/page.tsx src/app/api/jobs/route.ts src/components/JobExecutionDetail.tsx
+      - name: Full test suite
+        run: npx vitest run
+      - name: Production build and typecheck
+        env:
+          NEXT_PUBLIC_SITE_URL: https://nitido.ro
+          STRIPE_SECRET_KEY: sk_test_ci_dummy
+        run: npm run build

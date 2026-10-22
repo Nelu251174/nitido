@@ -1,3 +1,5 @@
+import {attachAlertOrigin} from '@/lib/availabilityAlerts';
+import {attachPreferredFirm,attachRepeatOrigin,RetentionError} from '@/lib/clientRetention';
 import {attachBeneficiary,hasBeneficiary,FamilyError} from '@/lib/familyBooking';
 import {attachOpeningRequest,openingRequest,AvailabilityError} from '@/lib/weeklyAvailability';
 import {ownScopeDraft,consumeScopeDraft,PhotoScopeError} from '@/lib/photoScope';
@@ -174,6 +176,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(()=>null);
   if(!body||typeof body!=="object")return NextResponse.json({error:"Cerere invalidă"},{status:400});
   try{configuredServiceMarket(body);}catch(error){if(error instanceof ServiceMarketError)return NextResponse.json({error:error.message,countryCode:error.countryCode,currency:error.currency},{status:error.status});throw error;}
+  if(body.preferredFirmId!=null&&(typeof body.preferredFirmId!=='string'||!body.preferredFirmId||body.preferredFirmId.length>100||body.mode!=='standard'||body.express60||body.weekSlot||body.flexibleWindows||body.manualOfferId||body.hostEventId||body.approvalId))return NextResponse.json({error:'Firma preferată se solicită printr-o cerere Standard obișnuită. Elimină preferința pentru alt flux.'},{status:400});
+  if(body.alertBatchId!=null&&(typeof body.alertBatchId!=='string'||!body.alertBatchId||body.alertBatchId.length>100))return NextResponse.json({error:'Referință de alertă invalidă'},{status:400});
+  if(body.repeatJobId!=null&&(typeof body.repeatJobId!=='string'||!body.repeatJobId||body.repeatJobId.length>100))return NextResponse.json({error:'Referință invalidă'},{status:400});
   if(body.weekSlot&&(body.flexibleWindows||body.manualOfferId||body.hostEventId||body.approvalId||body.mode!=='standard'||body.express60))return NextResponse.json({error:"Alege o cerere Standard obișnuită pentru intervalul firmei."},{status:400});
   if(body.flexibleWindows!=null){try{if(body.manualOfferId||body.hostEventId||body.approvalId||body.mode!=='standard'||body.express60)throw new FlexibleError('Programarea flexibilă este disponibilă pentru cereri Standard obișnuite.');requireFlexiblePilot(String(body.city??''));const w=validateFlexibleWindows(body.flexibleWindows);body.flexibleWindows=w;body.whenType='scheduled';body.scheduledDate=w[0].date;body.scheduledHour=w[0].from;}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Intervale invalide'},{status:400});}}
   const manual=body.manualOfferId!=null;
@@ -385,8 +390,11 @@ export async function POST(req: NextRequest) {
     const operation=jobAssistedOperation(db,id);
     const frozenTerms=bookingTerms({durationMinutes,bufferMinutes,grossLei:priceGross,creditLei:creditUsed,bathroomCount:manual?undefined:bathroomCount,inclusions:jobExecutionRules(db,id).items,team:operation?{id:operation.teamId,name:operation.teamName}:null});
     db.prepare("UPDATE jobs SET pricing_snapshot=?, windows_sqm=?, bathroom_count=? WHERE id=?").run(JSON.stringify({...manualSnapshot??acceptedPrice??pricingSnapshot({spaceType,sqm,windowsSqm,bathroomCount,expressFeeLei:express60Fee,creditLei:creditUsed}),bookingTerms:frozenTerms}),windowsSqm,manual?null:bathroomCount,id);
+    if(body.preferredFirmId)attachPreferredFirm(db,id,user.id,body.preferredFirmId);
+    if(body.repeatJobId)attachRepeatOrigin(db,id,user.id,body.repeatJobId);
     if(body.beneficiary)attachBeneficiary(db,id,user.id,body.beneficiary);
     if(body.weekSlot)attachOpeningRequest(db,id,user.id,String(body.weekSlot.slotId),Number(body.weekSlot.revision),String(body.weekSlot.startsAt));
+    if(body.alertBatchId&&body.weekSlot)attachAlertOrigin(db,id,user.id,body.alertBatchId);
     if (ownedPhotoIds.length > 0) {
       const linkPhoto = db.prepare("UPDATE job_photos SET job_id = ? WHERE id = ? AND owner_user_id = ? AND job_id IS NULL AND NOT EXISTS(SELECT 1 FROM assessment_photos a WHERE a.photo_id=job_photos.id)");
       for (const photoId of ownedPhotoIds) linkPhoto.run(id, photoId, user.id);
@@ -399,7 +407,7 @@ export async function POST(req: NextRequest) {
     if(linked){enforceOrganizationBooking(db,linked.property_id,id);enforcePropertyBudget(db,linked.property_id,id);snapshotInstructions(db,id,linked.property_id,user.id,ordinaryHome&&typeof details==="string"?details:undefined);}
     return { job: db.prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow, replayed: false };
   }).immediate();
-  } catch(e) { if(e instanceof FamilyError || e instanceof AvailabilityError || e instanceof PhotoScopeError || e instanceof FlexibleError || e instanceof CustomerRestrictionError || e instanceof MarginError || e instanceof ManagedPricingError || e instanceof AccessError || e instanceof OrganizationError || e instanceof WorkspaceError || e instanceof CardSetupError)return NextResponse.json({error:e.message},{status:e.status}); throw e; }
+  } catch(e) { if(e instanceof RetentionError || e instanceof FamilyError || e instanceof AvailabilityError || e instanceof PhotoScopeError || e instanceof FlexibleError || e instanceof CustomerRestrictionError || e instanceof MarginError || e instanceof ManagedPricingError || e instanceof AccessError || e instanceof OrganizationError || e instanceof WorkspaceError || e instanceof CardSetupError)return NextResponse.json({error:e.message},{status:e.status}); throw e; }
   if (created.replayed) return NextResponse.json({ job: created.job, replayed: true });
   const job = created.job;
 

@@ -1,4 +1,6 @@
 "use client";
+import {NewBadge} from '@/components/NewBadge';
+import {PreferredFirmChoice} from '@/components/FavoriteFirms';
 import type {FlexibleWindow} from "@/lib/flexibleShared";
 import {validateFlexibleWindows} from "@/lib/flexibleShared";
 import {FlexibleChoice} from "@/components/FlexibleChoice";
@@ -153,6 +155,9 @@ export default function ClientPage() {
   const [postalCode, setPostalCode] = useState("");
   const [city, setCity] = useState("");
   const [floor, setFloor] = useState("");
+  const [alertBatchId,setAlertBatchId]=useState<string|null>(null);
+  const [preferredFirmId,setPreferredFirmId]=useState<string|null>(null);
+  const [repeatJobId,setRepeatJobId]=useState<string|null>(null);
   const [details,setDetails]=useState("");
   const [bathroomCount,setBathroomCount]=useState(1);
   const [windowsSqm,setWindowsSqm]=useState(0);
@@ -243,7 +248,7 @@ export default function ClientPage() {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- restore external tab storage only after the authenticated account is known
         setEntrance(draft.entrance??null);setStreet(draft.street);setPostalCode(draft.postalCode);setCity(draft.city);setFloor(draft.floor);setDetails(draft.details);
         setBathroomCount(draft.bathroomCount??1);setWindowsSqm(draft.windowsSqm??0);setSqm(draft.sqm);setSpaceType(draft.spaceType);setWhenType(draft.whenType);setMode(draft.mode);setExpress60(draft.express60);
-        setBeneficiary(draft.beneficiary??null);setWeekSlot(draft.weekSlot??null);setPhotoDraftId(draft.photoDraftId??null);setFlexibleWindows(draft.flexibleWindows??null);setScheduledDate(draft.scheduledDate);setScheduledHour(draft.scheduledHour);
+        setAlertBatchId(draft.alertBatchId??null);setPreferredFirmId(draft.preferredFirmId??null);setRepeatJobId(draft.repeatJobId??null);setBeneficiary(draft.beneficiary??null);setWeekSlot(draft.weekSlot??null);setPhotoDraftId(draft.photoDraftId??null);setFlexibleWindows(draft.flexibleWindows??null);setScheduledDate(draft.scheduledDate);setScheduledHour(draft.scheduledHour);
         restoredCardId.current=draft.cardId??null;
         setHostEventId(draft.hostEventId??null);setHostRevision(draft.hostRevision??null);setPropertyId(draft.propertyId);setApprovalId(draft.approvalId);setPhotos(draft.photos);setShowBooking(true);
         setDraftNotice(params.get('card')==='cancelled'?'Adăugarea cardului a fost anulată. Rezervarea ta este păstrată.':'Rezervarea ta a fost restaurată. Verifică detaliile înainte de publicare.');
@@ -363,7 +368,7 @@ export default function ClientPage() {
       }
       if(showBooking){
         let saved=false;
-        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{beneficiary,weekSlot,photoDraftId,flexibleWindows,street,postalCode,city,floor,details,sqm,windowsSqm,bathroomCount,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,hostEventId,hostRevision,photos,cardId:selectedCardId,entrance:entrance&&validEntrance(entrance,{street,city,postalCode})?entrance:undefined}));}catch{/* Storage can be blocked by the browser. */}
+        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{alertBatchId,preferredFirmId,repeatJobId,beneficiary,weekSlot,photoDraftId,flexibleWindows,street,postalCode,city,floor,details,sqm,windowsSqm,bathroomCount,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,hostEventId,hostRevision,photos,cardId:selectedCardId,entrance:entrance&&validEntrance(entrance,{street,city,postalCode})?entrance:undefined}));}catch{/* Storage can be blocked by the browser. */}
         if(!saved){setCardError('Rezervarea nu poate fi păstrată în această filă. Permite stocarea pentru site și încearcă din nou.');setCardBusy(false);return;}
       }else{try{clearBookingDraft(window.sessionStorage);}catch{/* No draft to preserve. */}}
       window.location.href = d.url; // redirect către pagina de card găzduită de Stripe
@@ -434,7 +439,7 @@ export default function ClientPage() {
     try {
       if(flexibleWindows)validateFlexibleWindows(flexibleWindows);
       const body: Record<string, unknown> = {
-        beneficiary,weekSlot,photoDraftId,
+        alertBatchId,preferredFirmId,repeatJobId,beneficiary,weekSlot,photoDraftId,
         entrance:entrance&&validEntrance(entrance,{street,city,postalCode})?entrance:undefined,
         street,
         postalCode,
@@ -660,7 +665,7 @@ export default function ClientPage() {
         <div className={`client-content-grid ${showBooking&&!job?"with-detail":""}`}>
         <div className="min-w-0">
         {myJobs.filter(j=>j.status==="waiting"&&["requires_action","requires_confirmation"].includes(j.authorizationStatus??"")).map(j=><section key={j.id} className="v2-card p-5 mb-4"><h2 className="font-bold"><UiText text={"Confirmarea cardului este necesară"}/></h2><p className="text-sm text-muted mt-2">{j.city} · {j.sqm}<UiText text={" m². Banca solicită confirmarea autorizării pentru această lucrare."}/></p><Link href={`/client/plata/${encodeURIComponent(j.id)}`} className="inline-block mt-3 font-bold text-aqua-deep underline"><UiText text={"Confirmă prin bancă"}/></Link></section>)}
-        {!job&&!showBooking&&<section id="sec-lucrari" className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold"><UiText text={"Rezervările tale recente"}/></h2><span className="text-xs text-[#6b756f]">{myJobs.length}<UiText text={" total"}/></span></div>{myJobs.length===0?<div className="mt-4"><p className="text-sm text-muted"><UiText text={"Nu ai rezervări încă."}/></p><button type="button" className="v2-btn v2-btn-primary mt-4" onClick={goToForm}><UiText text={"Configurează o rezervare"}/></button></div>:<><UiElement as="input" aria-label="Caută rezervări" className={`${inputClass} mt-3`} value={historyFilter} onChange={e=>setHistoryFilter(e.target.value)} placeholder="Caută rezervare sau status…"/><div className="mt-3 divide-y divide-[#e2e8f0]">{myJobs.filter(item=>`${item.city} ${item.street} ${JOB_STATUS[item.status]}`.toLowerCase().includes(historyFilter.toLowerCase())).map(item=><button key={item.id} onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[var(--nitido-brand-soft)] flex items-center justify-center text-[var(--nitido-brand-dark)] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate"><UiSpaceType value={item.space_type}/> · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm}<UiText text={" m² · "}/>{<UiText text={JOB_STATUS[item.status]}/>}</span></span><b className="text-sm">{item.price_gross}<UiText text={" lei"}/></b></button>)}</div></>}</section>}
+        {!job&&!showBooking&&<section id="sec-lucrari" className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold"><UiText text={"Rezervările tale recente"}/></h2><span className="text-xs text-[#6b756f]">{myJobs.length}<UiText text={" total"}/></span></div>{myJobs.length===0?<div className="mt-4"><p className="text-sm text-muted"><UiText text={"Nu ai rezervări încă."}/></p><button type="button" className="v2-btn v2-btn-primary mt-4" onClick={goToForm}><UiText text={"Configurează o rezervare"}/></button></div>:<><UiElement as="input" aria-label="Caută rezervări" className={`${inputClass} mt-3`} value={historyFilter} onChange={e=>setHistoryFilter(e.target.value)} placeholder="Caută rezervare sau status…"/><div className="mt-3 divide-y divide-[#e2e8f0]">{myJobs.filter(item=>`${item.city} ${item.street} ${JOB_STATUS[item.status]}`.toLowerCase().includes(historyFilter.toLowerCase())).map(item=><div key={item.id}><button onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[var(--nitido-brand-soft)] flex items-center justify-center text-[var(--nitido-brand-dark)] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate"><UiSpaceType value={item.space_type}/> · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm}<UiText text={" m² · "}/>{<UiText text={JOB_STATUS[item.status]}/>}</span></span><b className="text-sm">{item.price_gross}<UiText text={" lei"}/></b></button>{item.status==="completed"&&<a className="inline-flex items-center gap-2 underline font-semibold min-h-11" href={"/client?repeatJobId="+encodeURIComponent(item.id)+"#sec-form"}>Rezervă din nou <NewBadge/></a>}</div>)}</div></>}</section>}
         {!job && !showBooking && <RecurringSection defaults={{ street, postalCode, city, floor, sqm, spaceType }} />}
         {!job && !showBooking && <BusinessSection />}
         {!job && !showBooking && user?.referral_code && (
@@ -708,6 +713,8 @@ export default function ClientPage() {
             <h1 className="font-display font-extrabold text-xl text-ink mb-1"><UiText text={"Postează o lucrare"}/></h1>
             <p className="text-sm text-muted mb-5 leading-relaxed"><UiText text={"Completează detaliile — vezi prețul înainte de publicare."}/></p><p className="text-sm text-muted mb-3"><UiText text={BOOKING_DURATION_NOTICE}/></p>{Number.isFinite(Number(sqm))&&Number(sqm)>0&&validWindowsSqm(windowsSqm)&&<p className="text-sm text-muted mb-3"><UiText text={"Intervenție programată la locație: "}/>{calcServiceDuration(Number(sqm),windowsSqm)}<UiText text={" minute, plus buffer separat."}/></p>}<p className="text-sm text-muted mb-3"><UiText text={BOOKING_TEAM_NOTICE}/></p><p className="text-sm text-muted mb-3"><UiText text={AUTHORIZATION_NOTICE}/></p><p className="text-sm text-muted mb-3"><UiText text={CREDIT_POLICY_NOTICE}/></p>
 
+            {repeatJobId&&<p className="text-sm my-4">Alegi un program nou și confirmi prețul actual înainte de publicare.</p>}
+            <PreferredFirmChoice value={preferredFirmId} onChange={setPreferredFirmId}/>
             <FamilyBookingFields value={beneficiary} onChange={setBeneficiary}/>
             {featureLoading&&<p role="status">Se încarcă detaliile selectate…</p>}
             {photoDraftId&&<p className="rounded border p-3">Descrierea și pozele au fost aduse din ciorna ta privată. Le poți corecta mai jos înainte de publicare.</p>}
