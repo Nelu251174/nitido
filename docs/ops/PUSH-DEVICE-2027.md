@@ -44,3 +44,24 @@ Configurat ≠ provider acceptat ≠ telefon confirmat. Cele trei rezultate sunt
 - 65 de teste push/interfață și 3 teste ale configurației Firebase au trecut local. Buildul web, TypeScript și lintul au trecut. Testele providerilor folosesc simulări; recepția fizică rămâne NETESTATĂ.
 - GitHub Actions nu a pornit joburile: «The job was not started because your account is locked due to a billing issue.» Dovadă: https://github.com/Nelu251174/nitido/actions/runs/39849441149 . Din acest motiv, prezența credențialelor în GitHub și starea actuală Apple nu au putut fi reverificate prin joburile pregătite.
 - Nu s-a schimbat configurația push LIVE, nu s-a trimis un nou build în magazine și nu s-au trimis notificări de demonstrație utilizatorilor. Corecțiile sunt în PR-ul 135; publicarea se face după verificarea candidatului.
+
+## Reluare — 23 octombrie 2026, Europe/Bucharest
+
+Verificare din mediul cloud reluat (22 octombrie, aproximativ 22:10 UTC), prin proxy-ul configurat și cu verificarea TLS activă:
+
+| Destinație | Răspuns HTTPS fără autentificare | Interpretare |
+|---|---|---|
+| `https://auth.firebase.tools/` | 302 | Serviciul de conectare este accesibil |
+| `https://accounts.google.com/` | 302 | Serviciul Google de autentificare este accesibil |
+| `https://oauth2.googleapis.com/token` | 404 pentru GET fără parametri | Domeniul răspunde; schimbul OAuth nu a fost verificat |
+| `https://firebase.googleapis.com/v1beta1/projects` | 401 | API-ul răspunde și cere autentificare |
+
+Prima încercare, fără acces de rețea acordat comenzii, nu a putut conecta proxy-ul. Aceeași verificare a reușit după acordarea accesului de rețea comenzii, păstrând proxy-ul și politica de destinații. Răspunsurile de mai sus confirmă accesul HTTPS, nu drepturile asupra proiectului.
+
+Node.js `24.19.0` și Firebase CLI `15.34.1` sunt disponibile. CLI-ul oficial a generat conectarea fără localhost. Finalizarea așteaptă autentificarea beneficiarului cu un cont Google care are acces la proiectul Firebase existent și codul de autorizare emis de Firebase. `support@nitido.ro` este contul aplicației pentru proba fizică; nu se presupune că este și administrator Firebase. Linkul temporar, codul de autorizare și credențialele CLI nu se salvează în Git.
+
+Pluginul Firebase are instrucțiuni disponibile, dar catalogul de unelte al acestei sesiuni nu expune un server Firebase MCP. Generarea linkului prin CLI nu confirmă o conexiune a pluginului. Nu a fost creat sau selectat un proiect alternativ și identitatea `ro.nitido.app` este păstrată.
+
+După autentificare: se identifică proiectul existent și aplicația Android exactă, se obține și se validează configurația Firebase prin canal securizat, apoi se verifică separat FCM și APNs. Pentru fiecare telefon se completează dovezile din «Proba fizică» înainte de închiderea probei native. Fluxul comercial folosește numai Stripe TEST; pilotul martie–august 2027 așteaptă confirmarea firmelor și verificarea capacității reale.
+
+Starea acestei reluări: **rețea verificată; conectare generată, autentificare în așteptare; recepție Android/iPhone NETESTATĂ; pilot NEACTIVAT**. Constatările LIVE și blocajul GitHub Actions din secțiunea precedentă sunt dovezi istorice și nu au fost reverificate în această reluare.
