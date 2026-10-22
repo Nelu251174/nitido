@@ -6,10 +6,11 @@ import {backupConfig,backupLayout,verifyReceiver,prepareReceiverTrust,resticComm
 const action=process.argv[2];
 async function report(result){const line=JSON.stringify({marker:'NITIDO_OFFSITE_OPERATION_V1',action,...result})+'\n';console.log(line.trim());try{await writeFile('/proc/1/fd/1',line)}catch{}}
 try{
- if(!['preflight','init','status'].includes(action))throw new BackupError('BACKUP_ADMIN_ARGUMENT_INVALID');
+ if(!['preflight','init','status','verify'].includes(action))throw new BackupError('BACKUP_ADMIN_ARGUMENT_INVALID');
  const layout=await backupLayout('/app');
- if(action==='status'){
+ if(action==='status'||action==='verify'){
   let status;try{status=JSON.parse(await readFile(layout.status,'utf8'))}catch(e){if(e.code==='ENOENT')status={status:'not_run'};else throw e}
+  if(action==='verify'&&(status.status!=='passed'||status.restoreVerified!==true||status.encrypted!==true||status.receiverVerified!==true||status.mode!=='external-rest'||!Number.isFinite(Date.parse(status.lastSuccessfulAt))||Date.now()-Date.parse(status.lastSuccessfulAt)>26*3600000))throw new BackupError('BACKUP_FRESH_VERIFIED_COPY_REQUIRED');
   await report(status);
  }else{
   // Explicit operator bootstrap only; scheduled backups never initialize repositories.
@@ -20,6 +21,7 @@ try{
    await resticCommand('/usr/local/bin/restic',['init'],{env,timeoutMs:120000});
    const result=await resticCommand('/usr/local/bin/restic',['cat','config'],{env,timeoutMs:60000,capture:'json'});
    if(!/^[a-f0-9]{64}$/.test(result.id??''))throw new BackupError('BACKUP_REPOSITORY_ID_REQUIRED');
+   await writeFile(join(layout.base,'repository-id'),result.id+'\n',{flag:'wx',mode:0o600});
    await report({status:'initialized',scope:config.scope,repositoryId:result.id,...receiver});
   }else await report({status:'passed',scope:config.scope,sourceBootHash:bootHash,...receiver});
  }

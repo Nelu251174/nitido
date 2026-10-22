@@ -30,3 +30,16 @@ test('real receiver authenticates health, encrypts a REST repository and isolate
  }finally{if(receiver)await receiver.close();await rm(root,{recursive:true,force:true})}
 });
 test('production receiver refuses to expose a plaintext transport',async()=>{await assert.rejects(startReceiver({env:await env()}),/RECEIVER_TLS_REQUIRED/)});
+test('TLS receiver and Restic accept only the pinned certificate',async()=>{
+ const {execFile}=await import('node:child_process');const {promisify}=await import('node:util');const {readFile}=await import('node:fs/promises');const {receiverRequest}=await import('../../scripts/offsite-backup.mjs');const root=await mkdtemp(join(tmpdir(),'nitido-receiver-tls-'));let receiver;
+ try{
+  const cert=join(root,'tls.pem'),key=join(root,'tls.key');await promisify(execFile)('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-keyout',key,'-out',cert,'-days','365','-subj','/CN=localhost','-addext','subjectAltName=DNS:localhost'],{maxBuffer:65536});
+  const e=await env();e.NITIDO_RECEIVER_TLS_CERT_BASE64=(await readFile(cert)).toString('base64');e.NITIDO_RECEIVER_TLS_KEY_BASE64=(await readFile(key)).toString('base64');await writeFile(join(root,'boot'),'independent-tls-test-kernel');
+  receiver=await startReceiver({env:e,data:join(root,'data'),bootPath:join(root,'boot'),binary:restServer,backendPort:await port(),port:0});const base='https://localhost:'+receiver.server.address().port;
+  const result=await receiverRequest(base+'/_nitido-backup-health',{headers:{'x-nitido-health':e.NITIDO_RECEIVER_HEALTH_TOKEN},signal:AbortSignal.timeout(5000)},await readFile(cert,'utf8'));assert.equal(result.status,200);assert.equal((await result.json()).service,'nitido-offsite-receiver-v1');
+  await assert.rejects(receiverRequest(base+'/_nitido-backup-health',{headers:{},signal:AbortSignal.timeout(5000)},'incorrect-ca'));
+  const client={RESTIC_REPOSITORY:'rest:'+base+'/nitido-live/backup/',RESTIC_REST_USERNAME:'nitido-live',RESTIC_REST_PASSWORD:'synthetic-live-rest-password',RESTIC_PASSWORD:'synthetic-encryption-password-at-least-32-characters',RESTIC_CACHE_DIR:join(root,'cache'),RESTIC_CACERT:cert};
+  await resticCommand(restic,['init'],{env:client,timeoutMs:30000});const config=await resticCommand(restic,['cat','config'],{env:client,timeoutMs:30000,capture:'json'});assert.match(config.id,/^[a-f0-9]{64}$/);
+  await assert.rejects(resticCommand(restic,['cat','config'],{env:{...client,RESTIC_CACERT:undefined},timeoutMs:30000}));
+ }finally{if(receiver)await receiver.close();await rm(root,{recursive:true,force:true})}
+});

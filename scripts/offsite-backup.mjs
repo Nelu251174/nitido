@@ -39,6 +39,12 @@ export function backupConfig(env,{allowLocalRepository=false}={}){
  Object.assign(childEnv,{RESTIC_REPOSITORY:repository,RESTIC_PASSWORD:env.RESTIC_PASSWORD});
  return {enabled:true,scope,host:'nitido-'+scope,local,backend,healthUrl,tlsCA,healthToken:env.NITIDO_BACKUP_HEALTH_TOKEN,repositoryId:env.NITIDO_OFFSITE_REPOSITORY_ID,timeoutMs:timeout*1000,childEnv};
 }
+export async function backupRuntimeConfig(env,{appRoot='/app',allowLocalRepository=false}={}){
+ if(env.NITIDO_OFFSITE_BACKUP_ENABLED!=='true')return {enabled:false};
+ if(env.NITIDO_OFFSITE_REPOSITORY_ID)return backupConfig(env,{allowLocalRepository});
+ const file=join((await backupLayout(appRoot)).base,'repository-id');const st=await lstat(file);if(st.isSymbolicLink()||!st.isFile())fail('BACKUP_PIN_UNSAFE');
+ const id=(await readFile(file,'utf8')).trim();return backupConfig({...env,NITIDO_OFFSITE_REPOSITORY_ID:id},{allowLocalRepository});
+}
 async function directory(path){await mkdir(path,{recursive:true,mode:0o700});const s=await lstat(path);if(!s.isDirectory()||s.isSymbolicLink())fail('BACKUP_UNSAFE_DIRECTORY');await chmod(path,0o700)}
 export async function backupLayout(appRoot){
  const root=resolve(appRoot);if(await realpath(root)!==root)fail('BACKUP_APP_SYMLINK');
@@ -128,7 +134,7 @@ export async function verifyReceiver(config,{request=null,bootPath='/proc/sys/ke
  return {independentMachine:true,freeBytes:body.freeBytes,quotaBytes:body.quotaBytes};
 }
 export async function runOffsiteBackup({env=process.env,appRoot='/app',resticBinary='/usr/local/bin/restic',allowLocalRepository=false,now=new Date(),command=resticCommand}={}){
- const config=backupConfig(env,{allowLocalRepository});if(!config.enabled)return {status:'disabled',uploaded:false};
+ const config=await backupRuntimeConfig(env,{appRoot,allowLocalRepository});if(!config.enabled)return {status:'disabled',uploaded:false};
  const layout=await backupLayout(appRoot);await prepareReceiverTrust(config,layout);const childEnv={...config.childEnv,RESTIC_CACHE_DIR:join(layout.base,'cache')};
  const deadline=Date.now()+config.timeoutMs;
  const run=(args,capture='none')=>{const remaining=deadline-Date.now();if(remaining<=0)fail('BACKUP_RESTIC_TIMEOUT');return command(resticBinary,args,{env:childEnv,timeoutMs:remaining,capture})};

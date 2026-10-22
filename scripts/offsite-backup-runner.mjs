@@ -1,9 +1,9 @@
 import {spawn} from 'node:child_process';
 import {lstat,open} from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
-import {backupConfig,backupLayout,runOffsiteBackup,BackupError} from './offsite-backup.mjs';
+import {backupRuntimeConfig,backupLayout,runOffsiteBackup,BackupError} from './offsite-backup.mjs';
 export async function runBackupProcess({env=process.env,args=process.argv.slice(2)}={}){
- const config=backupConfig(env);if(!config.enabled)return {status:'disabled',uploaded:false};
+ const config=await backupRuntimeConfig(env);if(!config.enabled)return {status:'disabled',uploaded:false};
  if(args.length===1&&args[0]==='--locked')return await runOffsiteBackup({env});
  if(args.length)throw new BackupError('BACKUP_ARGUMENT_INVALID');
  const layout=await backupLayout('/app');
