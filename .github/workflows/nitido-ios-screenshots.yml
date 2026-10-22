@@ -1,0 +1,33 @@
+name: NITIDO upload inspected native screenshots (no submission)
+on:
+  push:
+    branches: [codex/nitido-ios-release-preparation]
+    paths:
+      - scripts/store-ios-screenshots.py
+      - .github/workflows/nitido-ios-screenshots.yml
+permissions:
+  contents: read
+  actions: read
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pyjwt cryptography pillow
+      - uses: actions/download-artifact@v4
+        with:
+          name: nitido-app-store-native-captures
+          run-id: 38033322382
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/native-captures
+      - name: Upload two verified public screenshots to the existing manual draft
+        env:
+          CAPTURE_INPUT: ${{ runner.temp }}/native-captures
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: python scripts/store-ios-screenshots.py
