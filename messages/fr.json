@@ -4582,5 +4582,18 @@
   "t3c9be748_a446145c": "Dossiers ouverts uniquement",
   "tec44ced5_e61933b1": "Rappels de rendez-vous",
   "tf0aa30d_85592389": "Planification",
-  "tb8204ade_d0329f6a": "Nettoyage de printemps"
+  "tb8204ade_d0329f6a": "Nettoyage de printemps",
+  "t1ba66d2_411aa05e": "Travaux supplémentaires proposés pour évaluation",
+  "tb54408c0_db437484": "L’entreprise décrit les travaux supplémentaires et le montant proposé. Le client peut accepter leur transmission pour évaluation. Le prix final et la réservation séparée doivent être confirmés ultérieurement ; cette étape n’autorise ni la carte ni le début des travaux supplémentaires.",
+  "t46a76b0e_eb3fb64a": "J’accepte la transmission pour évaluation. Je comprends que je ne confirme ni paiement, ni réservation, ni début des travaux supplémentaires.",
+  "t1ecb9bc7_8b87499b": "Accepter pour évaluation",
+  "tde128525_70363a01": "Refuser la proposition",
+  "t944d5f0_78f8427c": "Montant proposé pour évaluation, lei",
+  "t7e482ed5_8e5058d9": "Surface supplémentaire à évaluer, m²",
+  "te0d1d455_342e8c71": "Que comprennent les travaux supplémentaires et pourquoi sont-ils nécessaires ?",
+  "t1a1bd545_6ea56ac9": "Envoyer la proposition au client",
+  "tfdec292a_c6de2d36": "Proposer des travaux supplémentaires",
+  "ted992e5d_71a8c061": "Accepté pour évaluation",
+  "tfcd871a5_10a17a09": "Proposé pour évaluation",
+  "t319f84c6_238a1712": "La proposition a été transmise pour évaluation. Aucune réservation n’a été créée et la carte n’a pas été autorisée."
 }
