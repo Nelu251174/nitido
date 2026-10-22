@@ -1,0 +1,13 @@
+import {beforeEach,it,expect,vi} from 'vitest';
+import {NextRequest} from 'next/server';
+const m=vi.hoisted(()=>({user:vi.fn(),firm:vi.fn(),list:vi.fn(),ack:vi.fn(),rate:vi.fn()}));
+vi.mock('@/lib/db',()=>({db:{},getFirmByUserId:m.firm}));vi.mock('@/lib/auth',()=>({getCurrentUser:m.user}));vi.mock('@/lib/security',async()=>({...await vi.importActual<typeof import('@/lib/security')>('@/lib/security'),consumeRateLimit:m.rate}));vi.mock('@/lib/appointmentReminders',()=>({listFirmAppointments:m.list,acknowledgeAppointment:m.ack,appointmentReminderConfig:()=>({enabled:false})}));
+import {GET,POST} from './route';
+const get=()=>new NextRequest('https://sandbox.nitido.ro/api/firma/appointments?firmId=foreign&jobId=j');
+const post=(body='{"action":"confirm","jobId":"j","scheduledAt":"2027-03-28T10:00:00Z"}',origin='https://sandbox.nitido.ro')=>new NextRequest('https://sandbox.nitido.ro/api/firma/appointments',{method:'POST',body,headers:{origin}});
+beforeEach(()=>{vi.clearAllMocks();m.user.mockResolvedValue({id:'owner',role:'firma'});m.firm.mockReturnValue({id:'own'});m.list.mockReturnValue([]);m.ack.mockReturnValue({ok:true});m.rate.mockReturnValue(true)});
+it.each([null,{id:'c',role:'client'}])('denies unassigned roles',async u=>{m.user.mockResolvedValue(u);expect((await GET(get())).status).toBe(401);expect((await POST(post())).status).toBe(401);expect(m.list).not.toHaveBeenCalled();expect(m.ack).not.toHaveBeenCalled()});
+it('reads only the session firm and never confirms on GET',async()=>{const r=await GET(get());expect(r.status).toBe(200);expect(r.headers.get('cache-control')).toBe('private, no-store');expect(m.list).toHaveBeenCalledWith({},'own','j');expect(m.ack).not.toHaveBeenCalled()});
+it('requires trusted origin and limits acknowledgments',async()=>{expect((await POST(post(undefined,'https://foreign.example'))).status).toBe(403);m.rate.mockReturnValue(false);expect((await POST(post())).status).toBe(429);expect(m.ack).not.toHaveBeenCalled()});
+it('takes the firm and actor from the session, not the request',async()=>{expect((await POST(post('{"action":"confirm","jobId":"j","scheduledAt":"current","firmId":"other","userId":"other"}'))).status).toBe(200);expect(m.ack).toHaveBeenCalledWith({},'own','owner','j','current')});
+it('rejects malformed, oversized and unknown commands before confirming',async()=>{for(const [body,status] of [['bad',400],['x'.repeat(2001),413],['{"action":"accept"}',400]] as const)expect((await POST(post(body))).status).toBe(status);expect(m.ack).not.toHaveBeenCalled()});

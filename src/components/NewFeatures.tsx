@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import {NewBadge} from './NewBadge';
 export function NewFeatures({compact=false}:{compact?:boolean}){return <section id="sec-noutati" className={compact?"mb-6":"design-container py-8"} aria-labelledby="new-features"><h2 id="new-features" className="text-2xl font-bold mb-5">Mai simplu, pentru tine și cei dragi</h2><div className="grid gap-4 md:grid-cols-3">{[
+ ['/client/planul-casei','Planul casei pentru tot anul','Alegi lunile dorite pentru locuințele tale; confirmi separat fiecare rezervare.'],
+ ['/client/pregatire-oaspeti','Locuința pregătită pentru oaspeți','Urmărești ferestrele dintre sejururi, termenul de pregătire și raportul lucrării.'],
  ['/curatenie-de-primavara','Pregătește casa pentru primăvară','Configurezi curățenia generală, alegi suplimentele și verifici prețul înainte de publicare.'],
  ['/client/rutina','Rutina casei mele','Gestionezi vizitele recurente, firma preferată și pauza de vacanță.'],
  ['/client#sec-lucrari','Rezervă din nou','Pornești dintr-o lucrare finalizată, alegi un program nou și verifici prețul actual.'],

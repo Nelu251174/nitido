@@ -1,0 +1,2 @@
+import Link from 'next/link';import {CaseOverview} from '@/components/SeasonCareViews';import {UiText} from '@/components/UiText';
+export default function Page(){return <main id="main-content" className="design-container max-w-4xl py-10"><Link href="/remedieri"><UiText text="Probleme și remedieri"/></Link><h1 className="text-2xl font-bold my-6"><UiText text="Dosarele mele"/></h1><CaseOverview/></main>}

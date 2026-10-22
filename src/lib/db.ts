@@ -18,6 +18,8 @@ import {MANUAL_ESTIMATE_SCHEMA} from "./manualEstimates";
 import {BOOKING_QUOTES_SCHEMA} from "./bookingQuotes";
 import {MANAGED_PRICING_SCHEMA} from "./managedPricingStore";
 import {JOB_NAVIGATION_SCHEMA} from "./entrance";
+import {SEASON_CARE_SCHEMA} from './seasonCareSchema';
+import {APPOINTMENT_REMINDER_SCHEMA} from './appointmentReminderSchema';
 import {VISIT_CARE_SCHEMA} from "./visitCare";
 import {SAVED_CARDS_SCHEMA,initializeSavedCards} from "./savedCards";
 import {NOTIFICATION_CLAIM_SCHEMA,initializeNotificationClaims} from "./notificationClaims";
@@ -476,6 +478,8 @@ export function initializeDatabase(db: Database.Database): void {
   db.exec(RETENTION_SCHEMA);
   db.exec(AVAILABILITY_ALERTS_SCHEMA);
   db.exec(RETENTION_METRICS_SCHEMA);
+  db.exec(APPOINTMENT_REMINDER_SCHEMA);
+  db.exec(SEASON_CARE_SCHEMA);
   db.exec(`CREATE TABLE IF NOT EXISTS job_reschedule_requests (
    id TEXT PRIMARY KEY, job_id TEXT NOT NULL REFERENCES jobs(id), client_id TEXT NOT NULL,
    firm_id TEXT, original_at TEXT NOT NULL, proposed_at TEXT NOT NULL,
