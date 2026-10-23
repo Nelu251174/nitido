@@ -1,0 +1,192 @@
+{
+  "checkedAt": "2026-10-23",
+  "applicationSource": "6fed1284776af4c94ccfebc8f284fdcc9564a9f0",
+  "preAuditDeployedSource": "be64a36a4a1da3ff46870e64e33d58365d90a425",
+  "pullRequest": "https://github.com/Nelu251174/nitido/pull/136",
+  "testIsolation": "Temporary synthetic SQLite and intercepted fixtures; external payments and notification sends not executed",
+  "regression": {
+    "testsPassed": 2320,
+    "filesPassed": 220,
+    "eslintErrors": 0,
+    "eslintWarnings": 0,
+    "node": "22.23.4"
+  },
+  "productionBuild": {
+    "passed": true,
+    "routes": 181,
+    "publicProBuildRuntimeMatched": true
+  },
+  "operationalSafeguards": {
+    "testsPassed": 33
+  },
+  "security": {
+    "production": {
+      "info": 0,
+      "low": 0,
+      "moderate": 1,
+      "high": 1,
+      "critical": 0,
+      "total": 2
+    },
+    "allWebsiteDependencies": {
+      "info": 0,
+      "low": 0,
+      "moderate": 1,
+      "high": 1,
+      "critical": 0,
+      "total": 2
+    },
+    "remainingPackages": [
+      "geoip-country",
+      "ip-address"
+    ]
+  },
+  "catalogCoverage": {
+    "publishedMessages": 4651,
+    "extractedMessages": 5212,
+    "missingFromReleasedCatalogs": 641
+  },
+  "native": {
+    "physicalAndroidCrashResolved": false,
+    "newBinaryPublishedToStore": false,
+    "iphonePhysicalPushReceipt": "Previously confirmed by owner, reused without resending",
+    "iphoneSimulator": {
+      "status": "passed",
+      "source": "8b6ffab54a24553ca2138b8ddc69ec2f29c41fad",
+      "coldStarts": 3,
+      "appearanceChanges": true,
+      "physicalDeviceVerified": false,
+      "pushSent": false,
+      "paymentsExecuted": false,
+      "authenticatedFlowVerified": false
+    },
+    "androidBuildRun": "https://github.com/Nelu251174/nitido/actions/runs/40005354716",
+    "iphoneDeviceCompileRun": "https://github.com/Nelu251174/nitido/actions/runs/40009531603"
+  },
+  "browser": {
+    "general": {
+      "passed": true,
+      "checks": 51,
+      "pageErrors": 0,
+      "applicationSource": "6fed1284776af4c94ccfebc8f284fdcc9564a9f0",
+      "sourceCleanAtRun": true,
+      "pages": 21,
+      "responsiveLayouts": 63,
+      "accessibilityViolations": 0
+    },
+    "navigation": {
+      "passed": true,
+      "checks": 7,
+      "pageErrors": 0,
+      "applicationSource": "6fed1284776af4c94ccfebc8f284fdcc9564a9f0",
+      "qaOnlyAdjustment": "Case-insensitive apartment selector; Romanian locale and matching public Pro build flag"
+    },
+    "admin": {
+      "passed": true,
+      "checks": 31,
+      "pageErrors": 0,
+      "responsiveLayouts": 108,
+      "scope": "Local isolated Next production server, synthetic SQLite, real MFA login; no hosting or device acceptance",
+      "applicationSource": "8b6ffab54a24553ca2138b8ddc69ec2f29c41fad"
+    }
+  },
+  "publication": {
+    "status": "finished_and_verified",
+    "deployments": {
+      "sandbox": {
+        "app": "civaeb8joydtchvzlen6pivq",
+        "source": "6fed1284776af4c94ccfebc8f284fdcc9564a9f0",
+        "deployments": [
+          {
+            "uuid": "z82jqpdnyfbjax2ci4glwm7y"
+          }
+        ],
+        "previous": [
+          {
+            "uuid": "9nmh0cpebewpvfq5rtqxroyy"
+          }
+        ],
+        "verification": {
+          "pageChecks": 33,
+          "pageFailures": [],
+          "assetChecks": 24,
+          "assetFailures": []
+        },
+        "status": "finished",
+        "applicationStatus": "running:healthy",
+        "finishedAt": "2026-10-23T19:16:14.000000Z"
+      },
+      "live": {
+        "app": "zxnelxi2cejranyvfpw0scac",
+        "source": "6fed1284776af4c94ccfebc8f284fdcc9564a9f0",
+        "deployments": [
+          {
+            "uuid": "fbri7jft3lgvhrbutexxrgv4"
+          }
+        ],
+        "status": "finished",
+        "applicationStatus": "running:healthy",
+        "finishedAt": "2026-10-23T19:20:04.000000Z"
+      }
+    },
+    "anonymousVerification": {
+      "pageChecks": 66,
+      "pageFailures": [],
+      "assetChecks": 48,
+      "assetFailures": []
+    },
+    "deployedCssProof": {
+      "nitido.ro": {
+        "mobileHeroRulePresent": true,
+        "bookingContrastRulePresent": true
+      },
+      "sandbox.nitido.ro": {
+        "mobileHeroRulePresent": true,
+        "bookingContrastRulePresent": true
+      }
+    },
+    "newStoreBinaryPublished": false,
+    "databaseAndUploadVolumesPreserved": true,
+    "rollbackCodeSource": "be64a36a4a1da3ff46870e64e33d58365d90a425"
+  },
+  "rawEvidenceDirectory": "/workspace/nitido-general-audit-20261023",
+  "preChangeCheckpoints": {
+    "sandbox": {
+      "app": "civaeb8joydtchvzlen6pivq",
+      "task": "jvcew7elasstnc3u67rkmtxj",
+      "source": "8b6ffab54a24553ca2138b8ddc69ec2f29c41fad",
+      "execution": {
+        "uuid": "8qqulmj11y1opwabg3mkjxrh",
+        "status": "success",
+        "finished_at": "2026-10-23T18:49:00.000000Z"
+      },
+      "taskRemoved": true
+    },
+    "live": {
+      "app": "zxnelxi2cejranyvfpw0scac",
+      "task": "hocjhd2twus2xyv7rwb4zvvn",
+      "source": "8b6ffab54a24553ca2138b8ddc69ec2f29c41fad",
+      "execution": {
+        "uuid": "1meedp61tuwpiehi9vdcxunl",
+        "status": "success",
+        "finished_at": "2026-10-23T18:49:01.000000Z"
+      },
+      "taskRemoved": true
+    }
+  },
+  "rawEvidenceSHA256": {
+    "regression-release.log": "85422369c890fa70ec569cde0123da1590a9ba61caaf547e2640a92c563551f2",
+    "build-navigation-fix.log": "686862e248fa425f00680a62bafbeca3685e885bd873aef109cdc30e5387386e",
+    "browser-general-release/report.json": "735276e9f4fc2be402ef54fb7c413562e408b2c1c3ad3159a03471281bdecbee",
+    "browser-navigation-release/report.json": "2247766566abab1433a2589ed730a85f872bebabaa2c05d10a5953e16aa1ae09",
+    "browser-admin-final/report.json": "bf92aac2a0387aa5edeb5fb299e018f38b97fe6ff0b986defee92e157acfaa9d",
+    "security-release-all.json": "26b8b346686ed6868f0f2722b00b2f2ec150dc888790b9389d31caa5bb49f8f2",
+    "security-fixed-production.json": "26b8b346686ed6868f0f2722b00b2f2ec150dc888790b9389d31caa5bb49f8f2",
+    "catalog-coverage.json": "4fa3d1dbfa021071131c57ea022672e5e993c6fde664356c4457d315fb17db32",
+    "checkpoints.json": "40464caccc143d07b62ad258a55cfca1fedf9c889a955b222310c8532993ebdd",
+    "iphone-simulator/result.json": "aaffe9e1f9de4710a8e28498aab1f1f17d0f656e01c7fc68d8849655f1196f97",
+    "post-release-both.json": "956b12673f229d0dc9f2b6a4e94ef0f4940e5e7f75f2fade4d241cc53f34b910",
+    "deployments.json": "03001c9a81d92a8e793a3cb7ae5152aebdc77cd319ebf19ad366d2908650bcea",
+    "deployed-css-proof.json": "d078b19d68e30f1b006579132d7f32ee75ff2a224648334e127c3411dfeb47d7"
+  }
+}

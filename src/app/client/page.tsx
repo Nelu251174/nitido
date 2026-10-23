@@ -189,7 +189,7 @@ export default function ClientPage() {
       if (typeof target === "string") navigate(target);
     };
     // A deep link can arrive before authentication has finished loading.
-    if (window.location.hash) fromLocation();
+    fromLocation();
     window.addEventListener(CLIENT_NAVIGATION_EVENT, fromTab);
     window.addEventListener("hashchange", fromLocation);
     window.addEventListener("popstate", fromLocation);

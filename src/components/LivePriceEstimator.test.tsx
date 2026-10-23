@@ -1,4 +1,3 @@
-import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {NextIntlClientProvider} from 'next-intl';
 import {describe,expect,it} from 'vitest';
@@ -7,7 +6,7 @@ import {LivePriceEstimator} from './LivePriceEstimator';
 
 function render(type:SpaceType='apartament') {
   const Estimator=()=>LivePriceEstimator({inline:true,options:[{key:type,label:type,enabled:true}]});
-  return renderToStaticMarkup(createElement(NextIntlClientProvider,{locale:'ro',timeZone:'Europe/Bucharest',messages:{ui:{}},children:createElement(Estimator)}));
+  return renderToStaticMarkup(<NextIntlClientProvider locale="ro" timeZone="Europe/Bucharest" messages={{ui:{}}}><Estimator /></NextIntlClientProvider>);
 }
 function displayedPrice(html:string) {
   const match=html.match(/<b[^>]*aria-live="polite"[^>]*>(\d+)/);

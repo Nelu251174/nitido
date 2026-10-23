@@ -4,7 +4,7 @@ import type Stripe from 'stripe';
 import {createHash} from 'node:crypto';
 import {initializeDatabase} from './db';
 import {acceptJobAtomic} from './acceptJob';
-import {authorizationRequiredUntil,assertCoverageAttemptReusable,ensureAuthorizationCoverage,recoverAuthorizationCoverage,releaseUncoveredAuthorization} from './authorizationCoverage';
+import {authorizationRequiredUntil,ensureAuthorizationCoverage,recoverAuthorizationCoverage} from './authorizationCoverage';
 const api=vi.hoisted(()=>({paymentIntents:{create:vi.fn(),retrieve:vi.fn(),capture:vi.fn(),cancel:vi.fn()},transfers:{create:vi.fn()}}));
 vi.mock('stripe',()=>({default:class {paymentIntents=api.paymentIntents;transfers=api.transfers}}));
 const stripe=api as unknown as Stripe;

@@ -129,6 +129,7 @@ input,select,textarea,button,a { scroll-margin-block: 28px 120px; }
 .home-inclusions p,.home-pro p { margin-bottom:12px; line-height:1.65; }
 .home-pro a,.home-help-links a,.home-inclusions a,.booking-included a { text-decoration:underline; color:var(--nitido-brand-dark); }
 .booking-included { margin-block:20px; padding:16px; background:#f7f3ec; border-radius:12px; font-size:14px; line-height:1.6; }
+.booking-included > b { color:var(--nitido-brand-dark); }
 .booking-field-error { color:#a12d24; font-size:14px; margin-top:6px; }
 .booking-price-lines { margin-block:18px; font-size:14px; }
 .booking-price-lines > div { display:flex; justify-content:space-between; gap:16px; margin-block:9px; }
@@ -165,4 +166,9 @@ input,select,textarea,button,a { scroll-margin-block: 28px 120px; }
 @media(max-width:360px) {
  .design-hero-image { display:none; }
  .design-hero-copy { width:100%; }
+}
+
+/* Keep the mobile hero copy clear of the absolute photo at intermediate phone widths. */
+@media (min-width:361px) and (max-width:760px) {
+ .design-hero-copy { width:calc(60vw - 48px); }
 }
