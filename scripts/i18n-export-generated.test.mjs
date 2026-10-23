@@ -32,3 +32,13 @@ test('a denied existing CI permission stops before creating any export task',asy
   assert.equal(requests.length,2);
   assert(requests.every(r=>r.method==='GET'));
 });
+test('read-only retrieval needs only log-read access and never requests task or application changes',async()=>{
+  const requests=[];
+  await assert.rejects(()=>exportGeneratedCatalogs({COOLIFY_TOKEN:'synthetic-only',NITIDO_EXPORT_READ_ONLY:'1'},async(url,options)=>{
+    requests.push({url,method:options.method});
+    return Response.json({message:'forbidden'},{status:403});
+  }),/COOLIFY_HTTP_403/);
+  assert.equal(requests.length,1);
+  assert.equal(requests[0].url,'https://coolify.nitido.ro/api/v1/applications/civaeb8joydtchvzlen6pivq/logs?lines=1000');
+  assert.equal(requests[0].method,'GET');
+});

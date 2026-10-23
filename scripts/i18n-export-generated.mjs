@@ -52,11 +52,15 @@ export async function exportGeneratedCatalogs(env=process.env,fetcher=fetch,paus
     if(!r.ok)throw Error('COOLIFY_HTTP_'+r.status);
     return r.status===204?null:r.json();
   }
-  const app=await call('/applications/'+APP);
-  if(app.status!=='running:healthy'||app.git_commit_sha!==RELEASE||!String(app.fqdn).includes('https://sandbox.nitido.ro'))throw Error('EXPORT_TARGET_MISMATCH');
+  const readOnly=env.NITIDO_EXPORT_READ_ONLY==='1';
+  if(!readOnly){
+    const app=await call('/applications/'+APP);
+    if(app.status!=='running:healthy'||app.git_commit_sha!==RELEASE||!String(app.fqdn).includes('https://sandbox.nitido.ro'))throw Error('EXPORT_TARGET_MISMATCH');
+  }
   // Check this existing CI identity's permission before creating any export task.
   // Raw application logs are never printed, persisted or uploaded.
-  await call('/applications/'+APP+'/logs?lines=1');
+  const snapshot=readOnly?await call('/applications/'+APP+'/logs?lines=1000'):null;
+  if(!readOnly)await call('/applications/'+APP+'/logs?lines=1');
   await fs.mkdir(output,{recursive:true});
   async function run(mode){
     if(![...LOCALES,'ro','manifest','status'].includes(mode))throw Error('EXPORT_ACTION_INVALID');
@@ -82,21 +86,21 @@ export async function exportGeneratedCatalogs(env=process.env,fetcher=fetch,paus
       if(settled)await call(endpoint,'DELETE');
     }
   }
-  await run('status');
+  if(!readOnly)await run('status');
   let status;
   for(let i=0;i<5&&!status;i++){
     if(i)await pause(2000);
-    const logs=await call('/applications/'+APP+'/logs?lines=100');
+    const logs=snapshot??await call('/applications/'+APP+'/logs?lines=100');
     status=ownReports(logs.logs).filter(row=>row.event==='status').at(-1);
   }
   if(!status||!LOCALES.every(locale=>status.completed?.includes(locale))||!Number.isFinite(status.chargedUpperUsd)||status.chargedUpperUsd>5)throw Error('EXPORT_GENERATION_NOT_READY');
   const files={};
   for(const locale of ['ro','manifest',...LOCALES]){
-    await run(locale);
+    if(!readOnly)await run(locale);
     let bytes;
     for(let i=0;i<5&&!bytes;i++){
       if(i)await pause(2000);
-      const logs=await call('/applications/'+APP+'/logs?lines=120');
+      const logs=snapshot??await call('/applications/'+APP+'/logs?lines=120');
       try{bytes=decodeCatalog(logs.logs,locale)}catch(e){if(!['EXPORT_NOT_VISIBLE','EXPORT_INCOMPLETE'].includes(e.message))throw e}
     }
     if(!bytes)throw Error('EXPORT_DOWNLOAD_INCOMPLETE');
