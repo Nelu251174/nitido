@@ -29,7 +29,7 @@ function owned(node,depth=0,seen=new Set()){
 }
 for(const ast of program.getSourceFiles()){
   const file=ast.fileName;
-  if(!file.includes('/src/')||!file.endsWith('.tsx')||/\.(test|spec)\./.test(file)||file.endsWith('/UiText.tsx')||file.endsWith('/LanguageSelector.tsx'))continue;
+  if(!file.includes('/src/')||!file.endsWith('.tsx')||/\.(test|spec)\.|\/admin\/|\/Admin[^/]*\.tsx$/.test(file)||file.endsWith('/UiText.tsx')||file.endsWith('/LanguageSelector.tsx'))continue;
   const source=fs.readFileSync(file,'utf8'),edits=[];
   function visit(node){
     if(ts.isJsxExpression(node)&&node.expression&&(ts.isJsxElement(node.parent)||ts.isJsxFragment(node.parent))){
@@ -48,8 +48,15 @@ for(const ast of program.getSourceFiles()){
   if(!edits.length)continue;
   let output=source,last=source.length;
   for(const e of edits.sort((a,b)=>b.start-a.start)){if(e.end>last)throw Error('Overlapping labels');output=output.slice(0,e.start)+e.text+output.slice(e.end);last=e.start;}
-  if(output.includes("from '@/components/UiText'"))output=output.replace(/import \{([^}]+)\} from '@\/components\/UiText';/,(_,names)=>`import {${names.includes('UiText')?names:names+',UiText'}} from '@/components/UiText';`);
-  else{const directive=/^(["']use client["'];?\s*)/.exec(output),pos=directive?.[0].length||0;output=output.slice(0,pos)+"import {UiText} from '@/components/UiText';\n"+output.slice(pos);}
+  const updated=ts.createSourceFile(file,output,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+  const imports=updated.statements.filter(node=>ts.isImportDeclaration(node)&&/(?:^|\/)UiText$/.test(node.moduleSpecifier.text));
+  if(imports.length){
+    const names=[...new Set([...imports.flatMap(node=>node.importClause.namedBindings.elements.map(item=>item.getText(updated))),'UiText'])];
+    for(const node of imports.slice().reverse()){
+      const replacement=node===imports[0]?`import {${names.join(',')}} from '@/components/UiText';`:'';
+      output=output.slice(0,node.getStart(updated))+replacement+output.slice(node.end);
+    }
+  }else{const directive=/^(["']use client["'];?\s*)/.exec(output),pos=directive?.[0].length||0;output=output.slice(0,pos)+"import {UiText} from '@/components/UiText';\n"+output.slice(pos);}
   fs.writeFileSync(file,output);changed++;
 }
 console.log(JSON.stringify({changed,labels}));

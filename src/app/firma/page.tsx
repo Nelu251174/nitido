@@ -2,10 +2,10 @@
 import {NewBadge} from '@/components/NewBadge';
 import {FlexibleFirmOffer} from "@/components/FlexibleFirmOffer";
 import {AUTHORIZATION_NOTICE,confirmationOpensAt} from '@/lib/authorizationPolicy';
-import {UiSpaceType} from '@/components/UiText';
+import {UiSpaceType,UiText,UiElement,UiTemplate} from '@/components/UiText';
 import {UiDate} from '@/components/UiDate';
 
-import {UiText,UiElement,UiTemplate} from '@/components/UiText';
+
 import {AssistedJourney} from "@/components/AssistedJourney";
 import {VisitCare} from "@/components/VisitCare";
 import {RescheduleVisit} from '@/components/RescheduleVisit';
@@ -243,7 +243,7 @@ export default function FirmaPage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8 space-y-8"><Link href="/firma/intervale-libere" className="v2-card p-5 flex flex-wrap items-center gap-3"><NewBadge/><b>Am liber săptămâna aceasta</b><span>Publică intervalele pe care echipa ta le poate acoperi →</span></Link>
+      <main className="max-w-6xl mx-auto px-6 py-8 space-y-8"><Link href="/firma/intervale-libere" className="v2-card p-5 flex flex-wrap items-center gap-3"><NewBadge/><b><UiText text={"Am liber săptămâna aceasta"}/></b><span><UiText text={"Publică intervalele pe care echipa ta le poate acoperi →"}/></span></Link>
 
         <header className="section-heading"><div><p className="v2-eyebrow"><UiText text={"NITIDO PARTENER"}/></p><h1 className="workspace-title"><UiText text={"Lucrări potrivite pentru echipa ta"}/></h1><p className="text-muted"><UiText text={"Aplică la oportunități și organizează-ți activitatea cu NITIDO.RO."}/></p></div><Link className="v2-btn v2-btn-primary" href="/firma/calendar"><UiText text={"Deschide calendarul ↗"}/></Link></header>
         <AssistedJourney role="firma"/>

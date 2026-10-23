@@ -17,6 +17,7 @@ for(const locale of manifest.locales){
   expect(html).toContain(catalog[textKey(scope[0])]);
   // Booking links stay identical across locales; translations never change routing.
   for(const href of ['/pentru-cei-dragi','/client/planul-casei','/client/pregatire-oaspeti','/client/rutina','/intervale-libere','/client/descrie-prin-poze'])expect(html).toContain(`href="${href}"`);
-  expect((html.match(/>NEW</g)??[]).length).toBe(10);
+  const badgeHtml=renderToStaticMarkup(<span>{catalog[textKey('NEW')]}</span>).slice(6,-7);
+  expect(html.split(`>${badgeHtml}<`).length-1).toBe(10);
  });
 }

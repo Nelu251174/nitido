@@ -17,7 +17,7 @@ function behavior(source,file){
     }
     if(ts.isJsxAttribute(node)){
       const name=node.name.getText(ast);
-      if(/^on[A-Z]/.test(name)||['name','checked','disabled','required','href','src','action','method'].includes(name))attributes.push(printer.printNode(ts.EmitHint.Unspecified,node,ast));
+      if(/^on[A-Z]/.test(name)||['name','value','defaultValue','type','checked','disabled','required','href','src','action','method','formAction','formMethod'].includes(name))attributes.push(printer.printNode(ts.EmitHint.Unspecified,node,ast));
     }
     ts.forEachChild(node,visit);
   }visit(ast);

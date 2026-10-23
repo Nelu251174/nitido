@@ -125,7 +125,7 @@ export function StatusTrack({
 export function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const ui=useUiText();
   return (
-    <div role="radiogroup" aria-label="Evaluarea lucrării" className="flex gap-1 justify-center my-4">
+    <UiElement as="div" role="radiogroup" aria-label="Evaluarea lucrării" className="flex gap-1 justify-center my-4">
       {[1, 2, 3, 4, 5].map((v) => (
         <UiElement as="button"
           key={v}
@@ -141,6 +141,6 @@ export function StarRating({ value, onChange }: { value: number; onChange: (v: n
           ★
         </UiElement>
       ))}
-    </div>
+    </UiElement>
   );
 }

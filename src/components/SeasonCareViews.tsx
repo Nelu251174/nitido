@@ -1,7 +1,8 @@
 'use client';
+import {UiText} from '@/components/UiText';
 import {useCallback,useEffect,useRef,useState} from 'react';import Link from 'next/link';
 import {useLocale} from 'next-intl';
-import {useCurrentUser} from '@/lib/useCurrentUser';import {UiText} from './UiText';import {NewBadge} from './NewBadge';
+import {useCurrentUser} from '@/lib/useCurrentUser';import {NewBadge} from './NewBadge';
 type Plan={id:string;property_id:string;year:number;month:number;windows_sqm:number;name:string;city:string;estimate:number|null;bookingHref:string|null};
 type Plans={plans:Plan[];properties:{id:string;name:string;city:string}[]};
 type Host={next:string|null;properties:{id:string;name:string;city:string;error:string|null;windows:{eventId:string;earliest:string;deadline:string;nextArrival:string|null;problem:string|null;state:string;reportHref:string|null}[]}[]};
@@ -17,7 +18,7 @@ function useOwned<T>(path:string,keys:string,role?:'client'){
  const gate=auth.loading?<p role="status"><UiText text="Se încarcă…"/></p>:auth.error?<div role="alert">{auth.error}<button className="v2-btn" onClick={auth.retry}><UiText text="Reîncearcă"/></button></div>:!auth.user?<Link className="v2-btn v2-btn-primary" href={'/login?'+new URLSearchParams({...(role?{role}:{}),next:typeof window==='undefined'?'/client':window.location.pathname})}><UiText text="Intră în cont"/></Link>:role&&auth.user.role!==role?<p role="alert"><UiText text="Această pagină este disponibilă în contul de client."/></p>:null;
  return {data,gate,error,load,reload};
 }
-function ReadStatus({error,reload}:{error:string;reload:()=>void}){return error?<div role="alert" className="my-4"><p>{error}</p><button className="v2-btn" onClick={reload}><UiText text="Reîncearcă"/></button></div>:<p role="status"><UiText text="Se încarcă…"/></p>}
+function ReadStatus({error,reload}:{error:string;reload:()=>void}){return error?<div role="alert" className="my-4"><p>{<UiText text={error}/>}</p><button className="v2-btn" onClick={reload}><UiText text="Reîncearcă"/></button></div>:<p role="status"><UiText text="Se încarcă…"/></p>}
 export function HomeMaintenance(){const locale=useLocale();
  const {data,gate,error,load,reload}=useOwned<Plans>('/api/client/season-care','plans,properties','client');const [property,setProperty]=useState(''),[year,setYear]=useState(()=>Math.max(2027,new Date().getFullYear())),[month,setMonth]=useState(3),[windows,setWindows]=useState(0),[busy,setBusy]=useState(false),[message,setMessage]=useState('');const lock=useRef(false),request=useRef<{payload:string;key:string}|null>(null);
  async function mutate(body:Record<string,unknown>){if(lock.current)return;lock.current=true;setBusy(true);setMessage('');try{const payload=JSON.stringify(body);if(body.action==='create'&&request.current?.payload!==payload)request.current={payload,key:crypto.randomUUID()};const r=await fetch('/api/client/season-care',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,...body.action==='create'?{requestKey:request.current!.key}:{}})});const b=await r.json();if(!r.ok||b.ok!==true)throw Error(b.error||'Salvarea nu a fost confirmată.');request.current=null;setMessage('Planul a fost salvat. Nu s-a creat o rezervare și nu s-a modificat plata.');try{await load()}catch{setMessage('Planul a fost salvat. Actualizează pagina pentru lista curentă.');}}catch(e){setMessage(e instanceof Error?e.message:'Conexiune indisponibilă.')}finally{lock.current=false;setBusy(false)}}

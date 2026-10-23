@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "prebuild": "npm run i18n:validate && node scripts/i18n-offline.mjs --check",
+    "prebuild": "npm run i18n:check-rendering && npm run i18n:check-source && npm run i18n:validate && node scripts/i18n-offline.mjs --check",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -30,7 +30,9 @@
     "test:backup": "node --test scripts/verify-database-backup.test.mjs",
     "i18n:extract": "node scripts/i18n-extract.mjs",
     "i18n:validate": "node scripts/i18n-validate.mjs",
-    "postinstall": "node scripts/patch-geoip-updater.mjs"
+    "postinstall": "node scripts/patch-geoip-updater.mjs",
+    "i18n:check-source": "node scripts/i18n-extract.mjs --check",
+    "i18n:check-rendering": "node scripts/i18n-migrate-ui.mjs --check"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

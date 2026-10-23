@@ -188,5 +188,22 @@
     "post-release-both.json": "956b12673f229d0dc9f2b6a4e94ef0f4940e5e7f75f2fade4d241cc53f34b910",
     "deployments.json": "03001c9a81d92a8e793a3cb7ae5152aebdc77cd319ebf19ad366d2908650bcea",
     "deployed-css-proof.json": "d078b19d68e30f1b006579132d7f32ee75ff2a224648334e127c3411dfeb47d7"
+  },
+  "followUpResolutions": {
+    "translations": {
+      "status": "published_verified",
+      "source": "b978d3da887427f8a612207424ea31f5fc3a2b45",
+      "pullRequest": "https://github.com/Nelu251174/nitido/pull/138",
+      "messagesPerLanguage": 5299,
+      "languages": 9,
+      "newMessagesPerLanguage": 648,
+      "report": "translations-refresh-2026-10-24.md",
+      "liveFinishedAt": "2026-10-23T22:58:49.000000Z",
+      "httpChecksPassed": 66,
+      "assetsPassed": 48,
+      "deployedLocaleChecksPassed": 36,
+      "browserPages": 72,
+      "browserLayouts": 288
+    }
   }
 }

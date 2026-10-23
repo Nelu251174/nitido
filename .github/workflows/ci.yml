@@ -46,7 +46,7 @@ jobs:
         env:
           STRIPE_SECRET_KEY: sk_test_ci_dummy
           NEXT_PUBLIC_SITE_URL: https://nitido.ro
-        run: npx next build
+        run: npm run build
 
   securitate:
     name: Robot securitate (vulnerabilități)

@@ -37,7 +37,7 @@ if(!Number.isFinite(maxUsd)||maxUsd<=0||maxUsd>20)throw Error('Approved API budg
 // https://developers.openai.com/api/docs/models/gpt-5.4-mini
 const inputUsdPerToken=0.75/1000000,outputUsdPerToken=4.5/1000000;
 const selected=(process.env.NITIDO_TRANSLATION_LOCALES || targets.join(',')).split(',');
-if(selected.some(locale=>!targets.includes(locale)))throw Error('Unsupported translation locale');
+if(selected.some(locale=>!targets.includes(locale))||new Set(selected).size!==selected.length)throw Error('Unsupported or duplicate translation locale');
 const atomic=(file,data)=>{fs.writeFileSync(file+'.tmp',JSON.stringify(data,null,2)+'\n');fs.renameSync(file+'.tmp',file);};
 const save=()=>atomic(progressFile,state);
 const entries=Object.entries(source);
@@ -178,8 +178,8 @@ const results=await Promise.allSettled(Array.from({length:Math.min(concurrency,q
   try{while(queue.length&&!halted){await translate(queue.shift());}}
   catch(error){halted=true;throw error;}
 }));
-const complete=targets.every(locale=>state.completed.includes(locale));
-atomic(path.join(output,'manifest.json'),{complete,languages:24,locales:[...targets,'ro'],targetLanguages:24,sourceLanguage:'ro',sourceMessages:entries.length,sourceHash,provider:'OpenAI',model,review:'machine translation; specialist legal review pending'});
+const complete=selected.every(locale=>state.completed.includes(locale));
+atomic(path.join(output,'manifest.json'),{complete,languages:selected.length+1,locales:[...selected,'ro'],targetLanguages:24,sourceLanguage:'ro',sourceMessages:entries.length,sourceHash,provider:'OpenAI',model,review:'machine translation; specialist legal review pending'});
 console.log(JSON.stringify({complete,requests:state.requests,tokens:state.inputTokens+state.outputTokens}));
 const failed=results.find(result=>result.status==='rejected');
 if(failed)throw failed.reason;

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { usePathname } from 'next/navigation';
-import { UiText, useUiText } from '@/components/UiText';
+import {UiText,useUiText,UiElement} from '@/components/UiText';
 import { useAppPlatform } from '@/lib/useAppPlatform';
 import { ADS_CONSENT_EVENT, ADS_SETTINGS_EVENT, adsAllowed, initializeGoogleAds, isAdsPublicPath, readAdsConsent, saveAdsConsent, trackAdsPage } from '@/lib/googleAds';
 
@@ -68,9 +68,9 @@ export function GoogleAdsConsent({ conversionLabel }: { conversionLabel?: string
     // A new document unloads an already loaded third-party library on withdrawal.
     if (reload) window.location.reload();
   }
-  return <section ref={panel} className="nitido-cookie-consent" aria-label={t('Preferințe cookie-uri')}>
+  return <UiElement as="section" ref={panel} className="nitido-cookie-consent" aria-label={t('Preferințe cookie-uri')}>
     <h2><UiText text="Cookie-uri publicitare" /></h2>
     <p><UiText text="Cu acordul tău, folosim cookie-uri publicitare pentru măsurarea reclamelor. Poți refuza și continua rezervarea." />{' '}<a href="/cookie-uri"><UiText text="Detalii despre cookie-uri" /></a></p>
     <div><button type="button" onClick={() => choose(false)}><UiText text="Refuz cookie-urile publicitare" /></button><button type="button" onClick={() => choose(true)}><UiText text="Accept cookie-urile publicitare" /></button></div>
-  </section>;
+  </UiElement>;
 }

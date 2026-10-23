@@ -3,6 +3,7 @@ import path from 'node:path';
 import ts from 'typescript';
 
 const root = process.cwd();
+const checkOnly = process.argv.includes('--check');
 const all = [];
 function walk(dir) { for (const entry of fs.readdirSync(dir, {withFileTypes:true})) {
   const file=path.join(dir,entry.name);
@@ -33,8 +34,9 @@ for(const file of all){
     if(ts.isJsxText(node))add(node.text,file,'jsx');
     if(ts.isStringLiteral(node)||ts.isNoSubstitutionTemplateLiteral(node)){
       const attr=ts.isJsxAttribute(node.parent)?node.parent.name.getText(ast):null;
-      const ownText=ts.isJsxExpression(node.parent)&&ts.isJsxAttribute(node.parent.parent)&&node.parent.parent.name.getText(ast)==='text';
-      if(ownText)add(node.text,file,'ui-copy');
+      const ownText=attr==='text'||ts.isJsxExpression(node.parent)&&ts.isJsxAttribute(node.parent.parent)&&node.parent.parent.name.getText(ast)==='text';
+      const explicitTranslation=ts.isCallExpression(node.parent)&&node.parent.arguments[0]===node&&ts.isIdentifier(node.parent.expression)&&node.parent.expression.text==='ui';
+      if(ownText||explicitTranslation)add(node.text,file,'ui-copy');
       else if(attr && ['placeholder','title','aria-label','alt','label','description','emptyText','eyebrow','intro','hint','helperText'].includes(attr))add(node.text,file,'attribute');
       else if(human(node.text))add(node.text,file,'owned-copy');
     }
@@ -55,7 +57,19 @@ if(fs.existsSync('messages/extra-source.json'))for(const label of JSON.parse(fs.
   add(label,path.join(root,'messages/extra-source.json'),'curated-ui-label');
 }
 fs.mkdirSync('messages',{recursive:true});
-fs.writeFileSync('messages/ro.json',JSON.stringify(Object.fromEntries(Object.entries(catalog).sort()),null,2)+'\n');
+const sourcePath=path.join(root,'messages/ro.json');
+const existing=fs.existsSync(sourcePath)?JSON.parse(fs.readFileSync(sourcePath,'utf8')):{};
+const missing=Object.keys(catalog).filter(id=>existing[id]!==catalog[id]);
+if(checkOnly){
+  if(missing.length){
+    console.error(JSON.stringify({missingSourceMessages:missing.length,samples:missing.slice(0,12).map(id=>({id,uses:uses[id]}))}));
+    process.exitCode=1;
+  }else console.log(JSON.stringify({sourceCoverageComplete:true,extractedMessages:Object.keys(catalog).length,catalogMessages:Object.keys(existing).length}));
+}else{
+  // Keep curated/dynamic copy already released; extraction is additive.
+  for(const [id,text] of Object.entries(existing))if(key(text)!==id||catalog[id]&&catalog[id]!==text)throw Error('Invalid existing source catalog entry');
+  fs.writeFileSync(sourcePath,JSON.stringify(Object.fromEntries(Object.entries({...existing,...catalog}).sort()),null,2)+'\n');
+}
 fs.mkdirSync('.translation-work',{recursive:true});
 fs.writeFileSync('.translation-work/sources.json',JSON.stringify(uses,null,2)+'\n');
-console.log(JSON.stringify({messages:Object.keys(catalog).length,characters:Object.values(catalog).reduce((n,s)=>n+s.length,0),files:all.length}));
+if(!checkOnly)console.log(JSON.stringify({messages:Object.keys({...existing,...catalog}).length,added:missing.length,extractedMessages:Object.keys(catalog).length,characters:Object.values(catalog).reduce((n,s)=>n+s.length,0),files:all.length}));
