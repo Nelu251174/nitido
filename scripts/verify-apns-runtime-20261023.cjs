@@ -14,7 +14,7 @@ async function check(){
   await new Promise((resolve,reject)=>{
     const client=connect('https://api.push.apple.com');
     let done=false;
-    const finish=error=>{if(done)return;done=true;clearTimeout(timer);client.destroy();error?reject(error):resolve()};
+    const finish=error=>{if(done)return;done=true;clearTimeout(timer);client.destroy();if(error)reject(error);else resolve()};
     const timer=setTimeout(()=>finish(Error('APNS_CONNECTION_TIMEOUT')),12000);
     client.once('error',()=>finish(Error('APNS_CONNECTION_FAILED')));
     client.once('connect',()=>finish(client.socket.alpnProtocol==='h2'?undefined:Error('APNS_HTTP2_UNAVAILABLE')));

@@ -1,0 +1,81 @@
+name: General website and iPhone simulator verification
+on:
+  push:
+    branches: [codex/nitido-general-audit-20261023]
+    paths: ['src/**', 'package.json', 'package-lock.json', 'eslint.config.mjs', '.github/workflows/general-audit-20261023.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  website:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx eslint
+      - run: npx vitest run --maxWorkers=2
+      - name: Existing operational safeguards without external transactions
+        run: node --test scripts/audit-report.test.mjs scripts/mobile-firebase-config.test.mjs scripts/recovery.test.mjs scripts/release-preparation.test.mjs scripts/release-gate.test.mjs scripts/notification-recovery-runner.test.mjs scripts/financial-recovery-runner.test.mjs
+      - name: Production website build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build -- --webpack
+  iphone-simulator:
+    runs-on: macos-26
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Resolve available iPhone simulator
+        run: |
+          mkdir -p ios-simulator-proof
+          xcodebuild -version > ios-simulator-proof/xcode.txt
+          xcrun simctl list devices available -j > "$RUNNER_TEMP/simulators.json"
+          python3 - <<'PY'
+          import json,os
+          data=json.load(open(os.environ['RUNNER_TEMP']+'/simulators.json'))
+          candidates=[(runtime,d) for runtime,rows in data['devices'].items() if '.iOS-' in runtime for d in rows if d.get('isAvailable') and d['name'].startswith('iPhone')]
+          runtime,device=candidates[0]
+          with open(os.environ['GITHUB_ENV'],'a') as f:f.write('NITIDO_SIMULATOR='+device['udid']+'\n')
+          json.dump({'runtime':runtime,'device':device['name'],'physicalDevice':False},open('ios-simulator-proof/device.json','w'))
+          PY
+      - name: Build exact production-target native shell without signing
+        env:
+          NITIDO_NATIVE_SERVER_URL: https://nitido.ro
+        run: |
+          npx cap sync ios
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination "id=$NITIDO_SIMULATOR" -derivedDataPath "$RUNNER_TEMP/ios-simulator" CODE_SIGNING_ALLOWED=NO build > ios-simulator-proof/build.log 2>&1
+      - name: Cold starts and appearance changes without login or notification sends
+        run: |
+          xcrun simctl boot "$NITIDO_SIMULATOR" || xcrun simctl list devices booted | grep -F "$NITIDO_SIMULATOR"
+          xcrun simctl bootstatus "$NITIDO_SIMULATOR" -b
+          APP="$RUNNER_TEMP/ios-simulator/Build/Products/Debug-iphonesimulator/App.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")" = ro.nitido.app
+          xcrun simctl install "$NITIDO_SIMULATOR" "$APP"
+          for attempt in 1 2 3; do
+            xcrun simctl launch --terminate-running-process "$NITIDO_SIMULATOR" ro.nitido.app
+            sleep 8
+            xcrun simctl spawn "$NITIDO_SIMULATOR" launchctl list | awk '$1 ~ /^[0-9]+$/ && /ro\.nitido\.app/ {found=1} END {exit !found}'
+          done
+          xcrun simctl ui "$NITIDO_SIMULATOR" appearance dark
+          sleep 2
+          xcrun simctl ui "$NITIDO_SIMULATOR" appearance light
+          xcrun simctl spawn "$NITIDO_SIMULATOR" launchctl list | awk '$1 ~ /^[0-9]+$/ && /ro\.nitido\.app/ {found=1} END {exit !found}'
+          xcrun simctl io "$NITIDO_SIMULATOR" screenshot ios-simulator-proof/public-launch.png
+          python3 - <<'PY'
+          import json,os
+          json.dump({'status':'passed','source':os.environ['GITHUB_SHA'],'coldStarts':3,'appearanceChanges':True,'physicalDeviceVerified':False,'pushSent':False,'paymentsExecuted':False,'authenticatedFlowVerified':False},open('ios-simulator-proof/result.json','w'),indent=2)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iphone-simulator-proof
+          path: ios-simulator-proof

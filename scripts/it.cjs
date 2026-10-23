@@ -39,7 +39,7 @@ async function run(){
     try{
       const result=await new Promise((resolve,reject)=>{
         const client=connect('https://api.push.apple.com');let req,settled=false,status=0,providerMessageId='',body='';
-        const finish=(error,value)=>{if(settled)return;settled=true;clearTimeout(timer);req?.destroy();client.destroy();error?reject(error):resolve(value)};
+        const finish=(error,value)=>{if(settled)return;settled=true;clearTimeout(timer);req?.destroy();client.destroy();if(error)reject(error);else resolve(value)};
         const timer=setTimeout(()=>finish(Error('IOS_TEST_DELIVERY_UNKNOWN_TIMEOUT')),12000);
         client.once('error',()=>finish(Error('IOS_TEST_DELIVERY_UNKNOWN_CONNECTION')));
         try{

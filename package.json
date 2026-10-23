@@ -46,7 +46,7 @@
     "better-sqlite3": "^13.0.3",
     "geoip-country": "5.0.202610140208",
     "leaflet": "^1.9.4",
-    "next": "16.3.8",
+    "next": "16.4.3",
     "next-intl": "4.14.9",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -62,13 +62,13 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@vitest/ui": "^4.1.11",
+    "@vitest/ui": "4.1.12",
     "eslint": "^9",
-    "eslint-config-next": "16.3.8",
+    "eslint-config-next": "16.4.3",
     "jsdom": "^26.1.0",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.11"
+    "vitest": "4.1.12"
   },
   "overrides": {
     "xcode": {
