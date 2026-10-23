@@ -1,12 +1,10 @@
 {
-  "status": "draft_blocked_artifact_read_access",
+  "status": "published_verified",
   "baseline": "e8877140d5b9c969826536e901129cf1e5b63dab",
-  "codeFiles": 60,
-  "codeFingerprint": "f066d90c941fcbddcd4e504f1fdedb5bafd7a079c9d2c788e648ddc6dd141026",
-  "sourceMessages": 5293,
-  "extractedMessages": 5213,
-  "pendingMessagesPerLocale": 642,
-  "pendingSourceCharacters": 40371,
+  "applicationSource": "b978d3da887427f8a612207424ea31f5fc3a2b45",
+  "sourceMessages": 5299,
+  "extractedMessages": 5223,
+  "newMessagesPerLocale": 648,
   "locales": [
     "bg",
     "hr",
@@ -18,59 +16,221 @@
     "de",
     "ro"
   ],
-  "sourceHash": "77c61cb1d6a0796a437cbd5e97faedbdd7fb9a832d8430aa32222ecb130ca3e7",
-  "vitest": {
-    "files": 221,
-    "passed": 2323,
-    "failed": 0
-  },
-  "catalogTests": {
-    "passed": 13,
-    "failed": 0
-  },
-  "typecheck": "passed",
-  "eslint": "passed",
+  "sourceHash": "8f7f44028b46baedb91a399cd1082e9c22739a620d8d25f562340241c139ff46",
+  "publicationGate": "passed_complete_catalogs",
+  "productionBuild": "passed",
   "renderingCoverage": "passed",
   "sourceCoverage": "passed",
+  "typecheck": "passed",
+  "eslint": "passed",
   "behaviorAudit": {
     "files": 46,
     "externalCallsAndControlAttributesPreserved": true
   },
-  "nextProductionCompilation": "passed_only_not_publication_approval",
-  "publicationGate": "rejected_incomplete_catalogs_as_expected",
+  "catalogTests": {
+    "passed": 17,
+    "failed": 0
+  },
+  "regressionCI": {
+    "runId": 40036037290,
+    "source": "07d0d6845501c2d1b966fc6cf22982a50582b644",
+    "status": "success",
+    "followup": "Final source changes only the mobile home link color; final production build and all nine home pages verified separately.",
+    "testsPassed": 2323,
+    "filesPassed": 221
+  },
   "browser": {
-    "scope": "Romanian UI fallback; synthetic isolated database; no external requests",
-    "startedAt": "2026-10-23T21:16:38.342Z",
-    "finishedAt": "2026-10-23T21:17:23.981Z",
-    "checks": 48,
-    "pages": 24,
-    "layouts": 72,
+    "scope": "Isolated synthetic SQLite; blocked external requests; server-rendered pages hydrated in Chromium",
+    "checks": 72,
+    "pages": 72,
+    "layouts": 288,
+    "widths": [
+      360,
+      390,
+      768,
+      1440
+    ],
     "functionalPassed": true,
     "layoutPassed": true,
     "accessibilityPassed": true,
     "pageErrors": 0,
-    "accessibilityViolations": 0
+    "accessibilityViolations": 0,
+    "homeContrastFollowup": {
+      "sourceSha": "07d0d6845501c2d1b966fc6cf22982a50582b644",
+      "sourceDirty": true,
+      "buildId": "_jGikBS2w08v9Y1I1R0Ps",
+      "checks": 9,
+      "passed": true,
+      "started": "2026-10-23T22:51:29.892Z",
+      "finished": "2026-10-23T22:51:52.217Z"
+    }
   },
   "provider": {
     "approvedMaxUsd": 5,
-    "result": "completed_remote",
-    "generationSucceededAt": "2026-10-23T21:58:43.000Z",
-    "validatedRemoteLanguages": 9,
-    "validatedRemoteMessagesPerLanguage": 5293,
+    "chargedUpperUsd": 0.9184919999999999,
+    "requests": 90,
+    "inputTokens": 269042,
+    "outputTokens": 159269,
     "generatedNonRomanianLocales": 8,
-    "actualUsageNotRetrieved": true,
+    "machineGeneratedMessagesPerLanguage": 5293,
+    "manuallyAddedLabelsPerLanguage": 6,
+    "manualCorrections": "Six short omitted UI labels in each locale, plus two pre-existing Danish navigation translations. No additional provider calls.",
     "generationTaskRemoved": true,
     "automaticRetry": false
   },
-  "deployedAppSourceUnchanged": "d25796ca7e5bd8670eeb0326aa062e311aded729",
   "artifactAccess": {
-    "cloudTokenLogRead": "forbidden_missing_read_sensitive",
-    "existingGitHubCoolifyIntegration": "HTTP_401",
-    "exportWorkflowRun": 40031626778,
-    "exportWorkflowJob": 120681001369,
-    "exportTestsPassed": 3,
-    "exportedArtifacts": 0,
+    "existingGitHubCoolifyIntegration": "success_read_only_filtered_logs",
+    "exportWorkflowRun": 40033800583,
+    "artifactId": 12535912922,
+    "archiveSha256": "c426b2f6f034300f173745874b02030f9f1d8324d28af617b58c5cba7eb360b6",
     "newServiceCreated": false,
-    "temporaryServiceDeclined": true
-  }
+    "credentialsExported": false,
+    "rawLogsExported": false,
+    "privateCustomerDataExported": false
+  },
+  "nativeScope": {
+    "websiteLoadedByMobileApps": true,
+    "physicalAndroidStartupCrashResolved": false,
+    "storeBinaryPublished": false,
+    "newPushSent": false
+  },
+  "checkpoints": [
+    {
+      "scope": "sandbox",
+      "app": "civaeb8joydtchvzlen6pivq",
+      "taskUuid": "9avwq9lrkd5mfoj3l9p2dzde",
+      "baseCommit": "d25796ca7e5bd8670eeb0326aa062e311aded729",
+      "sourceCommit": "70cff306dc2b45e2b4999c5ea333da1f42312520",
+      "checkpointPath": "/app/data/release-checkpoints/20261024-before-translations-sandbox",
+      "execution": {
+        "uuid": "cwt6a6w9zjne0ccipgv9sxg0",
+        "status": "success",
+        "created_at": "2026-10-23T22:39:19.000000Z",
+        "finished_at": "2026-10-23T22:39:20.000000Z",
+        "duration": 1.34
+      },
+      "removed": true
+    },
+    {
+      "scope": "live",
+      "app": "zxnelxi2cejranyvfpw0scac",
+      "taskUuid": "kz5imsxyb0wq8nppdpanfq8j",
+      "baseCommit": "d25796ca7e5bd8670eeb0326aa062e311aded729",
+      "sourceCommit": "70cff306dc2b45e2b4999c5ea333da1f42312520",
+      "checkpointPath": "/app/data/release-checkpoints/20261024-before-translations-live",
+      "execution": {
+        "uuid": "6h9v8b7bgvscfxruk7na5hmq",
+        "status": "success",
+        "created_at": "2026-10-23T22:39:20.000000Z",
+        "finished_at": "2026-10-23T22:39:21.000000Z",
+        "duration": 0.87
+      },
+      "removed": true
+    }
+  ],
+  "deployments": [
+    {
+      "scope": "sandbox",
+      "app": "civaeb8joydtchvzlen6pivq",
+      "source": "b978d3da887427f8a612207424ea31f5fc3a2b45",
+      "requestedAt": "2026-10-23T22:53:59.362696+00:00",
+      "deployment": {
+        "deployments": [
+          {
+            "message": "Application nitido-v3-sandbox deployment queued.",
+            "resource_uuid": "civaeb8joydtchvzlen6pivq",
+            "deployment_uuid": "pqbwbtgbfwzpuhpf0xqyoxp2"
+          }
+        ]
+      },
+      "status": "finished",
+      "finished_at": "2026-10-23T22:56:11.000000Z",
+      "commit": "b978d3da887427f8a612207424ea31f5fc3a2b45",
+      "applicationStatus": "running:healthy",
+      "configuredSource": "b978d3da887427f8a612207424ea31f5fc3a2b45"
+    },
+    {
+      "scope": "live",
+      "app": "zxnelxi2cejranyvfpw0scac",
+      "source": "b978d3da887427f8a612207424ea31f5fc3a2b45",
+      "requestedAt": "2026-10-23T22:57:15.112460+00:00",
+      "deployment": {
+        "deployments": [
+          {
+            "message": "Application nitido:main-np48pyw4borpoufj7cqclvmo deployment queued.",
+            "resource_uuid": "zxnelxi2cejranyvfpw0scac",
+            "deployment_uuid": "nlntxqeiszkhoexongdfrwwf"
+          }
+        ]
+      },
+      "status": "finished",
+      "finished_at": "2026-10-23T22:58:49.000000Z",
+      "commit": "b978d3da887427f8a612207424ea31f5fc3a2b45",
+      "applicationStatus": "running:healthy",
+      "configuredSource": "b978d3da887427f8a612207424ea31f5fc3a2b45"
+    }
+  ],
+  "nativeIosCompile": {
+    "runId": 40036041223,
+    "source": "07d0d6845501c2d1b966fc6cf22982a50582b644",
+    "status": "success",
+    "signed": false,
+    "newStoreBinaryPublished": false
+  },
+  "deployedSandboxChecks": {
+    "pageChecks": 33,
+    "pageFailures": [],
+    "assetChecks": 24,
+    "assetFailures": []
+  },
+  "deployedSandboxLocales": {
+    "passed": true,
+    "checks": 18
+  },
+  "evidenceSHA256": {
+    "build-release-final-approved.log": "2e742efa19d2f8f6478de2b007bd198cee781d206a58db658adec152e79b6fc5",
+    "browser-combined.json": "fbed0d00e79474ed78034f816905e85cc38c83029c9cf58345975cbe01b92b97",
+    "browser-release/report.json": "5ee147bf89c2e9f3e4c9bd0a7801487ca83fe0c9a64793be94f4f1bc2ff96e04",
+    "browser-home-approved/report.json": "d2d784d624e1eac33e06bb751d418fb406939ff0bd2d9b61ca6da8b499e80f6a",
+    "ci-result.json": "5e89a91b64618668be611822bfacad49bdbd83bb71bc53ade2091e786e54970b",
+    "checkpoints.json": "405452187559e2ecf2453c2b86d0e4ba285feb6c6786eb5abc4f48a97cd8e4b9",
+    "post-release-sandbox.json": "02e77646ead48fdf6ce4ac6db46a7a0144942a4f2ab1dcbf9d42eac3bccd360a",
+    "locale-release-sandbox.json": "e200a2f772bf233aa7971e3ba9149b8d4d272e61e8051105079e1fa535b743bc",
+    "release-state.json": "489537e25989f09b9080b53538492c6b357e6cbbac40a47690c4a0d081655397",
+    "post-release-both.json": "64ee7106437f5db3651ef70ff34f968d9abfabc3828e6b9e99d3a5ac55843608",
+    "locale-release-both.json": "b00eb6eba1242aa6f32c7b305bee5f52229205d7bebc00529332dcb384f12d3c",
+    "deployed-css-proof.json": "d486f418039238de13fc110fbf4f93e6de02650414adacfd1cd86253b7f671df"
+  },
+  "rawEvidenceDirectory": "/workspace/nitido-translations-20261023",
+  "rollbackCodeSource": "d25796ca7e5bd8670eeb0326aa062e311aded729",
+  "schemaChanged": false,
+  "databaseAndUploadVolumesPreserved": true,
+  "checkedAt": "2026-10-24",
+  "deployedSiteChecks": {
+    "pageChecks": 66,
+    "pageFailures": [],
+    "assetChecks": 48,
+    "assetFailures": []
+  },
+  "deployedLocaleChecks": {
+    "checks": 36,
+    "passed": true,
+    "manualLanguageOverridesBrowser": true
+  },
+  "deployedCssProof": [
+    {
+      "host": "nitido.ro",
+      "stylesheets": 2,
+      "mobileHomeAccessibleColor": true,
+      "nestedBookingGridFits": true,
+      "allStylesheetsLoaded": true
+    },
+    {
+      "host": "sandbox.nitido.ro",
+      "stylesheets": 2,
+      "mobileHomeAccessibleColor": true,
+      "nestedBookingGridFits": true,
+      "allStylesheetsLoaded": true
+    }
+  ]
 }

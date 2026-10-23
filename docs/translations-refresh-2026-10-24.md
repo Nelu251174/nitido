@@ -1,42 +1,37 @@
-# Completarea interfeței multilingve — versiune de lucru
+# Completarea interfeței multilingve
 
-Lucrarea este pregătită în cod, iar generarea celor opt cataloage a reușit pe sandbox. **Publicarea este blocată de preluarea fișierelor generate.** Cataloagele din ramură nu au fost încă înlocuite; manifestul rămâne explicit `complete: false`. Nu s-a publicat această etapă pe sandbox sau LIVE.
+Versiunea este publicată și verificată pe sandbox și LIVE: **nouă limbi existente, fiecare cu 5.299 de texte**. Cele 648 de intrări adăugate în fiecare catalog acoperă paginile publice, rezervarea și conturile. Domeniul rămâne `ro`, `bg`, `hr`, `cs`, `da`, `nl`, `en`, `fr`, `de`.
 
 ## Modificare
 
-Textele noi din fișiere care importau deja `UiText` erau omise de migrarea automată. Migrarea procesează acum și aceste fișiere, unește importurile existente și are un mod `--check` care nu modifică sursa. Verificarea este inclusă în `prebuild`, împreună cu acoperirea sursei și validarea cataloagelor.
+Migrarea procesează acum și fișierele care importau deja `UiText`, unește importurile și verifică separat conectarea textelor la traducere. Extragerea include și forma scurtă `<UiText text="Recenzii"/>`. Cele șase etichete scurte omise au fost completate în toate limbile; două traduceri existente din meniul danez au fost corectate manual.
 
-Robotul principal de verificare folosește acum `npm run build`, astfel încât să ruleze și poarta `prebuild`, la fel ca imaginea Docker de publicare.
+`UiElement` traduce atributele de accesibilitate, imaginile și etichetele inclusiv pentru componentele Image/Link. Valorile formularelor, destinațiile, acțiunile și conținutul utilizatorilor rămân separate de traducere. Testele verifică păstrarea textului recenziilor și a numelui firmei. Insigna de noutate este verificată în limba aleasă.
 
-Au fost conectate la traducere textele de afișare din paginile publice și conturi, inclusiv etichete de accesibilitate, imagini și legături. Adaptorul `UiElement` acceptă și componentele Image/Link. Valorile formularelor, adresele legăturilor, acțiunile și conținutul utilizatorilor rămân separate de traducere. Testele pentru evaluări verifică explicit păstrarea textului clientului și a numelui firmei.
+Verificările `prebuild` resping sursa neacoperită, textele neconectate și cataloagele incomplete. CI folosește aceeași poartă ca imaginea de publicare. Catalogul sursă conține 5.223 de texte extrase și 76 de intrări existente păstrate pentru utilizări dinamice.
 
-Verificarea paginii „Despre noi” a identificat contrast insuficient la numerotarea cardurilor și în zona verde de la final. Culorile locale au fost corectate, iar cercul pur decorativ este marcat `aria-hidden`.
-
-Catalogul sursă conține 5.293 de mesaje: 5.213 extrase din codul actual și 80 de intrări existente păstrate pentru utilizări dinamice. Sunt 642 de mesaje noi, cu 40.371 de caractere. Cele opt cataloage publicate anterior au fiecare 4.651 de intrări; nu sunt înlocuite cu texte românești pentru a simula completitudinea. Domeniul rămâne cele nouă limbi existente, fără activarea celor 15 limbi amânate.
+Au fost corectate contrastul paginii „Despre noi”, contrastul legăturii „Acasă” de pe telefon și dimensionarea grilelor cu texte daneze/olandeze mai lungi. Cercul pur decorativ din pagina „Despre noi” nu mai este expus cititoarelor de ecran.
 
 ## Verificări
 
-- 2.323 de teste Vitest în 221 de fișiere: trecute.
-- 13 teste ale cataloagelor, acoperirii sursei și generatorului: trecute, fără apeluri externe.
-- ESLint și TypeScript: fără erori.
-- Verificare statică a celor 46 de fișiere de interfață: apelurile externe și atributele de acțiune, acces și formulare existente sunt păstrate.
-- Verificările sursei și conectării textelor la traducere: trecute, fără modificări suplimentare necesare.
-- Compilare Next.js de producție: trecută. Această probă de compilare a fost rulată separat de poarta de publicare; nu reprezintă o versiune multilingvă publicabilă.
-- Browser de producție izolat, cu date sintetice: 48 de verificări, 24 de pagini și 72 de vizualizări la lățimi de 360, 768 și 1440 px; fără erori de pagină, depășiri sau încălcări WCAG detectate. Această probă verifică interfața română de rezervă, nu completitudinea celor opt traduceri încă lipsă.
-- Validarea pentru publicare respinge corect cataloagele incomplete.
+- Regresie GitHub: 2.323 de teste Vitest în 221 de fișiere, ESLint și compilarea de producție trecute, [execuția 40036037290](https://github.com/Nelu251174/nitido/actions/runs/40036037290).
+- 17 teste pentru cataloage, extragere, generator și filtrarea exportului: trecute, fără apeluri externe.
+- ESLint și TypeScript: fără erori; compilarea de producție și poarta completă de publicare trec.
+- Verificare statică: apelurile externe și atributele de control/formulare din cele 46 de fișiere de interfață sunt păstrate.
+- Browser izolat, bază de date sintetică: 72 de verificări funcționale, 72 de pagini și 288 de vizualizări la 360, 390, 768 și 1440 px, în toate cele nouă limbi. Fără erori JavaScript, depășiri sau încălcări WCAG detectate după corecția contrastului paginii de pornire.
+- Ultima corecție schimbă exclusiv culoarea legăturii „Acasă”. Compilarea de producție și cele nouă pagini de pornire au fost reverificate după această corecție; celelalte 63 de pagini păstrează rezultatul din aceeași versiune de cataloage și layout.
+- Compilarea iOS nesemnată pe sursa `07d0d6845501c2d1b966fc6cf22982a50582b644`: trecută. Nu s-a încărcat un binar nou în magazine.
 
-Rezultatele structurate sunt în `docs/evidence/translations-refresh-20261024.json`.
+## Cost și preluarea cataloagelor
 
-## Generare încheiată; accesul la artefacte rămâne blocat
+Generarea celor opt traduceri a consumat 90 de cereri, 269.042 de tokenuri de intrare și 159.269 de ieșire. Costul înregistrat, calculat conservator de generator, este **0,918492 USD**, sub plafonul aprobat de 5 USD. Completările manuale nu au implicat alte apeluri la furnizor. Fișierul `catalog-generation-20261024.json` păstrează separat chitanța și hash-urile artefactelor originale cu 5.293 de intrări, înainte de cele șase completări manuale.
 
-Generarea a fost reluată cu același checkpoint privat și același plafon cumulat de 5 USD, după rezolvarea cotei furnizorului. Execuția s-a încheiat cu succes la 23 octombrie 2026, 21:58:43 UTC (24 octombrie, 00:58:43 în România). Scriptul confirmă succesul numai după validarea tuturor celor opt cataloage, a celor 5.293 de intrări per limbă, a valorilor protejate și a manifestului cu nouă limbi și hash-ul sursei corect. Sarcina de generare a fost eliminată după încheiere. Nu este programată o reluare și nu este necesară regenerarea textelor.
+Cataloagele au fost preluate prin integrarea GitHub/Coolify existentă, folosind accesul de citire a jurnalelor și un filtru strict pentru marcajul acestei execuții, revizie, fișiere permise și SHA-256. Nu s-a creat serviciul temporar refuzat de utilizator, nu s-au montat volume suplimentare și nu s-au exportat jurnale brute, chei, fotografii sau baze de date. Sarcinile punctuale sunt încheiate și eliminate; fluxul de export este exclusiv manual.
 
-Fișierele sunt păstrate în checkpointul privat al sandboxului. Tokenul disponibil sesiunii nu permite citirea jurnalelor (`read:sensitive` lipsește). Alternativa prin integrarea GitHub/Coolify existentă a fost testată fără chei sau servicii noi, dar autentificarea acelei integrări este respinsă cu HTTP 401, înainte de crearea vreunei sarcini de export. Fluxul de export este acum exclusiv manual. Cele trei teste ale filtrării artefactelor și ale opririi la permisiuni insuficiente trec. Nu sunt încă disponibile cifrele finale de utilizare/cost din checkpoint.
+## Publicare și limite
 
-Nu s-a creat serviciul temporar propus pentru descărcare; utilizatorul l-a refuzat. Nu s-au montat volume suplimentare și nu s-a publicat un endpoint nou. Nu s-au exportat chei, fotografii, baze de date sau jurnale brute.
+Sursa publicată este `b978d3da887427f8a612207424ea31f5fc3a2b45`. Sandbox: 24 octombrie 2026, 01:56:11; LIVE: 01:58:49, ora României. Ambele sunt sănătoase. Au trecut 66 de verificări ale paginilor/API-urilor, 48 de resurse JS/CSS și 36 de probe ale limbii manuale și ale textelor publicate; regulile CSS corectate sunt prezente pe ambele medii. Copiile de siguranță și restaurarea izolată au trecut înaintea publicării. Codul pentru revenire este `d25796ca7e5bd8670eeb0326aa062e311aded729`; volumele bazei de date și ale fișierelor sunt păstrate.
 
-Sandbox și LIVE au rămas sănătoase la sursa `d25796ca7e5bd8670eeb0326aa062e311aded729` din etapa GeoIP. Această etapă privește interfața web încărcată și de aplicațiile mobile; nu rezolvă și nu certifică problema separată de pornire a aplicației Android.
+Dovezile de backup, restaurare izolată, CI și publicare sunt păstrate în `docs/evidence/translations-refresh-20261024.json`.
 
-## Rămas pentru finalizare
-
-Preluarea cataloagelor deja generate printr-un acces de citire autorizat, validarea lor în ramură, verificări în browser pentru toate cele nouă limbi, apoi backup, publicare pe sandbox și LIVE și verificări după publicare. Până atunci PR-ul rămâne draft și poarta de publicare rămâne închisă.
+Această etapă actualizează interfața web încărcată și de aplicațiile mobile. Nu modifică schema bazei de date, prețurile sau fluxurile de plată și nu trimite notificări. Nu certifică remedierea problemei separate de pornire a aplicației Android. Traducerile generate automat necesită în continuare revizie lingvistică specializată pentru textele juridice.
