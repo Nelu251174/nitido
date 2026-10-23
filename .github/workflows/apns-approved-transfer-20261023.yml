@@ -1,0 +1,31 @@
+# Owner explicitly approved the encrypted one-day artifact transfer on 2026-10-23.
+name: Owner-approved encrypted APNs transfer to existing NITIDO runtimes
+on:
+  push:
+    branches: [codex/nitido-push-20261022]
+    paths: ['scripts/apns-approved-transfer*', '.github/workflows/apns-approved-transfer-20261023.yml']
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test scripts/apns-credential-check.test.mjs scripts/apns-approved-transfer.test.mjs
+      - name: Encrypt only for the approved NITIDO server operator
+        env:
+          APNS_PRIVATE_KEY: ${{ secrets.APNS_PRIVATE_KEY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: node scripts/apns-approved-transfer.mjs --owner-approved-transfer
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nitido-apns-approved-encrypted-transfer
+          path: apns-approved-configuration.encrypted.json
+          retention-days: 1
+          if-no-files-found: error
