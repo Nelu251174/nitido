@@ -17,9 +17,14 @@ export function validateApnsKey(raw,expectedTeam){
   let text=raw.trim();
   if(text.startsWith('"')){try{const decoded=JSON.parse(text);if(typeof decoded==='string')text=decoded}catch{throw invalidPem('quoted_text')}}
   text=text.replace(/\\r\\n/g,'\n').replace(/\\n/g,'\n').replace(/\r\n?/g,'\n').trim();
-  const match=text.match(/^-----BEGIN PRIVATE KEY-----\s*([A-Za-z0-9+/=\s]+?)\s*-----END PRIVATE KEY-----$/);
-  if(!match)throw invalidPem('pem_boundaries_or_non_base64_characters');
-  const base64=match[1].replace(/\s/g,'');
+  // Accept a single complete key even if the download/copy includes a label
+  // or Markdown fence. Never silently select between multiple private keys.
+  const matches=[...text.matchAll(/-----BEGIN PRIVATE KEY-----([\s\S]*?)-----END PRIVATE KEY-----/g)];
+  if(matches.length!==1)throw invalidPem('pem_boundaries_or_multiple_keys');
+  const body=matches[0][1];
+  if(/\.{3}|\u2026/.test(body))throw invalidPem('example_placeholder_in_key');
+  const base64=body.replace(/[\s\u200B-\u200D\uFEFF]/g,'');
+  if(!/^[A-Za-z0-9+/=]+$/.test(base64))throw invalidPem('non_base64_characters_inside_key');
   if(!base64||base64.length%4!==0||Buffer.from(base64,'base64').toString('base64')!==base64)throw invalidPem('base64_encoding');
   const pem='-----BEGIN PRIVATE KEY-----\n'+base64.match(/.{1,64}/g).join('\n')+'\n-----END PRIVATE KEY-----\n';
   let key;
@@ -38,7 +43,7 @@ export function checkApnsConfiguration(env){
   try{
     const result=validateApnsKey(env.APNS_PRIVATE_KEY,env.APPLE_TEAM_ID);
     Object.assign(status,result,{status:'key_format_and_signature_verified',privateKeySavedInGithub:true,keyExported:false});
-  }catch(error){status.status='blocked';status.reason=/^APNS_[A-Z0-9_]+$/.test(error.message)?error.message:'APNS_CONFIGURATION_VALIDATION_FAILED';status.inputShape=apnsInputShape(env.APNS_PRIVATE_KEY);if(['quoted_text','pem_boundaries_or_non_base64_characters','base64_encoding','pkcs8_key_structure'].includes(error.stage))status.inputProblem=error.stage}
+  }catch(error){status.status='blocked';status.reason=/^APNS_[A-Z0-9_]+$/.test(error.message)?error.message:'APNS_CONFIGURATION_VALIDATION_FAILED';status.inputShape=apnsInputShape(env.APNS_PRIVATE_KEY);if(['quoted_text','pem_boundaries_or_multiple_keys','example_placeholder_in_key','non_base64_characters_inside_key','base64_encoding','pkcs8_key_structure'].includes(error.stage))status.inputProblem=error.stage}
   return status;
 }
 

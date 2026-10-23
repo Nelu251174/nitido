@@ -8,10 +8,11 @@ test('accepts a complete P256 private key and binds it to the existing Apple tea
   const raw=pem('ec',{namedCurve:'prime256v1'});
   const result=validateApnsKey(raw,APNS_IDENTITY.teamId);
   assert.deepEqual(result,{algorithm:'P-256',signatureSelfCheck:true});
-  for(const copied of [raw.replace(/\n/g,'\\n'),JSON.stringify(raw),raw.replace(/\n/g,' ')]){
+  for(const copied of [raw.replace(/\n/g,'\\n'),JSON.stringify(raw),raw.replace(/\n/g,' '),'Downloaded APNs key\n```\n'+raw+'```',raw.replace(/\n/g,'\n\u200B')]){
     assert.deepEqual(validateApnsKey(copied,APNS_IDENTITY.teamId),result);
   }
   assert.throws(()=>validateApnsKey(raw,'OTHERTEAM1'),/^Error: APNS_APPLE_TEAM_MISMATCH$/);
+  assert.throws(()=>validateApnsKey(raw+raw,APNS_IDENTITY.teamId),/^Error: APNS_PRIVATE_KEY_INVALID_PEM$/);
 });
 test('rejects missing, incomplete, RSA, wrong-curve and public keys with sanitized errors',()=>{
   for(const raw of ['', 'private-sensitive-text', '-----BEGIN PRIVATE KEY-----\nbroken\n-----END PRIVATE KEY-----']){
@@ -30,4 +31,6 @@ test('successful status contains no key, signature or credential payload; failur
   assert.equal(JSON.stringify(status).includes('BEGIN PRIVATE KEY'),false);assert.equal(JSON.stringify(status).includes(raw.split('\n')[1]),false);
   const invalid=checkApnsConfiguration({APNS_PRIVATE_KEY:'private-sensitive-text',APPLE_TEAM_ID:APNS_IDENTITY.teamId});
   assert.equal(invalid.status,'blocked');assert.equal(invalid.reason,'APNS_PRIVATE_KEY_INVALID_PEM');assert.equal(JSON.stringify(invalid).includes('private-sensitive-text'),false);
+  const example=checkApnsConfiguration({APNS_PRIVATE_KEY:'-----BEGIN PRIVATE KEY-----\n…\n-----END PRIVATE KEY-----',APPLE_TEAM_ID:APNS_IDENTITY.teamId});
+  assert.equal(example.inputProblem,'example_placeholder_in_key');
 });
