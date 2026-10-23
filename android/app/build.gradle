@@ -79,11 +79,20 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 
-try {
-    def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
-        apply plugin: 'com.google.gms.google-services'
+def servicesJSON = file('google-services.json')
+if (servicesJSON.exists()) {
+    try {
+        def config = new groovy.json.JsonSlurper().parse(servicesJSON)
+        def matches = config.client.findAll { it.client_info?.android_client_info?.package_name == 'ro.nitido.app' }
+        if (matches.size() != 1 || !config.project_info?.project_id || !matches[0].client_info?.mobilesdk_app_id) {
+            throw new IllegalArgumentException('Wrong Firebase app identity')
+        }
+    } catch (Exception ignored) {
+        throw new GradleException('Invalid Firebase Android configuration for ro.nitido.app')
     }
-} catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+    apply plugin: 'com.google.gms.google-services'
+} else if (isStoreRelease) {
+    throw new GradleException('Missing google-services.json: push-ready store release cannot be built')
+} else {
+    logger.warn('Firebase is absent: this local debug build cannot receive push notifications')
 }

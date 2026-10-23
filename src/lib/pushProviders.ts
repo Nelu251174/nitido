@@ -4,6 +4,10 @@ import http2 from "node:http2";
 export type PushPlatform="IOS"|"ANDROID";
 export type PushPayload={title:string;body:string;data:Record<string,string>};
 export class PushProviderError extends Error{constructor(message:string,public permanent=false){super(message);}}
+export function pushPlatformConfigured(platform:PushPlatform,env:NodeJS.ProcessEnv=process.env){
+  const keys=platform==="ANDROID"?["FIREBASE_PROJECT_ID","FIREBASE_CLIENT_EMAIL","FIREBASE_PRIVATE_KEY"]:["APNS_KEY_ID","APNS_TEAM_ID","APNS_PRIVATE_KEY"];
+  return keys.every(k=>Boolean(env[k]?.trim()))&&(platform==="ANDROID"||env.APNS_BUNDLE_ID==="ro.nitido.app"&&["true","false"].includes(env.APNS_USE_SANDBOX??""));
+}
 
 const b64=(value:string|Buffer)=>Buffer.from(value).toString("base64url");
 function jwt(header:object,payload:object,key:string,algorithm:"RSA-SHA256"|"SHA256",p1363=false){const input=`${b64(JSON.stringify(header))}.${b64(JSON.stringify(payload))}`;const sign=createSign(algorithm);sign.update(input);sign.end();return `${input}.${sign.sign({key:key.replace(/\\n/g,"\n"),...(p1363?{dsaEncoding:"ieee-p1363" as const}:{})}).toString("base64url")}`;}
@@ -21,16 +25,46 @@ async function firebaseAccessToken(){
 export async function sendFcm(token:string,payload:PushPayload):Promise<{providerMessageId:string}>{
   const project=process.env.FIREBASE_PROJECT_ID;if(!project)throw new PushProviderError("FCM_NOT_CONFIGURED");
   const response=await fetch(`https://fcm.googleapis.com/v1/projects/${encodeURIComponent(project)}/messages:send`,{method:"POST",headers:{Authorization:`Bearer ${await firebaseAccessToken()}`,"Content-Type":"application/json"},body:JSON.stringify({message:{token,notification:{title:payload.title,body:payload.body},data:payload.data,android:{priority:"high",notification:{sound:"default",channel_id:payload.data.event_type==="MESSAGE_RECEIVED"?"messages-v1":"activity-v1",tag:payload.data.message_id}}}}),signal:AbortSignal.timeout(10_000)});
-  const text=await response.text();if(!response.ok){const permanent=response.status===404||text.includes("UNREGISTERED")||text.includes("INVALID_ARGUMENT");throw new PushProviderError(permanent?"PUSH_TOKEN_INVALID":"FCM_TEMPORARY_FAILURE",permanent);}
-  const data=JSON.parse(text) as {name:string};return {providerMessageId:data.name};
+  let data:{name?:unknown;error?:{details?:Array<{errorCode?:string}>}};try{data=await response.json()}catch{throw new PushProviderError("FCM_TEMPORARY_FAILURE")}
+  if(!response.ok){const permanent=Array.isArray(data.error?.details)&&data.error.details.some(detail=>detail.errorCode==="UNREGISTERED")===true;throw new PushProviderError(permanent?"PUSH_TOKEN_INVALID":"FCM_TEMPORARY_FAILURE",permanent);}
+  if(typeof data.name!=="string"||!data.name.startsWith(`projects/${project}/messages/`))throw new PushProviderError("FCM_TEMPORARY_FAILURE");
+  return {providerMessageId:data.name};
 }
 
 let apnsToken:{value:string;expiresAt:number}|null=null;
 function appleJwt(){if(apnsToken&&apnsToken.expiresAt>Date.now())return apnsToken.value;const keyId=process.env.APNS_KEY_ID,team=process.env.APNS_TEAM_ID,key=process.env.APNS_PRIVATE_KEY;if(!keyId||!team||!key)throw new PushProviderError("APNS_NOT_CONFIGURED");const now=Math.floor(Date.now()/1000);const value=jwt({alg:"ES256",kid:keyId},{iss:team,iat:now},key,"SHA256",true);apnsToken={value,expiresAt:Date.now()+50*60_000};return value;}
 
 export async function sendApns(token:string,payload:PushPayload):Promise<{providerMessageId:string}>{
-  const topic=process.env.APNS_BUNDLE_ID;if(!topic)throw new PushProviderError("APNS_NOT_CONFIGURED");const authority=process.env.APNS_USE_SANDBOX==="false"?"https://api.push.apple.com":"https://api.sandbox.push.apple.com";
-  return new Promise((resolve,reject)=>{const client=http2.connect(authority);const timer=setTimeout(()=>{client.destroy();reject(new PushProviderError("APNS_TIMEOUT"));},10_000);client.once("error",()=>{clearTimeout(timer);reject(new PushProviderError("APNS_TEMPORARY_FAILURE"));});const req=client.request({":method":"POST",":path":`/3/device/${encodeURIComponent(token)}`,authorization:`bearer ${appleJwt()}`,"apns-topic":topic,"apns-push-type":"alert","apns-priority":"10"});let status=0,id="",body="";req.on("response",headers=>{status=Number(headers[":status"]);id=String(headers["apns-id"]??"");});req.on("data",chunk=>body+=chunk);req.on("end",()=>{clearTimeout(timer);client.close();if(status===200)resolve({providerMessageId:id});else{const permanent=status===400||status===410||body.includes("BadDeviceToken")||body.includes("Unregistered");reject(new PushProviderError(permanent?"PUSH_TOKEN_INVALID":"APNS_TEMPORARY_FAILURE",permanent));}});req.end(JSON.stringify({aps:{alert:{title:payload.title,body:payload.body},sound:"nitido_alert_v2.wav"},...payload.data}));});
+  const topic=process.env.APNS_BUNDLE_ID,mode=process.env.APNS_USE_SANDBOX;
+  if(topic!=="ro.nitido.app"||!["true","false"].includes(mode??""))throw new PushProviderError("APNS_NOT_CONFIGURED");
+  // Validate credentials before opening a connection; a missing key must not leak sockets.
+  const authorization=`bearer ${appleJwt()}`;
+  const authority=mode==="false"?"https://api.push.apple.com":"https://api.sandbox.push.apple.com";
+  return new Promise((resolve,reject)=>{
+    const client=http2.connect(authority);let settled=false;
+    let req:ReturnType<typeof client.request>|undefined;
+    const finish=(error?:PushProviderError,providerMessageId?:string)=>{
+      if(settled)return;settled=true;clearTimeout(timer);
+      if(error){req?.destroy();client.destroy();reject(error)}else{client.close();resolve({providerMessageId:providerMessageId!})}
+    };
+    const timer=setTimeout(()=>finish(new PushProviderError("APNS_TIMEOUT")),10_000);
+    client.once("error",()=>finish(new PushProviderError("APNS_TEMPORARY_FAILURE")));
+    try{
+      req=client.request({":method":"POST",":path":`/3/device/${encodeURIComponent(token)}`,authorization,"apns-topic":topic,"apns-push-type":"alert","apns-priority":"10"});
+      let status=0,id="",body="";
+      req.on("response",headers=>{status=Number(headers[":status"]);id=String(headers["apns-id"]??"")});
+      req.on("data",chunk=>{body+=chunk;if(body.length>8192)finish(new PushProviderError("APNS_TEMPORARY_FAILURE"))});
+      req.once("error",()=>finish(new PushProviderError("APNS_TEMPORARY_FAILURE")));
+      req.once("aborted",()=>finish(new PushProviderError("APNS_TEMPORARY_FAILURE")));
+      req.on("end",()=>{
+        if(status===200&&id)return finish(undefined,id);
+        let reason="";try{reason=JSON.parse(body).reason}catch{}
+        const permanent=reason==="Unregistered"||reason==="BadDeviceToken";
+        finish(new PushProviderError(permanent?"PUSH_TOKEN_INVALID":"APNS_TEMPORARY_FAILURE",permanent));
+      });
+      req.end(JSON.stringify({...payload.data,aps:{alert:{title:payload.title,body:payload.body},sound:"default"}}));
+    }catch{finish(new PushProviderError("APNS_TEMPORARY_FAILURE"))}
+  });
 }
 
 export async function sendPush(platform:PushPlatform,token:string,payload:PushPayload){return platform==="ANDROID"?sendFcm(token,payload):sendApns(token,payload);}

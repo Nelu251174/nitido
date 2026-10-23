@@ -1,0 +1,11 @@
+import {afterEach,beforeEach,expect,it,vi} from 'vitest';
+import {NextRequest} from 'next/server';
+const state=vi.hoisted(()=>({user:vi.fn(),all:vi.fn(),prepare:vi.fn()}));
+vi.mock('@/lib/auth',()=>({getCurrentUser:state.user}));
+vi.mock('@/lib/db',()=>({db:{prepare:state.prepare}}));
+import {GET} from './route';
+beforeEach(()=>{vi.clearAllMocks();state.prepare.mockReturnValue({all:state.all});state.all.mockReturnValue([{platform:'ANDROID',push_enabled:1}]);state.user.mockResolvedValue({id:'synthetic-user'});vi.stubEnv('PUSH_ENABLED','true');vi.stubEnv('FIREBASE_PROJECT_ID','synthetic-project');vi.stubEnv('FIREBASE_CLIENT_EMAIL','test@example.invalid');vi.stubEnv('FIREBASE_PRIVATE_KEY','synthetic-only');for(const k of ['APNS_KEY_ID','APNS_TEAM_ID','APNS_PRIVATE_KEY','APNS_BUNDLE_ID','APNS_USE_SANDBOX'])vi.stubEnv(k,'')});
+afterEach(()=>vi.unstubAllEnvs());
+it('reports readiness separately per platform, scoped to the authenticated user and without caching',async()=>{const r=await GET(new NextRequest('https://nitido.ro/api/push/status'));expect(r.headers.get('cache-control')).toBe('private, no-store');expect(await r.json()).toMatchObject({pushEnabled:true,platforms:{ANDROID:true,IOS:false}});expect(state.all).toHaveBeenCalledWith('synthetic-user');expect(state.prepare.mock.calls[0][0]).not.toContain('device_token')});
+it('does not disclose platform readiness or devices to an anonymous request',async()=>{state.user.mockResolvedValue(null);const r=await GET(new NextRequest('https://nitido.ro/api/push/status'));expect(r.status).toBe(401);expect(r.headers.get('cache-control')).toBe('private, no-store');expect(state.prepare).not.toHaveBeenCalled()});
+it('keeps both platforms disabled when the server switch is off',async()=>{vi.stubEnv('PUSH_ENABLED','false');const r=await GET(new NextRequest('https://nitido.ro/api/push/status'));expect((await r.json()).platforms).toEqual({ANDROID:false,IOS:false})});

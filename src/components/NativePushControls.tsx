@@ -2,6 +2,7 @@
 import {UiText} from '@/components/UiText';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
+import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { nativeNotificationHref, nativePushAvailable, registerNativePush } from '@/lib/nativePushClient';
 
@@ -27,7 +28,8 @@ export function NativePushControls({ role, controls = true }: { role: 'client' |
       const status = await fetch('/api/push/status', { cache: 'no-store' });
       if (!status.ok) throw new Error('Nu s-a putut verifica starea notificărilor.');
       const state = await status.json();
-      setMessage(state.pushEnabled ? 'Telefon înregistrat. Notificările respectă volumul și modul silențios al telefonului.' : 'Telefon înregistrat. Serviciul de notificări nu este încă activ.');
+      const platform=Capacitor.getPlatform()==='ios'?'IOS':'ANDROID';
+      setMessage(state.pushEnabled && state.platforms?.[platform] === true ? 'Telefon înregistrat. Notificările respectă volumul și modul silențios al telefonului.' : 'Telefon înregistrat. Serviciul de notificări nu este încă activ.');
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Activarea nu a reușit.'); }
     finally { setBusy(false); }
   }

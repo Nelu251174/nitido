@@ -2,6 +2,16 @@ name: Robot Google Play (semnat + upload)
 
 # Signed builds preserve the existing upload key. Store upload requires fresh release evidence.
 on:
+  # Reusable invocation builds a signed candidate only. Upload remains limited
+  # to an explicitly requested workflow_dispatch with fresh release evidence.
+  workflow_call:
+    inputs:
+      version_code:
+        type: string
+        required: true
+      version_name:
+        type: string
+        required: true
   workflow_dispatch:
     inputs:
       version_code:
@@ -84,6 +94,12 @@ jobs:
           umask 077
           printf '%s' "$KS" | base64 -d > "$RUNNER_TEMP/nitido-upload.keystore"
 
+
+      - name: Validate Firebase configuration for this Android app
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: node scripts/mobile-firebase-config.mjs
 
       - name: Sync Capacitor — producție
         env:

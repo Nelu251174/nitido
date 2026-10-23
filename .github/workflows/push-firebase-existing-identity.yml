@@ -1,0 +1,62 @@
+name: Android Firebase access using existing release identity (read-only)
+on:
+  push:
+    branches: [codex/nitido-push-20261022]
+    paths: ['.github/workflows/push-firebase-existing-identity.yml']
+permissions:
+  contents: read
+jobs:
+  firebase-access:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify existing release identity can read the exact Firebase project
+        env:
+          PLAY_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          python3 - <<'PY'
+          import json,os,pathlib,subprocess,tempfile,re
+          report={'projectId':'nitido-508720','packageName':'ro.nitido.app','readOnly':True,'providerConfigured':False,'deliveryTested':False}
+          raw=os.environ.get('PLAY_ACCOUNT_JSON','')
+          keypath=None
+          try:
+              if not raw:
+                  report.update(status='blocked',reason='EXISTING_GOOGLE_PLAY_IDENTITY_MISSING')
+              else:
+                  info=json.loads(raw)
+                  if info.get('type')!='service_account':
+                      raise ValueError('EXISTING_GOOGLE_PLAY_IDENTITY_INVALID')
+                  report['identityProjectMatches']=info.get('project_id')=='nitido-508720'
+                  fd,keypath=tempfile.mkstemp(prefix='nitido-firebase-adc-',suffix='.json')
+                  os.fchmod(fd,0o600)
+                  with os.fdopen(fd,'w') as handle:handle.write(raw)
+                  ctx={**os.environ,'GOOGLE_APPLICATION_CREDENTIALS':keypath,'CI':'true','NO_UPDATE_NOTIFIER':'1'}
+                  ctx.pop('PLAY_ACCOUNT_JSON',None)
+                  run=subprocess.run(['npx','-y','firebase-tools@latest','apps:list','ANDROID','--project','nitido-508720','--json','--non-interactive'],env=ctx,capture_output=True,text=True,timeout=300)
+                  try:data=json.loads(run.stdout)
+                  except ValueError:data={}
+                  apps=data.get('result')
+                  if run.returncode==0 and data.get('status')=='success' and isinstance(apps,list):
+                      report.update(status='accessible',androidApps=[{'appId':a.get('appId'),'packageName':a.get('packageName'),'platform':a.get('platform')} for a in apps if isinstance(a,dict)])
+                  else:
+                      details=json.dumps(data.get('error',''))+' '+run.stderr
+                      match=re.search(r'\b(401|403|404)\b',details)
+                      report.update(status='blocked',reason='EXISTING_IDENTITY_FIREBASE_READ_FAILED',httpStatus=int(match.group(1)) if match else None)
+          except subprocess.TimeoutExpired:
+              report.update(status='blocked',reason='FIREBASE_CLI_TIMEOUT')
+          except Exception:
+              report.update(status='blocked',reason='EXISTING_IDENTITY_PROBE_FAILED')
+          finally:
+              if keypath:
+                  pathlib.Path(keypath).unlink(missing_ok=True)
+          pathlib.Path('firebase-existing-identity-status.json').write_text(json.dumps(report,indent=2))
+          print(json.dumps(report))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firebase-existing-identity-status-only
+          path: firebase-existing-identity-status.json
+          retention-days: 7

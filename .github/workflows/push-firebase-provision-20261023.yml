@@ -1,0 +1,34 @@
+name: Validate NITIDO Android FCM (no notifications or server changes)
+on:
+  push:
+    branches: [codex/nitido-push-20261022]
+    paths: ['scripts/push-firebase-provision*', '.github/workflows/push-firebase-provision-20261023.yml']
+permissions:
+  contents: read
+jobs:
+  configure-fcm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    concurrency:
+      group: nitido-firebase-provider-configuration
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify credential boundaries and dry-run-only behavior
+        run: node --test scripts/push-firebase-provision.test.mjs
+      - name: Validate Firebase credentials without notification delivery
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: node scripts/push-firebase-provision.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: firebase-provision-status-only
+          path: firebase-provision-status.json
+          retention-days: 7
+          if-no-files-found: ignore

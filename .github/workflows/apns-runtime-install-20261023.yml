@@ -1,0 +1,25 @@
+name: Install validated APNs configuration directly on existing NITIDO servers
+on:
+  # The approved one-time installation is complete. Future reinstallations are manual.
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test key validation and bounded runtime installation
+        run: node --test scripts/apns-credential-check.test.mjs scripts/apns-runtime-install.test.mjs
+      - name: Install only on authenticated Coolify destinations; no key export or artifact
+        env:
+          APNS_PRIVATE_KEY: ${{ secrets.APNS_PRIVATE_KEY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: node scripts/apns-runtime-install.mjs
