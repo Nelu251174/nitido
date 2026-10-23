@@ -1,5 +1,5 @@
 {
-  "status": "draft_blocked_provider_quota",
+  "status": "draft_blocked_artifact_read_access",
   "baseline": "e8877140d5b9c969826536e901129cf1e5b63dab",
   "codeFiles": 60,
   "codeFingerprint": "f066d90c941fcbddcd4e504f1fdedb5bafd7a079c9d2c788e648ddc6dd141026",
@@ -53,12 +53,24 @@
   },
   "provider": {
     "approvedMaxUsd": 5,
-    "result": "quota_or_balance_unavailable",
-    "returnedInputTokens": 0,
-    "returnedOutputTokens": 0,
-    "generatedLocales": 0,
-    "temporaryTasksRemoved": 8,
+    "result": "completed_remote",
+    "generationSucceededAt": "2026-10-23T21:58:43.000Z",
+    "validatedRemoteLanguages": 9,
+    "validatedRemoteMessagesPerLanguage": 5293,
+    "generatedNonRomanianLocales": 8,
+    "actualUsageNotRetrieved": true,
+    "generationTaskRemoved": true,
     "automaticRetry": false
   },
-  "deployedAppSourceUnchanged": "d25796ca7e5bd8670eeb0326aa062e311aded729"
+  "deployedAppSourceUnchanged": "d25796ca7e5bd8670eeb0326aa062e311aded729",
+  "artifactAccess": {
+    "cloudTokenLogRead": "forbidden_missing_read_sensitive",
+    "existingGitHubCoolifyIntegration": "HTTP_401",
+    "exportWorkflowRun": 40031626778,
+    "exportWorkflowJob": 120681001369,
+    "exportTestsPassed": 3,
+    "exportedArtifacts": 0,
+    "newServiceCreated": false,
+    "temporaryServiceDeclined": true
+  }
 }

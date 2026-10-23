@@ -1,6 +1,6 @@
 # Completarea interfeței multilingve — versiune de lucru
 
-Lucrarea este pregătită în cod, dar **nu este publicabilă**: cele 642 de texte noi trebuie completate în BG, HR, CS, DA, NL, EN, FR și DE. Manifestul este marcat explicit `complete: false`. Nu s-a publicat această etapă pe sandbox sau LIVE.
+Lucrarea este pregătită în cod, iar generarea celor opt cataloage a reușit pe sandbox. **Publicarea este blocată de preluarea fișierelor generate.** Cataloagele din ramură nu au fost încă înlocuite; manifestul rămâne explicit `complete: false`. Nu s-a publicat această etapă pe sandbox sau LIVE.
 
 ## Modificare
 
@@ -27,14 +27,16 @@ Catalogul sursă conține 5.293 de mesaje: 5.213 extrase din codul actual și 80
 
 Rezultatele structurate sunt în `docs/evidence/translations-refresh-20261024.json`.
 
-## Blocajul generării
+## Generare încheiată; accesul la artefacte rămâne blocat
 
-După aprobarea explicită a unui plafon de 5 USD, s-a încercat generatorul existent cu cheia deja configurată pe sandbox. Au fost reutilizate cele 4.651 de traduceri existente per limbă; numai textele noi urmau să fie trimise. Serviciul a raportat cotă/sold indisponibil. Nu a returnat traduceri, iar contoarele de tokenuri de intrare și ieșire au rămas la zero. Nu s-au exportat chei și nu s-au trimis date ale clienților.
+Generarea a fost reluată cu același checkpoint privat și același plafon cumulat de 5 USD, după rezolvarea cotei furnizorului. Execuția s-a încheiat cu succes la 23 octombrie 2026, 21:58:43 UTC (24 octombrie, 00:58:43 în România). Scriptul confirmă succesul numai după validarea tuturor celor opt cataloage, a celor 5.293 de intrări per limbă, a valorilor protejate și a manifestului cu nouă limbi și hash-ul sursei corect. Sarcina de generare a fost eliminată după încheiere. Nu este programată o reluare și nu este necesară regenerarea textelor.
 
-Sarcina temporară și cele șapte verificări de diagnostic au fost șterse după încheiere. Nu există o reluare automată. Checkpointul privat păstrează contabilizarea încercării; o reluare trebuie să respecte același plafon cumulat, fără resetarea lui.
+Fișierele sunt păstrate în checkpointul privat al sandboxului. Tokenul disponibil sesiunii nu permite citirea jurnalelor (`read:sensitive` lipsește). Alternativa prin integrarea GitHub/Coolify existentă a fost testată fără chei sau servicii noi, dar autentificarea acelei integrări este respinsă cu HTTP 401, înainte de crearea vreunei sarcini de export. Fluxul de export este acum exclusiv manual. Cele trei teste ale filtrării artefactelor și ale opririi la permisiuni insuficiente trec. Nu sunt încă disponibile cifrele finale de utilizare/cost din checkpoint.
+
+Nu s-a creat serviciul temporar propus pentru descărcare; utilizatorul l-a refuzat. Nu s-au montat volume suplimentare și nu s-a publicat un endpoint nou. Nu s-au exportat chei, fotografii, baze de date sau jurnale brute.
 
 Sandbox și LIVE au rămas sănătoase la sursa `d25796ca7e5bd8670eeb0326aa062e311aded729` din etapa GeoIP. Această etapă privește interfața web încărcată și de aplicațiile mobile; nu rezolvă și nu certifică problema separată de pornire a aplicației Android.
 
 ## Rămas pentru finalizare
 
-Completarea și verificarea celor 642 de intrări în fiecare dintre cele opt cataloage, verificări în browser pentru toate cele nouă limbi, apoi backup, publicare pe sandbox și LIVE și verificări după publicare. Până atunci PR-ul rămâne draft și poarta de publicare rămâne închisă.
+Preluarea cataloagelor deja generate printr-un acces de citire autorizat, validarea lor în ramură, verificări în browser pentru toate cele nouă limbi, apoi backup, publicare pe sandbox și LIVE și verificări după publicare. Până atunci PR-ul rămâne draft și poarta de publicare rămâne închisă.

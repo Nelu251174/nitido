@@ -1,11 +1,6 @@
 name: Export completed UI catalogs through existing Coolify access
 on:
-  push:
-    branches: [codex/nitido-translations-20261023]
-    paths:
-      - .github/workflows/ui-catalog-export-20261024.yml
-      - scripts/i18n-export-generated.mjs
-      - scripts/i18n-export-generated.test.mjs
+  # Manual only: the existing CI credential must first be restored.
   workflow_dispatch:
 permissions:
   contents: read
