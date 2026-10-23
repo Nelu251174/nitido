@@ -103,3 +103,7 @@ Starea la acel moment: **activare Firebase APROBATĂ, BLOCATĂ de accesul la end
 - Activarea nu este confirmată și nu poate fi declarată realizată. Înregistrarea aplicației Android, obținerea configurației și testul FCM așteaptă rezolvarea autorizării pentru această operațiune. APNs necesită separat credențialele Apple prevăzute mai sus.
 
 Starea curentă: **reînnoire OAuth REZOLVATĂ prin endpoint oficial deja permis; activare Firebase APROBATĂ, REFUZATĂ de Google cu `PERMISSION_DENIED`; FCM/APNs neconfigurate; recepție fizică NETESTATĂ; pilot NEACTIVAT**. Nu s-a modificat configurația LIVE și nu s-au trimis notificări.
+
+## Alternative investigate la cererea beneficiarului
+
+Analiza verificată și pachetul propus sunt în [PUSH-ALTERNATIVES-20261023.md](PUSH-ALTERNATIVES-20261023.md): Web Push în PWA existentă, APNs direct pentru iPhone și canalele email/SMS existente. Fiecare variantă păstrează separat implementarea, configurația și proba fizică. Recomandarea Web Push cere implementare și acceptanță separată pentru versiunea web instalată; nu închide testele aplicațiilor native din magazine.
