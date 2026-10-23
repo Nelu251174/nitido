@@ -170,5 +170,5 @@
  .design-trust-strip>.design-container{grid-template-columns:repeat(2,minmax(0,1fr))}
  .design-trust-strip>.design-container>*{min-width:0}
  .design-trust-strip a>span{min-width:0;overflow-wrap:anywhere}
- .design-home-bottom a:first-child{color:var(--nitido-action-background)}
+ .design-home-bottom a:first-child{color:#007A4A}
 }
