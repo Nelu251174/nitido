@@ -1,0 +1,28 @@
+name: GeoIP security and compatibility
+on:
+  push:
+    branches: [codex/nitido-geoip-security-20261023]
+    paths: ['package.json', 'package-lock.json', 'Dockerfile', 'scripts/patch-geoip-updater.mjs', 'scripts/geoip-compatibility.test.mjs', '.github/workflows/geoip-security-20261023.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  geoip:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=low
+      - run: node --test scripts/geoip-compatibility.test.mjs
+      - run: npx eslint
+      - run: npx vitest run src/i18n/ipLanguage.test.ts src/i18n/localization.test.ts src/lib/siteIndexing.test.ts src/lib/signupPersistence.test.ts src/lib/adminOwnerEvents.test.ts
+      - name: Production website build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_NITIDO_PRO_PUBLIC: 'true'
+        run: npm run build -- --webpack

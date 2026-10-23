@@ -8,6 +8,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
+COPY scripts/patch-geoip-updater.mjs ./scripts/patch-geoip-updater.mjs
 # Managed build proxies can supply their CA as a temporary BuildKit secret.
 # A regular Coolify build does not require this secret; TLS remains enabled.
 RUN --mount=type=secret,id=proxy_ca \

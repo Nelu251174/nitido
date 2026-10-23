@@ -29,7 +29,8 @@
     "test:upgrade:consolidated": "vitest run",
     "test:backup": "node --test scripts/verify-database-backup.test.mjs",
     "i18n:extract": "node scripts/i18n-extract.mjs",
-    "i18n:validate": "node scripts/i18n-validate.mjs"
+    "i18n:validate": "node scripts/i18n-validate.mjs",
+    "postinstall": "node scripts/patch-geoip-updater.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",
@@ -73,6 +74,9 @@
   "overrides": {
     "xcode": {
       "uuid": "11.1.1"
+    },
+    "geoip-country": {
+      "ip-address": "10.7.4"
     }
   }
 }
