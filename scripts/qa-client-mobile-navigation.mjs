@@ -28,14 +28,14 @@ try{
   await fs.symlink(path.join(repo,'node_modules'),path.join(temporary,'node_modules'),'dir');
   await fs.symlink(path.join(repo,'public'),path.join(temporary,'public'),'dir');
   await fs.cp(path.join(repo,'.next'),path.join(temporary,'.next'),{recursive:true,filter:file=>!file.startsWith(path.join(repo,'.next/cache'))&&!file.startsWith(path.join(repo,'.next/standalone'))});
-  const env={...process.env,NODE_ENV:'production',NITIDO_SEED_DEMO:'false',NEXT_TELEMETRY_DISABLED:'1'};
+  const env={...process.env,NODE_ENV:'production',NEXT_PUBLIC_NITIDO_PRO_PUBLIC:'true',NITIDO_SEED_DEMO:'false',NEXT_TELEMETRY_DISABLED:'1'};
   for(const key of Object.keys(env))if(/STRIPE|RESEND|TWILIO|SMS|OPENAI|CRON_SECRET|ACCESS_KEY|NITIDO_ADMIN|TOKEN/.test(key))delete env[key];
   const log=await fs.open(path.join(output,'server.log'),'w');
   server=spawn(process.execPath,[path.join(repo,'node_modules/next/dist/bin/next'),'start','--hostname','127.0.0.1','--port','3199'],{cwd:temporary,env,stdio:['ignore',log.fd,log.fd]});
   for(let i=0;i<60;i++){try{if((await fetch(base+'/login')).ok)break;}catch{}if(server.exitCode!==null)throw Error('Local server exited');await new Promise(r=>setTimeout(r,500));}
  }
  browser=await chromium.launch({executablePath:'/usr/bin/chromium',headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
- const context=await browser.newContext({viewport:{width:393,height:852},isMobile:true,hasTouch:true,deviceScaleFactor:2,serviceWorkers:'block'});
+ const context=await browser.newContext({locale:'ro-RO',viewport:{width:393,height:852},isMobile:true,hasTouch:true,deviceScaleFactor:2,serviceWorkers:'block'});
  await context.route('**/api/**',async route=>{
   const request=route.request(),p=new URL(request.url()).pathname;
   if(request.method()!=='GET'){await route.abort();throw Error('Unexpected API mutation: '+p);}
