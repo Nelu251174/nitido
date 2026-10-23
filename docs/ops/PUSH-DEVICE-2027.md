@@ -81,4 +81,14 @@ La această etapă, dependența era finalizarea conectării cu administratorul p
 - Verificarea numai în citire a proiectelor Google Cloud disponibile pentru adăugarea Firebase, prin biblioteca CLI oficială, a identificat proiectul existent **NITIDO**, ID **`nitido-508720`**. Firebase nu este încă activat în acest proiect; autentificarea funcțională și lista Firebase goală nu sunt contradictorii.
 - Următorul pas concret este `npx -y firebase-tools@latest projects:addfirebase nitido-508720 --non-interactive`, urmat de verificarea/înregistrarea aplicației Android cu package `ro.nitido.app` și obținerea configurației prin CLI. Se păstrează proiectul Google Cloud existent.
 - Activarea nu a fost executată: verificarea automată de aprobare a respins comanda, deoarece activarea modifică proiectul cloud și poate avea efecte asupra configurației/facturării; a cerut aprobarea explicită a beneficiarului. Aceasta este o oprire înainte de execuție, nu o eroare returnată de Firebase.
-- Starea curentă: **autentificare CLI CONFIRMATĂ; proiect existent IDENTIFICAT; activare Firebase ÎN AȘTEPTAREA APROBĂRII; FCM/APNs neconfigurate; recepție fizică NETESTATĂ; pilot NEACTIVAT**. Configurația LIVE nu a fost modificată.
+- Starea la acel moment: **autentificare CLI CONFIRMATĂ; proiect existent IDENTIFICAT; activare Firebase ÎN AȘTEPTAREA APROBĂRII; FCM/APNs neconfigurate; recepție fizică NETESTATĂ; pilot NEACTIVAT**. Configurația LIVE nu a fost modificată.
+
+### Activare aprobată — blocaj de rețea la reînnoirea sesiunii
+
+- Beneficiarul a aprobat explicit activarea Firebase în proiectul existent `nitido-508720`. Aprobarea rămâne valabilă pentru reluare; nu se solicită din nou.
+- Comanda CLI de activare a pornit, dar s-a oprit în autentificare, înaintea cererii de activare. CLI-ul reînnoiește sesiunea la `https://www.googleapis.com/oauth2/v3/token`; verificarea anterioară a celor patru domenii nu acoperea acest domeniu suplimentar.
+- Cererea HTTPS de diagnostic către `www.googleapis.com` a primit `CONNECT tunnel failed, response 403`. Domeniul lipsește din lista permisă a mediului cloud. Acest refuz al proxy-ului explică eșecul reînnoirii; mesajul generic al CLI despre credențiale invalide nu stabilește că accesul contului a fost revocat.
+- Remediere necesară: adăugarea domeniului exact `www.googleapis.com` în lista de domenii permise a mediului, prin configurația suportată. Uneltele disponibile aici permit citirea stării mediului, fără modificarea acelei configurații. Se păstrează proxy-ul și verificarea TLS.
+- După remediere se reia autentificarea prin CLI și activarea în același proiect, apoi înregistrarea/verificarea aplicației Android și descărcarea configurației. Nu s-a creat configurația Android, nu s-au activat bindinguri pe LIVE și nu s-au trimis notificări.
+
+Starea curentă: **activare Firebase APROBATĂ, BLOCATĂ de accesul la endpointul de reînnoire OAuth; FCM/APNs neconfigurate; recepție fizică NETESTATĂ; pilot NEACTIVAT**.
