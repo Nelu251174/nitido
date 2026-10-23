@@ -91,4 +91,15 @@ La această etapă, dependența era finalizarea conectării cu administratorul p
 - Remediere necesară: adăugarea domeniului exact `www.googleapis.com` în lista de domenii permise a mediului, prin configurația suportată. Uneltele disponibile aici permit citirea stării mediului, fără modificarea acelei configurații. Se păstrează proxy-ul și verificarea TLS.
 - După remediere se reia autentificarea prin CLI și activarea în același proiect, apoi înregistrarea/verificarea aplicației Android și descărcarea configurației. Nu s-a creat configurația Android, nu s-au activat bindinguri pe LIVE și nu s-au trimis notificări.
 
-Starea curentă: **activare Firebase APROBATĂ, BLOCATĂ de accesul la endpointul de reînnoire OAuth; FCM/APNs neconfigurate; recepție fizică NETESTATĂ; pilot NEACTIVAT**.
+Starea la acel moment: **activare Firebase APROBATĂ, BLOCATĂ de accesul la endpointul de reînnoire OAuth; FCM/APNs neconfigurate; recepție fizică NETESTATĂ; pilot NEACTIVAT**.
+
+### Variantă OAuth funcțională — refuz de autorizare la activarea proiectului
+
+- Sesiunea existentă a fost reînnoită cu succes prin biblioteca oficială Google `google-auth-library`, folosind endpointul său implicit `https://oauth2.googleapis.com/token`, deja permis în mediu. Nu s-a contactat domeniul blocat, nu s-a schimbat proxy-ul și nu a fost necesară o conectare nouă din partea beneficiarului.
+- Au fost reutilizate credențialele sesiunii autorizate, numai în memorie și în depozitul privat al CLI-ului. Niciun token nu a fost inclus în Git sau în rezultatul acestui diagnostic.
+- Verificarea oficială OAuth a confirmat identitatea contului indicat și granturile `cloud-platform` și `firebase`. Sesiunea și accesul de rețea necesar acestei cereri sunt funcționale.
+- Comanda aprobată de activare a ajuns la `POST https://firebase.googleapis.com/v1beta1/projects/nitido-508720:addFirebase`. API-ul Google a răspuns cu **HTTP 403**, `PERMISSION_DENIED`, mesajul **«The caller does not have permission»**. Acesta este răspunsul providerului, distinct de refuzul anterior al proxy-ului. Răspunsul nu a identificat o permisiune IAM sau o politică precisă.
+- Reverificarea numai în citire confirmă că proiectul Google Cloud **NITIDO / `nitido-508720`** este vizibil, iar proiectul nu apare în lista Firebase activată. Nu s-a creat un proiect alternativ și nu s-a schimbat identitatea aplicației.
+- Activarea nu este confirmată și nu poate fi declarată realizată. Înregistrarea aplicației Android, obținerea configurației și testul FCM așteaptă rezolvarea autorizării pentru această operațiune. APNs necesită separat credențialele Apple prevăzute mai sus.
+
+Starea curentă: **reînnoire OAuth REZOLVATĂ prin endpoint oficial deja permis; activare Firebase APROBATĂ, REFUZATĂ de Google cu `PERMISSION_DENIED`; FCM/APNs neconfigurate; recepție fizică NETESTATĂ; pilot NEACTIVAT**. Nu s-a modificat configurația LIVE și nu s-au trimis notificări.
