@@ -1,0 +1,30 @@
+name: Complete existing UI translations
+on:
+  push:
+    branches: [codex/nitido-translations-20261023]
+    paths: ['src/**', 'messages/**', 'scripts/i18n-*', 'scripts/ts.cjs', '.github/workflows/translations-release-20261024.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  translations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Catalog completeness, source coverage and export isolation
+        run: node --test scripts/i18n-catalog.test.mjs scripts/i18n-source-coverage.test.mjs scripts/i18n-export-generated.test.mjs
+      - run: npx eslint
+      - run: npx vitest run --maxWorkers=2
+      - name: Build with complete production catalogs
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_NITIDO_PRO_PUBLIC: 'true'
+        run: npm run build -- --webpack

@@ -1,0 +1,30 @@
+{
+  "sourceRevision": "d19e99cbbea719dd0aeaf14b4a9918184475e3a9",
+  "sourceHash": "77c61cb1d6a0796a437cbd5e97faedbdd7fb9a832d8430aa32222ecb130ca3e7",
+  "messages": 5293,
+  "languages": 9,
+  "requests": 90,
+  "inputTokens": 269042,
+  "outputTokens": 159269,
+  "chargedUpperUsd": 0.9184919999999999,
+  "approvedMaxUsd": 5,
+  "files": {
+    "ro": "13d544ee51d5f08bb477a2a3f6b2741042cbd4aec262fde0a18e71ee7fb545e2",
+    "manifest": "af0838dc1c45eb58b96b8eda0a70d12eb135b8dcaa054dadc1ede4d9574fe55e",
+    "bg": "4db76e9c4de8bf17e0cc48f0a992507a7d0afa04c82c80f6b33c2930fd07d511",
+    "hr": "6314d78fe02f214e05ec3fc6a1b2d568d7539a0139946f5ebaf96064524caa70",
+    "cs": "98577d2ad9ee11301e15c704d614ecd96d8c4036d3e5fa75334adf76ac8e7eac",
+    "da": "f188ac1f4da7fa02e1e6a3a22a116a857af915c97264dc9bf2e8e32660019730",
+    "nl": "47ee252f53b3e5ce067465d22c84248d56266564a5d513611ca5626453975906",
+    "en": "0c5f5b4a2356d9972fb83f49588038069f3a69b1ad6b033a001fa8a17abc834c",
+    "fr": "3b3cb805d9ca84891feb39fc6ec40bb5a9afc7e10c2397cd66ad47b55dbcb6cc",
+    "de": "8e0881b684d4446798809ed114c929d231ad08e9ff4ef7d37d1818c7c068050e"
+  },
+  "applicationChanged": false,
+  "newServiceCreated": false,
+  "credentialsExported": false,
+  "workflowRun": 40033800583,
+  "artifactId": 12535912922,
+  "artifactArchiveSha256": "c426b2f6f034300f173745874b02030f9f1d8324d28af617b58c5cba7eb360b6",
+  "downloaded": true
+}

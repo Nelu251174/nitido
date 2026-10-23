@@ -1,5 +1,5 @@
 {
-  "complete": false,
+  "complete": true,
   "languages": 9,
   "locales": [
     "bg",
@@ -15,5 +15,8 @@
   "targetLanguages": 24,
   "sourceLanguage": "ro",
   "sourceMessages": 5293,
-  "sourceHash": "77c61cb1d6a0796a437cbd5e97faedbdd7fb9a832d8430aa32222ecb130ca3e7"
+  "sourceHash": "77c61cb1d6a0796a437cbd5e97faedbdd7fb9a832d8430aa32222ecb130ca3e7",
+  "provider": "OpenAI",
+  "model": "gpt-5.4-mini",
+  "review": "machine translation; specialist legal review pending"
 }
