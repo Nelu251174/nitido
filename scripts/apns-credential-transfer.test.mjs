@@ -9,6 +9,8 @@ test('accepts a complete P256 private key and binds it to the existing Apple tea
   const result=validateApnsKey(raw,APNS_IDENTITY.teamId);
   assert.equal(result.privateKey,raw);assert.match(result.publicKeySha256,/^[a-f0-9]{64}$/);
   assert.equal(validateApnsKey(raw.replace(/\n/g,'\\n'),APNS_IDENTITY.teamId).privateKey,raw);
+  assert.equal(validateApnsKey(JSON.stringify(raw),APNS_IDENTITY.teamId).privateKey,raw);
+  assert.equal(validateApnsKey(raw.replace(/\n/g,' '),APNS_IDENTITY.teamId).privateKey,raw);
   assert.throws(()=>validateApnsKey(raw,'OTHERTEAM1'),/^Error: APNS_APPLE_TEAM_MISMATCH$/);
 });
 test('rejects missing, incomplete, RSA, wrong-curve and public keys with sanitized errors',()=>{
