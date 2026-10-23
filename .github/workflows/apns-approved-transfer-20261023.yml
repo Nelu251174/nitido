@@ -1,13 +1,13 @@
 # Owner explicitly approved the encrypted one-day artifact transfer on 2026-10-23.
-name: Owner-approved encrypted APNs transfer to existing NITIDO runtimes
+name: Completed owner-approved APNs transfer (disabled after installation)
 on:
-  push:
-    branches: [codex/nitido-push-20261022]
-    paths: ['scripts/apns-approved-transfer*', '.github/workflows/apns-approved-transfer-20261023.yml']
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
   prepare:
+    # The approved one-time installation has completed. Never repeat a key export.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

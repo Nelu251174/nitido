@@ -1,8 +1,7 @@
 name: Install validated APNs configuration directly on existing NITIDO servers
 on:
-  push:
-    branches: [codex/nitido-push-20261022]
-    paths: ['scripts/apns-runtime-install*', '.github/workflows/apns-runtime-install-20261023.yml']
+  # The approved one-time installation is complete. Future reinstallations are manual.
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:

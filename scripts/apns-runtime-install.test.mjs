@@ -19,7 +19,7 @@ test('installation targets only existing NITIDO servers with runtime-only locked
     const u=new URL(url),match=u.pathname.match(/^\/api\/v1\/applications\/([^/]+)(\/envs|\/restart)?$/);assert.ok(match);assert.ok(targetSites[match[1]]);
     const id=match[1],part=match[2],body=options.body?JSON.parse(options.body):undefined;
     requests.push({id,part,method:options.method,body});let data;
-    if(!part)data={status:'running:healthy',git_commit_sha:'0e7796447555737acccc4c1400fc43d120934ac4',fqdn:targetSites[id]};
+    if(!part)data={status:'running:healthy',git_commit_sha:'0e7796447555737acccc4c1400fc43d120934ac4',...(id==='civaeb8joydtchvzlen6pivq'?{fqdn:targetSites[id]+':3000'}:{fqdn:null,docker_compose_domains:JSON.stringify({nitido:{domain:targetSites[id]+':3000'}}).replaceAll('/','\\/')})};
     else if(part==='/restart')data={deployment_uuid:'synthetic-restart-'+id};
     else if(options.method==='GET')data=envs.get(id)??[];
     else{assert.equal(body.is_runtime,true);assert.equal(body.is_buildtime,false);assert.equal(body.is_shown_once,true);assert.equal(body.is_literal,true);assert.equal(body.is_preview,false);const all=envs.get(id)??[];all.push(body);envs.set(id,all);data={};}

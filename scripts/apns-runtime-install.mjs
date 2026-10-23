@@ -5,6 +5,10 @@ const API='https://coolify.nitido.ro/api/v1';
 const TARGETS=[{scope:'sandbox',uuid:'civaeb8joydtchvzlen6pivq',site:'https://sandbox.nitido.ro'},{scope:'live',uuid:'zxnelxi2cejranyvfpw0scac',site:'https://nitido.ro'}];
 const RELEASE='0e7796447555737acccc4c1400fc43d120934ac4';
 const rows=data=>Array.isArray(data)?data:data?.data??data?.envs??[];
+function hasTargetDomain(app,site){
+  const configuration=[app.fqdn,app.docker_compose_domains].map(value=>typeof value==='string'?value:JSON.stringify(value??'')).join(' ').replace(/\\\//g,'/');
+  return (configuration.match(/https?:\/\/[^\s,"'\\}]+/g)??[]).some(value=>{try{const url=new URL(value);return url.protocol==='https:'&&url.hostname===new URL(site).hostname}catch{return false}});
+}
 
 export async function installApnsRuntime(env,fetcher=fetch){
   if(!env.COOLIFY_TOKEN)throw Error('COOLIFY_CREDENTIAL_MISSING');
@@ -17,7 +21,7 @@ export async function installApnsRuntime(env,fetcher=fetch){
   const existing=new Map();
   for(const target of TARGETS){
     const app=await call('/applications/'+target.uuid);
-    if(app.status!=='running:healthy'||app.git_commit_sha!==RELEASE||!String(app.fqdn??'').split(',').some(url=>url.replace(/\/$/,'')===target.site))throw Error('COOLIFY_TARGET_RELEASE_MISMATCH');
+    if(app.status!=='running:healthy'||app.git_commit_sha!==RELEASE||!hasTargetDomain(app,target.site))throw Error('COOLIFY_TARGET_RELEASE_MISMATCH');
     existing.set(target.uuid,rows(await call('/applications/'+target.uuid+'/envs')));
   }
   const privateKey=apnsSigningKey(env.APNS_PRIVATE_KEY,env.APPLE_TEAM_ID).export({type:'pkcs8',format:'pem'});

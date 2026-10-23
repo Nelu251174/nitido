@@ -2,7 +2,7 @@
 
 Ordinea mandatului: (1) configurare și recepție push Android/iPhone, (2) flux complet pe telefoane, (3) pilot cu firme și capacitate reală. Contul indicat de beneficiar pentru test este `support@nitido.ro`.
 
-## Situația actuală — 23 octombrie 2026, 14:03 UTC
+## Situația actuală — 23 octombrie 2026, FCM și APNs instalate
 
 Această secțiune înlocuiește stările de blocaj din cronologia de mai jos.
 
@@ -11,7 +11,9 @@ Această secțiune înlocuiește stările de blocaj din cronologia de mai jos.
 - LIVE și sandbox rulează `0e7796447555737acccc4c1400fc43d120934ac4`, cu corecțiile de tokenuri și readiness. Checkpointurile DB/upload de dinaintea publicării au trecut verificarea integrității și restaurarea izolată. După restart, health/login răspund 200, iar statusul push respinge accesul neautentificat cu 401 și fără cache.
 - Pachetul Android semnat candidat **1.0.3 (26)** s-a construit la sursa `698c311321fe4d081249f249174c9801fc8e6e3c`: [run 39965743634](https://github.com/Nelu251174/nitido/actions/runs/39965743634). Toate cele 547 de intrări semnate au fost verificate cu certificatul de upload existent; verificările API36 și APK16KB au trecut. Inspecția artefactului confirmă ținta LIVE și resursele Firebase pentru aplicația exactă. Pachetul nu este publicat în Play; codul 26 trebuie comparat cu maximul actual din magazin înainte de upload.
 - Testele push/interfață și de configurare Firebase au trecut în [run 39965743420](https://github.com/Nelu251174/nitido/actions/runs/39965743420). Compilarea iPhone fără semnare/publicare a trecut în [run 39965752307](https://github.com/Nelu251174/nitido/actions/runs/39965752307).
-- iPhone: cheia APNs rămâne necesară. Accesul App Store Connect existent funcționează, dar cheia de publicare nu este o cheie APNs. Pentru aplicațiile din magazin se folosește APNs production și bundle ID `ro.nitido.app`.
+- iPhone: cheia APNs existentă, pentru echipa Apple verificată, este instalată pe LIVE și sandbox. După restart, ambele servere au trecut verificarea cheii P-256, semnarea/verificarea locală a semnăturii și conexiunea TLS/HTTP2 la `api.push.apple.com`. Se folosește APNs production și bundle ID `ro.nitido.app`. Aceste verificări nu confirmă încă autentificarea acceptată de Apple pentru un mesaj real sau recepția pe iPhone.
+- Beneficiarul a aprobat explicit transferul criptat temporar. [Run 39985618675](https://github.com/Nelu251174/nitido/actions/runs/39985618675) a produs numai pachetul criptat pentru destinatarul temporar, cu retenție de o zi. Cheia a fost normalizată, validată și instalată numai în mediile NÍTIDO autorizate; valorile nu au fost afișate și nu s-a salvat cheia APNs în clar pe disc local. Cheia privată a destinatarului temporar și joburile temporare de verificare au fost șterse. Workflowul de transfer este dezactivat după operațiunea aprobată, pentru a evita repetarea exportului.
+- Robotul GitHub care încearcă instalarea directă primește încă 401 de la Coolify. Acest acces este separat de configurarea runtime reușită prin transferul aprobat; nu mai este un blocaj pentru instalarea APNs încheiată.
 - Publicarea Android necesită în continuare identitatea autorizată Google Play și verificarea curentă a magazinului. Nicio versiune nativă nouă nu a fost încă încărcată. Recepția fizică pe **ambele** telefoane, fluxul complet cu Stripe TEST și pilotul cu firme rămân NETESTATE/NEACTIVATE.
 
 ## Situația confirmată la început
