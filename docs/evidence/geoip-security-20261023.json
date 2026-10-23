@@ -1,0 +1,198 @@
+{
+  "applicationSource": "d25796ca7e5bd8670eeb0326aa062e311aded729",
+  "baseBranchSource": "beb9396c8eb327b546d7e0403447023b097965ae",
+  "preReleaseApplicationSource": "6fed1284776af4c94ccfebc8f284fdcc9564a9f0",
+  "pullRequest": "https://github.com/Nelu251174/nitido/pull/137",
+  "scan": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "databaseParity": {
+    "geoip-country.dat": {
+      "sha256": "779236238a05947c211d884033f71832045d35268c39250dbd24c8bf76482a1f",
+      "unchanged": true,
+      "bytes": 3596850
+    },
+    "geoip-country6.dat": {
+      "sha256": "5b7c4b84db608b01337204c6084a2932e555b376d9677d6bb5fe322840cadaec",
+      "unchanged": true,
+      "bytes": 4618800
+    }
+  },
+  "validation": {
+    "offlineCompatibilityTests": 3,
+    "freshDockerImageCompatibilityTests": 3,
+    "applicationTests": 42,
+    "testFiles": 5,
+    "eslintPassed": true,
+    "productionBuildPassed": true,
+    "ciGeoipRun": 40018142275,
+    "ciGeoipJob": 120635439630,
+    "ciGeoipResult": "success",
+    "androidCompile": {
+      "run": 40018142192,
+      "job": 120635439624,
+      "result": "success",
+      "storePublication": false
+    },
+    "iphoneCompile": {
+      "run": 40018269161,
+      "job": 120635876541,
+      "result": "success",
+      "deviceAcceptance": false,
+      "storePublication": false
+    },
+    "ciGeoipUrl": "https://github.com/Nelu251174/nitido/actions/runs/40018142275"
+  },
+  "checkpoints": {
+    "sandbox": {
+      "app": "civaeb8joydtchvzlen6pivq",
+      "task": "jjy9cynryrdwqji2jkwwxbgg",
+      "helperSource": "d25796ca7e5bd8670eeb0326aa062e311aded729",
+      "baseSource": "6fed1284776af4c94ccfebc8f284fdcc9564a9f0",
+      "execution": {
+        "uuid": "n9ott6lc62wupmu7wb8weeri",
+        "status": "success",
+        "finished_at": "2026-10-23T20:18:56.000000Z"
+      },
+      "taskRemoved": true
+    },
+    "live": {
+      "app": "zxnelxi2cejranyvfpw0scac",
+      "task": "kefklmoovywugcodj0ps8vjb",
+      "helperSource": "d25796ca7e5bd8670eeb0326aa062e311aded729",
+      "baseSource": "6fed1284776af4c94ccfebc8f284fdcc9564a9f0",
+      "execution": {
+        "uuid": "cf4dgwhxxdmwjxbjojcrymzv",
+        "status": "success",
+        "finished_at": "2026-10-23T20:18:57.000000Z"
+      },
+      "taskRemoved": true
+    }
+  },
+  "publication": {
+    "status": "finished_and_verified",
+    "deployments": {
+      "sandbox": {
+        "app": "civaeb8joydtchvzlen6pivq",
+        "source": "d25796ca7e5bd8670eeb0326aa062e311aded729",
+        "deployments": [
+          {
+            "uuid": "riadfrbi2m5bkpb1hkorzdj8"
+          }
+        ],
+        "status": "finished",
+        "applicationStatus": "running:healthy",
+        "finishedAt": "2026-10-23T20:22:20.000000Z",
+        "verification": {
+          "pageChecks": 33,
+          "pageFailures": [],
+          "assetChecks": 24,
+          "assetFailures": []
+        },
+        "publishedAtLocal": "2026-10-23T23:22:20+03:00"
+      },
+      "live": {
+        "app": "zxnelxi2cejranyvfpw0scac",
+        "source": "d25796ca7e5bd8670eeb0326aa062e311aded729",
+        "deployments": [
+          {
+            "uuid": "kp03o11fzbcenzr5zrmyxfca"
+          }
+        ],
+        "status": "finished",
+        "applicationStatus": "running:healthy",
+        "finishedAt": "2026-10-23T20:25:33.000000Z",
+        "publishedAtLocal": "2026-10-23T23:25:33+03:00"
+      }
+    },
+    "postReleaseChecks": {
+      "pageChecks": 66,
+      "pageFailures": [],
+      "assetChecks": 48,
+      "assetFailures": []
+    },
+    "manualLanguageChecks": [
+      {
+        "host": "nitido.ro",
+        "manualLanguage": "en",
+        "browserLanguage": "ro-RO",
+        "renderedLanguage": "en",
+        "status": 200,
+        "passed": true
+      },
+      {
+        "host": "nitido.ro",
+        "manualLanguage": "ro",
+        "browserLanguage": "en-US",
+        "renderedLanguage": "ro",
+        "status": 200,
+        "passed": true
+      },
+      {
+        "host": "sandbox.nitido.ro",
+        "manualLanguage": "en",
+        "browserLanguage": "ro-RO",
+        "renderedLanguage": "en",
+        "status": 200,
+        "passed": true
+      },
+      {
+        "host": "sandbox.nitido.ro",
+        "manualLanguage": "ro",
+        "browserLanguage": "en-US",
+        "renderedLanguage": "ro",
+        "status": 200,
+        "passed": true
+      }
+    ],
+    "rollbackCodeSource": "6fed1284776af4c94ccfebc8f284fdcc9564a9f0",
+    "databaseAndUploadVolumesPreserved": true,
+    "storeBinaryPublished": false
+  },
+  "scope": "Server-only dependency override and updater compatibility; unchanged local country data. No signup, payment or notification sent to external providers.",
+  "evidenceSha256": {
+    "security-after.json": "a716db353cd77748e7e1228dd24785f1d61089e757e31c95df357397548ab2be",
+    "database-parity.json": "7d232c381dff06461f38bca86e998c99919f933ee63ef8098e0dffc798d73a7b",
+    "compatibility-tests.log": "4d16e6626e009d813ab3fc22102ac6f2eebcf0820bbb9b189192121bb18685e7",
+    "docker-compatibility-tests.log": "160266604969c71f9360c49aaa76da4864363fada8c40c9dc9d834fe5ef615ed",
+    "application-tests.log": "4b1392574fe93f6350c7625298cb02bdb6b1f9fec3a3296a68fdfade3c716968",
+    "docker-deps-final.log": "08d843d0572251aa0aab6858d53aca702bd863cc6adbf4570d161956bdc7ce97",
+    "build.log": "747a021a1cf99b8f236e567703721cdf4f55b0bdb639a8a9fd043c34ce9f6443",
+    "checkpoints.json": "ad6b40d67d66e9e731ea7591e02a32d2d637f4f1d7bf49e4f92ae7a96dd71fec",
+    "deployments.json": "63e26a5109dab7b76f5acea7ac2a36a4a7110d0262febf25c4a8f3dbae04eb35",
+    "post-release-both.json": "a101bd8854e3141a269ebc0f6d54a9baee1e76edf5fef163dcf7726e73f6f903",
+    "manual-language-checks.json": "3511b0061d446a4e31e706cbd05dfb7bc64354cb51b1f11b2f6dfb16e9972364",
+    "runtime-verification.json": "0d3fa55b6ee0e3f00f67ee834693c51a36bb99695709a3e7a808a974bf8f6459"
+  },
+  "runtimeVerification": {
+    "sandbox": {
+      "app": "civaeb8joydtchvzlen6pivq",
+      "task": "cozusch8u9m7duuogjumsmqu",
+      "source": "d25796ca7e5bd8670eeb0326aa062e311aded729",
+      "execution": {
+        "uuid": "pmflk8v4d7cr29ygw3sritmu",
+        "status": "success",
+        "finished_at": "2026-10-23T20:23:08.000000Z"
+      },
+      "taskRemoved": true
+    },
+    "live": {
+      "app": "zxnelxi2cejranyvfpw0scac",
+      "task": "s4nciuqze1ksy9csd8y0b3eu",
+      "source": "d25796ca7e5bd8670eeb0326aa062e311aded729",
+      "execution": {
+        "uuid": "dw6aowoyrygvnpuekqmzdb2g",
+        "status": "success",
+        "finished_at": "2026-10-23T20:26:47.000000Z"
+      },
+      "taskRemoved": true
+    }
+  },
+  "recordedAt": "2026-10-23T23:28:03.477585+03:00",
+  "timezone": "Europe/Bucharest"
+}
