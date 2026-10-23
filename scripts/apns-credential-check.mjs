@@ -11,7 +11,7 @@ export function apnsInputShape(raw){
 
 function invalidPem(stage){return Object.assign(Error('APNS_PRIVATE_KEY_INVALID_PEM'),{stage})}
 
-export function validateApnsKey(raw,expectedTeam){
+export function apnsSigningKey(raw,expectedTeam){
   if(expectedTeam!==APNS_IDENTITY.teamId)throw Error('APNS_APPLE_TEAM_MISMATCH');
   if(typeof raw!=='string'||!raw.trim())throw Error('APNS_PRIVATE_KEY_MISSING');
   let text=raw.trim();
@@ -30,6 +30,11 @@ export function validateApnsKey(raw,expectedTeam){
   let key;
   try{key=createPrivateKey(pem)}catch{throw invalidPem('pkcs8_key_structure')}
   if(key.asymmetricKeyType!=='ec'||key.asymmetricKeyDetails?.namedCurve!=='prime256v1')throw Error('APNS_PRIVATE_KEY_REQUIRES_P256');
+  return key;
+}
+
+export function validateApnsKey(raw,expectedTeam){
+  const key=apnsSigningKey(raw,expectedTeam);
   const now=Math.floor(Date.now()/1000),b64=x=>Buffer.from(JSON.stringify(x)).toString('base64url');
   const input=Buffer.from(b64({alg:'ES256',kid:APNS_IDENTITY.keyId})+'.'+b64({iss:APNS_IDENTITY.teamId,iat:now}));
   const signature=sign('sha256',input,{key,dsaEncoding:'ieee-p1363'});
