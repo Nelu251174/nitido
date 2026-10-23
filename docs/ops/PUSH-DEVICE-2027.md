@@ -107,3 +107,12 @@ Starea curentă: **reînnoire OAuth REZOLVATĂ prin endpoint oficial deja permis
 ## Alternative investigate la cererea beneficiarului
 
 Analiza verificată și pachetul propus sunt în [PUSH-ALTERNATIVES-20261023.md](PUSH-ALTERNATIVES-20261023.md): Web Push în PWA existentă, APNs direct pentru iPhone și canalele email/SMS existente. Fiecare variantă păstrează separat implementarea, configurația și proba fizică. Recomandarea Web Push cere implementare și acceptanță separată pentru versiunea web instalată; nu închide testele aplicațiilor native din magazine.
+
+## Reluare după activarea din consolă și deblocarea GitHub — 23 octombrie 2026
+
+- Capturile transmise de beneficiar confirmă „Your Firebase project is ready” în proiectul existent `nitido-508720` și înregistrarea aplicației Android. Refuzul addFirebase din cronologia de mai sus este istoric; nu se repetă activarea și nu se creează un proiect nou. Identitatea package-ului și configurația descărcată trebuie încă validate prin API/CLI.
+- Beneficiarul a confirmat plata GitHub. Reluările joburilor 39942038197 (push) și 39942038397 (compilare iPhone fără semnare/publicare) au pornit efectiv, inclusiv checkout, setup Node și npm ci. Blocarea facturării nu mai împiedică pornirea acestor joburi. Rezultatele complete se verifică separat.
+- Această actualizare pornește workflowul existent de verificare numai în citire: prezența bindingurilor GitHub și versiunea oficială Apple. Nu trimite notificări și nu publică aplicații.
+- Ultima citire Coolify confirmă LIVE și sandbox sănătoase la `baa0b0214dbbe5b1f76b2926cc01270a3795a1eb`, fără bindingurile FCM/APNs pe ambele. Nu se confundă absența pe server cu absența unor credențiale în GitHub.
+- Mediul acestei conversații păstrează politica veche de destinații; nu are acces la Firebase/OAuth/Apple API. Nu se cere din nou autorizarea lucrării și nu se generează o nouă autentificare.
+- Recepția fizică Android/iPhone, fluxul comercial de test și pilotul cu firme rămân neînchise până la dovezile specifice.
