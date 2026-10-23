@@ -4,8 +4,8 @@ const fs=require('node:fs');
 const {createPrivateKey,sign,randomUUID}=require('node:crypto');
 const {connect}=require('node:http2');
 const Database=require('better-sqlite3');
-const auditPath='/app/data/release-checkpoints/20261023-support-ios-config-test.json';
-const testId='support-ios-native-config-20261023';
+const auditPath='/app/data/release-checkpoints/20261023-support-ios-standard-sound-test.json';
+const testId='support-ios-standard-sound-20261023';
 const reply=data=>console.log(JSON.stringify({testId,...data}));
 
 async function run(){
@@ -25,7 +25,7 @@ async function run(){
     const device=devices[0];
     if(!/^[a-f0-9]{64}$/i.test(device.device_token))throw Error('IOS_TEST_DEVICE_TOKEN_FORMAT_INVALID');
     const seen=Date.parse(String(device.last_seen_at??device.updated_at).replace(' ','T').replace(/Z?$/,'Z'));
-    if(!Number.isFinite(seen)||Date.now()-seen>30*60_000||seen>Date.now()+5*60_000)throw Error('IOS_TEST_REGISTRATION_NOT_RECENT');
+    if(!Number.isFinite(seen)||Date.now()-seen>2*60*60_000||seen>Date.now()+5*60_000)throw Error('IOS_TEST_REGISTRATION_NOT_RECENT');
     const key=createPrivateKey(env.APNS_PRIVATE_KEY??'');
     if(key.asymmetricKeyType!=='ec'||key.asymmetricKeyDetails?.namedCurve!=='prime256v1')throw Error('IOS_TEST_KEY_INVALID');
     if(env.NITIDO_IOS_TEST!=='send'){reply({status:'registered_and_ready',notificationSent:false});return}
@@ -54,7 +54,7 @@ async function run(){
             const allowed=['InvalidProviderToken','ExpiredProviderToken','BadDeviceToken','DeviceTokenNotForTopic','TopicDisallowed','Unregistered','BadTopic','MissingTopic','TooManyProviderTokenUpdates'];
             const error=Error('IOS_TEST_APNS_REJECTED_'+status);error.providerReason=allowed.includes(reason)?reason:'OTHER';error.httpStatus=status;finish(error);
           });
-          req.end(JSON.stringify({event_type:'NITIDO_CONFIG_TEST',test_id:testId,aps:{alert:{title:'Test notificare NÍTIDO',body:'Aceasta este proba pe iPhone. Confirmă dacă notificarea apare pe ecran.'},sound:'nitido_alert_v2.wav'}}));
+          req.end(JSON.stringify({event_type:'NITIDO_CONFIG_TEST',test_id:testId,aps:{alert:{title:'Sunet standard NÍTIDO',body:'Notificare de test cu sunetul standard al iPhone-ului.'},sound:'default'}}));
         }catch{finish(Error('IOS_TEST_DELIVERY_UNKNOWN_REQUEST'))}
       });
       Object.assign(record,{status:'provider_accepted',providerMessageId:result.providerMessageId,acceptedAt:new Date().toISOString()});

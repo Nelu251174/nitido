@@ -6,8 +6,8 @@ const transport=vi.hoisted(()=>({connect:vi.fn()}));
 vi.mock('node:http2',()=>({default:{connect:transport.connect}}));
 import {sendApns} from './pushProviders';
 afterEach(()=>{vi.unstubAllEnvs();vi.clearAllMocks();vi.unstubAllGlobals();});
-describe('custom iPhone alert',()=>{
- it('sends the bundled sound through APNs without critical-alert or volume overrides',async()=>{
+describe('standard iPhone alert',()=>{
+ it('requests the standard iPhone sound through APNs without critical-alert or volume overrides',async()=>{
   const {privateKey}=generateKeyPairSync('ec',{namedCurve:'prime256v1'});
   vi.stubEnv('APNS_PRIVATE_KEY',privateKey.export({type:'pkcs8',format:'pem'}).toString());
   vi.stubEnv('APNS_USE_SANDBOX','false');vi.stubEnv('APNS_KEY_ID','test-key');vi.stubEnv('APNS_TEAM_ID','test-team');vi.stubEnv('APNS_BUNDLE_ID','ro.nitido.app');
@@ -17,7 +17,7 @@ describe('custom iPhone alert',()=>{
   client.request=vi.fn(()=>request);client.close=vi.fn();client.destroy=vi.fn();transport.connect.mockReturnValue(client);
   await expect(sendApns('synthetic-token',{title:'Message',body:'Test only',data:{event_type:'MESSAGE_RECEIVED',job_id:'test-job'}})).resolves.toEqual({providerMessageId:'synthetic-id'});
   const payload=JSON.parse(request.end.mock.calls[0][0]);
-  expect(payload.aps).toEqual({alert:{title:'Message',body:'Test only'},sound:'nitido_alert_v2.wav'});
+  expect(payload.aps).toEqual({alert:{title:'Message',body:'Test only'},sound:'default'});
   expect(payload.job_id).toBe('test-job');expect(client.close).toHaveBeenCalledOnce();
  });
  it('ships matching PCM previews and a short, unclipped iPhone bundle resource',()=>{

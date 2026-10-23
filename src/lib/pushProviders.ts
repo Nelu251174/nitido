@@ -62,7 +62,7 @@ export async function sendApns(token:string,payload:PushPayload):Promise<{provid
         const permanent=reason==="Unregistered"||reason==="BadDeviceToken";
         finish(new PushProviderError(permanent?"PUSH_TOKEN_INVALID":"APNS_TEMPORARY_FAILURE",permanent));
       });
-      req.end(JSON.stringify({...payload.data,aps:{alert:{title:payload.title,body:payload.body},sound:"nitido_alert_v2.wav"}}));
+      req.end(JSON.stringify({...payload.data,aps:{alert:{title:payload.title,body:payload.body},sound:"default"}}));
     }catch{finish(new PushProviderError("APNS_TEMPORARY_FAILURE"))}
   });
 }
