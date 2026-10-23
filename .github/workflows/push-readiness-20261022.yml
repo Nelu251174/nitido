@@ -14,6 +14,7 @@ jobs:
     steps:
       - name: Record only configured binding presence
         env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON != '' }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID != '' }}
           FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL != '' }}
           FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY != '' }}
@@ -26,7 +27,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import json,os
-          keys=['FIREBASE_PROJECT_ID','FIREBASE_CLIENT_EMAIL','FIREBASE_PRIVATE_KEY','GOOGLE_SERVICES_JSON','APNS_KEY_ID','APNS_TEAM_ID','APNS_PRIVATE_KEY','APNS_BUNDLE_ID','COOLIFY_TOKEN']
+          keys=['FIREBASE_SERVICE_ACCOUNT_JSON','FIREBASE_PROJECT_ID','FIREBASE_CLIENT_EMAIL','FIREBASE_PRIVATE_KEY','GOOGLE_SERVICES_JSON','APNS_KEY_ID','APNS_TEAM_ID','APNS_PRIVATE_KEY','APNS_BUNDLE_ID','COOLIFY_TOKEN']
           result={'configuredBindings':{k:os.environ[k]=='true' for k in keys},'deliveryTested':False}
           print(json.dumps(result))
           open('push-bindings.json','w').write(json.dumps(result,indent=2))

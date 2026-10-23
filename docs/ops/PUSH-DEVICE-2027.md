@@ -2,6 +2,18 @@
 
 Ordinea mandatului: (1) configurare și recepție push Android/iPhone, (2) flux complet pe telefoane, (3) pilot cu firme și capacitate reală. Contul indicat de beneficiar pentru test este `support@nitido.ro`.
 
+## Situația actuală — 23 octombrie 2026, 14:03 UTC
+
+Această secțiune înlocuiește stările de blocaj din cronologia de mai jos.
+
+- Firebase este activ în proiectul existent `nitido-508720`. CLI-ul oficial a identificat aplicația Android `ro.nitido.app` și a obținut configurația corectă, fără descărcare manuală de către beneficiar. Sursa securizată GitHub este `FIREBASE_SERVICE_ACCOUNT_JSON`; absența secretelor individuale sau a `GOOGLE_SERVICES_JSON` nu mai înseamnă lipsa configurării pentru build.
+- FCM este configurat pe serverele LIVE și sandbox, numai la rulare, cu valorile protejate. După restart, autentificarea Google și cererea FCM `validate_only` au reușit din ambele servere (13:53 și 13:57 UTC). Nu s-a trimis un mesaj către telefon. `PUSH_ENABLED=false` în ambele medii până la configurarea și verificarea pe dispozitive.
+- LIVE și sandbox rulează `0e7796447555737acccc4c1400fc43d120934ac4`, cu corecțiile de tokenuri și readiness. Checkpointurile DB/upload de dinaintea publicării au trecut verificarea integrității și restaurarea izolată. După restart, health/login răspund 200, iar statusul push respinge accesul neautentificat cu 401 și fără cache.
+- Pachetul Android semnat candidat **1.0.3 (26)** s-a construit la sursa `698c311321fe4d081249f249174c9801fc8e6e3c`: [run 39965743634](https://github.com/Nelu251174/nitido/actions/runs/39965743634). Toate cele 547 de intrări semnate au fost verificate cu certificatul de upload existent; verificările API36 și APK16KB au trecut. Inspecția artefactului confirmă ținta LIVE și resursele Firebase pentru aplicația exactă. Pachetul nu este publicat în Play; codul 26 trebuie comparat cu maximul actual din magazin înainte de upload.
+- Testele push/interfață și de configurare Firebase au trecut în [run 39965743420](https://github.com/Nelu251174/nitido/actions/runs/39965743420). Compilarea iPhone fără semnare/publicare a trecut în [run 39965752307](https://github.com/Nelu251174/nitido/actions/runs/39965752307).
+- iPhone: cheia APNs rămâne necesară. Accesul App Store Connect existent funcționează, dar cheia de publicare nu este o cheie APNs. Pentru aplicațiile din magazin se folosește APNs production și bundle ID `ro.nitido.app`.
+- Publicarea Android necesită în continuare identitatea autorizată Google Play și verificarea curentă a magazinului. Nicio versiune nativă nouă nu a fost încă încărcată. Recepția fizică pe **ambele** telefoane, fluxul complet cu Stripe TEST și pilotul cu firme rămân NETESTATE/NEACTIVATE.
+
 ## Situația confirmată la început
 
 Pe LIVE nu există bindinguri pentru `PUSH_ENABLED`, `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`, `APNS_BUNDLE_ID` sau `APNS_USE_SANDBOX`. Prezența credențialelor de publicare Apple în GitHub nu înseamnă acces APNs. Cheia Google Play este, de asemenea, diferită de Firebase/FCM.
@@ -10,7 +22,7 @@ Integrarea oficială Firebase a fost identificată ca disponibilă, dar conexiun
 
 ## Corecții pregătite
 
-- Android: un build pentru magazin refuză absența sau identitatea greșită a `google-services.json`. Workflowurile pregătesc fișierul din secretul securizat `GOOGLE_SERVICES_JSON`, îl validează și nu îi publică API key-urile.
+- Android: un build pentru magazin refuză absența sau identitatea greșită a `google-services.json`. Workflowurile pregătesc fișierul din `GOOGLE_SERVICES_JSON` sau îl obțin automat prin CLI-ul oficial folosind `FIREBASE_SERVICE_ACCOUNT_JSON`, îl validează și nu îi publică API key-urile.
 - APNs: mediul development/production trebuie ales explicit; aplicațiile App Store/TestFlight folosesc production. Validarea precedă deschiderea conexiunii. Erorile de configurare nu revocă dispozitivele; erorile de stream sunt închise controlat.
 - FCM: un proiect inexistent sau un payload respins nu este echivalat cu un token de telefon expirat. Se cere un identificator de mesaj confirmat înainte de marcarea acceptării de către provider.
 - Starea de activare este calculată separat pentru Android și iPhone; endpointul este privat, fără cache, și nu returnează tokenuri.
