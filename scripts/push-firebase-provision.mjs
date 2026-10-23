@@ -71,8 +71,12 @@ export async function installFirebaseBindings(account, token, fetcher = fetch) {
       const hasRuntime = existing.some(row => row.key === key && row.is_preview === false);
       const body = {key, value, is_buildtime: false, is_runtime: true, is_literal: true, is_shown_once: true};
       await call('/applications/' + app + '/envs', hasRuntime ? 'PATCH' : 'POST', {...body, is_preview: false});
-      // Coolify may create a preview copy on POST. Protect both copies before returning.
-      await call('/applications/' + app + '/envs', 'PATCH', {...body, is_preview: true});
+      // A runtime-only binding may have no preview copy; PATCH rejects absent copies.
+      let copies = await call('/applications/' + app + '/envs');
+      if (!Array.isArray(copies)) copies = copies.data ?? copies.envs ?? [];
+      if (copies.some(row => row.key === key && row.is_preview === true)) {
+        await call('/applications/' + app + '/envs', 'PATCH', {...body, is_preview: true});
+      }
     }
     let stored = await call('/applications/' + app + '/envs');
     if (!Array.isArray(stored)) stored = stored.data ?? stored.envs ?? [];
@@ -90,8 +94,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   try {
     const account = firebaseServiceAccount(process.env.FIREBASE_SERVICE_ACCOUNT_JSON ?? '');
     Object.assign(report, await verifyFirebaseMessaging(account));
-    report.servers = await installFirebaseBindings(account, process.env.COOLIFY_TOKEN);
-    report.status = 'configured';
+    report.status = 'verified';
+    if (process.argv.includes('--install')) {
+      report.servers = await installFirebaseBindings(account, process.env.COOLIFY_TOKEN);
+      report.status = 'configured';
+    }
   } catch (error) {
     report.status = 'blocked';
     report.reason = /^[A-Z][A-Z0-9_]+$/.test(error.message) ? error.message : 'FIREBASE_PROVISION_FAILED';

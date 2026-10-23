@@ -28,14 +28,17 @@ test('writes only scoped runtime bindings, keeps delivery disabled and locks run
   const tables = new Map(), writes = [];
   const result = await installFirebaseBindings(account, 'synthetic-coolify-token', async (url, options) => {
     assert.ok(url.startsWith('https://coolify.nitido.ro/api/v1/applications/'));
-    const rows = tables.get(url) ?? [{key: 'STRIPE_SECRET_KEY', value: 'unrelated-placeholder', is_preview: false}]; tables.set(url, rows);
+    const rows = tables.get(url) ?? [{key: 'STRIPE_SECRET_KEY', value: 'unrelated-placeholder', is_preview: false},
+      ...(url.includes('civaeb8joydtchvzlen6pivq') ? [{key: 'PUSH_ENABLED', value: 'true', is_preview: false}] : [])]; tables.set(url, rows);
     if (options.method === 'GET') return Response.json(rows);
     const value = JSON.parse(options.body); writes.push(value);
     const index = rows.findIndex(row => row.key === value.key && row.is_preview === value.is_preview);
-    if (index === -1) rows.push(value); else rows[index] = value;
+    if (options.method === 'POST') rows.push(value, {...value, is_preview: true, is_shown_once: false});
+    else if (index === -1) return Response.json({message: 'Missing binding'}, {status: 404});
+    else rows[index] = value;
     return Response.json({ok: true});
   });
-  assert.equal(writes.length, 16);
+  assert.equal(writes.length, 15);
   assert.ok(writes.every(row => row.is_buildtime === false && row.is_runtime && row.is_shown_once));
   assert.ok(writes.filter(row => row.key === 'PUSH_ENABLED').every(row => row.value === 'false'));
   assert.ok(writes.every(row => ['PUSH_ENABLED', 'FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY'].includes(row.key)));
