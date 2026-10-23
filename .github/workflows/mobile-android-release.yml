@@ -2,6 +2,16 @@ name: Robot Google Play (semnat + upload)
 
 # Signed builds preserve the existing upload key. Store upload requires fresh release evidence.
 on:
+  # Reusable invocation builds a signed candidate only. Upload remains limited
+  # to an explicitly requested workflow_dispatch with fresh release evidence.
+  workflow_call:
+    inputs:
+      version_code:
+        type: string
+        required: true
+      version_name:
+        type: string
+        required: true
   workflow_dispatch:
     inputs:
       version_code:

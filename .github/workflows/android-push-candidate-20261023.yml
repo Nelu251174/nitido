@@ -1,0 +1,14 @@
+name: Build signed Android push candidate (no store upload)
+on:
+  push:
+    branches: [codex/nitido-push-20261022]
+    paths: ['.github/workflows/android-push-candidate-20261023.yml']
+permissions:
+  contents: read
+jobs:
+  build-candidate:
+    uses: ./.github/workflows/mobile-android-release.yml
+    with:
+      version_code: '26'
+      version_name: '1.0.3'
+    secrets: inherit
