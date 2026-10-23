@@ -38,12 +38,13 @@ test('source coverage rejects new copy without rewriting the released source cat
   assert.notEqual(run('--check').status,0);assert.equal(readFileSync(source,'utf8'),'{}');
   assert.equal(run().status,0);assert.equal(run('--check').status,0);
   const before=JSON.parse(readFileSync(source,'utf8'));
-  writeFileSync(page,'export default function Page(){return <p>Programare confirmată</p>;}');
+  writeFileSync(page,'export default function Page(){return <><p>Programare confirmată</p><UiText text="Recenzii"/></>;}');
   assert.notEqual(run('--check').status,0);assert.deepEqual(JSON.parse(readFileSync(source,'utf8')),before);
   assert.equal(run().status,0);
   const after=JSON.parse(readFileSync(source,'utf8'));
   assert(Object.values(after).includes('Rezervare sigură'));
   assert(Object.values(after).includes('Programare confirmată'));
+  assert(Object.values(after).includes('Recenzii'));
  }finally{rmSync(root,{recursive:true,force:true});}
 });
 

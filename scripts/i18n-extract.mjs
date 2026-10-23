@@ -34,7 +34,7 @@ for(const file of all){
     if(ts.isJsxText(node))add(node.text,file,'jsx');
     if(ts.isStringLiteral(node)||ts.isNoSubstitutionTemplateLiteral(node)){
       const attr=ts.isJsxAttribute(node.parent)?node.parent.name.getText(ast):null;
-      const ownText=ts.isJsxExpression(node.parent)&&ts.isJsxAttribute(node.parent.parent)&&node.parent.parent.name.getText(ast)==='text';
+      const ownText=attr==='text'||ts.isJsxExpression(node.parent)&&ts.isJsxAttribute(node.parent.parent)&&node.parent.parent.name.getText(ast)==='text';
       const explicitTranslation=ts.isCallExpression(node.parent)&&node.parent.arguments[0]===node&&ts.isIdentifier(node.parent.expression)&&node.parent.expression.text==='ui';
       if(ownText||explicitTranslation)add(node.text,file,'ui-copy');
       else if(attr && ['placeholder','title','aria-label','alt','label','description','emptyText','eyebrow','intro','hint','helperText'].includes(attr))add(node.text,file,'attribute');

@@ -14,8 +14,8 @@
   ],
   "targetLanguages": 24,
   "sourceLanguage": "ro",
-  "sourceMessages": 5293,
-  "sourceHash": "77c61cb1d6a0796a437cbd5e97faedbdd7fb9a832d8430aa32222ecb130ca3e7",
+  "sourceMessages": 5299,
+  "sourceHash": "8f7f44028b46baedb91a399cd1082e9c22739a620d8d25f562340241c139ff46",
   "provider": "OpenAI",
   "model": "gpt-5.4-mini",
   "review": "machine translation; specialist legal review pending"

@@ -45,8 +45,6 @@ export function decodeCatalog(logs,locale){
 export async function exportGeneratedCatalogs(env=process.env,fetcher=fetch,pause=ms=>new Promise(r=>setTimeout(r,ms))){
   if(!env.COOLIFY_TOKEN)throw Error('COOLIFY_CREDENTIAL_MISSING');
   const output=path.resolve('.translation-work/generated-catalogs');
-  const source=JSON.parse(await fs.readFile('messages/ro.json','utf8'));
-  if(Object.keys(source).length!==5293||sha(JSON.stringify(source))!==SOURCE_HASH)throw Error('EXPORT_SOURCE_MISMATCH');
   async function call(endpoint,method='GET',body){
     const r=await fetcher(API+endpoint,{method,redirect:'error',signal:AbortSignal.timeout(30000),headers:{Authorization:'Bearer '+env.COOLIFY_TOKEN,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
     if(!r.ok)throw Error('COOLIFY_HTTP_'+r.status);
@@ -61,6 +59,8 @@ export async function exportGeneratedCatalogs(env=process.env,fetcher=fetch,paus
   // Raw application logs are never printed, persisted or uploaded.
   const snapshot=readOnly?await call('/applications/'+APP+'/logs?lines=1000'):null;
   if(!readOnly)await call('/applications/'+APP+'/logs?lines=1');
+  const source=JSON.parse(await fs.readFile('messages/ro.json','utf8'));
+  if(Object.keys(source).length!==5293||sha(JSON.stringify(source))!==SOURCE_HASH)throw Error('EXPORT_SOURCE_MISMATCH');
   await fs.mkdir(output,{recursive:true});
   async function run(mode){
     if(![...LOCALES,'ro','manifest','status'].includes(mode))throw Error('EXPORT_ACTION_INVALID');
