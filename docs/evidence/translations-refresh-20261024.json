@@ -1,0 +1,64 @@
+{
+  "status": "draft_blocked_provider_quota",
+  "baseline": "e8877140d5b9c969826536e901129cf1e5b63dab",
+  "codeFiles": 60,
+  "codeFingerprint": "f066d90c941fcbddcd4e504f1fdedb5bafd7a079c9d2c788e648ddc6dd141026",
+  "sourceMessages": 5293,
+  "extractedMessages": 5213,
+  "pendingMessagesPerLocale": 642,
+  "pendingSourceCharacters": 40371,
+  "locales": [
+    "bg",
+    "hr",
+    "cs",
+    "da",
+    "nl",
+    "en",
+    "fr",
+    "de",
+    "ro"
+  ],
+  "sourceHash": "77c61cb1d6a0796a437cbd5e97faedbdd7fb9a832d8430aa32222ecb130ca3e7",
+  "vitest": {
+    "files": 221,
+    "passed": 2323,
+    "failed": 0
+  },
+  "catalogTests": {
+    "passed": 13,
+    "failed": 0
+  },
+  "typecheck": "passed",
+  "eslint": "passed",
+  "renderingCoverage": "passed",
+  "sourceCoverage": "passed",
+  "behaviorAudit": {
+    "files": 46,
+    "externalCallsAndControlAttributesPreserved": true
+  },
+  "nextProductionCompilation": "passed_only_not_publication_approval",
+  "publicationGate": "rejected_incomplete_catalogs_as_expected",
+  "browser": {
+    "scope": "Romanian UI fallback; synthetic isolated database; no external requests",
+    "startedAt": "2026-10-23T21:16:38.342Z",
+    "finishedAt": "2026-10-23T21:17:23.981Z",
+    "checks": 48,
+    "pages": 24,
+    "layouts": 72,
+    "functionalPassed": true,
+    "layoutPassed": true,
+    "accessibilityPassed": true,
+    "pageErrors": 0,
+    "accessibilityViolations": 0
+  },
+  "provider": {
+    "approvedMaxUsd": 5,
+    "result": "quota_or_balance_unavailable",
+    "returnedInputTokens": 0,
+    "returnedOutputTokens": 0,
+    "generatedLocales": 0,
+    "temporaryTasksRemoved": 8,
+    "automaticRetry": false
+  },
+  "deployedAppSourceUnchanged": "d25796ca7e5bd8670eeb0326aa062e311aded729"
+}

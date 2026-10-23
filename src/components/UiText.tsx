@@ -1,4 +1,4 @@
-import {createElement, Fragment, type JSX, type ReactNode} from 'react';
+import {createElement, Fragment, type ElementType, type ComponentPropsWithRef, type ReactNode} from 'react';
 import {useMessages} from 'next-intl';
 import {translateText,translateTemplate, type UiCatalog} from '@/i18n/text';
 
@@ -26,7 +26,7 @@ export function UiTemplate({text, values}: {text: string; values: ReactNode[]}) 
   });
 }
 /** Translate display attributes; never form values, names, URLs or event handlers. */
-export function UiElement<T extends keyof JSX.IntrinsicElements>(props: {as: T} & JSX.IntrinsicElements[T]) {
+export function UiElement<T extends ElementType>(props: {as: T} & Omit<ComponentPropsWithRef<T>,'as'>) {
   const {as, ...attributes} = props;
   const {ui} = useMessages();
   const display = {...attributes} as Record<string, unknown>;

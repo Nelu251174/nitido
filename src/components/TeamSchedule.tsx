@@ -1,7 +1,7 @@
 'use client';
-import {UiSpaceType} from '@/components/UiText';
+import {UiSpaceType,UiText,UiElement} from '@/components/UiText';
 import {useLocale} from 'next-intl';
-import {UiText,UiElement} from '@/components/UiText';
+
 import {JobNavigation} from "./JobNavigation";
 import {calendarDays,serviceDate,shiftCalendarDate,intersectsServiceDay,type CalendarView} from '@/lib/calendarView';
 import {useState} from 'react';

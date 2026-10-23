@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {createElement as h} from 'react';
+import {createElement as h,type ComponentProps} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {NextIntlClientProvider} from 'next-intl';
 import {ALL_EU_LANGUAGES,LANGUAGES,asLocale,selectLocale,hasSupportedLanguage} from './locales';
@@ -66,6 +66,21 @@ describe('source-owned UI and user data isolation',()=>{
   it('reorders interpolation slots without translating names, amounts or HTML values',()=>{
     const html=render('en',en,h(UiTemplate,{text:'Confirmă {p0} pentru {p1}',values:['500 RON','<Ion & Ana>']}));
     expect(html).toBe('For &lt;Ion &amp; Ana&gt;, confirm 500 RON');
+  });
+  it('translates custom component display attributes while preserving their destinations and image data',()=>{
+    const LinkLike=(props:ComponentProps<'a'>)=>h('a',props);
+    const ImageLike=(props:ComponentProps<'img'>)=>h('img',props);
+    const child=h('div',{},
+      h(UiElement,{as:LinkLike,href:'/client#sec-cont','aria-label':'Autentificare',children:'Ana Popescu'}),
+      h(UiElement,{as:ImageLike,src:'/illustration.webp',alt:'Parolă',width:200,height:100}),
+    );
+    const html=render('en',en,child);
+    expect(html).toContain('href="/client#sec-cont"');
+    expect(html).toContain('aria-label="Sign in"');
+    expect(html).toContain('>Ana Popescu</a>');
+    expect(html).toContain('src="/illustration.webp"');
+    expect(html).toContain('alt="Password"');
+    expect(html).toContain('width="200"');
   });
   it('retains adjacent fragment spaces and returns unknown copy unchanged',()=>{
     expect(translateText(en,' Autentificare ')).toBe(' Sign in ');

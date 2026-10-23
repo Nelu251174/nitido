@@ -1,7 +1,7 @@
 'use client';
-import {UiSpaceType} from '@/components/UiText';
+import {UiSpaceType,UiText} from '@/components/UiText';
 import {useLocale} from 'next-intl';
-import {UiText} from '@/components/UiText';
+
 import {useEffect,useState} from 'react';
 import Image from 'next/image';
 import Link from 'next/link';

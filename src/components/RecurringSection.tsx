@@ -1,8 +1,9 @@
 "use client";
+import {UiElement,UiText,UiSpaceType,UiTemplate} from '@/components/UiText';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {useLocale} from 'next-intl';
 import Link from 'next/link';
-import {UiText,UiElement,UiSpaceType,UiTemplate} from './UiText';
+
 import {Field,inputClass,Button} from './ui';
 import {BathroomExtra} from './BathroomExtra';
 import {SeriesChanges} from './SeriesChanges';
@@ -196,7 +197,7 @@ export function RecurringSection({ defaults }: { defaults: { street: string; pos
   }
 
   return (
-    <section id="sec-rutina" className="v2-card p-5 mb-5" aria-label="Rutina casei mele">
+    <UiElement as="section" id="sec-rutina" className="v2-card p-5 mb-5" aria-label="Rutina casei mele">
       <div className="flex items-center justify-between">
         <h2 className="font-bold"><UiText text={"Rutina casei mele"}/> <NewBadge/>{" "}
           <span className="text-[11px] font-bold text-aqua-deep bg-aqua/10 rounded-full px-2 py-0.5 align-middle"><UiText text={"Nitido Repeat"}/></span>
@@ -328,7 +329,7 @@ export function RecurringSection({ defaults }: { defaults: { street: string; pos
           </Button>
         </div>
       )}
-    </section>
+    </UiElement>
   );
 }
 
