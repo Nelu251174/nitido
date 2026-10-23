@@ -18,7 +18,11 @@ export async function localizeMetadata(metadata: Metadata): Promise<Metadata> {
     if('absolute' in value)return {...value, absolute:ui(value.absolute)};
     return {...value, default:ui(value.default), template:value.template};
   };
-  return {...metadata, title:title(metadata.title), description:metadata.description?ui(metadata.description):metadata.description,
-    openGraph:metadata.openGraph?{...metadata.openGraph,locale:SOCIAL_LOCALES[asLocale(locale)??DEFAULT_LOCALE], title:title(metadata.openGraph.title)??undefined,description:metadata.openGraph.description?ui(metadata.openGraph.description):undefined}:undefined,
-    twitter:metadata.twitter?{...metadata.twitter,title:title(metadata.twitter.title)??undefined,description:metadata.twitter.description?ui(metadata.twitter.description):undefined}:undefined};
+  // Adding an absent field as `undefined` clears the parent layout's metadata.
+  const localized = {...metadata};
+  if (metadata.title !== undefined) localized.title = title(metadata.title);
+  if (metadata.description) localized.description = ui(metadata.description);
+  if (metadata.openGraph) localized.openGraph = {...metadata.openGraph,locale:SOCIAL_LOCALES[asLocale(locale)??DEFAULT_LOCALE], title:title(metadata.openGraph.title)??undefined,description:metadata.openGraph.description?ui(metadata.openGraph.description):undefined};
+  if (metadata.twitter) localized.twitter = {...metadata.twitter,title:title(metadata.twitter.title)??undefined,description:metadata.twitter.description?ui(metadata.twitter.description):undefined};
+  return localized;
 }
