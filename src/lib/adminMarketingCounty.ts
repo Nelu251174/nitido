@@ -85,11 +85,21 @@ export async function prepareMarketingCountySource(code:string,active:()=>boolea
  });
 }
 type Dependencies={manifest?:typeof readCountyManifest;part?:typeof readCountyPart;prepare?:typeof prepareMarketingCountySource;domain?:DomainReader;directory?:typeof processMarketingDirectory};
+const progressLog=new WeakMap<Database,{at:number;state:string;code:string}>();
+function reportCountyProgress(db:Database,j:Job){
+ const last=progressLog.get(db);if(last?.state===j.state&&last.code===j.county_code&&Date.now()-last.at<5*60000)return;
+ progressLog.set(db,{at:Date.now(),state:j.state,code:j.county_code});
+ const inventory=db.prepare("SELECT COUNT(*) inventory,COALESCE(SUM(status='done'),0) processed,COALESCE(SUM(warning<>''),0) warnings FROM marketing_county_items WHERE job_id=?").get(j.id);
+ const emails=db.prepare("SELECT e.status,COUNT(DISTINCT e.email) count FROM marketing_email_checks e JOIN marketing_county_item_emails x ON x.email=e.email JOIN marketing_county_items i ON i.id=x.item_id WHERE i.job_id=? GROUP BY e.status").all(j.id);
+ const directory=db.prepare("SELECT COUNT(*) total,COALESCE(SUM(state='done'),0) processed,COALESCE(SUM(state='blocked'),0) blocked FROM marketing_directory_pages WHERE job_id=?").get(j.id);
+ console.log('MKT_COUNTY_PROGRESS '+JSON.stringify({county:j.county_code,state:j.state,total:j.total,...inventory as object,emails,directory,delivery:process.env.NITIDO_MARKETING_DELIVERY_ENABLED==='true'?'enabled':'blocked'}));
+}
 export async function processMarketingCounty(db:Database,reader:PublicReader,heartbeat:()=>void=()=>{},deps:Dependencies={}){
  initializeMarketingCounty(db);
  // A paused or unreviewed earlier county blocks following counties, including București.
  const j=db.prepare("SELECT * FROM marketing_county_jobs WHERE state<>'completed' ORDER BY position,created_at LIMIT 1").get() as Job|undefined;
  if(!j)return false;
+ reportCountyProgress(db,j);
  if(['paused','review'].includes(j.state)||j.next_attempt_at&&j.next_attempt_at>time())return true;
  const active=()=>{heartbeat();return (db.prepare('SELECT state FROM marketing_county_jobs WHERE id=?').get(j.id) as {state:string})?.state!=='paused';};
  try{
