@@ -10,7 +10,7 @@ const readHash=()=>window.location.hash;
 const serverHash=()=>'';
 import {usePathname} from 'next/navigation';
 import {DesignIcon,type DesignIconName} from './DesignIcon';
-export function WorkspaceNav({role='client',onNavigate}:{role?:'client'|'firma'|'admin';onNavigate?:(href:string)=>void}){
+export function WorkspaceNav({role='client',onNavigate,marketing=false}:{role?:'client'|'firma'|'admin';onNavigate?:(href:string)=>void;marketing?:boolean}){
  const path=usePathname();
  const [open,setOpen]=useState(false);
  const menuId=useId();
@@ -21,6 +21,7 @@ export function WorkspaceNav({role='client',onNavigate}:{role?:'client'|'firma'|
  ]:role==='firma'?[
  ['Oportunități','/firma','search'],['Calendar','/firma/calendar','calendar'],['Programări și reamintiri','/firma/programari','bell'],['Intervale libere','/firma/intervale-libere','calendar'],['Planificare','/firma/planificare','chart'],['Lucrări','/firma#lucrari-active','briefcase'],['Execuție','/firma/executie','check'],['Mesaje','/firma/mesaje','chat'],['Câștiguri','/firma#castiguri','chart'],['Echipe','/firma/echipe','users'],['Angajați','/echipa','users'],['Profil','/firma#profil','user'],['Setări','/firma/setari','settings']
  ]:[['Operațiuni','/admin','home'],['Atenție azi','/admin/azi','shield'],['Firme','/admin#firme','building'],['Lucrări','/admin#lucrari','briefcase'],['Calitate','/admin#calitate','shield'],['Incidente','/admin#incidente','shield'],['Performanță','/admin#performanta','chart'],['Progres rezervări','/admin/raport-rezervari','chart'],['Clienți','/admin#clienti','users'],['Plăți','/admin#plati','card'],['Catalog','/admin#catalog','settings'],['Evaluări','/admin#evaluari','briefcase'],['Website public ↗','/','home']];
+ if(role==='admin'&&marketing)items.splice(1,0,['Marketing','/admin/marketing','chart']);
  const primary: [string,string,DesignIconName][]=role==='client'?[...items.slice(0,7),['Curățenie de primăvară','/curatenie-de-primavara','sparkles'],['Rutina casei mele','/client/rutina','calendar'],['Planul casei','/client/planul-casei','home'],['Alerte de disponibilitate','/client/alerte-disponibilitate','bell'],['Firmele mele preferate','/client/firme-preferate','building'],['Pentru cei dragi','/pentru-cei-dragi','home'],['Intervale săptămâna aceasta','/intervale-libere','calendar'],['Descrie prin poze','/client/descrie-prin-poze','search'],['Programări primite','/client/beneficiar','calendar'],['Setări','/client/setari','settings']]:items;
  primary.push(['Dosarele mele','/dosare','briefcase'],['Remedieri','/remedieri','shield']);
  const professional:[string,string,string][]=[['Rapoarte și arhivă','/client/rapoarte','Intervale, totaluri și rapoarte salvate.'],['Organizații','/client/organizatii','Portofolii, roluri și praguri de aprobare.'],['Birouri și firme','/client/business','Locații de firmă, bugete și aprobări.'],['Curățenie între rezervări','/client/host','Pregătirea proprietății între plecarea și sosirea oaspeților.'],['Aprobări și acces','/colaborari','Invitații și permisiuni pentru locațiile administrate.'],['Lucrările echipei','/echipa','Pentru membrii invitați să execute lucrări.']];
