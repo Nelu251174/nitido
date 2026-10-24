@@ -1,5 +1,4 @@
-// Original NITIDO alert: two ascending phrases, matching the web chime.
-// PCM WAV is supported by iOS notification sounds (duration stays below 30s).
+// Original NITIDO web alert. iOS has its independently prepared SMS resource.
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -27,7 +26,7 @@ bytes.writeUInt32LE(sampleRate,24);bytes.writeUInt32LE(sampleRate*2,28);
 bytes.writeUInt16LE(2,32);bytes.writeUInt16LE(16,34);bytes.write('data',36);
 bytes.writeUInt32LE(samples.length*2,40);
 for(let n=0;n<samples.length;n++)bytes.writeInt16LE(Math.round(samples[n]/peak*.95*32767),44+n*2);
-for(const target of ['ios/App/App/nitido_alert_v2.wav','public/sounds/nitido_alert_v2.wav']){
+for(const target of ['public/sounds/nitido_alert_v2.wav']){
  const file=path.join(root,target);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,bytes);
  console.log(target);
 }

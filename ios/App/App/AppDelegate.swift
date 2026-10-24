@@ -15,8 +15,25 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        installNotificationSound()
         return true
+    }
+
+    private func installNotificationSound() {
+        guard let source = Bundle.main.url(forResource: "nitido_alert_v2", withExtension: "wav"),
+              let library = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first else { return }
+        do {
+            let sounds = library.appendingPathComponent("Sounds", isDirectory: true)
+            try FileManager.default.createDirectory(at: sounds, withIntermediateDirectories: true)
+            let destination = sounds.appendingPathComponent("nitido_sms_v1.wav")
+            let audio = try Data(contentsOf: source)
+            if (try? Data(contentsOf: destination)) != audio {
+                try audio.write(to: destination, options: .atomic)
+            }
+        } catch {
+            // A resource copy failure must never prevent the application starting.
+            NSLog("NITIDO notification sound installation unavailable")
+        }
     }
 
     func applicationWillResignActive(_ application: UIApplication) {

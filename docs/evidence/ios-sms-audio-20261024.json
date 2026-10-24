@@ -1,0 +1,17 @@
+{
+  "sound": "Classic iPhone SMS Tri-tone",
+  "sourceFile": "sms-received1.caf",
+  "sourceRuntime": "Apple iOS Simulator 26.5",
+  "sourceSha256": "737b971fc6be6fa1864b32c94a6f703db4f68139ecc5e5b76185fd98c131f337",
+  "sourceCiRun": 40085504291,
+  "assetSha256": "447400c377f97a0f61a119f77b6c2810c564f7646b3d7c4c7e7316ab90436459",
+  "mono": true,
+  "sampleRate": 44100,
+  "bits": 16,
+  "durationSeconds": 0.9,
+  "gainDb": 13.169,
+  "peakDbfs": -1.0,
+  "clippedSamples": 0,
+  "osVolumeOverride": false,
+  "assetBytes": 79424
+}

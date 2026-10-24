@@ -6,8 +6,8 @@ const transport=vi.hoisted(()=>({connect:vi.fn()}));
 vi.mock('node:http2',()=>({default:{connect:transport.connect}}));
 import {sendApns} from './pushProviders';
 afterEach(()=>{vi.unstubAllEnvs();vi.clearAllMocks();vi.unstubAllGlobals();});
-describe('standard iPhone alert',()=>{
- it('requests the standard iPhone sound through APNs without critical-alert or volume overrides',async()=>{
+describe('iPhone SMS alert',()=>{
+ it('requests the installed SMS sound without critical-alert or volume overrides',async()=>{
   const {privateKey}=generateKeyPairSync('ec',{namedCurve:'prime256v1'});
   vi.stubEnv('APNS_PRIVATE_KEY',privateKey.export({type:'pkcs8',format:'pem'}).toString());
   vi.stubEnv('APNS_USE_SANDBOX','false');vi.stubEnv('APNS_KEY_ID','test-key');vi.stubEnv('APNS_TEAM_ID','test-team');vi.stubEnv('APNS_BUNDLE_ID','ro.nitido.app');
@@ -17,18 +17,18 @@ describe('standard iPhone alert',()=>{
   client.request=vi.fn(()=>request);client.close=vi.fn();client.destroy=vi.fn();transport.connect.mockReturnValue(client);
   await expect(sendApns('synthetic-token',{title:'Message',body:'Test only',data:{event_type:'MESSAGE_RECEIVED',job_id:'test-job'}})).resolves.toEqual({providerMessageId:'synthetic-id'});
   const payload=JSON.parse(request.end.mock.calls[0][0]);
-  expect(payload.aps).toEqual({alert:{title:'Message',body:'Test only'},sound:'default'});
+  expect(payload.aps).toEqual({alert:{title:'Message',body:'Test only'},sound:'nitido_sms_v1.wav'});
   expect(payload.job_id).toBe('test-job');expect(client.close).toHaveBeenCalledOnce();
  });
- it('ships matching PCM previews and a short, unclipped iPhone bundle resource',()=>{
+ it('ships the short SMS sound at a strong, unclipped level and retains the separate web alert',()=>{
   const native=readFileSync('ios/App/App/nitido_alert_v2.wav');
-  expect(native.equals(readFileSync('public/sounds/nitido_alert_v2.wav'))).toBe(true);
+  expect(native.equals(readFileSync('public/sounds/nitido_alert_v2.wav'))).toBe(false);
   expect(native.toString('ascii',0,4)).toBe('RIFF');expect(native.toString('ascii',8,12)).toBe('WAVE');
   expect(native.readUInt16LE(20)).toBe(1);expect(native.readUInt16LE(22)).toBe(1);expect(native.readUInt16LE(34)).toBe(16);
   const samples=(native.length-44)/2, rate=native.readUInt32LE(24);
-  expect(samples/rate).toBeGreaterThan(1.5);expect(samples/rate).toBeLessThan(30);
+  expect(samples/rate).toBe(.9);
   let peak=0,sum=0;for(let i=44;i<native.length;i+=2){const v=native.readInt16LE(i)/32767;peak=Math.max(peak,Math.abs(v));sum+=v*v;}
-  expect(peak).toBeGreaterThan(.9);expect(peak).toBeLessThan(1);expect(Math.sqrt(sum/samples)).toBeGreaterThan(.35);
+  expect(peak).toBeGreaterThan(.88);expect(peak).toBeLessThan(.9);expect(Math.sqrt(sum/samples)).toBeGreaterThan(.17);
   const project=readFileSync('ios/App/App.xcodeproj/project.pbxproj','utf8');
   expect(project).toContain('path = nitido_alert_v2.wav;');
   const resources=project.split('/* Begin PBXResourcesBuildPhase section */')[1].split('/* End PBXResourcesBuildPhase section */')[0];
