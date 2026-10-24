@@ -1,0 +1,82 @@
+name: Upload signed NITIDO build20 to App Store Connect without public release
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/nitido-store-updates-20261024]
+    paths: [.github/workflows/appstore-upload-build20-20261024.yml]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nitido-appstore-build20-upload
+  cancel-in-progress: false
+jobs:
+  prepare-app-store-update:
+    runs-on: macos-26
+    timeout-minutes: 18
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      NITIDO_IOS_BUILD_NUMBER: '20'
+      NITIDO_MARKETING_VERSION: '1.0.3'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 42e435b685864e57b67db45a328c468a1e29131e
+          path: candidate
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Retrieve the already signed and tested NITIDO update
+        uses: actions/download-artifact@v4
+        with:
+          name: nitido-ios-sms-1.0.3-build20
+          run-id: 40087466051
+          github-token: ${{ github.token }}
+          path: signed-candidate
+      - name: Check the exact artifact and preserve its verified provenance
+        run: |
+          IPA_FILES=(signed-candidate/*.ipa)
+          test "${#IPA_FILES[@]}" -eq 1
+          EXPECTED=8e955186e619f4f083b70f38b22cbe23e10a1e099d211cc8bc575356477e07e7
+          ACTUAL=$(shasum -a 256 "${IPA_FILES[0]}" | cut -d ' ' -f 1)
+          test "$ACTUAL" = "$EXPECTED"
+          python3 candidate/scripts/mobile-verify-ios.py "${IPA_FILES[0]}" 20 1.0.3
+      - name: Prepare the existing private Apple identity
+        env:
+          ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          umask 077
+          mkdir -p "$HOME/private_keys"
+          ASC_KEY_PATH="$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s' "$ASC_PRIVATE_KEY" > "$ASC_KEY_PATH"
+          echo "ASC_KEY_PATH=$ASC_KEY_PATH" >> "$GITHUB_ENV"
+      - name: Recheck the existing app and reject reused build numbers
+        run: |
+          python3 -m pip install --quiet --break-system-packages pyjwt cryptography
+          python3 candidate/scripts/mobile-apple-preflight.py
+      - name: Upload the prepared binary to App Store Connect only
+        # This stages a build. It does not add beta testers, assign groups,
+        # submit App Review, or release the app to customers.
+        run: |
+          IPA_FILES=(signed-candidate/*.ipa)
+          xcrun altool --upload-app -f "${IPA_FILES[0]}" --type ios --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+      - name: Read processing status for exact App Store build20
+        run: node scripts/appstore-build20-status-20261024.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nitido-appstore-build20-upload-receipt-20261024
+          path: .store-build20/*.json
+          include-hidden-files: true
+          retention-days: 1
+          if-no-files-found: warn
+      - name: Remove temporary Apple key
+        if: always()
+        run: |
+          if [ -n "${ASC_KEY_PATH:-}" ]; then rm -f "$ASC_KEY_PATH"; fi
