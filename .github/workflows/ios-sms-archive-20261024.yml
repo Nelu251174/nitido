@@ -1,0 +1,90 @@
+name: Prepare signed NITIDO SMS sound update 1.0.3 build20
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/nitido-ios-sms-20261024]
+    paths: [.github/workflows/ios-sms-archive-20261024.yml]
+permissions:
+  contents: read
+concurrency:
+  group: nitido-ios-sms-signed-build20
+  cancel-in-progress: false
+jobs:
+  archive:
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      NITIDO_IOS_BUILD_NUMBER: '20'
+      NITIDO_MARKETING_VERSION: '1.0.3'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 42e435b685864e57b67db45a328c468a1e29131e
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify source and toolchain
+        run: |
+          test "$(git rev-parse HEAD)" = 42e435b685864e57b67db45a328c468a1e29131e
+          swift --version
+      - run: npm ci
+      - name: Sync the existing LIVE app
+        env:
+          NITIDO_NATIVE_SERVER_URL: https://nitido.ro
+        run: npx cap sync ios
+      - name: Prepare existing App Store authentication privately
+        env:
+          ASC_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          umask 077
+          mkdir -p "$RUNNER_TEMP/nitido-sms-keys"
+          ASC_KEY_PATH="$RUNNER_TEMP/nitido-sms-keys/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s' "$ASC_KEY" > "$ASC_KEY_PATH"
+          echo "ASC_KEY_PATH=$ASC_KEY_PATH" >> "$GITHUB_ENV"
+      - name: Recheck exact existing app and current build maximum before archive
+        run: |
+          python3 -m pip install --quiet --break-system-packages pyjwt cryptography
+          python3 scripts/mobile-apple-preflight.py
+      - name: Prepare unsigned distribution archive
+        run: |
+          xcodebuild -quiet -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/SMS.xcarchive" \
+            -allowProvisioningUpdates -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            CURRENT_PROJECT_VERSION=20 MARKETING_VERSION=1.0.3 clean archive
+          codesign --force --sign - --entitlements ios/App/App/App.entitlements "$RUNNER_TEMP/SMS.xcarchive/Products/Applications/App.app"
+      - name: Prepare existing team distribution options
+        run: |
+          cat > "$RUNNER_TEMP/SMSExport.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict><key>method</key><string>app-store-connect</string><key>destination</key><string>export</string><key>teamID</key><string>$APPLE_TEAM_ID</string><key>signingStyle</key><string>automatic</string><key>uploadSymbols</key><true/></dict></plist>
+          PLIST
+      - name: Export signed IPA without uploading or releasing
+        run: |
+          xcodebuild -quiet -exportArchive -archivePath "$RUNNER_TEMP/SMS.xcarchive" \
+            -exportPath "$RUNNER_TEMP/sms-export" -exportOptionsPlist "$RUNNER_TEMP/SMSExport.plist" \
+            -allowProvisioningUpdates -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+      - name: Verify signature, identity, production push capability and sound
+        run: |
+          IPA_FILES=("$RUNNER_TEMP"/sms-export/*.ipa)
+          test "${#IPA_FILES[@]}" -eq 1
+          python3 scripts/mobile-verify-ios.py "${IPA_FILES[0]}" 20 1.0.3
+          shasum -a 256 "$RUNNER_TEMP/SMS.xcarchive/Products/Applications/App.app/nitido_alert_v2.wav"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nitido-ios-sms-1.0.3-build20
+          path: ${{ runner.temp }}/sms-export/*.ipa
+          if-no-files-found: error
+          retention-days: 1
+      - name: Remove temporary API key
+        if: always()
+        run: |
+          if [ -n "${ASC_KEY_PATH:-}" ]; then rm -f "$ASC_KEY_PATH"; fi
