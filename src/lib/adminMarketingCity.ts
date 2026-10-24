@@ -101,10 +101,12 @@ function saveCityContact(db:Database,input:MarketingInput,actor:string){
 async function processCity(db:Database,job:JobRow,reader:PublicReader){
  if(['queued','discovering','waiting'].includes(job.state)){
   if(job.next_attempt_at&&job.next_attempt_at>now())return;
-  if(!reserveMarketingCitySource(db)){db.prepare("UPDATE marketing_city_jobs SET state='waiting',message=?,next_attempt_at=?,updated_at=? WHERE id=?").run('Limita sursei publice pentru astăzi este atinsă. Colectarea se reia automat mâine.',new Date(Date.now()+86400000).toISOString().slice(0,10)+'T00:01:00.000Z',now(),job.id);return;}
   db.prepare("UPDATE marketing_city_jobs SET state='discovering',updated_at=? WHERE id=?").run(now(),job.id);
   try{
-   const response=await readMarketingCitySnapshot(job.city)??await reader(MARKETING_PUBLIC_SOURCE,{method:'POST',body:new URLSearchParams({data:marketingCityQuery(job.city)}).toString(),timeoutMs:30000,maxBytes:SOURCE_BYTES});
+   const snapshot=await readMarketingCitySnapshot(job.city);
+   if(rows(db,job.id).state!=='discovering')return;
+   if(!snapshot&&!reserveMarketingCitySource(db)){db.prepare("UPDATE marketing_city_jobs SET state='waiting',message=?,next_attempt_at=?,updated_at=? WHERE id=?").run('Limita sursei publice pentru astăzi este atinsă. Colectarea se reia automat mâine.',new Date(Date.now()+86400000).toISOString().slice(0,10)+'T00:01:00.000Z',now(),job.id);return;}
+   const response=snapshot??await reader(MARKETING_PUBLIC_SOURCE,{method:'POST',body:new URLSearchParams({data:marketingCityQuery(job.city)}).toString(),timeoutMs:30000,maxBytes:SOURCE_BYTES});
    if(response.status!==200)throw Object.assign(Error('SOURCE_HTTP_'+response.status),{
     retryAt:sourceRetryAt([429,503].includes(response.status)?response.headers['retry-after']:undefined),
    });

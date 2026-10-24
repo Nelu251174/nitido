@@ -20,6 +20,7 @@ beforeEach(()=>{db=new Database(':memory:');db.exec('CREATE TABLE admin_audit_lo
 afterEach(()=>{db.close();vi.restoreAllMocks();vi.useRealTimers();});
 describe('whole municipality Marketing collection',()=>{
  it('uses the verified municipal extract without an Overpass request and keeps normal contact safeguards',async()=>{
+  for(let i=0;i<4;i++)expect(reserveMarketingCitySource(db)).toBe(true);
   snapshot.read.mockResolvedValue(page('https://download.geofabrik.de/europe/romania-latest.osm.pbf',JSON.stringify({elements:[{type:'area',id:3600000100},entry(1),entry(2)]})));
   const id=start();await processMarketingCollections(db,reader);await processMarketingCollections(db,reader);
   expect(marketingCityView(db,id)?.job).toMatchObject({state:'completed',total:2,processed:2,saved:2,emails:2});expect(reader).not.toHaveBeenCalled();
