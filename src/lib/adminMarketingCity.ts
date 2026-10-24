@@ -127,10 +127,11 @@ async function processCity(db:Database,job:JobRow,reader:PublicReader){
    const known=new Set(['SOURCE_RESPONSE_INVALID','SOURCE_QUERY_INCOMPLETE','PUBLIC_DNS_TIMEOUT','PUBLIC_PAGE_TIMEOUT','PUBLIC_PAGE_TOO_LARGE','EAI_AGAIN','ENOTFOUND','ECONNRESET','ECONNREFUSED','ENETUNREACH','ETIMEDOUT','ABORT_ERR','UNABLE_TO_VERIFY_LEAF_SIGNATURE','CERT_HAS_EXPIRED']);
    const message=error instanceof Error?error.message:'',code=typeof (error as {code?:unknown})?.code==='string'?String((error as {code:string}).code):'';
    const reason=/^SOURCE_HTTP_[1-5]\d\d$/.test(message)?message:known.has(code)?code:known.has(message)?message:'SOURCE_READ_FAILED';
-   const paused=job.attempts>=2||['SOURCE_HTTP_403','SOURCE_HTTP_406'].includes(reason);
+   const denied=['SOURCE_HTTP_403','SOURCE_HTTP_406'].includes(reason);
+   const paused=job.attempts>=2||denied;
    const retryAt=(error as {retryAt?:string})?.retryAt??sourceRetryAt(undefined);
    const messageText=paused?'Sursa publică nu a răspuns complet ['+reason+']. Colectarea este în pauză și necesită verificare înainte de reluare.':'Sursa publică nu a răspuns complet ['+reason+']. Nu este o colectare finalizată. Reîncercarea respectă pauza cerută de sursă.';
-   db.prepare("UPDATE marketing_city_jobs SET state=?,attempts=attempts+1,message=?,next_attempt_at=?,updated_at=? WHERE id=? AND state='discovering'").run(paused?'paused':'waiting',messageText,paused?null:retryAt,now(),job.id);
+   db.prepare("UPDATE marketing_city_jobs SET state=?,attempts=attempts+1,message=?,next_attempt_at=?,updated_at=? WHERE id=? AND state='discovering'").run(paused?'paused':'waiting',messageText,denied?null:retryAt,now(),job.id);
   }
   return;
  }

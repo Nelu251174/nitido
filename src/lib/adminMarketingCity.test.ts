@@ -70,6 +70,12 @@ describe('whole municipality Marketing collection',()=>{
   expect(reader).toHaveBeenCalledOnce();expect(marketingCityView(db,id)?.job).toMatchObject({state:'paused',total:0,saved:0,nextAttemptAt:null});
   expect(marketingCityView(db,id)?.job.message).toContain('SOURCE_HTTP_'+status);
  });
+ it('retains the provider pause after the automatic attempt cap is reached',async()=>{
+  vi.useFakeTimers();const startTime=Date.parse('2026-10-25T06:00:00.000Z');vi.setSystemTime(startTime);
+  reader.mockImplementation(async url=>({...page(url,'unavailable',429),headers:{'retry-after':'3600'}}));const id=start();
+  for(let i=0;i<3;i++){vi.setSystemTime(startTime+i*3600000);await processMarketingCollections(db,reader);}
+  expect(marketingCityView(db,id)?.job).toMatchObject({state:'paused',nextAttemptAt:'2026-10-25T09:00:00.000Z'});expect(()=>setMarketingCityState(db,id,'resume',actor)).toThrow('pauzei sursei');
+ });
  it('shares source budgets with quick collection and waits instead of bypassing the daily quota',async()=>{for(let i=0;i<20;i++){const job=startMarketingDiscovery(db,{category:'business',city:'Constanța'},actor);cancelMarketingDiscovery(db,job.id);}source([entry(1)]);const id=start();await processMarketingCollections(db,reader);expect(reader).not.toHaveBeenCalled();expect(marketingCityView(db,id)?.job.state).toBe('waiting');expect(reserveMarketingCitySource(db)).toBe(false);});
  it('limits full-city source response reservations to the daily byte budget',()=>{initializeMarketingCity(db);for(let i=0;i<4;i++)expect(reserveMarketingCitySource(db)).toBe(true);expect(reserveMarketingCitySource(db)).toBe(false);expect(()=>startMarketingDiscovery(db,{category:'business',city:'Constanța'},actor)).toThrow('Limita');});
  it('exports all inventory rows including missing email and protects spreadsheet formulas',async()=>{source([entry(1,{name:'=FORMULA',email:''})]);const id=start();await processMarketingCollections(db,reader);await processMarketingCollections(db,reader);const csv=exportMarketingCity(db,id);expect(csv).toContain('"\'=FORMULA"');expect(csv).toContain('openstreetmap.org/node/1');expect(csv).toContain('Constanța');});
