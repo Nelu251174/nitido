@@ -1,5 +1,5 @@
 'use client';
-import { useRef,useState } from 'react';
+import { useEffect,useRef,useState } from 'react';
 import { Card,inputClass } from './ui';
 import { MARKETING_REGIONS } from '@/lib/adminMarketingRegions';
 import { marketingCsvBatches,marketingFileText } from '@/lib/adminMarketingCsvStream';
@@ -8,6 +8,7 @@ const pause=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 export function AdminMarketingCsvImport({onSaved}:{onSaved:()=>void}){
  const [file,setFile]=useState<File|null>(null),[county,setCounty]=useState('CT'),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState(''),[preview,setPreview]=useState<{total:number;sample:MarketingInput[]}|null>(null);
  const cancel=useRef(false),lastRequest=useRef(0);
+ useEffect(()=>()=>{cancel.current=true;},[]);
  async function request(path:string,body:unknown){
   for(let attempt=0;attempt<4;attempt++){
    if(cancel.current)throw Error('Importul a fost oprit. Loturile deja salvate rămân disponibile; reluarea omite duplicatele.');
