@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [codex/nitido-store-updates-20261024]
-    paths: [.github/workflows/appstore-draft-103-20261024.yml]
+    paths: [.github/workflows/appstore-draft-103-20261024.yml, scripts/appstore-draft-103-20261024.mjs]
 permissions:
   contents: read
 jobs:

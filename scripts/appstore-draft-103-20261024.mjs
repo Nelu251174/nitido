@@ -18,7 +18,7 @@ const versions=(await api('/v1/apps/'+app+'/appStoreVersions?filter[platform]=IO
 const previous=versions.find(x=>x.attributes.versionString==='1.0.2'&&x.attributes.appStoreState==='READY_FOR_SALE');
 if(!previous)throw Error('EXISTING_PUBLIC_VERSION_MISSING');
 let target=versions.find(x=>x.attributes.versionString==='1.0.3');
-const proof={checkedAt:new Date().toISOString(),appId:app,version:'1.0.3',build:20,buildId:build,created:false,localizationsPrepared:0,appReviewSubmitted:false,publicRelease:false,betaTestersOrGroupsChanged:false};
+const proof={checkedAt:new Date().toISOString(),appId:app,version:'1.0.3',build:20,buildId:build,created:false,localizationsPrepared:0,localizationsUpdated:0,appReviewSubmitted:false,publicRelease:false,betaTestersOrGroupsChanged:false};
 if(!target){
  const attributes={versionString:'1.0.3',platform:'IOS',releaseType:'MANUAL'};
  if(previous.attributes.copyright)attributes.copyright=previous.attributes.copyright;
@@ -37,8 +37,11 @@ for(const old of oldLocales){
  const attributes={locale,whatsNew:notes[locale.split('-')[0]]??notes.en};
  for(const field of ['description','keywords','marketingUrl','supportUrl','promotionalText'])if(old.attributes[field]!=null)attributes[field]=old.attributes[field];
  if(!existing){await api('/v1/appStoreVersionLocalizations','POST',{type:'appStoreVersionLocalizations',attributes,relationships:{appStoreVersion:{data:{type:'appStoreVersions',id:target.id}}}});proof.localizationsPrepared++;}
+ else {await api('/v1/appStoreVersionLocalizations/'+existing.id,'PATCH',{type:'appStoreVersionLocalizations',id:existing.id,attributes:{whatsNew:attributes.whatsNew}});proof.localizationsUpdated++;}
 }
 const checked=(await api('/v1/appStoreVersions/'+target.id+'?include=build')).data;
 if(checked.relationships?.build?.data?.id!==build||checked.attributes.appStoreState!=='PREPARE_FOR_SUBMISSION')throw Error('DRAFT_VERIFICATION_FAILED');
+const locales=(await api('/v1/appStoreVersions/'+target.id+'/appStoreVersionLocalizations?limit=200')).data;
+proof.localeChecks=[];for(const l of locales){const sets=(await api('/v1/appStoreVersionLocalizations/'+l.id+'/appScreenshotSets?include=appScreenshots&limit=100')).data;proof.localeChecks.push({locale:l.attributes.locale,descriptionPresent:Boolean(l.attributes.description),supportUrlPresent:Boolean(l.attributes.supportUrl),releaseNotesPresent:Boolean(l.attributes.whatsNew),screenshotSetCount:sets.length});}
 proof.versionId=target.id;proof.state=checked.attributes.appStoreState;proof.releaseType=checked.attributes.releaseType;
 await fs.mkdir('.store-draft',{recursive:true});await fs.writeFile('.store-draft/receipt.json',JSON.stringify(proof,null,2)+'\n');console.log(JSON.stringify(proof));
