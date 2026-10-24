@@ -282,6 +282,7 @@ export default function AdminPage() {
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-display font-bold text-muted">
             <Link href="/admin" className="hover:text-ink">Operațiuni</Link>
             <Link href="/admin/reset-parola" className="hover:text-ink underline">Resetare parolă ADMIN</Link>
+            <Link href="/admin/marketing" className="v2-btn v2-btn-primary">Marketing</Link>
             <a href="/admin#firme" className="hover:text-ink">Administrare firme</a>
             <a href="/admin#calitate" className="hover:text-ink">Calitate și recenzii</a>
             <button
