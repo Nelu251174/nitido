@@ -1,0 +1,42 @@
+name: Owner requested fresh NITIDO store status recheck
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/nitido-flow-validation-20261024]
+    paths: [.github/workflows/store-recheck-20261024.yml]
+permissions:
+  contents: read
+jobs:
+  recheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Read current Apple version status only
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: node scripts/mobile-apple-status.mjs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 -m pip install --quiet google-auth requests
+      - name: Read current Play publishing access without changing APIs or releases
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: python3 scripts/store-recheck-20261024.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nitido-store-recheck-20261024
+          path: |
+            apple-store-status.json
+            .store-recheck/google-play.json
+          include-hidden-files: true
+          retention-days: 1
