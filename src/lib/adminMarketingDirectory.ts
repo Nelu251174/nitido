@@ -2,7 +2,7 @@ import type { Database } from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { load } from 'cheerio';
 import { MarketingError,marketingKey } from './adminMarketing';
-import { marketingRegion } from './adminMarketingRegions';
+import { MARKETING_REGIONS, marketingRegion } from './adminMarketingRegions';
 import { publicWebsite,type PublicReader } from './adminMarketingPublicWeb';
 import { publicEmails,robotsAllows,marketingVisibleText } from './adminMarketingWebCollection';
 const ORIGIN='https://www.ghidul.ro';
@@ -15,14 +15,14 @@ CREATE TABLE IF NOT EXISTS marketing_directory_host(host TEXT PRIMARY KEY,robots
 function directoryUrl(value:string,base=ORIGIN){const url=publicWebsite(new URL(value,base).href);if(url.origin!==ORIGIN||url.search)throw new MarketingError('Legătură de catalog invalidă.');url.hash='';return url;}
 export function marketingDirectorySlug(code:string){const r=marketingRegion(code);if(!r)throw new MarketingError('Județ invalid.');return r.code==='DB'?'dimbovita':r.code==='VL'?'vilcea':r.key.replace(/ /g,'-');}
 export function parseDirectoryIndex(html:string){
- const $=load(html),links=new Set<string>();$('a[href]').each((_,e)=>{try{const u=directoryUrl($(e).attr('href')!);if(/^\/firme-[a-z-]+\/[a-z0-9-]+\/$/.test(u.pathname)&&!u.pathname.startsWith('/firme-servicii-publice/'))links.add(u.href);}catch{}});
+ const $=load(html),links=new Set<string>();$('a[href]').each((_,e)=>{try{const u=directoryUrl($(e).attr('href')!);if(/^\/firme-[a-z-]+\/[^/]+\/$/.test(u.pathname)&&!u.pathname.startsWith('/firme-servicii-publice/'))links.add(u.href);}catch{}});
  if(links.size<100)throw new MarketingError('Catalogul public nu a returnat indexul complet al categoriilor.',502);
  return [...links];
 }
 export function parseDirectoryCategory(html:string,url:string,code:string){
  const $=load(html),base=directoryUrl(url),slug=marketingDirectorySlug(code);let selected:string|undefined;
  const expected=base.pathname+slug+'/';let countyLinks=0;
- $('a[href]').each((_,e)=>{try{const u=directoryUrl($(e).attr('href')!,base.href);if(u.pathname===expected)selected=u.href;else if(u.pathname.startsWith(base.pathname)&&/^[-a-z]+\/$/.test(u.pathname.slice(base.pathname.length))&&marketingRegion(u.pathname.slice(base.pathname.length,-1).replace(/-/g,' ')))countyLinks++;}catch{}});
+ $('a[href]').each((_,e)=>{try{const u=directoryUrl($(e).attr('href')!,base.href);if(u.pathname===expected)selected=u.href;else if(u.pathname.startsWith(base.pathname)&&/^[-a-z]+\/$/.test(u.pathname.slice(base.pathname.length))&&MARKETING_REGIONS.some(r=>marketingDirectorySlug(r.code)===u.pathname.slice(base.pathname.length,-1)))countyLinks++;}catch{}});
  if(!selected&&!countyLinks&&!/\b0\s+firme\b/i.test($('body').text()))throw new MarketingError('Lista județelor lipsește din catalog. Nu s-a presupus că județul este gol.',502);
  return selected;
 }
@@ -33,8 +33,8 @@ export function parseDirectoryListing(html:string,url:string,code:string){
  $('table.rubrica_firma').each((_,node)=>{
   const row=$(node),anchor=row.find('a.inscriere_titlu').first(),name=anchor.text().replace(/\s+/g,' ').trim();
   const locality=marketingKey(row.find('.firma_txt').first().closest('tr').find('td').map((_,e)=>$(e).text()).get().join(' ')).replace(/\s+/g,' ');
-  if(!name||!new RegExp('(?:^|[^a-z])'+marketingRegion(code)!.key.replace(/-/g,'[- ]')+'(?:[^a-z]|$)').test(locality))return;
-  try{const u=directoryUrl(anchor.attr('href')!,current.href);if(/^\/[a-z0-9_-]+\/$/i.test(u.pathname)&&!u.pathname.startsWith('/firme-'))profiles.push({url:u.href,name:name.slice(0,180)});}catch{}
+  if(!name||!new RegExp('(?:^|[^a-z])'+'(?:'+marketingRegion(code)!.key.replace(/-/g,'[- ]')+'|'+slug.replace(/-/g,'[- ]')+')'+'(?:[^a-z]|$)').test(locality))return;
+  try{const u=directoryUrl(anchor.attr('href')!,current.href);if(/^\/[^/]+\/$/.test(u.pathname)&&!u.pathname.startsWith('/firme-'))profiles.push({url:u.href,name:name.slice(0,180)});}catch{}
  });
  const pages=new Set<string>();$('.all_pages a[href]').each((_,e)=>{try{const u=directoryUrl($(e).attr('href')!,current.href);if(u.pathname.startsWith(base)&&/^pag-[1-9]\d*\/$/.test(u.pathname.slice(base.length)))pages.add(u.href);}catch{}});
  const body=marketingVisibleText($,'body').replace(/\s+/g,' '),count=Number(body.match(/\b(\d[\d.,]*)\s+firme\b/i)?.[1].replace(/[.,]/g,'')??NaN);
