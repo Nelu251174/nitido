@@ -27,11 +27,19 @@ export function adminPasswordRecoveryEnabled(env: NodeJS.ProcessEnv = process.en
   } catch { return false; }
 }
 
-/** An infrastructure credential/MFA rotation invalidates any database override. */
+export function adminPasswordBaseline(base: AdminSecurityConfig): string {
+  return createHash('sha256').update(JSON.stringify([base.email, base.passwordHash, base.passwordPlain])).digest('hex');
+}
+
+/** A password rotation in infrastructure has priority; an MFA rotation keeps the recovered password. */
 export function recoveredAdminConfig(db: Database, accountId: string, base: AdminSecurityConfig): AdminSecurityConfig {
   if (!adminPasswordRecoveryEnabled()) return base;
   const override = db.prepare('SELECT base_binding,password_hash,revision FROM admin_password_credentials WHERE account_id=?').get(accountId) as { base_binding: string; password_hash: string; revision: number } | undefined;
-  if (!override || override.base_binding !== base.binding) return base;
+  if (!override) return base;
+  const baseline = adminPasswordBaseline(base);
+  // Upgrade overrides from the initial sandbox candidate while its config still matches.
+  if (override.base_binding === base.binding) db.prepare('UPDATE admin_password_credentials SET base_binding=? WHERE account_id=? AND base_binding=?').run(baseline, accountId, base.binding);
+  else if (override.base_binding !== baseline) return base;
   return { ...base, passwordPlain: '', passwordHash: override.password_hash,
     binding: createHash('sha256').update(JSON.stringify([base.binding, override.password_hash, override.revision])).digest('hex') };
 }

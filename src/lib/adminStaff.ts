@@ -2,7 +2,7 @@ import type { Database } from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { ADMIN_ROLES, type AdminRole, type AdminIdentity } from './adminRolesShared';
 import { getAdminSecurityConfig, type AdminSecurityConfig } from './adminMfa';
-import { recoveredAdminConfig } from './adminPasswordCredentials';
+import { adminPasswordBaseline, recoveredAdminConfig } from './adminPasswordCredentials';
 export const ADMIN_STAFF_SCHEMA = `
 CREATE TABLE IF NOT EXISTS admin_staff(id TEXT PRIMARY KEY,email TEXT NOT NULL UNIQUE,role TEXT NOT NULL CHECK(role IN ('operator','manager','finance','super_admin')),active INTEGER NOT NULL CHECK(active IN (0,1)),revision INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS admin_staff_history(id TEXT PRIMARY KEY,account_id TEXT NOT NULL REFERENCES admin_staff(id),revision INTEGER NOT NULL,email TEXT NOT NULL,role TEXT NOT NULL,active INTEGER NOT NULL,reason TEXT NOT NULL,actor_id TEXT NOT NULL,created_at TEXT NOT NULL,UNIQUE(account_id,revision));
@@ -48,10 +48,10 @@ export function adminAccountForEmail(db: Database, email: string): {
     if (!bootstrap)
         return null;
     if (normalized === bootstrap.email)
-        return { identity: { id: 'bootstrap_admin', email: normalized, role: 'super_admin', revision: 0 }, config: recoveredAdminConfig(db, 'bootstrap_admin', bootstrap), baseBinding: bootstrap.binding };
+        return { identity: { id: 'bootstrap_admin', email: normalized, role: 'super_admin', revision: 0 }, config: recoveredAdminConfig(db, 'bootstrap_admin', bootstrap), baseBinding: adminPasswordBaseline(bootstrap) };
     const row = db.prepare('SELECT id,email,role,revision FROM admin_staff WHERE email=? AND active=1').get(normalized) as AdminIdentity | undefined;
     const config = staffCredentials().get(normalized);
-    return row && config ? { identity: row, config: recoveredAdminConfig(db, row.id, config), baseBinding: config.binding } : null;
+    return row && config ? { identity: row, config: recoveredAdminConfig(db, row.id, config), baseBinding: adminPasswordBaseline(config) } : null;
 }
 export function saveAdminStaff(db: Database, b: Record<string, unknown>, actor: AdminIdentity) {
     if (!db.inTransaction || actor.role !== 'super_admin')

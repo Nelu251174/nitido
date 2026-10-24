@@ -96,6 +96,24 @@ describe('password change keeps MFA and administrative identity intact', () => {
     expect(db.prepare('SELECT * FROM admin_totp_state').all()).toEqual([]);
     db.exec('DROP TRIGGER reject_reset_audit'); expect(applyAdminPasswordReset(db, token, passwordHash, otp(), 'totp', now)).toBe(true);
   });
+  it('preserves the new password when MFA or recovery codes rotate, while invalidating existing links', () => {
+    expect(applyAdminPasswordReset(db, issue(), passwordHash, otp(), 'totp', now)).toBe(true);
+    const before = adminAccountForEmail(db, email)!.config.binding, pending = issue();
+    vi.stubEnv('NITIDO_ADMIN_TOTP_SECRET', 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP');
+    vi.stubEnv('NITIDO_ADMIN_RECOVERY_HASHES', '');
+    const config = adminAccountForEmail(db, email)!.config;
+    expect(config.passwordHash).toBe(passwordHash); expect(config.passwordPlain).toBe(''); expect(config.binding).not.toBe(before);
+    expect(validAdminPasswordReset(db, pending, now)).toBeNull();
+  });
+  it('preserves resets from the initial sandbox candidate when upgrading their binding', () => {
+    expect(applyAdminPasswordReset(db, issue(), passwordHash, otp(), 'totp', now)).toBe(true);
+    db.prepare('UPDATE admin_password_credentials SET base_binding=?').run(getAdminSecurityConfig()!.binding);
+    const config = adminAccountForEmail(db, email)!.config;
+    expect(config.passwordHash).toBe(passwordHash);
+    vi.stubEnv('NITIDO_ADMIN_RECOVERY_HASHES', '');
+    expect(adminAccountForEmail(db, email)!.config.passwordHash).toBe(passwordHash);
+    expect(adminAccountForEmail(db, email)!.config.passwordPlain).toBe('');
+  });
   it('respects staff identity, role revision and deactivation during recovery', () => {
     const staffEmail = 'staff@example.test';
     vi.stubEnv('NITIDO_ADMIN_STAFF_ACCOUNTS_JSON', JSON.stringify([{ email: staffEmail, passwordHash, totpSecret: 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP' }]));
