@@ -10,7 +10,10 @@ try{
   const active=db.prepare("SELECT id,city_key,state FROM marketing_city_jobs WHERE state IN ('queued','discovering','collecting','waiting') LIMIT 1").get();
   if(active){if(active.city_key!=='constanta')throw Error('OTHER_CITY_ALREADY_RUNNING');return {jobId:active.id,city:'Constanța',state:active.state,replayed:true};}
   if(db.prepare("SELECT 1 FROM sqlite_master WHERE name='marketing_discovery'").get()&&db.prepare("SELECT 1 FROM marketing_discovery WHERE status IN ('pending','running','cancel_requested')").get())throw Error('OTHER_COLLECTION_ALREADY_RUNNING');
-  const id=randomUUID(),time=new Date().toISOString(),actor='owner-authorized:marketing-constanta';
+  const time=new Date().toISOString(),actor='owner-authorized:marketing-constanta';
+  const paused=db.prepare("SELECT id,total FROM marketing_city_jobs WHERE city_key='constanta' AND state='paused' ORDER BY created_at DESC LIMIT 1").get();
+  if(paused){db.prepare("UPDATE marketing_city_jobs SET state=?,message='',next_attempt_at=NULL,attempts=0,updated_at=? WHERE id=?").run(paused.total?'collecting':'queued',time,paused.id);db.prepare('INSERT INTO admin_audit_log(id,action,target_id,details) VALUES(?,?,?,?)').run(randomUUID(),'marketing.city.resumed',paused.id,JSON.stringify({actor}));return {jobId:paused.id,city:'Constanța',state:paused.total?'collecting':'queued',resumed:true};}
+  const id=randomUUID();
   db.prepare("INSERT INTO marketing_city_jobs(id,city,city_key,state,created_at,updated_at,created_by) VALUES(?,'Constanța','constanta','queued',?,?,?)").run(id,time,time,actor);
   db.prepare('INSERT INTO admin_audit_log(id,action,target_id,details) VALUES(?,?,?,?)').run(randomUUID(),'marketing.city.started',id,JSON.stringify({actor}));
   return {jobId:id,city:'Constanța',state:'queued',replayed:false};
