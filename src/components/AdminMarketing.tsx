@@ -24,7 +24,7 @@ function CategoryOptions({ all = false }: { all?: boolean }) {
   return <>{all && <option value="">Toate categoriile</option>}{Object.entries(MARKETING_CATEGORIES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</>;
 }
 
-export function AdminMarketing() {
+export function AdminMarketing({ testEnvironment = true }: { testEnvironment?: boolean }) {
   const [tab, setTab] = useState<'overview' | 'contacts' | 'collect' | 'campaigns' | 'results' | 'settings'>('overview');
   const [revision, setRevision] = useState(0);
   const [selected, setSelected] = useState<Record<string, number>>({});
@@ -80,8 +80,8 @@ export function AdminMarketing() {
 
   return <main className="design-container max-w-6xl py-8 space-y-6">
     <header className="flex flex-wrap items-center justify-between gap-4">
-      <div><Link href="/admin" className="underline text-sm">← ADMIN</Link><p className="v2-eyebrow mt-4">NITIDO · MEDIU DE TEST</p><h1 className="text-3xl font-bold">Marketing</h1></div>
-      <p className="text-sm text-muted max-w-md">Contacte, colectare firme și campanii, într-un singur loc. Mod de test: simulări complete, fără emailuri trimise real.</p>
+      <div><Link href="/admin" className="underline text-sm">← ADMIN</Link><p className="v2-eyebrow mt-4">{testEnvironment ? 'NITIDO · MEDIU DE TEST' : 'NITIDO · ADMIN'}</p><h1 className="text-3xl font-bold">Marketing</h1></div>
+      <p className="text-sm text-muted max-w-md">Contacte, colectare firme și campanii, într-un singur loc. Trimiterea reală este oprită; verificările și coada de test nu expediază emailuri.</p>
     </header>
     <div className="grid gap-3 sm:grid-cols-3">{Object.entries(MARKETING_CATEGORIES).map(([key, label]) => <Card key={key}><p className="text-muted">{label}</p><b className="text-3xl">{list?.counts[key as MarketingCategory] ?? '—'}</b></Card>)}</div>
     <nav aria-label="Secțiuni Marketing" className="flex flex-wrap gap-3">{([['overview', 'Panou general'], ['contacts', 'Contacte'], ['collect', 'Colectare firme'], ['campaigns', 'Campanii'], ['results', 'Rezultate'], ['settings', 'Setări']] as const).map(([key, label]) => <button key={key} type="button" className={`v2-btn ${tab === key ? 'v2-btn-primary' : 'v2-btn-secondary'}`} aria-current={tab === key ? 'page' : undefined} style={tab === key ? { color: '#052e22' } : undefined} onClick={() => { setError(''); setMessage(''); setTab(key); }}>{label}</button>)}</nav>

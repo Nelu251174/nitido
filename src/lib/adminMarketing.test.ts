@@ -75,3 +75,12 @@ describe('CSV import/export', () => {
     expect(csv).toContain('"\'=HYPERLINK(""bad"")"'); expect(csv).toContain('"\'+401234"'); expect(csv).not.toContain('clean@example.test');
   });
 });
+
+
+describe('Marketing explicit LIVE enablement',()=>{
+  it('requires an explicit server flag for LIVE and cannot be enabled on another domain',()=>{
+    expect(marketingEnabled({NODE_ENV:'production',NEXT_PUBLIC_SITE_URL:'https://nitido.ro',NITIDO_MARKETING_ADMIN_ENABLED:'true'})).toBe(true);
+    expect(marketingEnabled({NODE_ENV:'production',NEXT_PUBLIC_SITE_URL:'https://nitido.ro',NITIDO_MARKETING_ADMIN_ENABLED:'false'})).toBe(false);
+    expect(marketingEnabled({NODE_ENV:'production',NEXT_PUBLIC_SITE_URL:'https://other.example',NITIDO_MARKETING_ADMIN_ENABLED:'true'})).toBe(false);
+  });
+});

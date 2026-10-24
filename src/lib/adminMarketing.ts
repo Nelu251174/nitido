@@ -3,13 +3,14 @@ import { suppressionSchema, suppressMarketingEmail } from './adminMarketingSuppr
 import { randomUUID } from 'node:crypto';
 import { MARKETING_CATEGORIES, MARKETING_CONSENTS, MARKETING_STATUSES, type MarketingInput, type MarketingCategory, type MarketingContact, type MarketingList } from './adminMarketingShared';
 
-// Stage one is available only on the named sandbox or an explicit local development origin.
+// Sandbox remains available; LIVE requires an explicit server-side enablement.
 // A request's Host/Origin headers can never enable the module in production.
 export function marketingEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   try {
     const url = new URL(env.NEXT_PUBLIC_SITE_URL ?? '');
     if (url.username || url.password) return false;
     return url.origin === 'https://sandbox.nitido.ro' ||
+      (url.origin === 'https://nitido.ro' && env.NITIDO_MARKETING_ADMIN_ENABLED === 'true') ||
       (env.NODE_ENV !== 'production' && url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname));
   } catch { return false; }
 }
