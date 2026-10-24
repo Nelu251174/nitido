@@ -192,6 +192,6 @@ async function main() {
   }
 }
 module.exports = { business, candidate, stitchRings, inRing, inBoundary, selectedRelations, prepare };
-if (require.main===module || module.id==='[eval]') main().catch(error=>{
+if (require.main===module || process.argv[1]===undefined || process.argv[1]==='--live') main().catch(error=>{
   report({phase:'failed',code:/^[A-Z_]+$/.test(error.message)?error.message:'SNAPSHOT_PREPARATION_FAILED'});process.exitCode=1;
 });
