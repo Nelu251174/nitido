@@ -178,7 +178,7 @@ function filters(params: URLSearchParams) {
   if (category) { if (!Object.hasOwn(MARKETING_CATEGORIES, category)) throw new MarketingError('Categorie invalidă.'); clauses.push('category=?'); values.push(category); }
   if (status) { if (!Object.hasOwn(MARKETING_STATUSES, status)) throw new MarketingError('Stare invalidă.'); clauses.push('status=?'); values.push(status); }
   const city = field(params.get('city'), 'Localitate', 100), search = field(params.get('search'), 'Căutare', 180);
-  if (city) { clauses.push('city_key=?'); values.push(marketingKey(city)); }
+  if (city) { const region=marketingRegion(params.get('county'));clauses.push(region?'EXISTS(SELECT 1 FROM marketing_contact_regions mr WHERE mr.contact_id=marketing_contacts.id AND mr.county_key=? AND mr.city_key=?)':"(city_key=? OR EXISTS(SELECT 1 FROM marketing_contact_regions mr WHERE mr.contact_id=marketing_contacts.id AND mr.city_key=?))");if(region)values.push(region.key,marketingKey(city));else values.push(marketingKey(city),marketingKey(city)); }
   const county=field(params.get('county'),'Județ',100);
   if(county){const region=marketingRegion(county);if(!region)throw new MarketingError('Județ invalid.');clauses.push('(county_key=? OR EXISTS(SELECT 1 FROM marketing_contact_regions mr WHERE mr.contact_id=marketing_contacts.id AND mr.county_key=?))');values.push(region.key,region.key);}
   const verification=params.get('emailVerification');
