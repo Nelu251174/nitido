@@ -1,4 +1,4 @@
-import { load } from 'cheerio';
+import { load,type CheerioAPI } from 'cheerio';
 import { CITIES } from './cities';
 import { marketingKey, MarketingError, normalizeMarketingInput } from './adminMarketing';
 import type { MarketingInput } from './adminMarketingShared';
@@ -14,9 +14,11 @@ const emailPattern = /[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9
 export function publicEmails(text: string): string[] {
   return [...new Set((text.match(emailPattern) ?? []).map(value => value.toLowerCase().replace(/[.,;:]+$/, '')).filter(value => value.length <= 254 && !/\.(png|jpe?g|svg|webp|gif|css|js)$/i.test(value) && !/^(example|test|noreply|no-reply)@/.test(value)))].sort((a, b) => Number(!/^(contact|office|info|hello|rezervari)@/.test(a)) - Number(!/^(contact|office|info|hello|rezervari)@/.test(b)) || a.localeCompare(b));
 }
+/** Keep adjacent DOM nodes separated; concatenating text can invent an email address. */
+export function marketingVisibleText($:CheerioAPI,selector:string){return $(selector).find('*').addBack().contents().filter((_,node)=>node.type==='text').map((_,node)=>node.type==='text'?node.data:'').get().join(' ');}
 export function extractBusinessPage(html: string, base: string) {
   const $ = load(html); $('script,style,noscript,template').remove();
-  const emails = publicEmails($('a[href^="mailto:"]').map((_, node) => $(node).attr('href')?.slice(7).split('?')[0] ?? '').get().join(' ') + ' ' + $('body').text());
+  const emails = publicEmails($('a[href^="mailto:"]').map((_, node) => $(node).attr('href')?.slice(7).split('?')[0] ?? '').get().join(' ') + ' ' + marketingVisibleText($,'body'));
   const url = new URL(base), links: string[] = [];
   $('a[href]').each((_, node) => {
     const href = $(node).attr('href') ?? '', text = $(node).text();

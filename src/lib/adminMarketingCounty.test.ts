@@ -9,13 +9,13 @@ const page=(url:string,text:string)=>({url,status:200,text,headers:{'content-typ
 function fixture(){const db=new Database(':memory:');db.exec('CREATE TABLE admin_audit_log(id TEXT PRIMARY KEY,action TEXT,target_id TEXT,details TEXT)');startMarketingCountyPlan(db,'owner');return db;}
 const domain=vi.fn(async()=>({state:'mx' as const,reason:'PUBLIC_MX_PRESENT'}));
 const data:CountySourceItem[]=[{type:'node' as const,id:1,tags:{name:'County business',email:'office@business.ro;info@business.ro','addr:city':'Mangalia'}},{type:'way' as const,id:2,tags:{name:'Without email','addr:city':'Năvodari'}}];
-const deps={manifest:vi.fn(async()=>manifest),part:vi.fn(async()=>data),domain};
+const deps={manifest:vi.fn(async()=>manifest),part:vi.fn(async()=>data),domain,directory:async()=>({complete:false,blocked:false})};
 describe('county worker: persistent batches, all emails, correct county order',()=>{
  it('saves every public address and keeps inventory without email, preserving consent and waiting for coverage review',async()=>{
   const db=fixture(),reader:PublicReader=vi.fn();saveMarketingContacts(db,[{name:'Protected',category:'business',email:'office@business.ro',city:'București',source:'Manual',consent:'withdrawn'}],'owner');
-  for(let i=0;i<6;i++)await processMarketingCounty(db,reader,()=>{},deps);
+  for(let i=0;i<5;i++)await processMarketingCounty(db,reader,()=>{},deps);
   const view=marketingCountyView(db),ct=view.counties.find(r=>r.code==='CT')!,b=view.counties.find(r=>r.code==='B')!;
-  expect(ct.job).toMatchObject({state:'review',total:2,processed:2,withoutEmail:1});expect(ct).toMatchObject({emails:2,verified:2});expect(b.job?.state).toBe('queued');
+  expect(ct.job).toMatchObject({state:'directory',total:2,processed:2,withoutEmail:1});expect(ct).toMatchObject({emails:2,verified:2});expect(b.job?.state).toBe('queued');
   expect(listMarketingContacts(db,new URLSearchParams({county:'CT'})).contacts.find(c=>c.email==='office@business.ro')).toMatchObject({name:'Protected',consent:'withdrawn',status:'do_not_contact'});
   expect(reader).not.toHaveBeenCalled();expect(db.prepare("SELECT COUNT(*) n FROM marketing_contacts WHERE consent='granted'").get()).toEqual({n:0});db.close();
  });
@@ -25,7 +25,7 @@ describe('county worker: persistent batches, all emails, correct county order',(
  });
  it('reads contact pages even when the home page already exposes another email',async()=>{
   const db=fixture();const reader:PublicReader=vi.fn(async url=>page(url,url.endsWith('robots.txt')?'User-agent: *\nAllow: /':url.endsWith('/contact')?'info@business.ro':'office@business.ro<a href="/contact">Contact</a>'));
-  const d={...deps,part:async()=>[{...data[0],tags:{name:'Website firm',website:'https://business.ro','addr:city':'Mangalia'}},data[1]]};for(let i=0;i<6;i++)await processMarketingCounty(db,reader,()=>{},d);
+  const d={...deps,part:async()=>[{...data[0],tags:{name:'Website firm',website:'https://business.ro','addr:city':'Mangalia'}},data[1]]};for(let i=0;i<5;i++)await processMarketingCounty(db,reader,()=>{},d);
   expect(listMarketingContacts(db,new URLSearchParams({county:'CT'})).total).toBe(2);expect(reader).toHaveBeenCalledWith('https://business.ro/contact',{redirects:false});db.close();
  });
  it('stops without saving when paused during a site request',async()=>{
