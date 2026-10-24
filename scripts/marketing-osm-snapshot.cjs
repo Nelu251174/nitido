@@ -171,8 +171,21 @@ async function main() {
   if(countyCode&&!regionCodes.includes(countyCode))throw Error('COUNTY_INVALID');
   const targetRoot=countyCode?path.join(ROOT,'counties',countyCode):ROOT;
   await fsp.mkdir(targetRoot,{recursive:true,mode:0o700});
-  const lock = await fsp.open(path.join(targetRoot,'prepare.lock'),'wx',0o600);
+  const lockPath=path.join(targetRoot,'prepare.lock');
+  let lock;
+  try{lock=await fsp.open(lockPath,'wx',0o600);}catch(error){
+    if(error.code!=='EEXIST')throw error;
+    const stat=await fsp.lstat(lockPath);if(!stat.isFile()||stat.size>1000)throw Error('SOURCE_LOCK_INVALID');
+    let stale=false;
+    try{const owner=JSON.parse(await fsp.readFile(lockPath,'utf8'));if(Number.isSafeInteger(owner.pid)&&owner.pid>1){try{process.kill(owner.pid,0);}catch(e){if(e.code==='ESRCH')stale=true;}}}catch{stale=Date.now()-stat.mtimeMs>35*60000;}
+    if(!stale)throw Error('SOURCE_PREPARATION_ALREADY_RUNNING');
+    await fsp.unlink(lockPath);lock=await fsp.open(lockPath,'wx',0o600);
+  }
+  await lock.writeFile(JSON.stringify({pid:process.pid,createdAt:new Date().toISOString()}));
   const workdir = await fsp.mkdtemp('/tmp/nitido-marketing-osm-');
+  const cleanup=async()=>{await fsp.rm(workdir,{recursive:true,force:true});await lock.close().catch(()=>{});await fsp.rm(lockPath,{force:true});};
+  const onTerminate=()=>{void cleanup().finally(()=>process.exit(143));};
+  process.once('SIGTERM',onTerminate);
   const pbf = path.join(workdir,'romania.osm.pbf');
   try {
     const tooling = path.join(workdir,'tooling');
@@ -225,7 +238,7 @@ async function main() {
     }
     report({phase:'ready',total:result.total,boundaryRelation:result.boundaryRelation,sourceBytes:bytes,inventoryBytes:result.inventoryBytes??Buffer.byteLength(result.output),scope:countyCode?'county':'city',countyCode,parts:result.parts,delivery:'blocked'});
   } finally {
-    await fsp.rm(workdir,{recursive:true,force:true});await lock.close();await fsp.rm(path.join(targetRoot,'prepare.lock'),{force:true});
+    process.off('SIGTERM',onTerminate);await cleanup();
   }
 }
 module.exports = { business, candidate, stitchRings, inRing, inBoundary, selectedRelations, prepare, SpillSet };
