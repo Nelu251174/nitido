@@ -253,5 +253,201 @@
     "attempt1": "Test harness origin was corrected to model the configured HTTPS reverse-proxy origin; application trust checks unchanged.",
     "attempt2": "Actual circular initialization error reproduced after20 passing lifecycle checks.",
     "retainedLocally": true
-  }
+  },
+  "validatedCandidate": "31f5cd7a85379234fdea0177e813971cc63c33bd",
+  "pilot": {
+    "checkedAt": "2026-10-24T13:44:28.000000Z",
+    "contactAllstonesStillUnverified": true,
+    "candidateFirmsHaveNoActiveTeams": true,
+    "jamiProviderAcceptanceReceiptPresent": true,
+    "weeklyPilotNotEnabledForConstanta": true,
+    "connectedMailboxMatchingReplies": 0,
+    "mailboxCoverage": "Only the connected Gmail mailbox was searched; the support@nitido.ro inbox is not available through this connection.",
+    "participationConfirmed": false,
+    "pilotActivated": false,
+    "newMessagesSent": 0,
+    "allTemporaryTasksRemoved": true
+  },
+  "protectedCheckpoints": [
+    {
+      "scope": "sandbox",
+      "baseline": "42e435b685864e57b67db45a328c468a1e29131e",
+      "execution": {
+        "uuid": "97mngbmjkw1ooedmpra8n2jq",
+        "status": "success",
+        "created_at": "2026-10-24T13:50:14.000000Z",
+        "finished_at": "2026-10-24T13:50:15.000000Z"
+      },
+      "temporaryTaskRemoved": true
+    },
+    {
+      "scope": "live",
+      "baseline": "fdb571e395ec664cc510b4787acb6a2b41f40901",
+      "execution": {
+        "uuid": "3oa9bl1dt0ih22kh36adefxl",
+        "status": "success",
+        "created_at": "2026-10-24T13:50:15.000000Z",
+        "finished_at": "2026-10-24T13:50:16.000000Z"
+      },
+      "temporaryTaskRemoved": true
+    }
+  ],
+  "fullRegression": {
+    "files": 222,
+    "passed": 2326,
+    "failed": 0,
+    "logSha256": "639b8f799f0c9c8e94d1c2f0768b75a8d3cfa0ea15232be4c5547669e92b51ec"
+  },
+  "deployments": [
+    {
+      "scope": "sandbox",
+      "app": "civaeb8joydtchvzlen6pivq",
+      "source": "31f5cd7a85379234fdea0177e813971cc63c33bd",
+      "baseline": "42e435b685864e57b67db45a328c468a1e29131e",
+      "requestedAt": "2026-10-24T13:51:39.821303+00:00",
+      "deployment": {
+        "deployments": [
+          {
+            "message": "Application nitido-v3-sandbox deployment queued.",
+            "resource_uuid": "civaeb8joydtchvzlen6pivq",
+            "deployment_uuid": "8pqbvznnnacugjdlv3iriez4"
+          }
+        ]
+      },
+      "status": "finished",
+      "finished_at": "2026-10-24T13:53:43.000000Z",
+      "commit": "31f5cd7a85379234fdea0177e813971cc63c33bd",
+      "applicationStatus": "running:healthy",
+      "configuredSource": "31f5cd7a85379234fdea0177e813971cc63c33bd"
+    },
+    {
+      "scope": "live",
+      "app": "zxnelxi2cejranyvfpw0scac",
+      "source": "31f5cd7a85379234fdea0177e813971cc63c33bd",
+      "baseline": "fdb571e395ec664cc510b4787acb6a2b41f40901",
+      "requestedAt": "2026-10-24T13:56:15.019215+00:00",
+      "deployment": {
+        "deployments": [
+          {
+            "message": "Application nitido:main-np48pyw4borpoufj7cqclvmo deployment queued.",
+            "resource_uuid": "zxnelxi2cejranyvfpw0scac",
+            "deployment_uuid": "yeu4ka29zabopvtvvl7lvllb"
+          }
+        ]
+      },
+      "status": "finished",
+      "finished_at": "2026-10-24T13:57:18.000000Z",
+      "commit": "31f5cd7a85379234fdea0177e813971cc63c33bd",
+      "applicationStatus": "running:healthy",
+      "configuredSource": "31f5cd7a85379234fdea0177e813971cc63c33bd"
+    }
+  ],
+  "postDeployment": {
+    "sandbox": {
+      "scope": "sandbox",
+      "checkedAt": "2026-10-24T13:54:29.286829+00:00",
+      "checks": [
+        {
+          "path": "/api/health",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        },
+        {
+          "path": "/api/uploads/synthetic-import-probe",
+          "expected": 401,
+          "status": 401,
+          "passed": true
+        },
+        {
+          "path": "/api/workspace",
+          "expected": 401,
+          "status": 401,
+          "passed": true
+        },
+        {
+          "path": "/api/jobs",
+          "expected": 401,
+          "status": 401,
+          "passed": true
+        },
+        {
+          "path": "/api/auth/me",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        },
+        {
+          "path": "/",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        },
+        {
+          "path": "/login",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        }
+      ],
+      "passed": true,
+      "customerDataRead": false,
+      "mutations": 0
+    },
+    "live": {
+      "scope": "live",
+      "checkedAt": "2026-10-24T13:58:37.563164+00:00",
+      "checks": [
+        {
+          "path": "/api/health",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        },
+        {
+          "path": "/api/uploads/synthetic-import-probe",
+          "expected": 401,
+          "status": 401,
+          "passed": true
+        },
+        {
+          "path": "/api/workspace",
+          "expected": 401,
+          "status": 401,
+          "passed": true
+        },
+        {
+          "path": "/api/jobs",
+          "expected": 401,
+          "status": 401,
+          "passed": true
+        },
+        {
+          "path": "/api/auth/me",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        },
+        {
+          "path": "/",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        },
+        {
+          "path": "/login",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        }
+      ],
+      "passed": true,
+      "customerDataRead": false,
+      "mutations": 0
+    }
+  },
+  "allTemporaryTasksRemoved": true,
+  "operationsScriptsLint": "passed",
+  "finalizedAt": "2026-10-24T13:59:35.579391+00:00",
+  "reviewablePullRequest": "https://github.com/Nelu251174/nitido/pull/143"
 }

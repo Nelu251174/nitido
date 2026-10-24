@@ -1,0 +1,17 @@
+# NITIDO flow verification — 24 October 2026
+
+A complete HTTP simulation reproduced a cold-import crash in the private photo route: collaborationAccess imported visitCare, which imported workspace, whose top-level schema expression read COLLABORATION_SCHEMA before its initialization. That yielded HTTP500 before the access check could run.
+
+The collaboration DDL now lives in a dependency-free module. workspace imports it directly; collaborationAccess preserves its previous named export. The DDL declaration is byte-for-byte identical, so this change requires no data migration and changes no access policy, price, timing or payment rule.
+
+The corrected application passed39 HTTP lifecycle checks: login by client/two firms/another client, anonymous and cross-account access rejection, origin validation, reservation retry, two offers and selection, protected proof upload and retrieval, required arrival/completion evidence, completion retry, verified review and duplicate prevention, immutable price/duration, logout and database integrity. The test uses a disposable offline container with only synthetic users, records and images. Its built-in development payment adapter models authorization/capture; it is not a Stripe provider acceptance test or physical iPhone/Android test. No production customer records, real charges, push messages or emails were used.
+
+The affected regression suite passed98 tests across7 files, including3 import-order regressions. The subsequent full suite passed2326 tests across222 files. ESLint and TypeScript passed; the production build generated181 routes. The actual standalone production output separately returned expected health and unauthorized responses for4 cold routes, including private photos. The first harness-origin mismatch and the actual pre-fix photo failure remain recorded locally as attempts1 and2.
+
+Apple status was read from its API at13:33:43 UTC: update1.0.3 is WAITING_FOR_REVIEW; existing1.0.2 remains READY_FOR_SALE. No store metadata, beta groups or submissions were changed during this verification. The one-time status workflow requires explicit dispatch after its initial read.
+
+Pilot assertions were read against the existing LIVE database without exporting contacts: ALLSTONES still has no verified current contact, neither selected firm has an active team configured, the weekly Constanta pilot is disabled, and Jami's previous provider-accepted email receipt is present. Provider acceptance does not prove delivery or participation. The connected Gmail search found no matching reply; it does not establish access to the support inbox. No invitation was resent and no pilot was activated.
+
+Fresh SQLite online backups, upload byte-hash verification and isolated restore checks passed for both environments before deployment. All temporary assertion and checkpoint tasks were removed. Deployment receipts and post-deployment checks are recorded in docs/evidence/flow-validation-20261024.json.
+
+Sandbox deployment8pqbvznnnacugjdlv3iriez4 finished at13:53:43 UTC; LIVE deployment yeu4ka29zabopvtvvl7lvllb finished at13:57:18 UTC. Both run candidate31f5cd7a85379234fdea0177e813971cc63c33bd and are healthy. All7 post-deployment checks passed in each environment, including private-photo authorization, workspace, jobs, anonymous session state and public pages. Operations-script lint also passed. The correction is LIVE; no additional native binary was produced or submitted because the change is entirely in the shared HTTPS backend.
