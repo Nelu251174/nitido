@@ -7,4 +7,4 @@ if(!['https://sandbox.nitido.ro','https://nitido.ro'].includes(process.env.NEXT_
   const index=t.indexOf('crisvent/'),heading=t.indexOf('Contact / Harta');
   console.log(JSON.stringify({url,status:r.status,final:r.url,title:t.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1],categories:links.filter(s=>/\/firme-[^/]+\/[^/]+\/$/.test(s)).length,countyLinks:links.filter(s=>/constanta|bucuresti|pagina|page|[?&]p=|\/\d+\/$/.test(s)).slice(0,16),headings:[...t.matchAll(/<h[123][^>]*>[\s\S]*?<\/h[123]>/gi)].slice(0,7).map(m=>m[0]),snippet:path==='/crisvent/contact'?t.slice(Math.max(0,heading),heading+900):index>=0?t.slice(index-700,index+900):t.match(/Pagina[\s\S]{0,1000}/)?.[0]}));
  }
-})().catch(e=>{console.log('DIRECTORY_PROBE_FAILED '+e.name);process.exitCode=1;});
+})().catch(e=>{console.log('DIRECTORY_PROBE_FAILED '+e.name+' '+String(e.cause?.code??e.code??'UNKNOWN'));process.exitCode=1;});
