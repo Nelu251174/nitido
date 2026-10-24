@@ -5,6 +5,7 @@ import { initializeMarketing, marketingKey, MarketingError, normalizeMarketingIn
 import { collectBusinessWebsite, MARKETING_PUBLIC_SOURCE, publicEmails } from './adminMarketingWebCollection';
 import { processMarketingDiscovery } from './adminMarketingDiscovery';
 import { publicWebsite, readPublicPage, type PublicReader } from './adminMarketingPublicWeb';
+import { readMarketingCitySnapshot } from './adminMarketingCitySnapshot';
 import type { MarketingCategory, MarketingInput } from './adminMarketingShared';
 import type { MarketingCityItem, MarketingCityJob, MarketingCityView } from './adminMarketingCityShared';
 
@@ -19,6 +20,13 @@ CREATE TABLE IF NOT EXISTS marketing_collection_lock(id INTEGER PRIMARY KEY CHEC
 const ACTIVE="('queued','discovering','collecting','waiting')";
 const SOURCE_BYTES=2000000;
 const now=()=>new Date().toISOString();
+function sourceRetryAt(value: string|string[]|undefined){
+ const earliest=Date.now()+5*60000;
+ const header=Array.isArray(value)?value[0]:value;
+ const requested=header&&/^\d+$/.test(header.trim())?Date.now()+Number(header.trim())*1000:Date.parse(header??'');
+ const valid=Number.isFinite(requested)&&!Number.isNaN(new Date(requested).getTime());
+ return new Date(valid?Math.max(earliest,requested):earliest).toISOString();
+}
 type JobRow={id:string;city:string;state:MarketingCityJob['state'];total:number;saved:number;duplicates:number;message:string;next_attempt_at:string|null;attempts:number;created_at:string;updated_at:string;created_by:string};
 type ItemRow=MarketingCityItem & {job_id:string;phone:string;contact_id:string|null;osm_source:string};
 export function initializeMarketingCity(db:Database){initializeMarketing(db);db.exec(MARKETING_CITY_SCHEMA);}
@@ -56,6 +64,7 @@ export function setMarketingCityState(db:Database,id:string,action:string,actor:
   if(action==='pause'&&['queued','discovering','collecting','waiting'].includes(job.state))db.prepare("UPDATE marketing_city_jobs SET state='paused',updated_at=? WHERE id=?").run(now(),id);
   else if(action==='cancel'&&job.state!=='completed')db.prepare("UPDATE marketing_city_jobs SET state='canceled',updated_at=? WHERE id=?").run(now(),id);
   else if(action==='resume'&&['paused','waiting'].includes(job.state)){
+   if(job.next_attempt_at&&job.next_attempt_at>now())throw new MarketingError('Așteaptă expirarea pauzei sursei înainte de reluarea colectării.',409);
    if(db.prepare(`SELECT 1 FROM marketing_city_jobs WHERE id<>? AND state IN ${ACTIVE}`).get(id))throw new MarketingError('Alt municipiu este în colectare.',409);
    const normal=db.prepare("SELECT 1 FROM sqlite_master WHERE name='marketing_discovery'").get();if(normal&&db.prepare("SELECT 1 FROM marketing_discovery WHERE status IN ('pending','running','cancel_requested')").get())throw new MarketingError('Altă colectare este în curs.',409);
    db.prepare("UPDATE marketing_city_jobs SET state=?,message='',next_attempt_at=NULL,attempts=0,updated_at=? WHERE id=?").run(job.total?'collecting':'queued',now(),id);
@@ -95,8 +104,10 @@ async function processCity(db:Database,job:JobRow,reader:PublicReader){
   if(!reserveMarketingCitySource(db)){db.prepare("UPDATE marketing_city_jobs SET state='waiting',message=?,next_attempt_at=?,updated_at=? WHERE id=?").run('Limita sursei publice pentru astăzi este atinsă. Colectarea se reia automat mâine.',new Date(Date.now()+86400000).toISOString().slice(0,10)+'T00:01:00.000Z',now(),job.id);return;}
   db.prepare("UPDATE marketing_city_jobs SET state='discovering',updated_at=? WHERE id=?").run(now(),job.id);
   try{
-   const response=await reader(MARKETING_PUBLIC_SOURCE,{method:'POST',body:new URLSearchParams({data:marketingCityQuery(job.city)}).toString(),timeoutMs:30000,maxBytes:SOURCE_BYTES});
-   if(response.status!==200)throw Error('SOURCE_HTTP_'+response.status);
+   const response=await readMarketingCitySnapshot(job.city)??await reader(MARKETING_PUBLIC_SOURCE,{method:'POST',body:new URLSearchParams({data:marketingCityQuery(job.city)}).toString(),timeoutMs:30000,maxBytes:SOURCE_BYTES});
+   if(response.status!==200)throw Object.assign(Error('SOURCE_HTTP_'+response.status),{
+    retryAt:sourceRetryAt([429,503].includes(response.status)?response.headers['retry-after']:undefined),
+   });
    let result;try{result=JSON.parse(response.text);}catch{throw Error('SOURCE_RESPONSE_INVALID');}
    if(!Array.isArray(result.elements)||result.remark)throw Error('SOURCE_QUERY_INCOMPLETE');
    if(result.elements.length>20001)throw new MarketingError('Inventarul depășește limita de protecție de 20.000 de înregistrări. Nu a fost marcat drept complet.');
@@ -114,7 +125,10 @@ async function processCity(db:Database,job:JobRow,reader:PublicReader){
    const known=new Set(['SOURCE_RESPONSE_INVALID','SOURCE_QUERY_INCOMPLETE','PUBLIC_DNS_TIMEOUT','PUBLIC_PAGE_TIMEOUT','PUBLIC_PAGE_TOO_LARGE','EAI_AGAIN','ENOTFOUND','ECONNRESET','ECONNREFUSED','ENETUNREACH','ETIMEDOUT','ABORT_ERR','UNABLE_TO_VERIFY_LEAF_SIGNATURE','CERT_HAS_EXPIRED']);
    const message=error instanceof Error?error.message:'',code=typeof (error as {code?:unknown})?.code==='string'?String((error as {code:string}).code):'';
    const reason=/^SOURCE_HTTP_[1-5]\d\d$/.test(message)?message:known.has(code)?code:known.has(message)?message:'SOURCE_READ_FAILED';
-   db.prepare("UPDATE marketing_city_jobs SET state=CASE WHEN attempts>=2 THEN 'paused' ELSE 'waiting' END,attempts=attempts+1,message=?,next_attempt_at=?,updated_at=? WHERE id=? AND state='discovering'").run('Sursa publică nu a răspuns complet ['+reason+']. Nu este o colectare finalizată. Reîncercare automată sau Reia colectarea.',new Date(Date.now()+5*60000).toISOString(),now(),job.id);
+   const paused=job.attempts>=2||['SOURCE_HTTP_403','SOURCE_HTTP_406'].includes(reason);
+   const retryAt=(error as {retryAt?:string})?.retryAt??sourceRetryAt(undefined);
+   const messageText=paused?'Sursa publică nu a răspuns complet ['+reason+']. Colectarea este în pauză și necesită verificare înainte de reluare.':'Sursa publică nu a răspuns complet ['+reason+']. Nu este o colectare finalizată. Reîncercarea respectă pauza cerută de sursă.';
+   db.prepare("UPDATE marketing_city_jobs SET state=?,attempts=attempts+1,message=?,next_attempt_at=?,updated_at=? WHERE id=? AND state='discovering'").run(paused?'paused':'waiting',messageText,paused?null:retryAt,now(),job.id);
   }
   return;
  }
