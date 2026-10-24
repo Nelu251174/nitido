@@ -20,7 +20,7 @@ function business(tags) {
     /^(fitness_centre|sports_centre)$/.test(tags.leisure ?? ''));
 }
 function candidate(item) {
-  const fields = ['name','office','craft','shop','industrial','company','tourism','amenity','leisure','website','contact:website','email','contact:email','phone','contact:phone'];
+  const fields = ['name','office','craft','shop','industrial','company','tourism','amenity','leisure','website','contact:website','email','contact:email','phone','contact:phone','addr:city','addr:place','addr:suburb','addr:postcode','addr:street'];
   return { type:item.type, id:item.id, tags:Object.fromEntries(fields.filter(k => typeof item.tags[k] === 'string').map(k => [k,item.tags[k]])) };
 }
 function stitchRings(segments, coordinates) {
@@ -80,11 +80,14 @@ async function parseFile(file, parseOSM, visit, phase) {
   if (!count) throw Error('PBF_EMPTY');
   report({ phase, entities:count });
 }
-async function prepare(file, parseOSM, metadata) {
+async function prepare(file, parseOSM, metadata, options = {}) {
+  const countyMode = !!options.region;
+  let emitted = 0;
+  const emit = item => { emitted++; if (options.emit) options.emit(candidate(item)); else elements.push(candidate(item)); };
   let boundary;
   await parseFile(file,parseOSM,item => {
     const t = item.tags ?? {};
-    if (item.type==='relation' && t.boundary==='administrative' && ['8','9'].includes(t.admin_level) && key(t.name)==='constanta') {
+    if (item.type==='relation' && t.boundary==='administrative' && (countyMode ? t.admin_level==='4'&&t['ISO3166-2']===options.region.iso : ['8','9'].includes(t.admin_level)&&key(t.name)==='constanta')) {
       if (boundary) throw Error('BOUNDARY_AMBIGUOUS');
       boundary = item;
     }
@@ -106,7 +109,7 @@ async function prepare(file, parseOSM, metadata) {
   if (!outer.length || inner.some(ring => !outer.some(o => inRing(ring[0],o)))) throw Error('BOUNDARY_HOLE_INVALID');
   const points = outer.flat();
   const bbox = [Math.min(...points.map(p=>p[0])),Math.min(...points.map(p=>p[1])),Math.max(...points.map(p=>p[0])),Math.max(...points.map(p=>p[1]))];
-  const insideNodes = new Set(), insideWays = new Set(), relationSeeds = new Set(), parents = new Map();
+  const insideNodes = options.createSet?.('nodes') ?? new Set(), insideWays = options.createSet?.('ways') ?? new Set(), relationSeeds = new Set(), parents = new Map();
   const elements = [], relations = [];
   let order = 0, relationEdges = 0;
   await parseFile(file,parseOSM,item => {
@@ -116,12 +119,12 @@ async function prepare(file, parseOSM, metadata) {
     if (item.type==='node') {
       if (item.lon<bbox[0] || item.lat<bbox[1] || item.lon>bbox[2] || item.lat>bbox[3] || !inBoundary([item.lon,item.lat],outer,inner)) return;
       insideNodes.add(item.id);
-      if (insideNodes.size>1000000) throw Error('SOURCE_GEOMETRY_LIMIT');
-      if (business(item.tags)) elements.push(candidate(item));
+      if (!countyMode && insideNodes.size>1000000) throw Error('SOURCE_GEOMETRY_LIMIT');
+      if (business(item.tags)) emit(item);
     } else if (item.type==='way') {
       if (!item.refs.some(id=>insideNodes.has(id))) return;
       insideWays.add(item.id);
-      if (business(item.tags)) elements.push(candidate(item));
+      if (business(item.tags)) emit(item);
     } else {
       for (const m of item.members) {
         if (m.type==='node' && insideNodes.has(m.id) || m.type==='way' && insideWays.has(m.id)) relationSeeds.add(item.id);
@@ -133,26 +136,42 @@ async function prepare(file, parseOSM, metadata) {
       }
       if (business(item.tags)) relations.push(candidate(item));
     }
-    if (elements.length>20000) throw Error('SOURCE_INVENTORY_LIMIT');
+    if (!countyMode && elements.length>20000) throw Error('SOURCE_INVENTORY_LIMIT');
   },'municipality');
   const insideRelations = selectedRelations(relationSeeds,parents);
-  elements.push(...relations.filter(r=>insideRelations.has(r.id)));
-  if (!elements.length || elements.length>20000) throw Error('SOURCE_INVENTORY_EMPTY_OR_TOO_LARGE');
+  for (const item of relations.filter(r=>insideRelations.has(r.id))) emit(item);
+  if (!emitted || !countyMode && emitted>20000) throw Error('SOURCE_INVENTORY_EMPTY_OR_TOO_LARGE');
   const payload = { elements:[{type:'area',id:3600000000+boundary.id},...elements] };
   const text = JSON.stringify(payload);
-  const envelope = { schemaVersion:1, city:'Constanța', createdAt:new Date().toISOString(), ...metadata,
+  const envelope = { schemaVersion:1, city:countyMode?undefined:'Constanța', countyCode:options.region?.code, boundaryName:boundary.tags.name, scope:countyMode?'county':'city', createdAt:new Date().toISOString(), ...metadata,
     boundaryRelation:boundary.id, sha256:createHash('sha256').update(text).digest('hex'), payload };
   const output = JSON.stringify(envelope);
-  if (Buffer.byteLength(output)>MAX_JSON) throw Error('SOURCE_JSON_TOO_LARGE');
-  return {output,total:elements.length,boundaryRelation:boundary.id};
+  if (!countyMode && Buffer.byteLength(output)>MAX_JSON) throw Error('SOURCE_JSON_TOO_LARGE');
+  return {output,total:emitted,boundaryRelation:boundary.id};
+}
+// Geometry membership can exceed millions of OSM nodes without retaining all IDs in the JS heap.
+class SpillSet {
+  constructor(db,name,threshold=400000){
+    if(!['nodes','ways'].includes(name))throw Error('GEOMETRY_TABLE_INVALID');
+    this.db=db;this.name=name;this.threshold=threshold;this.memory=new Set();this.size=0;this.bloom=new Uint8Array(8388608);
+    db.exec('CREATE TABLE '+name+'(id INTEGER PRIMARY KEY)');this.get=db.prepare('SELECT 1 FROM '+name+' WHERE id=?');this.insert=db.prepare('INSERT OR IGNORE INTO '+name+' VALUES(?)');
+  }
+  hashes(id){const low=id>>>0,high=Math.floor(id/4294967296);return [Math.imul(low^high,0x9e3779b1)>>>0,Math.imul(low^(high+0x85ebca6b),0xc2b2ae35)>>>0].map(n=>n&67108863);}
+  add(id){if(this.has(id))return;this.memory.add(id);this.size++;for(const bit of this.hashes(id))this.bloom[bit>>>3]|=1<<(bit&7);if(this.memory.size>=this.threshold){this.db.transaction(()=>{for(const value of this.memory)this.insert.run(value);})();this.memory.clear();}}
+  has(id){if(this.hashes(id).some(bit=>!(this.bloom[bit>>>3]&(1<<(bit&7)))))return false;return this.memory.has(id)||!!this.get.get(id);}
 }
 async function main() {
   const origin = process.env.NEXT_PUBLIC_SITE_URL;
   if (origin!=='https://sandbox.nitido.ro' && !(origin==='https://nitido.ro' && process.argv.includes('--live'))) throw Error('SNAPSHOT_ORIGIN_GUARD');
   if (process.env.NITIDO_MARKETING_DELIVERY_ENABLED==='true') throw Error('MARKETING_DELIVERY_MUST_BE_OFF');
   if (process.env.HTTPS_PROXY || process.env.https_proxy) throw Error('SNAPSHOT_PROXY_SETUP_REQUIRED');
-  await fsp.mkdir(ROOT,{recursive:true,mode:0o700});
-  const lock = await fsp.open(path.join(ROOT,'prepare.lock'),'wx',0o600);
+  const countyFlag = process.argv.find(arg=>arg.startsWith('--county='));
+  const countyCode = countyFlag?.split('=')[1]?.toUpperCase();
+  const regionCodes = 'AB AR AG BC BH BN BT BV BR B BZ CS CL CJ CT CV DB DJ GL GR GJ HR HD IL IS IF MM MH MS NT OT PH SM SJ SB SV TR TM TL VS VL VN'.split(' ');
+  if(countyCode&&!regionCodes.includes(countyCode))throw Error('COUNTY_INVALID');
+  const targetRoot=countyCode?path.join(ROOT,'counties',countyCode):ROOT;
+  await fsp.mkdir(targetRoot,{recursive:true,mode:0o700});
+  const lock = await fsp.open(path.join(targetRoot,'prepare.lock'),'wx',0o600);
   const workdir = await fsp.mkdtemp('/tmp/nitido-marketing-osm-');
   const pbf = path.join(workdir,'romania.osm.pbf');
   try {
@@ -182,16 +201,34 @@ async function main() {
       bytes+=chunk.length;md5.update(chunk);sha.update(chunk);done(bytes>MAX_PBF?Error('SOURCE_DOWNLOAD_TOO_LARGE'):null,chunk);
     }}),fs.createWriteStream(pbf,{mode:0o600,flags:'wx'}));
     if (bytes!==length || md5.digest('hex')!==checksum.toLowerCase()) throw Error('SOURCE_CHECKSUM_MISMATCH');
-    const result = await prepare(pbf,require(parserPath),{source:SOURCE,datasetLastModified:new Date(modified).toISOString(),pbfSha256:sha.digest('hex')});
-    const temporary = path.join(ROOT,'snapshot-'+randomUUID()+'.tmp');
-    await fsp.writeFile(temporary,result.output,{mode:0o600,flag:'wx'});
-    await fsp.rename(temporary,path.join(ROOT,'constanta-osm.json'));
-    report({phase:'ready',total:result.total,boundaryRelation:result.boundaryRelation,sourceBytes:bytes,inventoryBytes:Buffer.byteLength(result.output),delivery:'blocked'});
+    const metadata={source:SOURCE,datasetLastModified:new Date(modified).toISOString(),pbfSha256:sha.digest('hex')};
+    let result;
+    if(countyCode){
+      const Database=require('better-sqlite3'),geometry=new Database(path.join(workdir,'geometry.db'));
+      geometry.pragma('journal_mode=OFF');geometry.pragma('synchronous=OFF');
+      const generation=randomUUID(),directory=path.join(targetRoot,generation);await fsp.mkdir(directory,{mode:0o700});
+      const parts=[];let pending=[],pendingBytes=0;
+      const flush=()=>{if(!pending.length)return;const content=JSON.stringify({elements:pending}),file='part-'+String(parts.length+1).padStart(6,'0')+'.json';fs.writeFileSync(path.join(directory,file),content,{flag:'wx',mode:0o600});parts.push({file,count:pending.length,bytes:Buffer.byteLength(content),sha256:createHash('sha256').update(content).digest('hex')});pending=[];pendingBytes=0;};
+      try{
+        result=await prepare(pbf,require(parserPath),metadata,{region:{code:countyCode,iso:'RO-'+countyCode},createSet:name=>new SpillSet(geometry,name),emit:item=>{
+          const size=Buffer.byteLength(JSON.stringify(item));if(size>700000)throw Error('SOURCE_RECORD_TOO_LARGE');
+          if(pending.length>=500||pendingBytes+size>700000)flush();pending.push(item);pendingBytes+=size;
+        }});flush();
+        const prepared=JSON.parse(result.output);
+        const manifest={schemaVersion:2,scope:'county',countyCode,generation,createdAt:prepared.createdAt,...metadata,boundaryName:prepared.boundaryName,boundaryRelation:result.boundaryRelation,total:result.total,parts};
+        const content=JSON.stringify(manifest),envelope=JSON.stringify({...manifest,sha256:createHash('sha256').update(content).digest('hex')});
+        const temporary=path.join(targetRoot,'manifest-'+randomUUID()+'.tmp');await fsp.writeFile(temporary,envelope,{flag:'wx',mode:0o600});await fsp.rename(temporary,path.join(targetRoot,'current.json'));result.inventoryBytes=Buffer.byteLength(envelope)+parts.reduce((sum,part)=>sum+part.bytes,0);result.parts=parts.length;
+      }catch(error){await fsp.rm(directory,{recursive:true,force:true});throw error;}finally{geometry.close();}
+    }else{
+      result=await prepare(pbf,require(parserPath),metadata);
+      const temporary=path.join(ROOT,'snapshot-'+randomUUID()+'.tmp');await fsp.writeFile(temporary,result.output,{mode:0o600,flag:'wx'});await fsp.rename(temporary,path.join(ROOT,'constanta-osm.json'));
+    }
+    report({phase:'ready',total:result.total,boundaryRelation:result.boundaryRelation,sourceBytes:bytes,inventoryBytes:result.inventoryBytes??Buffer.byteLength(result.output),scope:countyCode?'county':'city',countyCode,parts:result.parts,delivery:'blocked'});
   } finally {
-    await fsp.rm(workdir,{recursive:true,force:true});await lock.close();await fsp.rm(path.join(ROOT,'prepare.lock'),{force:true});
+    await fsp.rm(workdir,{recursive:true,force:true});await lock.close();await fsp.rm(path.join(targetRoot,'prepare.lock'),{force:true});
   }
 }
-module.exports = { business, candidate, stitchRings, inRing, inBoundary, selectedRelations, prepare };
-if (require.main===module || process.argv[1]===undefined || process.argv[1]==='--live') main().catch(error=>{
+module.exports = { business, candidate, stitchRings, inRing, inBoundary, selectedRelations, prepare, SpillSet };
+if (require.main===module || process.argv[1]===undefined || process.argv.slice(1).some(arg=>arg==='--live'||arg.startsWith('--county='))) main().catch(error=>{
   report({phase:'failed',code:/^[A-Z_]+$/.test(error.message)?error.message:'SNAPSHOT_PREPARATION_FAILED'});process.exitCode=1;
 });

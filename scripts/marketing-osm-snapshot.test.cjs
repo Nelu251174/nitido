@@ -38,3 +38,15 @@ test('rejects ambiguous and incomplete boundaries instead of generating a partia
  try{await assert.rejects(prepare(file,parser([...entities(),{...boundary,id:101}]),{}),/AMBIGUOUS/);await assert.rejects(prepare(file,parser(entities().filter(e=>e.id!==10)),{}),/WAY_MISSING/);}
  finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
+test('county preparation streams more than 100000 firms without the municipality inventory caps',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'mkt-county-')),file=path.join(dir,'fixture');fs.writeFileSync(file,'fixture');
+ const items=entities(),wayIndex=items.findIndex(e=>e.type==='way'),large=[...items.slice(0,wayIndex),...Array.from({length:100001},(_,i)=>({type:'node',id:i+1000,lon:2,lat:2,tags:{name:'County fixture '+i,office:'company',email:'public'+i+'@fixture.example'}})),...items.slice(wayIndex).map(e=>e.id===100?{...e,tags:{...e.tags,admin_level:'4','ISO3166-2':'RO-CT'}}:e)];
+ let emitted=0;
+ try{const result=await prepare(file,parser(large),{source:'synthetic'},{region:{code:'CT',iso:'RO-CT'},emit:()=>emitted++});assert.equal(emitted,100004);assert.equal(result.total,100004);assert.equal(JSON.parse(result.output).payload.elements.length,1);}
+ finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
+test('spilled public geometry membership remains exact without retaining every ID in memory',()=>{
+ const Database=require('better-sqlite3'),{SpillSet}=require('./marketing-osm-snapshot.cjs'),db=new Database(':memory:');
+ try{const set=new SpillSet(db,'nodes',3);for(let i=1;i<=30;i++)set.add(4294967296+i);set.add(4294967297);assert.equal(set.size,30);for(let i=1;i<=30;i++)assert.equal(set.has(4294967296+i),true);assert.equal(set.has(4294967399),false);assert.ok(set.memory.size<3);}
+ finally{db.close();}
+});
