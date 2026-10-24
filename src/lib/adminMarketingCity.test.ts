@@ -29,6 +29,14 @@ describe('whole municipality Marketing collection',()=>{
   snapshot.read.mockRejectedValue(new MarketingError('Inventarul local este invalid.'));const id=start();await processMarketingCollections(db,reader);
   expect(marketingCityView(db,id)?.job).toMatchObject({state:'paused',total:0,saved:0});expect(reader).not.toHaveBeenCalled();
  });
+ it('keeps the website time budget when larger local batches encounter slow public sites',async()=>{
+  vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-25T06:00:00.000Z'));
+  source([entry(1,{email:'',website:'https://one.fixture.example'}),entry(2,{email:'',website:'https://two.fixture.example'})]);
+  const id=start();await processMarketingCollections(db,reader);
+  reader.mockImplementation(async url=>{vi.setSystemTime(Date.now()+10000);return page(url,url.endsWith('robots.txt')?'':'<body>No email</body>');});
+  await processMarketingCollections(db,reader);
+  expect(marketingCityView(db,id)?.job).toMatchObject({state:'collecting',processed:1,saved:1});expect(reader).toHaveBeenCalledTimes(3);
+ });
  it('covers the municipality and all business sectors without the quick-search row limit',()=>{const q=marketingCityQuery('Constanta');expect(q).toContain('"Constanța"');expect(q).toContain('[craft]');expect(q).toContain('[company]');expect(q).toContain('out tags;');expect(q).not.toMatch(/out tags.*\d/);expect(marketingCityQuery('x";out;')).toContain('"x\\";out;"');});
  it('processes every source record beyond twenty, with persistent progress and no message transport',async()=>{source(Array.from({length:47},(_,i)=>entry(i+1)));const id=start();await processMarketingCollections(db,reader);expect(marketingCityView(db,id)!.job.total).toBe(47);expect(marketingCityView(db,id)!.job.processed).toBe(0);for(let i=0;i<3;i++)await processMarketingCollections(db,reader);const view=marketingCityView(db,id)!;expect(view.job).toMatchObject({state:'completed',total:47,processed:47,emails:47,saved:47});expect(reader).toHaveBeenCalledOnce();expect(listMarketingContacts(db,new URLSearchParams()).total).toBe(47);expect(db.prepare("SELECT COUNT(*) n FROM marketing_contacts WHERE status<>'new' OR consent<>'not_recorded'").get()).toEqual({n:0});});
  it('keeps no-contact firms in the inventory and separates cleaning companies from business',async()=>{source([entry(1,{name:'Curățenie exemplu'}),entry(2,{email:''})]);const id=start();await processMarketingCollections(db,reader);await processMarketingCollections(db,reader);const view=marketingCityView(db,id)!;expect(view.job).toMatchObject({total:2,processed:2,saved:1,withoutEmail:1});expect(view.items.find(row=>row.name==='Curățenie exemplu')?.category).toBe('cleaning');expect(view.items.some(row=>row.category==='individual')).toBe(false);expect(view.items.find(row=>row.name==='Firma 2')?.contactId).toBeNull();});
