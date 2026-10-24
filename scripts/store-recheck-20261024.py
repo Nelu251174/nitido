@@ -40,6 +40,6 @@ for alias in ['GOOGLE_PLAY_SERVICE_ACCOUNT_JSON','FIREBASE_SERVICE_ACCOUNT_JSON'
                     row['versionCodes']=sorted(set(codes));row['highestVersionCode']=max(codes) if codes and row['completeVersionRead'] else None
                 finally:row['temporaryEditDeleted']=session.delete(base+'/'+edit,timeout=30).status_code in [200,204]
         except Exception as error:row['errorType']=type(error).__name__
-    print('PLAY_RECHECK alias='+alias+' available='+str(row['available'])+' publisher_http='+str(row.get('publisher',{}).get('http','not_checked'))+' reasons=','.join(row.get('publisher',{}).get('reasons',[]))+' can_enable_api='+str(row.get('canEnableApi','not_checked')))
+    print('PLAY_RECHECK', 'alias='+alias, 'available='+str(row['available']), 'publisher_http='+str(row.get('publisher',{}).get('http','not_checked')), 'reasons='+','.join(row.get('publisher',{}).get('reasons',[])), 'can_enable_api='+str(row.get('canEnableApi','not_checked')))
 pathlib.Path('.store-recheck').mkdir(exist_ok=True)
 pathlib.Path('.store-recheck/google-play.json').write_text(json.dumps(report,indent=2)+'\n')
