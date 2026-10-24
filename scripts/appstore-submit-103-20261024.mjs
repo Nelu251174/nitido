@@ -23,7 +23,7 @@ try{
  if(v.attributes.versionString!=='1.0.3'||v.attributes.releaseType!=='MANUAL'||v.relationships?.build?.data?.id!==build)throw Error('VERSION_OR_MANUAL_RELEASE_GUARD_FAILED');
  proof.manualPublicRelease=true;
  if(['WAITING_FOR_REVIEW','IN_REVIEW','PENDING_DEVELOPER_RELEASE','READY_FOR_SALE'].includes(v.attributes.appStoreState)){
-  proof.appReviewSubmitted=true;proof.state=v.attributes.appStoreState;
+  proof.appReviewSubmitted=true;proof.state=v.attributes.appStoreState;proof.publicRelease=v.attributes.appStoreState==='READY_FOR_SALE';
  }else{
   if(v.attributes.appStoreState!=='PREPARE_FOR_SUBMISSION')throw Error('VERSION_NOT_PREPARED');
   const b=(await api('/v1/builds/'+build)).data;

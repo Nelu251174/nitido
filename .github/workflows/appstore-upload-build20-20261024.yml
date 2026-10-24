@@ -1,9 +1,7 @@
 name: Upload signed NITIDO build20 to App Store Connect without public release
 on:
   workflow_dispatch:
-  push:
-    branches: [codex/nitido-store-updates-20261024]
-    paths: [.github/workflows/appstore-upload-build20-20261024.yml]
+
 permissions:
   contents: read
   actions: read

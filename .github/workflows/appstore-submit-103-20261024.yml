@@ -1,9 +1,7 @@
 name: Submit existing NITIDO App Store update 1.0.3 for Apple review
 on:
   workflow_dispatch:
-  push:
-    branches: [codex/nitido-store-updates-20261024]
-    paths: [.github/workflows/appstore-submit-103-20261024.yml, scripts/appstore-submit-103-20261024.mjs]
+
 permissions:
   contents: read
 concurrency:

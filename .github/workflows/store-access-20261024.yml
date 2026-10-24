@@ -1,9 +1,7 @@
 name: Verify existing NITIDO store access for requested public updates
 on:
   workflow_dispatch:
-  push:
-    branches: [codex/nitido-store-updates-20261024]
-    paths: [.github/workflows/store-access-20261024.yml, scripts/play-publish-readiness-20261024.py]
+
 permissions:
   contents: read
 jobs:

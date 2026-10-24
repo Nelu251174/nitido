@@ -1,0 +1,11 @@
+# NITIDO store update — 24 October 2026
+
+The existing iPhone app update 1.0.3 (build20) contains the amplified classic SMS Tri-tone sound. Apple validated the signed IPA and accepted the submission: WAITING_FOR_REVIEW, submission cd37b396-5a02-4bae-b9bf-daef9ef8c047, run40095986798. It is not a new public release yet. Public release is manual; no beta testers or groups were changed. The existing public version remains 1.0.2 (build19).
+
+The draft reuses the existing Romanian description and three screenshot sets, with new release notes. Its existing review account authenticated successfully against NITIDO; the verification session was closed. No credential values were exported.
+
+LIVE deployment umzp9gndcz1qz6m1vt5uv1i1 finished at 12:52:23 UTC with source fdb571e395ec664cc510b4787acb6a2b41f40901. Its application and native code match the tested 42e435b685864e57b67db45a328c468a1e29131e; only production Compose configuration differs. The runtime-only Connect webhook setting is inherited from the environment file, preserving its value and preventing erroneous build-time interpolation. The six Compose checks reproduced the failure and verified the correction. LIVE runtime checks confirmed the new APNs sound name and the existing Connect setting; the temporary task was removed. All66 page/API and48 static-resource checks passed across LIVE and sandbox.
+
+Google Play cannot yet accept an upload with the configured identity: GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is absent; the existing Firebase identity encounters SERVICE_DISABLED for Android Publisher and lacks the permission to enable it. No IAM roles were changed and no Play release was uploaded. The previously signed Android1.0.3 (26) candidate remains prepared, with its original signing certificate and verified SHA recorded in the evidence. The current Play maximum cannot be authenticated, so no version number is invented.
+
+The one-time store workflows now require explicit dispatch and will not repeat on branch pushes. The public-release evidence gate remains unchanged. New-sound audibility on a physical iPhone has not been claimed; the signed resource and two simulator launches were verified, alongside52 notification tests.

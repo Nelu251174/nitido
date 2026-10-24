@@ -17,12 +17,25 @@
   "nativeApplicationSourceUnchangedFrom": "42e435b685864e57b67db45a328c468a1e29131e",
   "notificationsTestsPassed": 52,
   "signedIpaSha256": "8e955186e619f4f083b70f38b22cbe23e10a1e099d211cc8bc575356477e07e7",
-  "appReviewSubmitted": false,
+  "appReviewSubmitted": true,
   "publicRelease": false,
   "googlePlay": {
     "publisherApiEnabled": false,
     "dedicatedPublishingIdentityPresent": false,
     "existingIdentityCanEnableApi": false,
     "uploadAttempted": false
+  },
+  "appReviewState": "WAITING_FOR_REVIEW",
+  "reviewSubmissionId": "cd37b396-5a02-4bae-b9bf-daef9ef8c047",
+  "reviewSubmissionRun": 40095986798,
+  "reviewLoginVerified": true,
+  "reviewSessionClosed": true,
+  "publicReleaseMode": "MANUAL",
+  "oneTimeWorkflowsAutomaticTriggersRemoved": true,
+  "androidPreparedAab": {
+    "versionName": "1.0.3",
+    "versionCode": 26,
+    "sha256": "fa77f2dc4f7ef4f4b353911143d00f7e47d9213399b796f2e0e0a5f5a0816439",
+    "uploaded": false
   }
 }
