@@ -47,7 +47,10 @@
     "@fontsource/sora": "^5.3.0",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^13.0.3",
+    "cheerio": "^1.2.0",
     "geoip-country": "5.0.202610140208",
+    "https-proxy-agent": "^9.1.0",
+    "ipaddr.js": "^2.4.0",
     "leaflet": "^1.9.4",
     "next": "16.4.3",
     "next-intl": "4.14.9",
@@ -55,6 +58,7 @@
     "react-dom": "19.2.8",
     "sharp": "0.35.5",
     "stripe": "^22.5.0",
+    "svix": "^2.9.0",
     "twilio": "^6.1.0"
   },
   "devDependencies": {
