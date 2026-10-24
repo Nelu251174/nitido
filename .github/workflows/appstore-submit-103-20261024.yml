@@ -1,0 +1,33 @@
+name: Submit existing NITIDO App Store update 1.0.3 for Apple review
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: nitido-appstore-103-review
+  cancel-in-progress: false
+jobs:
+  submit-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify the prepared update and submit to Apple review with manual public release
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: node scripts/appstore-submit-103-20261024.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nitido-appstore-review-103-20261024
+          path: .store-review/receipt.json
+          include-hidden-files: true
+          retention-days: 1

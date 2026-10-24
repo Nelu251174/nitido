@@ -1,0 +1,29 @@
+name: Prepare existing NITIDO App Store version 1.0.3 draft
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+jobs:
+  prepare-draft:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Attach the validated build and reuse the existing listing in a draft only
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: node scripts/appstore-draft-103-20261024.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nitido-appstore-draft-103-20261024
+          path: .store-draft/receipt.json
+          include-hidden-files: true
+          retention-days: 1
