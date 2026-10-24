@@ -15,7 +15,7 @@ for runtime in runtimes {
  if let iterator=fm.enumerator(at:root,includingPropertiesForKeys:[.isRegularFileKey],options:[.skipsHiddenFiles]) {
   for case let file as URL in iterator {
    let name=file.lastPathComponent.lowercased()
-   guard name=="note.caf" || name=="sms-received1.caf" else {continue}
+   guard name=="note.caf" || name=="sms_alert_note.caf" || name=="sms-received1.caf" else {continue}
    let data=try Data(contentsOf:file)
    let nameOut=identifier+"-"+file.lastPathComponent
    let target=out.appendingPathComponent(nameOut)
