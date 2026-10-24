@@ -1,0 +1,160 @@
+{
+  "checkedAt": "2026-10-24T14:18:06.148190+00:00",
+  "liveSource": "31f5cd7a85379234fdea0177e813971cc63c33bd",
+  "liveHealthy": true,
+  "freshHttp": {
+    "scope": "live",
+    "checkedAt": "2026-10-24T14:13:45.125734+00:00",
+    "checks": [
+      {
+        "path": "/api/health",
+        "expected": 200,
+        "status": 200,
+        "passed": true
+      },
+      {
+        "path": "/api/uploads/synthetic-import-probe",
+        "expected": 401,
+        "status": 401,
+        "passed": true
+      },
+      {
+        "path": "/api/workspace",
+        "expected": 401,
+        "status": 401,
+        "passed": true
+      },
+      {
+        "path": "/api/jobs",
+        "expected": 401,
+        "status": 401,
+        "passed": true
+      },
+      {
+        "path": "/api/auth/me",
+        "expected": 200,
+        "status": 200,
+        "passed": true
+      },
+      {
+        "path": "/",
+        "expected": 200,
+        "status": 200,
+        "passed": true
+      },
+      {
+        "path": "/login",
+        "expected": 200,
+        "status": 200,
+        "passed": true
+      }
+    ],
+    "passed": true,
+    "customerDataRead": false,
+    "mutations": 0
+  },
+  "automaticPush": {
+    "enabled": false,
+    "evidence": "Target-guarded runtime assertion: PUSH_ENABLED is not true",
+    "execution": {
+      "uuid": "rfhpsmi4cht0gled3d6vsmig",
+      "status": "success",
+      "created_at": "2026-10-24T14:09:07.000000Z",
+      "finished_at": "2026-10-24T14:09:08.000000Z"
+    },
+    "temporaryTaskRemoved": true,
+    "manualIphonePushDoesNotProveAutomaticEvents": true,
+    "configurationChanged": false,
+    "notificationsSent": 0
+  },
+  "accountDeletion": {
+    "state": "intake_only_implementation_incomplete",
+    "statuses": [
+      "requested",
+      "under_review"
+    ],
+    "fulfillmentExecutorImplemented": false,
+    "evidenceFiles": [
+      "src/lib/accountDeletionSchema.ts",
+      "src/lib/accountDeletion.ts",
+      "src/app/api/admin/account-deletion/route.ts"
+    ],
+    "customerDataDeleted": false
+  },
+  "stores": {
+    "run": 40101545571,
+    "checkedAt": "2026-10-24T14:13:45Z",
+    "ios": {
+      "version": "1.0.3",
+      "state": "WAITING_FOR_REVIEW",
+      "currentPublicVersion": "1.0.2",
+      "releaseType": "MANUAL"
+    },
+    "android": {
+      "dedicatedPublishingIdentityAvailable": false,
+      "existingFirebaseIdentityPublisherHttp": 403,
+      "reason": "SERVICE_DISABLED",
+      "existingIdentityCanEnableApi": false
+    },
+    "releaseOrServicePermissionsChanged": false
+  },
+  "pilot": {
+    "assertions": [
+      {
+        "assertion": "contact-blocked",
+        "execution": {
+          "uuid": "ya2axom1g1kpf7ybixzbctgy",
+          "status": "success",
+          "created_at": "2026-10-24T14:14:54.000000Z",
+          "finished_at": "2026-10-24T14:14:55.000000Z"
+        },
+        "temporaryTaskRemoved": true
+      },
+      {
+        "assertion": "teams-not-ready",
+        "execution": {
+          "uuid": "lq5lsi4vgz4qj3dsfsiyhbdn",
+          "status": "success",
+          "created_at": "2026-10-24T14:14:55.000000Z",
+          "finished_at": "2026-10-24T14:14:56.000000Z"
+        },
+        "temporaryTaskRemoved": true
+      },
+      {
+        "assertion": "mail-receipt",
+        "execution": {
+          "uuid": "vxatkvbxq47ypjrp2mxtocur",
+          "status": "success",
+          "created_at": "2026-10-24T14:14:56.000000Z",
+          "finished_at": "2026-10-24T14:14:57.000000Z"
+        },
+        "temporaryTaskRemoved": true
+      },
+      {
+        "assertion": "pilot-disabled",
+        "execution": {
+          "uuid": "qtvkqca0edz3vigojsowhkhj",
+          "status": "success",
+          "created_at": "2026-10-24T14:14:56.000000Z",
+          "finished_at": "2026-10-24T14:14:57.000000Z"
+        },
+        "temporaryTaskRemoved": true
+      }
+    ],
+    "participationConfirmationAvailable": false,
+    "connectedMailboxMatchingReplies": 0,
+    "mailboxScopeLimited": true,
+    "pilotActivated": false,
+    "messagesSent": 0
+  },
+  "remainingAcceptance": [
+    "Enable and verify automatic transaction/message notifications after controlled rollout readiness.",
+    "Implement and verify actual account/data-deletion fulfillment with the required retention rules.",
+    "Complete Apple public update after review and applicable release checks.",
+    "Obtain Play publishing access and complete Android public update.",
+    "Confirm pilot firms, configure real teams/slots and verify the first real job.",
+    "Complete remaining physical-device acceptance on the distributed official app versions."
+  ],
+  "previousSummaryWasIncomplete": true,
+  "applicationCodeChangedByThisRecheck": false
+}

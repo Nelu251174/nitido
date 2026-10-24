@@ -6,7 +6,8 @@ import {HOST_DEFAULTS,hostLocalInstant,type HostSettings} from './hostScheduleSh
 import {requirePropertyModule,propertyOrganization,ORGANIZATION_SCHEMA} from "./organizations";
 import {firmAvailabilityError} from "./firmAvailability";
 import {notice} from "./visitCare";
-import { COLLABORATION_SCHEMA, executionAccess } from "@/lib/collaborationAccess";
+import { executionAccess } from "@/lib/collaborationAccess";
+import { COLLABORATION_SCHEMA } from "./collaborationSchema";
 import type { Database } from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 

@@ -1,0 +1,453 @@
+{
+  "baseApplicationSource": "e3066ae965397079f6fa7cb933ae5f6379918b0e",
+  "liveBaseline": "fdb571e395ec664cc510b4787acb6a2b41f40901",
+  "issue": "Cold import of private-upload route could read COLLABORATION_SCHEMA before initialization through circular workspace dependencies.",
+  "fix": "Keep collaboration DDL in a dependency-free module and preserve its public re-export. SQL text is unchanged.",
+  "collaborationDeclarationSha256": "e6cef62c7db0a37ebe67571a0e9e19d30518638b05ea83bf1f3494a13abca263",
+  "httpLifecycle": {
+    "startedAt": "2026-10-24T13:42:43.828Z",
+    "status": "passed",
+    "source": "e3066ae965397079f6fa7cb933ae5f6379918b0e-plus-schema-fix",
+    "scope": "Isolated development HTTP lifecycle with synthetic SQLite, provider-free payment adapter",
+    "networkMode": "none",
+    "liveWrites": 0,
+    "realPayments": 0,
+    "realNotifications": 0,
+    "physicalDeviceTested": false,
+    "checks": [
+      {
+        "name": "fresh database has no real users",
+        "passed": true
+      },
+      {
+        "name": "authenticate client",
+        "passed": true
+      },
+      {
+        "name": "authenticate otherClient",
+        "passed": true
+      },
+      {
+        "name": "authenticate firmA",
+        "passed": true
+      },
+      {
+        "name": "authenticate firmB",
+        "passed": true
+      },
+      {
+        "name": "anonymous job access denied",
+        "passed": true
+      },
+      {
+        "name": "untrusted mutation origin denied",
+        "passed": true
+      },
+      {
+        "name": "create Standard reservation",
+        "passed": true
+      },
+      {
+        "name": "reservation retry creates no duplicate",
+        "passed": true
+      },
+      {
+        "name": "other client cannot read reservation",
+        "passed": true
+      },
+      {
+        "name": "unassigned firm cannot see private address",
+        "passed": true
+      },
+      {
+        "name": "Standard cannot use Express direct acceptance",
+        "passed": true
+      },
+      {
+        "name": "two firms can offer",
+        "passed": true
+      },
+      {
+        "name": "duplicate firm offer denied",
+        "passed": true
+      },
+      {
+        "name": "other client cannot select offer",
+        "passed": true
+      },
+      {
+        "name": "owner selects firm and authorizes simulated payment",
+        "passed": true
+      },
+      {
+        "name": "unselected firm cannot start job",
+        "passed": true
+      },
+      {
+        "name": "review before completion denied",
+        "passed": true
+      },
+      {
+        "name": "arrival without evidence denied",
+        "passed": true
+      },
+      {
+        "name": "upload required arrival evidence",
+        "passed": true
+      },
+      {
+        "name": "other client cannot read evidence",
+        "passed": true
+      },
+      {
+        "name": "unselected firm cannot read evidence",
+        "passed": true
+      },
+      {
+        "name": "owner can read own job evidence",
+        "passed": true
+      },
+      {
+        "name": "arrival with valid evidence succeeds",
+        "passed": true
+      },
+      {
+        "name": "completion without evidence denied",
+        "passed": true
+      },
+      {
+        "name": "upload required completion evidence",
+        "passed": true
+      },
+      {
+        "name": "complete job with validated evidence",
+        "passed": true
+      },
+      {
+        "name": "simulated payment captured exactly once",
+        "passed": true
+      },
+      {
+        "name": "verified review after completion succeeds",
+        "passed": true
+      },
+      {
+        "name": "duplicate review denied",
+        "passed": true
+      },
+      {
+        "name": "other client cannot review job",
+        "passed": true
+      },
+      {
+        "name": "frozen price and duration preserved",
+        "passed": true
+      },
+      {
+        "name": "single payment and single review",
+        "passed": true
+      },
+      {
+        "name": "logout revokes client session",
+        "passed": true
+      },
+      {
+        "name": "logout revokes otherClient session",
+        "passed": true
+      },
+      {
+        "name": "logout revokes firmA session",
+        "passed": true
+      },
+      {
+        "name": "logout revokes firmB session",
+        "passed": true
+      },
+      {
+        "name": "all synthetic sessions closed",
+        "passed": true
+      },
+      {
+        "name": "database integrity preserved",
+        "passed": true
+      }
+    ],
+    "syntheticJobs": 1,
+    "completedJobs": 1,
+    "verifiedReviews": 1,
+    "finishedAt": "2026-10-24T13:43:07.029Z",
+    "passed": 39,
+    "failed": 0
+  },
+  "regression": {
+    "files": 7,
+    "passed": 98,
+    "failed": 0,
+    "logSha256": "ab7524f01638d43e9aed95521eb165d2cc1eaef3a9d16bcf019daeb8f9bac558"
+  },
+  "productionBuild": "passed:181 generated routes; TypeScript and ESLint passed",
+  "productionRuntimeCheck": {
+    "checkedAt": "2026-10-24T13:48:27.247Z",
+    "status": "passed",
+    "mode": "Actual standalone production build; offline; fresh synthetic database",
+    "checks": [
+      {
+        "path": "/api/health",
+        "expected": 200,
+        "status": 200,
+        "passed": true
+      },
+      {
+        "path": "/api/uploads/synthetic-import-probe",
+        "expected": 401,
+        "status": 401,
+        "passed": true
+      },
+      {
+        "path": "/api/workspace",
+        "expected": 401,
+        "status": 401,
+        "passed": true
+      },
+      {
+        "path": "/api/jobs",
+        "expected": 401,
+        "status": 401,
+        "passed": true
+      }
+    ]
+  },
+  "financialProviderTested": false,
+  "realPayments": 0,
+  "physicalDevicesTested": false,
+  "pilotReadOnlyAssertions": [
+    {
+      "assertion": "contact-blocked",
+      "passed": true,
+      "temporaryTaskRemoved": true
+    },
+    {
+      "assertion": "teams-not-ready",
+      "passed": true,
+      "temporaryTaskRemoved": true
+    },
+    {
+      "assertion": "mail-receipt",
+      "passed": true,
+      "temporaryTaskRemoved": true
+    },
+    {
+      "assertion": "pilot-disabled",
+      "passed": true,
+      "temporaryTaskRemoved": true
+    }
+  ],
+  "appleStatus": {
+    "checkedAt": "2026-10-24T13:33:43.692Z",
+    "version": "1.0.3",
+    "state": "WAITING_FOR_REVIEW",
+    "publicRelease": false,
+    "run": 40098657173
+  },
+  "initialAttempts": {
+    "attempt1": "Test harness origin was corrected to model the configured HTTPS reverse-proxy origin; application trust checks unchanged.",
+    "attempt2": "Actual circular initialization error reproduced after20 passing lifecycle checks.",
+    "retainedLocally": true
+  },
+  "validatedCandidate": "31f5cd7a85379234fdea0177e813971cc63c33bd",
+  "pilot": {
+    "checkedAt": "2026-10-24T13:44:28.000000Z",
+    "contactAllstonesStillUnverified": true,
+    "candidateFirmsHaveNoActiveTeams": true,
+    "jamiProviderAcceptanceReceiptPresent": true,
+    "weeklyPilotNotEnabledForConstanta": true,
+    "connectedMailboxMatchingReplies": 0,
+    "mailboxCoverage": "Only the connected Gmail mailbox was searched; the support@nitido.ro inbox is not available through this connection.",
+    "participationConfirmed": false,
+    "pilotActivated": false,
+    "newMessagesSent": 0,
+    "allTemporaryTasksRemoved": true
+  },
+  "protectedCheckpoints": [
+    {
+      "scope": "sandbox",
+      "baseline": "42e435b685864e57b67db45a328c468a1e29131e",
+      "execution": {
+        "uuid": "97mngbmjkw1ooedmpra8n2jq",
+        "status": "success",
+        "created_at": "2026-10-24T13:50:14.000000Z",
+        "finished_at": "2026-10-24T13:50:15.000000Z"
+      },
+      "temporaryTaskRemoved": true
+    },
+    {
+      "scope": "live",
+      "baseline": "fdb571e395ec664cc510b4787acb6a2b41f40901",
+      "execution": {
+        "uuid": "3oa9bl1dt0ih22kh36adefxl",
+        "status": "success",
+        "created_at": "2026-10-24T13:50:15.000000Z",
+        "finished_at": "2026-10-24T13:50:16.000000Z"
+      },
+      "temporaryTaskRemoved": true
+    }
+  ],
+  "fullRegression": {
+    "files": 222,
+    "passed": 2326,
+    "failed": 0,
+    "logSha256": "639b8f799f0c9c8e94d1c2f0768b75a8d3cfa0ea15232be4c5547669e92b51ec"
+  },
+  "deployments": [
+    {
+      "scope": "sandbox",
+      "app": "civaeb8joydtchvzlen6pivq",
+      "source": "31f5cd7a85379234fdea0177e813971cc63c33bd",
+      "baseline": "42e435b685864e57b67db45a328c468a1e29131e",
+      "requestedAt": "2026-10-24T13:51:39.821303+00:00",
+      "deployment": {
+        "deployments": [
+          {
+            "message": "Application nitido-v3-sandbox deployment queued.",
+            "resource_uuid": "civaeb8joydtchvzlen6pivq",
+            "deployment_uuid": "8pqbvznnnacugjdlv3iriez4"
+          }
+        ]
+      },
+      "status": "finished",
+      "finished_at": "2026-10-24T13:53:43.000000Z",
+      "commit": "31f5cd7a85379234fdea0177e813971cc63c33bd",
+      "applicationStatus": "running:healthy",
+      "configuredSource": "31f5cd7a85379234fdea0177e813971cc63c33bd"
+    },
+    {
+      "scope": "live",
+      "app": "zxnelxi2cejranyvfpw0scac",
+      "source": "31f5cd7a85379234fdea0177e813971cc63c33bd",
+      "baseline": "fdb571e395ec664cc510b4787acb6a2b41f40901",
+      "requestedAt": "2026-10-24T13:56:15.019215+00:00",
+      "deployment": {
+        "deployments": [
+          {
+            "message": "Application nitido:main-np48pyw4borpoufj7cqclvmo deployment queued.",
+            "resource_uuid": "zxnelxi2cejranyvfpw0scac",
+            "deployment_uuid": "yeu4ka29zabopvtvvl7lvllb"
+          }
+        ]
+      },
+      "status": "finished",
+      "finished_at": "2026-10-24T13:57:18.000000Z",
+      "commit": "31f5cd7a85379234fdea0177e813971cc63c33bd",
+      "applicationStatus": "running:healthy",
+      "configuredSource": "31f5cd7a85379234fdea0177e813971cc63c33bd"
+    }
+  ],
+  "postDeployment": {
+    "sandbox": {
+      "scope": "sandbox",
+      "checkedAt": "2026-10-24T13:54:29.286829+00:00",
+      "checks": [
+        {
+          "path": "/api/health",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        },
+        {
+          "path": "/api/uploads/synthetic-import-probe",
+          "expected": 401,
+          "status": 401,
+          "passed": true
+        },
+        {
+          "path": "/api/workspace",
+          "expected": 401,
+          "status": 401,
+          "passed": true
+        },
+        {
+          "path": "/api/jobs",
+          "expected": 401,
+          "status": 401,
+          "passed": true
+        },
+        {
+          "path": "/api/auth/me",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        },
+        {
+          "path": "/",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        },
+        {
+          "path": "/login",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        }
+      ],
+      "passed": true,
+      "customerDataRead": false,
+      "mutations": 0
+    },
+    "live": {
+      "scope": "live",
+      "checkedAt": "2026-10-24T13:58:37.563164+00:00",
+      "checks": [
+        {
+          "path": "/api/health",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        },
+        {
+          "path": "/api/uploads/synthetic-import-probe",
+          "expected": 401,
+          "status": 401,
+          "passed": true
+        },
+        {
+          "path": "/api/workspace",
+          "expected": 401,
+          "status": 401,
+          "passed": true
+        },
+        {
+          "path": "/api/jobs",
+          "expected": 401,
+          "status": 401,
+          "passed": true
+        },
+        {
+          "path": "/api/auth/me",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        },
+        {
+          "path": "/",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        },
+        {
+          "path": "/login",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        }
+      ],
+      "passed": true,
+      "customerDataRead": false,
+      "mutations": 0
+    }
+  },
+  "allTemporaryTasksRemoved": true,
+  "operationsScriptsLint": "passed",
+  "finalizedAt": "2026-10-24T13:59:35.579391+00:00",
+  "reviewablePullRequest": "https://github.com/Nelu251174/nitido/pull/143"
+}
