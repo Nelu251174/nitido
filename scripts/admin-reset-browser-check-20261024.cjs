@@ -1,0 +1,56 @@
+// Real production UI and HTTP handlers, synthetic administrator, offline mail.
+const fs=require('node:fs');
+const {spawn}=require('node:child_process');
+const {createHmac,createHash,randomBytes}=require('node:crypto');
+const {createRequire}=require('node:module');
+const {chromium}=require('/qa-tools/node_modules/playwright-core');
+const requireApp=createRequire('/app/runtime/package.json'),Database=requireApp('better-sqlite3');
+const base='http://localhost:3198',out='/evidence',email='owner@example.test';
+const oldPassword='Old-fixture-'+randomBytes(12).toString('hex'),newPassword='New-fixture-'+randomBytes(12).toString('hex');
+const recoveryA=randomBytes(16).toString('hex'),recoveryB=randomBytes(16).toString('hex');
+const secrets=[oldPassword,newPassword,recoveryA,recoveryB];
+function safe(value){let text=String(value);for(const s of secrets)text=text.split(s).join('[redacted]');return text.replace(/https?:\/\/\S+/g,'[URL]').replace(/[a-f0-9]{32,64}/gi,'[redacted]');}
+function otp(){const counter=Buffer.alloc(8);counter.writeBigUInt64BE(BigInt(Math.floor(Date.now()/30000)));const h=createHmac('sha1',Buffer.from('12345678901234567890')).update(counter).digest(),n=h[h.length-1]&15;return String((h.readUInt32BE(n)&0x7fffffff)%1000000).padStart(6,'0');}
+const report={startedAt:new Date().toISOString(),status:'running',scope:'Actual standalone production browser; synthetic admin; captured mail; network none',realAccountsChanged:false,realEmailsSent:0,checks:[],pageErrors:[],http:[],resources:[],browserMessages:[]};
+function check(name,ok,details){report.checks.push({name,passed:Boolean(ok),...(details?{details}:{})});if(!ok)throw Error(name);}
+fs.mkdirSync('/app/runtime/public/uploads',{recursive:true});
+const log=fs.openSync(out+'/browser-server.log','w');
+const server=spawn(process.execPath,['--require','/harness/admin-reset-mail-capture-20261024.cjs','/app/runtime/server.js'],{cwd:'/app/runtime',env:{...process.env,NODE_ENV:'production',PORT:'3198',HOSTNAME:'0.0.0.0',NEXT_PUBLIC_SITE_URL:'https://sandbox.nitido.ro',NITIDO_SEED_DEMO:'false',NITIDO_ADMIN_EMAIL:email,NITIDO_ADMIN_PASSWORD:oldPassword,NITIDO_ADMIN_PASSWORD_HASH:'',NITIDO_ADMIN_TOTP_SECRET:'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ',NITIDO_ADMIN_RECOVERY_HASHES:[recoveryA,recoveryB].map(x=>createHash('sha256').update(x).digest('hex')).join(','),RESEND_API_KEY:'synthetic-mail-capture-only',RESEND_FROM:'Test <no-reply@example.test>'},stdio:['ignore',log,log]});
+let browser,db;
+async function main(){
+ for(let n=0;n<100;n++){try{const r=await fetch(base+'/api/health',{signal:AbortSignal.timeout(2000)});if(r.ok)break;}catch{}if(n===99)throw Error('SERVER_NOT_READY');await new Promise(r=>setTimeout(r,300));}
+ db=new Database('/app/runtime/data/nitido.db');
+ browser=await chromium.launch({executablePath:'/usr/bin/chromium',headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--no-proxy-server']});
+ // Model the configured HTTPS reverse-proxy origin without weakening application checks.
+ const context=await browser.newContext({viewport:{width:1366,height:900},locale:'ro-RO',serviceWorkers:'block'});
+ await context.route('**/api/admin/auth/**',r=>r.continue({headers:{...r.request().headers(),origin:'https://sandbox.nitido.ro'}}));
+ const page=await context.newPage();page.on('requestfailed',r=>report.resources.push({path:new URL(r.url()).pathname,failure:safe(r.failure()?.errorText)}));page.on('console',m=>{if(m.type()==='error')report.browserMessages.push(safe(m.text()))});page.on('response',r=>{if(r.status()>=400)report.resources.push({path:new URL(r.url()).pathname,status:r.status()})});page.on('response',r=>{const u=new URL(r.url());if(u.pathname.startsWith('/api/admin/auth/'))report.http.push({path:u.pathname,status:r.status()})});page.on('pageerror',e=>report.pageErrors.push(safe(e.message)));
+ const firstSession=page.waitForResponse(r=>r.url().endsWith('/api/admin/auth/me'));await page.goto(base+'/admin');report.scriptSources=await page.locator('script[src]').evaluateAll(es=>es.map(e=>new URL(e.src).pathname));await firstSession;await page.getByRole('link',{name:'Am uitat parola ADMIN',exact:true}).waitFor();check('forgot-password button visible on ADMIN login',true);
+ await page.getByLabel('Email admin',{exact:true}).fill(email);await page.getByLabel('Parolă admin',{exact:true}).fill(oldPassword);await page.getByRole('button',{name:'Folosesc un cod de recuperare',exact:true}).click();await page.getByLabel('Cod de recuperare',{exact:true}).fill(recoveryA);const loginResponse=page.waitForResponse(r=>r.url().endsWith('/api/admin/auth/login'));await page.getByRole('button',{name:'Autentificare',exact:true}).click();check('synthetic admin login HTTP status', (await loginResponse).status()===200);
+ await page.getByRole('link',{name:'Resetare parolă ADMIN',exact:true}).waitFor();check('reset link also visible in authenticated ADMIN',true);
+ await page.getByRole('link',{name:'Resetare parolă ADMIN',exact:true}).click();await page.getByLabel('Email ADMIN',{exact:true}).waitFor();await page.getByLabel('Email ADMIN',{exact:true}).fill(email);
+ await page.locator('form').evaluate(form=>{form.requestSubmit();form.requestSubmit()});await page.getByRole('status').waitFor();
+ const generic=await page.getByRole('status').innerText();
+ for(let n=0;n<40&&!fs.existsSync('/tmp/nitido-admin-reset-mail.json');n++)await new Promise(r=>setTimeout(r,100));
+ const mails=JSON.parse(fs.readFileSync('/tmp/nitido-admin-reset-mail.json','utf8'));check('one request despite double submit',mails.length===1&&db.prepare('SELECT COUNT(*) n FROM admin_password_reset_tokens').get().n===1);
+ const mailUrl=new URL(mails[0].html.match(/href="([^"]+)"/)[1]);const token=mailUrl.hash.slice(1);secrets.push(token);
+ check('mail link uses trusted origin and fragment only',mailUrl.origin==='https://sandbox.nitido.ro'&&mailUrl.pathname==='/admin/recuperare'&&!mailUrl.search&&/^[a-f0-9]{64}$/.test(token));
+ check('database stores no raw recovery token',!JSON.stringify(db.prepare('SELECT * FROM admin_password_reset_tokens').all()).includes(token));
+ await page.goto(base+mailUrl.pathname+'#'+token);await page.getByLabel('Parola nouă',{exact:true}).waitFor();check('browser clears the recovery fragment',new URL(page.url()).hash==='');check('recovery page forbids referrers',await page.locator('meta[name="referrer"]').getAttribute('content')==='no-referrer');
+ await page.getByLabel('Parola nouă',{exact:true}).fill(newPassword);await page.getByLabel('Repetă parola nouă',{exact:true}).fill(newPassword+'x');await page.getByLabel('Cod din aplicația de autentificare',{exact:true}).fill('000000');await page.getByRole('button',{name:'Salvează parola nouă',exact:true}).click();await page.locator('form').getByRole('alert').waitFor();check('password confirmation mismatch caught',await page.locator('form').getByRole('alert').innerText()==='Parolele nu coincid.');
+ await page.getByLabel('Repetă parola nouă',{exact:true}).fill(newPassword);await page.getByRole('button',{name:'Folosesc un cod de recuperare',exact:true}).click();await page.getByLabel('Cod de recuperare',{exact:true}).fill(recoveryB);await page.getByRole('button',{name:'Salvează parola nouă',exact:true}).click();await page.getByRole('link',{name:'Autentificare ADMIN',exact:true}).waitFor();check('real production reset form succeeds with email proof and second factor',true);
+ check('existing ADMIN session revoked',db.prepare('SELECT COUNT(*) n FROM admin_sessions').get().n===0);const stale=await context.request.get(base+'/api/admin/auth/me');check('old browser session no longer authorizes ADMIN',stale.status()===401);
+ const factor=otp();secrets.push(factor);
+ const oldLogin=await context.request.post(base+'/api/admin/auth/login',{headers:{Origin:"https://sandbox.nitido.ro"},data:{email,password:oldPassword,code:factor,method:'totp'}});check('old password no longer logs in',oldLogin.status()===401);
+ const nextLogin=await context.request.post(base+'/api/admin/auth/login',{headers:{Origin:"https://sandbox.nitido.ro"},data:{email,password:newPassword,code:factor,method:'totp'}});check('new password and fresh MFA log in successfully',nextLogin.status()===200);const me=await context.request.get(base+'/api/admin/auth/me');check('reset preserves administrator identity and role',me.status()===200&&(await me.json()).identity.role==='super_admin');
+ const replay=await context.request.post(base+'/api/admin/auth/reset-password',{headers:{Origin:"https://sandbox.nitido.ro"},data:{token,password:newPassword,code:recoveryB,method:'recovery'}});check('used mail link cannot reset again',replay.status()===400);
+ await page.goto(base+'/admin/reset-parola');await page.getByLabel('Email ADMIN',{exact:true}).fill('missing@example.test');await page.getByRole('button',{name:'Trimite linkul de resetare',exact:true}).click();await page.getByRole('status').waitFor();check('unknown account has same public result',await page.getByRole('status').innerText()===generic);check('unknown account sends no mail',JSON.parse(fs.readFileSync('/tmp/nitido-admin-reset-mail.json','utf8')).length===1);
+ for(const width of [360,390,430,1366,1920]){
+  await page.setViewportSize({width,height:900});await page.goto(base+'/admin/reset-parola');await page.getByLabel('Email ADMIN',{exact:true}).waitFor();check('request form fits '+width,await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:out+'/request-'+width+'.png',fullPage:true});
+  await page.goto(base+'/admin/reset-parola#'+token);await page.getByLabel('Parola nouă',{exact:true}).waitFor();check('confirmation form fits '+width,await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:out+'/confirmation-'+width+'.png',fullPage:true});
+ }
+ await page.getByLabel('Parola nouă',{exact:true}).focus();await page.keyboard.press('Tab');check('keyboard reaches password confirmation',await page.getByLabel('Repetă parola nouă',{exact:true}).evaluate(e=>e===document.activeElement));await page.keyboard.press('Tab');check('keyboard reaches MFA input',await page.getByLabel('Cod din aplicația de autentificare',{exact:true}).evaluate(e=>e===document.activeElement));
+ await context.request.post(base+'/api/admin/auth/logout',{headers:{Origin:"https://sandbox.nitido.ro"}});check('test administrator sessions cleaned',db.prepare('SELECT COUNT(*) n FROM admin_sessions').get().n===0);check('no browser runtime errors',report.pageErrors.length===0);check('SQLite integrity and foreign keys intact',db.pragma('integrity_check',{simple:true})==='ok'&&db.pragma('foreign_key_check').length===0);
+ report.status='passed';await context.close();
+}
+main().catch(e=>{report.status='failed';report.failure=safe(e.message);process.exitCode=1}).finally(async()=>{await browser?.close();db?.close();server.kill('SIGTERM');await new Promise(r=>{if(server.exitCode!==null)return r();server.once('exit',r);setTimeout(()=>{server.kill('SIGKILL');r()},5000).unref()});fs.closeSync(log);report.finishedAt=new Date().toISOString();report.passed=report.checks.filter(x=>x.passed).length;fs.writeFileSync(out+'/browser-report.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({status:report.status,passed:report.passed,failure:report.failure,pageErrors:report.pageErrors}));});

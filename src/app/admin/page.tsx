@@ -266,6 +266,7 @@ export default function AdminPage() {
             <p className="text-xs text-muted">Fiecare cod poate fi folosit o singură dată. Codurile de recuperare se păstrează separat de parolă.</p>
             {authError && <p role="alert" className="text-coral text-sm">{authError}</p>}
             <Button type="submit" disabled={adminLoginBusy} className="w-full">{adminLoginBusy?'Se verifică…':'Autentificare'}</Button>
+            <Link href="/admin/reset-parola" className="block text-center text-sm font-semibold underline">Am uitat parola ADMIN</Link>
           </form>
         </Card>
       </div>
@@ -276,10 +277,11 @@ export default function AdminPage() {
   return (
     <div className="board-page board-admin"><BoardSidebar role="admin"/>
       <header className="glass sticky top-0 z-20">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex flex-wrap gap-3 items-center justify-between">
           <Logo href="/admin" />
-          <div className="flex items-center gap-4 text-sm font-display font-bold text-muted">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-display font-bold text-muted">
             <Link href="/admin" className="hover:text-ink">Operațiuni</Link>
+            <Link href="/admin/reset-parola" className="hover:text-ink underline">Resetare parolă ADMIN</Link>
             <a href="/admin#firme" className="hover:text-ink">Administrare firme</a>
             <a href="/admin#calitate" className="hover:text-ink">Calitate și recenzii</a>
             <button

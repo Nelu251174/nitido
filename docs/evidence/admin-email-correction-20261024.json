@@ -1,0 +1,131 @@
+{
+  "recordedAt": "2026-10-24T17:10:18.674440+00:00",
+  "authorization": "User explicitly confirmed support@nitido.ro as the primary ADMIN login email",
+  "scope": "LIVE only",
+  "changedKey": "NITIDO_ADMIN_EMAIL",
+  "newAddress": "support@nitido.ro",
+  "passwordAndMfaPreservationVerified": true,
+  "ownerPasswordOverrideGuard": "passed: no existing override discarded",
+  "checkpoint": {
+    "status": "passed",
+    "privateOnApplicationVolume": true,
+    "sqliteIntegrityAndIsolatedRestore": "passed",
+    "credentialValuesExported": false
+  },
+  "deployment": {
+    "deployment_uuid": "gltdldrzwidkigygext4frty",
+    "status": "finished",
+    "commit": "2a5c0b60ae26f7f5bbb805c7f6c6006d59762da1",
+    "finished_at": "2026-10-24T17:07:05.000000Z"
+  },
+  "applicationCodeChanged": false,
+  "tests": {
+    "operationalGuardTests": 8,
+    "passed": 8
+  },
+  "postDeployment": {
+    "checkedAt": "2026-10-24T17:08:05.075965+00:00",
+    "scope": "LIVE",
+    "checks": [
+      {
+        "path": "/api/health",
+        "method": "GET",
+        "expected": 200,
+        "status": 200,
+        "passed": true
+      },
+      {
+        "path": "/admin",
+        "method": "GET",
+        "expected": 200,
+        "status": 200,
+        "passed": true
+      },
+      {
+        "path": "/admin/reset-parola",
+        "method": "GET",
+        "expected": 200,
+        "status": 200,
+        "passed": true
+      },
+      {
+        "path": "/admin/recuperare",
+        "method": "GET",
+        "expected": 200,
+        "status": 200,
+        "passed": true
+      },
+      {
+        "path": "/api/admin/auth/forgot-password",
+        "method": "GET",
+        "expected": 405,
+        "status": 405,
+        "passed": true
+      },
+      {
+        "path": "/api/admin/auth/forgot-password",
+        "method": "POST",
+        "expected": 403,
+        "status": 403,
+        "passed": true
+      },
+      {
+        "path": "/api/admin/auth/reset-password",
+        "method": "GET",
+        "expected": 405,
+        "status": 405,
+        "passed": true
+      },
+      {
+        "path": "/api/admin/auth/reset-password",
+        "method": "POST",
+        "expected": 403,
+        "status": 403,
+        "passed": true
+      },
+      {
+        "path": "/api/admin/auth/me",
+        "method": "GET",
+        "expected": 401,
+        "status": 401,
+        "passed": true
+      },
+      {
+        "path": "/api/uploads/synthetic-import-probe",
+        "method": "GET",
+        "expected": 401,
+        "status": 401,
+        "passed": true
+      },
+      {
+        "path": "/api/workspace",
+        "method": "GET",
+        "expected": 401,
+        "status": 401,
+        "passed": true
+      },
+      {
+        "path": "/",
+        "method": "GET",
+        "expected": 200,
+        "status": 200,
+        "passed": true
+      }
+    ],
+    "passed": true,
+    "realPasswordsReset": 0,
+    "realRecoveryEmailsSent": 0,
+    "mutationsWithTrustedOrigin": 0
+  },
+  "recoveryEmail": {
+    "requestedAt": "2026-10-24T17:08:26.049288+00:00",
+    "messagesRequested": 1,
+    "providerAccepted": true,
+    "providerDelivered": true,
+    "providerRejectionObserved": false,
+    "recipient": "support@nitido.ro",
+    "recoveryLinkExposed": false,
+    "passwordResetByAgent": false
+  },
+  "temporaryTasksRemoved": true
+}
