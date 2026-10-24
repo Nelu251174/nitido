@@ -1,9 +1,6 @@
 name: Validate NITIDO owner pilot operation controls
 on:
   workflow_dispatch:
-  push:
-    branches: [codex/nitido-pilot-20261024]
-    paths: [scripts/pc.cjs, scripts/pilot-execute-20261024.mjs]
 permissions:
   contents: read
 concurrency:

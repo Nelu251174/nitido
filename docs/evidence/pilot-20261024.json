@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-24",
+  "timezone": "Europe/Bucharest",
+  "status": "pilot_prepared_awaiting_firm_confirmation",
+  "productionSource": "b978d3da887427f8a612207424ea31f5fc3a2b45",
+  "operationSource": "2846791478042e168aa180f5e6abfdf716139264",
+  "readinessSource": "cfb6861610f7b074ba02222eb40451a60ffe7917",
+  "cityProposed": "Constanța",
+  "pilotActivated": false,
+  "publicListedFirmCount": 7,
+  "excludedDemoNameCount": 3,
+  "activeTeamsOfVerifiedFirms": 0,
+  "futureActiveSlots": 0,
+  "futureApprovedSlots": 0,
+  "cityConfigured": false,
+  "contacts": {
+    "Jami curatenie Cta": {
+      "providerAccepted": true,
+      "deliveryConfirmed": false,
+      "participationConfirmed": false
+    },
+    "ALLSTONES BUSINESS SRL": {
+      "providerAccepted": false,
+      "reason": "CONTACT_CHANNEL_NOT_VERIFIED"
+    }
+  },
+  "phoneTests": {
+    "IOS": {
+      "providerAccepted": true,
+      "receptionConfirmedByOwner": true,
+      "sound": "default",
+      "soundSuitableConfirmedByOwner": true,
+      "volumeComplaint": true,
+      "newSmsSoundRequest": "exact_asset_not_available; native_release_required"
+    },
+    "ANDROID": {
+      "providerConfigured": true,
+      "exactlyOneActiveTestDeviceIdentified": false,
+      "providerDispatchAttempted": false,
+      "providerAccepted": false
+    }
+  },
+  "sandboxOrLiveDeploymentChanged": false,
+  "applicationCodeChanged": false,
+  "generalQueuesEnabled": false,
+  "financialOperations": 0,
+  "newCustomerJobs": 0,
+  "availabilityApprovals": 0,
+  "unitTestsPassed": 7,
+  "ciInitialRun": {
+    "id": 40084279420,
+    "testsPassed": 7,
+    "result": "blocked_before_operations",
+    "reason": "Existing CI identity returned COOLIFY_HTTP_403; no retry or permission workaround"
+  },
+  "actualOperations": "Executed through already-authorized runtime identity; predefined operation exit statuses plus separate read-only accepted-receipt assertions. No raw contact values or device tokens exported.",
+  "rawInventoryOutput": "Unavailable; no claims were based on hidden task output. Public listing and explicit existence/absence checks supplied the evidence."
+}
