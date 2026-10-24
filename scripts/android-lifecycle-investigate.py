@@ -86,6 +86,12 @@ def webview(label):
     nodes = list(root.iter('node'))
     found = any(n.attrib.get('class') == 'android.webkit.WebView' and n.attrib.get('package') == PACKAGE for n in nodes)
     if not found:
+        report['uiDiagnostics'] = {'packages': sorted({n.attrib.get('package', '') for n in nodes}),
+                                   'classes': sorted({n.attrib.get('class', '') for n in nodes})}
+        focus = adb('shell', 'dumpsys', 'window', 'windows')
+        report['uiDiagnostics']['focusedComponents'] = re.findall(r'(?:mCurrentFocus|mFocusedApp)[^\n]*?([A-Za-z][\w.]*/[A-Za-z.][\w.$]*)', focus)
+        screenshot = subprocess.run(['adb', 'exec-out', 'screencap', '-p'], capture_output=True, check=True, timeout=30).stdout
+        (OUT/'public-startup-failure.png').write_bytes(screenshot)
         raise RuntimeError('APPLICATION_WEBVIEW_NOT_VISIBLE')
     report['checks'].append({'scenario': label, 'versionCode': version(), 'webViewVisible': True})
 
