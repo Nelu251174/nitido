@@ -275,7 +275,7 @@ export default function AdminPage() {
 
   if(identity&&identity.role!=='super_admin')return <div className="admin-role-shell"><AdminRoleWorkspace identity={identity}/></div>;
   return (
-    <div className="board-page board-admin"><BoardSidebar role="admin"/>
+    <div className="board-page board-admin"><BoardSidebar role="admin" marketing={identity?.role==='super_admin'}/>
       <header className="glass sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-6 py-4 flex flex-wrap gap-3 items-center justify-between">
           <Logo href="/admin" />
@@ -297,7 +297,12 @@ export default function AdminPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-10 space-y-10">
-<header className="mb-8"><p className="v2-eyebrow">NITIDO CONTROL</p><h1 className="workspace-title">Centrul de operațiuni</h1><p className="text-muted">Lucrări, firme și excepții care necesită intervenție.</p></header><div className="workspace-metrics"><Card><p className="text-sm text-muted">Lucrări în așteptare</p><b className="text-3xl">{jobs.filter(j=>j.status==="waiting").length}</b></Card><Card><p className="text-sm text-muted">Plăți de verificat</p><b className="text-3xl">{payments.filter(p=>["failed","pending"].includes(p.status)).length}</b></Card><Card><p className="text-sm text-muted">Notificări nereușite</p><b className="text-3xl">{notifications.filter(n=>n.status==="failed").length}</b></Card></div>
+<header className="mb-8"><p className="v2-eyebrow">NITIDO CONTROL</p><h1 className="workspace-title">Centrul de operațiuni</h1><p className="text-muted">Lucrări, firme și excepții care necesită intervenție.</p></header>
+{identity?.role==='super_admin' && <section aria-label="Marketing" className="rounded-2xl border border-emerald-200 bg-white p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4">
+          <div><h2 className="text-xl font-bold text-ink">Marketing</h2><p className="text-sm text-muted mt-1">Contacte, colectare firme și campanii.</p></div>
+          <Link href="/admin/marketing" className="v2-btn v2-btn-primary">Deschide Marketing</Link>
+        </section>}
+<div className="workspace-metrics"><Card><p className="text-sm text-muted">Lucrări în așteptare</p><b className="text-3xl">{jobs.filter(j=>j.status==="waiting").length}</b></Card><Card><p className="text-sm text-muted">Plăți de verificat</p><b className="text-3xl">{payments.filter(p=>["failed","pending"].includes(p.status)).length}</b></Card><Card><p className="text-sm text-muted">Notificări nereușite</p><b className="text-3xl">{notifications.filter(n=>n.status==="failed").length}</b></Card></div>
 
         <AdminOwnerNotifications/>
         <AdminStaff/>
