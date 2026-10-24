@@ -1,0 +1,37 @@
+name: Investigate exact NITIDO Play build and sanitized startup crash
+on:
+  push:
+    branches: [codex/nitido-android-investigation-20261024]
+    paths: ['scripts/android-play-investigate.py', 'scripts/android-play-investigate.test.py', '.github/workflows/android-play-investigate-20261024.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nitido-android-play-investigation
+  cancel-in-progress: false
+jobs:
+  investigate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify isolation, cleanup and secret filtering without external calls
+        run: python3 scripts/android-play-investigate.test.py
+      - run: python3 -m pip install --quiet google-auth requests
+      - name: Probe existing identities for the exact app; never upload a release
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          NITIDO_ENABLE_REPORTING_API: '1'
+        run: python3 scripts/android-play-investigate.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nitido-play-sanitized-investigation-20261024
+          path: android-play-investigation.json
+          if-no-files-found: error
+          retention-days: 3

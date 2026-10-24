@@ -1,0 +1,350 @@
+{
+  "source": "2432a3cf31d76267e88b91a8d2e2148922415625",
+  "branch": "codex/nitido-android-investigation-20261024",
+  "pullRequest": "https://github.com/Nelu251174/nitido/pull/139",
+  "apiProbeRun": 40070075744,
+  "lifecycleRun": 40070595942,
+  "releaseChanged": false,
+  "customerDataTouched": false,
+  "credentialsExported": false,
+  "storeVersionIdentified": false,
+  "rootCauseConfirmed": false,
+  "localProbeUnitTests": 7,
+  "historicalBundleCode": 24,
+  "candidateBundleCode": 26,
+  "googlePlayCredentialPresent": false,
+  "existingFirebaseIdentityPlayHttp": 403,
+  "existingFirebaseIdentityReportingHttp": 403,
+  "reason": "SERVICE_DISABLED",
+  "existingIdentityCanEnableServices": false,
+  "lifecycleApi36Status": "passed",
+  "lifecycleApi35Status": "passed_on_instrumented_followup",
+  "lifecycleApi35DebugRun": 40070906153,
+  "evidenceSha256": {
+    "android-play-investigation.json": "49e7b3c0e21e7ae50e6e289819826246e43a07ea9ab8c8bcc769569f85e927b2",
+    "historical-bundle-evidence.json": "7325163cce2281eeffd626cd86ce01fb38b23db568fefc5a8c4a85fe67e7406b",
+    "reporting-discovery-contract.json": "82763d1d17422316b0b87a12076a3fadc182283fe1813f0b654888e8dfdaee85",
+    "lifecycle-api-35-initial.json": "bf681196901fd55296db62f2f2440d93aa6e2e08d4c414ba83a0d7cf86e89870",
+    "lifecycle-api-36-initial.json": "66ed127f1cd62c434f5c0bac19942a1df0d4c5573c13fae6882c24c388f83b68",
+    "lifecycle-api-35-confirmed.json": "e9d972b1c245c443211015ae4a4755e5fc7cf37047fb40b0a2cce79680255dd7"
+  },
+  "status": "investigation_completed_google_play_access_blocked",
+  "lifecycleChecksPassed": 28,
+  "reportedCrashResolved": false,
+  "directIntegrationFound": false,
+  "googlePlayEmailMatches": 0,
+  "apiAccess": {
+    "package": "ro.nitido.app",
+    "checkedAt": "2026-10-24T06:24:30.236131+00:00",
+    "releaseChanged": false,
+    "credentialsExported": false,
+    "rawCrashReportsExported": false,
+    "iamRolesChanged": false,
+    "identities": [
+      {
+        "alias": "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON",
+        "available": false
+      },
+      {
+        "alias": "FIREBASE_SERVICE_ACCOUNT_JSON",
+        "available": true,
+        "identityProjectMatchesNitido": true,
+        "services": {
+          "canEnableExistingProjectServices": false,
+          "services": [
+            {
+              "service": "playdeveloperreporting.googleapis.com",
+              "http": 403,
+              "reasons": [
+                "AUTH_PERMISSION_DENIED"
+              ],
+              "status": "PERMISSION_DENIED",
+              "enabledByThisRun": false
+            },
+            {
+              "service": "androidpublisher.googleapis.com",
+              "http": 403,
+              "reasons": [
+                "AUTH_PERMISSION_DENIED"
+              ],
+              "status": "PERMISSION_DENIED",
+              "enabledByThisRun": false
+            }
+          ]
+        },
+        "play": {
+          "http": 403,
+          "reasons": [
+            "SERVICE_DISABLED"
+          ],
+          "status": "PERMISSION_DENIED"
+        },
+        "reporting": {
+          "issuesAccess": {
+            "http": 403,
+            "reasons": [
+              "SERVICE_DISABLED"
+            ],
+            "status": "PERMISSION_DENIED"
+          }
+        }
+      }
+    ]
+  },
+  "historicalBundle": {
+    "runId": 37972301860,
+    "artifactId": 11636737228,
+    "source": "be6b421015739dcbcc67eaa2234fd9fcb8ec7dc4",
+    "package": "ro.nitido.app",
+    "versionCode": 24,
+    "versionName": "1.0",
+    "minSdk": 24,
+    "targetSdk": 36,
+    "serverUrl": "https://nitido.ro",
+    "aabSha256": "9e706599da1b86ee580a907b43916bbda1cec5cc5f06a2a7892a0552bea985a4",
+    "firebaseConfigurationPresent": false,
+    "sameAsCustomerInstalledBuildConfirmed": false
+  },
+  "android16": {
+    "package": "ro.nitido.app",
+    "physicalDeviceVerified": false,
+    "installedStoreVersionIdentified": false,
+    "pushSent": false,
+    "accountUsed": false,
+    "releasePublished": false,
+    "checks": [
+      {
+        "scenario": "legacy-fresh",
+        "versionCode": 24,
+        "processAlive": true,
+        "nativeCrash": false
+      },
+      {
+        "scenario": "legacy-fresh-visible",
+        "versionCode": 24,
+        "webViewVisible": true
+      },
+      {
+        "scenario": "legacy-notification-permission-already-granted",
+        "versionCode": 24,
+        "processAlive": true,
+        "nativeCrash": false
+      },
+      {
+        "scenario": "legacy-resume-rotate-appearance",
+        "versionCode": 24,
+        "resumeAlive": true,
+        "rotations": 2,
+        "appearanceChanges": 2
+      },
+      {
+        "scenario": "legacy-offline-cold-start",
+        "versionCode": 24,
+        "processAlive": true,
+        "nativeCrash": false
+      },
+      {
+        "scenario": "legacy-offline-visible",
+        "versionCode": 24,
+        "webViewVisible": true
+      },
+      {
+        "scenario": "legacy-online-after-offline",
+        "versionCode": 24,
+        "processAlive": true,
+        "nativeCrash": false
+      },
+      {
+        "scenario": "upgraded-current-with-existing-permission",
+        "versionCode": 26,
+        "processAlive": true,
+        "nativeCrash": false
+      },
+      {
+        "scenario": "current-resume-rotate-appearance",
+        "versionCode": 26,
+        "resumeAlive": true,
+        "rotations": 2,
+        "appearanceChanges": 2
+      },
+      {
+        "scenario": "current-upgraded-visible",
+        "versionCode": 26,
+        "webViewVisible": true
+      },
+      {
+        "scenario": "current-offline-cold-start",
+        "versionCode": 26,
+        "processAlive": true,
+        "nativeCrash": false
+      },
+      {
+        "scenario": "current-offline-visible",
+        "versionCode": 26,
+        "webViewVisible": true
+      },
+      {
+        "scenario": "current-online-after-offline",
+        "versionCode": 26,
+        "processAlive": true,
+        "nativeCrash": false
+      },
+      {
+        "scenario": "current-final-visible",
+        "versionCode": 26,
+        "webViewVisible": true
+      }
+    ],
+    "api": "36",
+    "webviewProvider": true,
+    "currentScenario": "current-final-visible",
+    "upgradePreservedAppData": true,
+    "status": "passed"
+  },
+  "android15Initial": {
+    "package": "ro.nitido.app",
+    "physicalDeviceVerified": false,
+    "installedStoreVersionIdentified": false,
+    "pushSent": false,
+    "accountUsed": false,
+    "releasePublished": false,
+    "checks": [
+      {
+        "scenario": "legacy-fresh",
+        "versionCode": 24,
+        "processAlive": true,
+        "nativeCrash": false
+      }
+    ],
+    "api": "35",
+    "webviewProvider": true,
+    "currentScenario": "legacy-fresh-visible",
+    "status": "failed",
+    "reason": "APPLICATION_WEBVIEW_NOT_VISIBLE",
+    "crash": {
+      "type": "CRASH",
+      "appVersion": {},
+      "exceptionClasses": [],
+      "frames": [],
+      "rawReportExported": false
+    }
+  },
+  "android15Followup": {
+    "package": "ro.nitido.app",
+    "physicalDeviceVerified": false,
+    "installedStoreVersionIdentified": false,
+    "pushSent": false,
+    "accountUsed": false,
+    "releasePublished": false,
+    "checks": [
+      {
+        "scenario": "legacy-fresh",
+        "versionCode": 24,
+        "processAlive": true,
+        "nativeCrash": false
+      },
+      {
+        "scenario": "legacy-fresh-visible",
+        "versionCode": 24,
+        "webViewVisible": true
+      },
+      {
+        "scenario": "legacy-notification-permission-already-granted",
+        "versionCode": 24,
+        "processAlive": true,
+        "nativeCrash": false
+      },
+      {
+        "scenario": "legacy-resume-rotate-appearance",
+        "versionCode": 24,
+        "resumeAlive": true,
+        "rotations": 2,
+        "appearanceChanges": 2
+      },
+      {
+        "scenario": "legacy-offline-cold-start",
+        "versionCode": 24,
+        "processAlive": true,
+        "nativeCrash": false
+      },
+      {
+        "scenario": "legacy-offline-visible",
+        "versionCode": 24,
+        "webViewVisible": true
+      },
+      {
+        "scenario": "legacy-online-after-offline",
+        "versionCode": 24,
+        "processAlive": true,
+        "nativeCrash": false
+      },
+      {
+        "scenario": "upgraded-current-with-existing-permission",
+        "versionCode": 26,
+        "processAlive": true,
+        "nativeCrash": false
+      },
+      {
+        "scenario": "current-resume-rotate-appearance",
+        "versionCode": 26,
+        "resumeAlive": true,
+        "rotations": 2,
+        "appearanceChanges": 2
+      },
+      {
+        "scenario": "current-upgraded-visible",
+        "versionCode": 26,
+        "webViewVisible": true
+      },
+      {
+        "scenario": "current-offline-cold-start",
+        "versionCode": 26,
+        "processAlive": true,
+        "nativeCrash": false
+      },
+      {
+        "scenario": "current-offline-visible",
+        "versionCode": 26,
+        "webViewVisible": true
+      },
+      {
+        "scenario": "current-online-after-offline",
+        "versionCode": 26,
+        "processAlive": true,
+        "nativeCrash": false
+      },
+      {
+        "scenario": "current-final-visible",
+        "versionCode": 26,
+        "webViewVisible": true
+      }
+    ],
+    "api": "35",
+    "webviewProvider": true,
+    "currentScenario": "current-final-visible",
+    "upgradePreservedAppData": true,
+    "status": "passed"
+  },
+  "priorCandidates": {
+    "versions": [
+      25,
+      26
+    ],
+    "runId": 39995672365,
+    "jobsSucceeded": [
+      120560184414,
+      120560186598,
+      120560187615
+    ]
+  },
+  "originalBundleSignatures": {
+    "historicalCode24": {
+      "payloadEntriesVerified": 547,
+      "existingUploadCertificateMatches": true
+    },
+    "candidateCode26": {
+      "payloadEntriesVerified": 547,
+      "existingUploadCertificateMatches": true
+    }
+  }
+}
