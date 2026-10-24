@@ -1,4 +1,6 @@
-# Marketing Constanța — diagnostic din sandbox, 25 octombrie 2026
+# Marketing Constanța — diagnostic inițial, 25 octombrie 2026
+
+Acest raport descrie blocajul anterior. Remedierea și inventarul real sunt documentate în [Marketing OSM Snapshot](MARKETING-OSM-SNAPSHOT-20261025.md).
 
 Continuarea PR #150 privește exclusiv Marketing. `main` nu este baza publicată. Nu s-au modificat autentificarea, celelalte module, datele contactelor sau configurația de trimitere. Nu s-au trimis emailuri.
 
