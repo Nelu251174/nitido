@@ -1,0 +1,36 @@
+name: Approved NITIDO pilot contacts and owner phone tests
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/nitido-pilot-20261024]
+    paths: [scripts/pc.cjs, scripts/pilot-execute-20261024.mjs]
+permissions:
+  contents: read
+concurrency:
+  group: nitido-owner-pilot-20261024
+  cancel-in-progress: false
+jobs:
+  approved-operations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check restricted recipients, owner-only devices and duplicate prevention
+        run: node scripts/pc.test.cjs
+      - name: Execute only the explicitly approved contacts and phone tests
+        env:
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: node scripts/pilot-execute-20261024.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nitido-approved-pilot-20261024
+          path: .pilot-evidence/operations.json
+          include-hidden-files: true
+          retention-days: 1
+          if-no-files-found: warn
