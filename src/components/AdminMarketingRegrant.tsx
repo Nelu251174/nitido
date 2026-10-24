@@ -1,0 +1,8 @@
+'use client';
+import { useState } from 'react';
+import { inputClass } from './ui';
+import type { MarketingContact } from '@/lib/adminMarketingShared';
+export function AdminMarketingRegrant({contact,onSaved}:{contact:MarketingContact;onSaved:()=>Promise<void>}){
+ const [proof,setProof]=useState(''),[confirmation,setConfirmation]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false);
+ return <details className="mt-5 border-t border-line pt-4"><summary className="cursor-pointer font-bold">Reactivare cu un acord nou</summary><p className="my-3 text-sm">Dezabonarea și starea „Nu contacta” blochează global adresa, inclusiv la reimport. Reactivează numai după un acord nou documentat. Mesajele deja excluse din coadă rămân excluse.</p>{error&&<p role="alert">{error}</p>}<form className="grid gap-3" onSubmit={async e=>{e.preventDefault();setBusy(true);setError('');try{const r=await fetch('/api/admin/marketing/delivery',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'regrant',data:{id:contact.id,version:contact.version,proof,confirmation}})});const result=await r.json();if(!r.ok)throw Error(result.error??'Reactivarea nu a reușit.');await onSaved();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}><label>Dovada noului acord (sursă și dată)<input required minLength={12} maxLength={1000} className={inputClass} value={proof} onChange={e=>setProof(e.target.value)}/></label><label>Confirmă adresa {contact.email}<input required type="email" className={inputClass} value={confirmation} onChange={e=>setConfirmation(e.target.value)}/></label><button disabled={busy} className="v2-btn v2-btn-secondary justify-self-start">Înregistrează acordul nou și reactivează</button></form></details>;
+}

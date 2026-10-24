@@ -20,7 +20,7 @@ const nextConfig: NextConfig = {
   // Account/session responses must not survive logout in an HTTP cache.
   // Apply to errors as well as successful cookie and bearer responses.
   headers() {
-    return ["auth", "account", "jobs", "workspace", "recurring", "admin", "payments", "push", "reports", "uploads", "assessments", "firm"].map((area) => ({
+    return ["auth", "account", "jobs", "workspace", "recurring", "admin", "payments", "push", "reports", "uploads", "assessments", "firm", "marketing"].map((area) => ({
       source: `/api/${area}/:path*`,
       headers: [{ key: "Cache-Control", value: "private, no-store" }],
     }));
