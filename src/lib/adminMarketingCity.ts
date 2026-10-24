@@ -2,7 +2,7 @@ import type { Database } from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { CITIES } from './cities';
 import { initializeMarketing, marketingKey, MarketingError, normalizeMarketingInput, saveMarketingContacts } from './adminMarketing';
-import { collectBusinessWebsite, publicEmails } from './adminMarketingWebCollection';
+import { collectBusinessWebsite, MARKETING_PUBLIC_SOURCE, publicEmails } from './adminMarketingWebCollection';
 import { processMarketingDiscovery } from './adminMarketingDiscovery';
 import { publicWebsite, readPublicPage, type PublicReader } from './adminMarketingPublicWeb';
 import type { MarketingCategory, MarketingInput } from './adminMarketingShared';
@@ -95,8 +95,11 @@ async function processCity(db:Database,job:JobRow,reader:PublicReader){
   if(!reserveMarketingCitySource(db)){db.prepare("UPDATE marketing_city_jobs SET state='waiting',message=?,next_attempt_at=?,updated_at=? WHERE id=?").run('Limita sursei publice pentru astăzi este atinsă. Colectarea se reia automat mâine.',new Date(Date.now()+86400000).toISOString().slice(0,10)+'T00:01:00.000Z',now(),job.id);return;}
   db.prepare("UPDATE marketing_city_jobs SET state='discovering',updated_at=? WHERE id=?").run(now(),job.id);
   try{
-   const response=await reader('https://overpass-api.de/api/interpreter',{method:'POST',body:new URLSearchParams({data:marketingCityQuery(job.city)}).toString(),timeoutMs:30000,maxBytes:SOURCE_BYTES});
-   const result=JSON.parse(response.text);if(response.status!==200||!Array.isArray(result.elements)||result.remark||result.elements.length>20001)throw Error('CITY_SOURCE_UNAVAILABLE');
+   const response=await reader(MARKETING_PUBLIC_SOURCE,{method:'POST',body:new URLSearchParams({data:marketingCityQuery(job.city)}).toString(),timeoutMs:30000,maxBytes:SOURCE_BYTES});
+   if(response.status!==200)throw Error('SOURCE_HTTP_'+response.status);
+   let result;try{result=JSON.parse(response.text);}catch{throw Error('SOURCE_RESPONSE_INVALID');}
+   if(!Array.isArray(result.elements)||result.remark)throw Error('SOURCE_QUERY_INCOMPLETE');
+   if(result.elements.length>20001)throw new MarketingError('Inventarul depășește limita de protecție de 20.000 de înregistrări. Nu a fost marcat drept complet.');
    if(result.elements.filter((entry:{type?:string})=>entry?.type==='area').length!==1)throw new MarketingError('Sursa nu a identificat o singură limită administrativă pentru municipiu. Verifică numele înainte de reluare.');
    const candidates=result.elements.map(publicCandidate).filter(Boolean) as NonNullable<ReturnType<typeof publicCandidate>>[];
    db.transaction(()=>{
@@ -108,7 +111,10 @@ async function processCity(db:Database,job:JobRow,reader:PublicReader){
    }).immediate();
   }catch(error){
    if(error instanceof MarketingError){db.prepare("UPDATE marketing_city_jobs SET state='paused',message=?,next_attempt_at=NULL,updated_at=? WHERE id=? AND state='discovering'").run(error.message,now(),job.id);return;}
-   db.prepare("UPDATE marketing_city_jobs SET state=CASE WHEN attempts>=2 THEN 'paused' ELSE 'waiting' END,attempts=attempts+1,message=?,next_attempt_at=?,updated_at=? WHERE id=? AND state='discovering'").run('Sursa publică nu a răspuns complet. Rezultatul nu este considerat o colectare finalizată. Reluare automată sau folosește Reia colectarea.',new Date(Date.now()+5*60000).toISOString(),now(),job.id);
+   const known=new Set(['SOURCE_RESPONSE_INVALID','SOURCE_QUERY_INCOMPLETE','PUBLIC_DNS_TIMEOUT','PUBLIC_PAGE_TIMEOUT','PUBLIC_PAGE_TOO_LARGE','EAI_AGAIN','ENOTFOUND','ECONNRESET','ECONNREFUSED','ENETUNREACH','ETIMEDOUT','ABORT_ERR','UNABLE_TO_VERIFY_LEAF_SIGNATURE','CERT_HAS_EXPIRED']);
+   const message=error instanceof Error?error.message:'',code=typeof (error as {code?:unknown})?.code==='string'?String((error as {code:string}).code):'';
+   const reason=/^SOURCE_HTTP_[1-5]\d\d$/.test(message)?message:known.has(code)?code:known.has(message)?message:'SOURCE_READ_FAILED';
+   db.prepare("UPDATE marketing_city_jobs SET state=CASE WHEN attempts>=2 THEN 'paused' ELSE 'waiting' END,attempts=attempts+1,message=?,next_attempt_at=?,updated_at=? WHERE id=? AND state='discovering'").run('Sursa publică nu a răspuns complet ['+reason+']. Nu este o colectare finalizată. Reîncercare automată sau Reia colectarea.',new Date(Date.now()+5*60000).toISOString(),now(),job.id);
   }
   return;
  }
