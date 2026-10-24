@@ -266,6 +266,7 @@ export default function AdminPage() {
             <p className="text-xs text-muted">Fiecare cod poate fi folosit o singură dată. Codurile de recuperare se păstrează separat de parolă.</p>
             {authError && <p role="alert" className="text-coral text-sm">{authError}</p>}
             <Button type="submit" disabled={adminLoginBusy} className="w-full">{adminLoginBusy?'Se verifică…':'Autentificare'}</Button>
+            <p className="text-center text-sm"><Link href="/admin/recuperare" className="font-semibold underline">Ai uitat parola ADMIN?</Link></p>
           </form>
         </Card>
       </div>

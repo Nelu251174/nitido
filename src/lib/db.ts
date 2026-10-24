@@ -1,5 +1,6 @@
 import {AUTHORIZATION_COVERAGE_SCHEMA} from './authorizationCoverage';
 import {ADMIN_OWNER_SCHEMA} from './adminOwnerSchema';
+import {ADMIN_PASSWORD_RECOVERY_SCHEMA} from './adminPasswordCredentials';
 import {PROVIDER_SCORE_SCHEMA} from './providerScoreSchema';
 import {INCIDENT_SLA_ALERT_SCHEMA} from './incidentSlaSchema';
 import {ACCOUNT_DELETION_SCHEMA} from './accountDeletionSchema';
@@ -75,6 +76,7 @@ ${SAVED_CARDS_SCHEMA}
 ${NOTIFICATION_CLAIM_SCHEMA}
 ${SELECTION_RECOVERY_SCHEMA}
 ${ADMIN_MFA_SCHEMA}
+${ADMIN_PASSWORD_RECOVERY_SCHEMA}
 ${ADMIN_STAFF_SCHEMA}
 ${FINANCIAL_RECOVERY_SCHEMA}
 ${PAYMENT_RECOVERY_SCHEMA}
