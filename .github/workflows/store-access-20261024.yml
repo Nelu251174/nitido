@@ -1,0 +1,54 @@
+name: Verify existing NITIDO store access for requested public updates
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/nitido-store-updates-20261024]
+    paths: [.github/workflows/store-access-20261024.yml, scripts/play-publish-readiness-20261024.py]
+permissions:
+  contents: read
+jobs:
+  google-play:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 -m pip install --quiet google-auth requests
+      - name: Check only the exact NITIDO publishing access and delete temporary edits
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: python3 scripts/play-publish-readiness-20261024.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nitido-google-play-publishing-readiness-20261024
+          path: .store-readiness/google-play.json
+          include-hidden-files: true
+          retention-days: 1
+  app-store:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify current public version and unused build number
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: node scripts/ios-store-readiness-20261024.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nitido-current-app-store-version-20261024
+          path: .ios-store-readiness/readiness.json
+          include-hidden-files: true
+          retention-days: 1
