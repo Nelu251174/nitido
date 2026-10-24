@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auditAdminAction } from '@/lib/adminAuth';
-import { exportMarketingCsv, listMarketingContacts, saveMarketingContacts, updateMarketingContact, MarketingError } from '@/lib/adminMarketing';
+import { exportMarketingCsv, listMarketingContacts, saveMarketingContacts, updateMarketingContact, bulkMarketingContactStatus, MarketingError } from '@/lib/adminMarketing';
 import { marketingAccess, marketingBody, marketingFailure } from '@/lib/adminMarketingAccess';
+import { recordMarketingCollection } from '@/lib/adminMarketingWorkspace';
 
 export async function GET(req: NextRequest) {
   const access = await marketingAccess(req); if (access.error) return access.error;
@@ -22,6 +23,7 @@ export async function POST(req: NextRequest) {
     if (!Array.isArray(body.contacts)) throw new MarketingError('Lista de contacte lipsește.');
     const result = db.transaction(() => {
       const saved = saveMarketingContacts(db, body.contacts as unknown[], access.actor!);
+      if (body.collection) recordMarketingCollection(db, body.collection, (body.contacts as unknown[]).length, saved, access.actor!);
       auditAdminAction('marketing.contacts.saved', access.actor!, saved);
       return saved;
     })();
@@ -33,6 +35,11 @@ export async function PATCH(req: NextRequest) {
   try {
     const body = await marketingBody(req);
     const result = db.transaction(() => {
+      if (body.selection) {
+        const updated = bulkMarketingContactStatus(db, body.selection, body.status);
+        auditAdminAction('marketing.contacts.status', access.actor!, { ...updated, status: body.status });
+        return updated;
+      }
       const updated = updateMarketingContact(db, body);
       auditAdminAction('marketing.contact.updated', updated.id, { actor: access.actor, status: body.status, consent: body.consent });
       return updated;

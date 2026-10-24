@@ -49,7 +49,7 @@ function field(value: unknown, label: string, max: number, required = false): st
   if ((required && !text) || text.length > max || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(text)) throw new MarketingError(`${label}: valoare lipsă sau prea lungă.`);
   return text;
 }
-export function normalizeMarketingInput(value: unknown): MarketingInput {
+export function normalizeMarketingInput(value: unknown, options?: { existingIndividual?: boolean }): MarketingInput {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new MarketingError('Contact invalid.');
   const b = value as Record<string, unknown>;
   if (!Object.hasOwn(MARKETING_CATEGORIES, String(b.category))) throw new MarketingError('Categorie invalidă.');
@@ -70,14 +70,14 @@ export function normalizeMarketingInput(value: unknown): MarketingInput {
   if (typeof consent !== 'string' || !Object.hasOwn(MARKETING_CONSENTS, consent)) throw new MarketingError('Stare acord invalidă.');
   const consentEvidence = field(b.consentEvidence, 'Dovadă acord', 1000);
   if (consent === 'granted' && !consentEvidence) throw new MarketingError('Acordul necesită o dovadă (sursă și dată).');
-  if (category === 'individual' && (consent !== 'granted' || !consentEvidence)) throw new MarketingError('Persoanele fizice se adaugă numai cu dovada acordului de marketing.');
+  if (category === 'individual' && !options?.existingIndividual && (consent !== 'granted' || !consentEvidence)) throw new MarketingError('Persoanele fizice se adaugă numai cu dovada acordului de marketing.');
   return { name, category, city, email, cui, website, source: field(b.source, 'Sursă', 500, true), consent: consent as MarketingInput['consent'], consentEvidence, phone: field(b.phone, 'Telefon', 50), notes: field(b.notes, 'Observații', 2000) };
 }
 
 const select = `SELECT id,name,category,email,phone,city,cui,website,source,consent,consent_evidence AS consentEvidence,notes,status,version,created_at AS createdAt FROM marketing_contacts`;
 export function saveMarketingContacts(db: Database.Database, values: unknown[], actor: string) {
   if (!Array.isArray(values) || values.length < 1 || values.length > 200) throw new MarketingError('Salvează între 1 și 200 de contacte.');
-  const rows = values.map(normalizeMarketingInput); // Validate the whole batch before writing anything.
+  const rows = values.map(value => normalizeMarketingInput(value)); // Validate the whole batch before writing anything.
   initializeMarketing(db);
   return db.transaction(() => {
     let created = 0;
@@ -100,11 +100,33 @@ export function updateMarketingContact(db: Database.Database, value: unknown) {
   const evidence = field(b.consentEvidence, 'Dovadă acord', 1000), notes = field(b.notes, 'Observații', 2000);
   if (b.consent === 'granted' && !evidence) throw new MarketingError('Acordul necesită o dovadă (sursă și dată).');
   initializeMarketing(db);
+  const previous = db.prepare(select + ' WHERE id=?').get(id) as MarketingContact | undefined;
+  if (!previous) throw new MarketingError('Contactul nu mai există.', 409);
+  const row = normalizeMarketingInput({ ...previous, ...b }, { existingIndividual: previous.category === 'individual' && (b.category ?? previous.category) === 'individual' });
+  const duplicate = db.prepare("SELECT 1 FROM marketing_contacts WHERE id<>? AND category=? AND ((email<>'' AND email=?) OR (cui<>'' AND cui=?))").get(id, row.category, row.email, row.cui);
+  if (duplicate) throw new MarketingError('Există deja un contact din această categorie cu același email sau CUI.', 409);
   const status = b.consent === 'withdrawn' ? 'do_not_contact' : b.status;
-  const changed = db.prepare(`UPDATE marketing_contacts SET status=?,consent=?,consent_evidence=?,notes=?,version=version+1,updated_at=? WHERE id=? AND version=?`)
-    .run(status, b.consent, evidence, notes, new Date().toISOString(), id, b.version).changes;
+  const changed = db.prepare(`UPDATE marketing_contacts SET name=?,category=?,email=?,phone=?,city=?,city_key=?,search_key=?,cui=?,website=?,source=?,status=?,consent=?,consent_evidence=?,notes=?,version=version+1,updated_at=? WHERE id=? AND version=?`)
+    .run(row.name, row.category, row.email, row.phone, row.city, marketingKey(row.city), marketingKey(`${row.name} ${row.email} ${row.cui}`), row.cui, row.website, row.source, status, b.consent, evidence, notes, new Date().toISOString(), id, b.version).changes;
   if (!changed) throw new MarketingError('Contactul a fost modificat sau nu mai există. Reîncarcă lista.', 409);
   return { id };
+}
+
+export function bulkMarketingContactStatus(db: Database.Database, value: unknown, status: unknown) {
+  if (!Array.isArray(value) || !value.length || value.length > 200 || !['reviewed', 'do_not_contact'].includes(String(status))) throw new MarketingError('Selecție sau stare invalidă.');
+  initializeMarketing(db);
+  return db.transaction(() => {
+    const seen = new Set<string>();
+    for (const item of value) {
+      if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !Number.isInteger(item.version) || seen.has(item.id)) throw new MarketingError('Selecție invalidă.');
+      seen.add(item.id);
+      const row = db.prepare(select + ' WHERE id=?').get(item.id) as MarketingContact | undefined;
+      if (!row || row.version !== item.version) throw new MarketingError('Unele contacte au fost modificate. Reîncarcă lista.', 409);
+      if (status === 'reviewed' && (row.status === 'do_not_contact' || row.consent === 'withdrawn')) throw new MarketingError('Contactele „Nu contacta” nu pot fi reactivate în masă. Verifică individual acordul.');
+      updateMarketingContact(db, { ...row, status });
+    }
+    return { updated: seen.size };
+  }).immediate();
 }
 
 function filters(params: URLSearchParams) {
