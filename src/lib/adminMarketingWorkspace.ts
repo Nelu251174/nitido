@@ -1,6 +1,7 @@
+import { marketingEmailSuppressed } from './adminMarketingSuppression';
 import type { Database } from 'better-sqlite3';
 import { createHash, randomUUID } from 'node:crypto';
-import { initializeMarketing, marketingKey, MarketingError } from './adminMarketing';
+import { initializeMarketing, marketingEnabled, marketingKey, MarketingError } from './adminMarketing';
 import { MARKETING_CATEGORIES, type MarketingContact } from './adminMarketingShared';
 import { CAMPAIGN_STATES, type MarketingAudience, type MarketingCampaign, type MarketingCollectionRun, type MarketingSettings, type MarketingSimulation, type MarketingWorkspace } from './adminMarketingWorkspaceShared';
 
@@ -23,7 +24,7 @@ function money(value: unknown, label: string): number | null {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1000000) throw new MarketingError(`${label}: sumă invalidă.`);
   return Math.round(value * 1000000) / 1000000;
 }
-function email(value: unknown, label: string): string { const text = string(value, label, 254).toLowerCase(); if (text && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) throw new MarketingError(`${label}: email invalid.`); return text; }
+function email(value: unknown, label: string): string { const text = string(value, label, 254).toLowerCase(); if (text && !/^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$/.test(text)) throw new MarketingError(`${label}: email invalid.`); return text; }
 function record(value: unknown): Record<string, unknown> { if (!value || typeof value !== 'object' || Array.isArray(value)) throw new MarketingError('Date invalide.'); return value as Record<string, unknown>; }
 function audit(db: Database, action: string, target: string, actor: string, details: object = {}) {
   db.prepare('INSERT INTO admin_audit_log(id,action,target_id,details) VALUES(?,?,?,?)').run(randomUUID(), action, target, JSON.stringify({ actor, ...details }));
@@ -67,18 +68,18 @@ export function saveMarketingCampaign(db: Database, value: unknown, actor: strin
   }).immediate();
 }
 const escape = (value: string) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!);
-export function marketingCampaignHtml(campaign: MarketingCampaign, settings: MarketingSettings): string {
+export function marketingCampaignHtml(campaign: MarketingCampaign, settings: MarketingSettings, unsubscribe?: string): string {
   let link = '';
   if (campaign.ctaUrl && campaign.ctaLabel) { const url = new URL(campaign.ctaUrl); url.searchParams.set('utm_source', 'nitido'); url.searchParams.set('utm_medium', 'email'); url.searchParams.set('utm_campaign', campaign.id); link = `<p><a href="${escape(url.href)}">${escape(campaign.ctaLabel)}</a></p>`; }
-  return `<!doctype html><html lang="ro"><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>${escape(campaign.subject)}</title><body style="font-family:Arial,sans-serif;max-width:600px;padding:24px;margin:auto;line-height:1.6"><h2>${escape(settings.senderName)}</h2><h1>${escape(campaign.subject)}</h1><div style="white-space:pre-wrap">${escape(campaign.body)}</div>${link}<hr><p>${escape(settings.postalAddress)}</p><p style="font-size:12px">Previzualizare de test. Linkul personal de dezabonare se adaugă numai la activarea trimiterii reale.</p></body></html>`;
+  return `<!doctype html><html lang="ro"><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>${escape(campaign.subject)}</title><body style="font-family:Arial,sans-serif;max-width:600px;padding:24px;margin:auto;line-height:1.6"><h2>${escape(settings.senderName)}</h2><h1>${escape(campaign.subject)}</h1><div style="white-space:pre-wrap">${escape(campaign.body)}</div>${link}<hr><p>${escape(settings.postalAddress)}</p><p style="font-size:12px">${unsubscribe ? `<a href="${escape(unsubscribe)}">Dezabonare de la mesajele Marketing</a>` : 'Previzualizare. Linkul personal de dezabonare este adăugat la procesarea mesajului.'}</p></body></html>`;
 }
-function selectAudience(db: Database, campaign: MarketingCampaign) {
+export function selectAudience(db: Database, campaign: MarketingCampaign) {
   const contacts = db.prepare('SELECT id,name,category,email,consent,consent_evidence,status,city_key FROM marketing_contacts WHERE (?=\'\' OR category=?) AND (?=\'\' OR city_key=?) ORDER BY created_at,id LIMIT 5001').all(campaign.category, campaign.category, marketingKey(campaign.city), marketingKey(campaign.city)) as (MarketingContact & { consent_evidence: string })[];
   if (contacts.length > 5000) throw new MarketingError('Selecția depășește 5.000 de contacte. Restrânge categoria sau localitatea.');
   const suppressed = new Set((db.prepare("SELECT DISTINCT email FROM marketing_contacts WHERE email<>'' AND (status='do_not_contact' OR consent='withdrawn')").all() as { email: string }[]).map(row => row.email));
   const seen = new Set<string>(), eligible: string[] = [], reasons = { suppressed: 0, noEmail: 0, noConsent: 0, notReviewed: 0, duplicate: 0 };
   for (const row of contacts) {
-    if (row.status === 'do_not_contact' || row.consent === 'withdrawn' || suppressed.has(row.email)) reasons.suppressed++;
+    if (row.status === 'do_not_contact' || row.consent === 'withdrawn' || suppressed.has(row.email) || marketingEmailSuppressed(db, row.email)) reasons.suppressed++;
     else if (!row.email) reasons.noEmail++;
     else if (row.consent !== 'granted' || !row.consent_evidence.trim()) reasons.noConsent++;
     else if (row.status !== 'reviewed') reasons.notReviewed++;
@@ -136,7 +137,7 @@ export function simulateMarketingCampaign(db: Database, value: unknown, actor: s
   }).immediate();
 }
 export function recordMarketingCollection(db: Database, value: unknown, selected: number, saved: { created: number; duplicates: number }, actor: string) {
-  const b = record(value); if (!['csv', 'anaf'].includes(String(b.source))) throw new MarketingError('Sursă de colectare invalidă.');
+  const b = record(value); if (!['csv', 'anaf', 'openstreetmap', 'websites'].includes(String(b.source))) throw new MarketingError('Sursă de colectare invalidă.');
   const requested = Number(b.requested), excluded = Number(b.excluded);
   if (!Number.isInteger(requested) || !Number.isInteger(excluded) || requested < selected || requested > 200 || excluded < 0 || excluded !== requested - selected) throw new MarketingError('Contoare de colectare invalide.');
   initializeMarketingWorkspace(db);
@@ -150,6 +151,8 @@ export function getMarketingWorkspace(db: Database): MarketingWorkspace {
   const collections = (db.prepare('SELECT payload FROM marketing_collection_runs ORDER BY created_at DESC,id LIMIT 100').all() as { payload: string }[]).map(row => JSON.parse(row.payload) as MarketingCollectionRun);
   const counts = db.prepare("SELECT COUNT(*) contacts,COALESCE(SUM(status='reviewed'),0) reviewed,COALESCE(SUM(status='do_not_contact' OR consent='withdrawn'),0) suppressed FROM marketing_contacts").get() as { contacts: number; reviewed: number; suppressed: number };
   const stats = db.prepare("SELECT COUNT(*) simulations,COALESCE(SUM(json_extract(payload,'$.eligible')),0) simulatedRecipients FROM marketing_simulations").get() as { simulations: number; simulatedRecipients: number };
-  const audience = db.prepare("SELECT COUNT(DISTINCT c.email) eligible FROM marketing_contacts c WHERE c.email<>'' AND c.status='reviewed' AND c.consent='granted' AND TRIM(c.consent_evidence)<>'' AND NOT EXISTS(SELECT 1 FROM marketing_contacts s WHERE s.email=c.email AND (s.status='do_not_contact' OR s.consent='withdrawn'))").get() as { eligible: number };
-  return { settings: marketingSettings(db), campaigns: ids.map(row => getMarketingCampaign(db, row.id)), simulations, collections, totals: { ...counts, ...stats, campaigns: (db.prepare('SELECT COUNT(*) n FROM marketing_campaigns').get() as { n: number }).n, eligible: audience.eligible, realEmailsSent: 0 }, deliveryEnabled: false };
+  const audienceRows = db.prepare("SELECT DISTINCT c.email FROM marketing_contacts c WHERE c.email<>'' AND c.status='reviewed' AND c.consent='granted' AND TRIM(c.consent_evidence)<>'' AND NOT EXISTS(SELECT 1 FROM marketing_contacts s WHERE s.email=c.email AND (s.status='do_not_contact' OR s.consent='withdrawn'))").all() as {email:string}[];
+  const audience = {eligible:audienceRows.filter(row=>!marketingEmailSuppressed(db,row.email)).length};
+  const realEmailsSent = db.prepare("SELECT 1 FROM sqlite_master WHERE name='marketing_outbox'").get() ? (db.prepare("SELECT COUNT(*) n FROM marketing_outbox WHERE mode='live' AND provider_id IS NOT NULL").get() as {n:number}).n : 0;
+  return { settings: marketingSettings(db), campaigns: ids.map(row => getMarketingCampaign(db, row.id)), simulations, collections, totals: { ...counts, ...stats, campaigns: (db.prepare('SELECT COUNT(*) n FROM marketing_campaigns').get() as { n: number }).n, eligible: audience.eligible, realEmailsSent }, deliveryEnabled: marketingEnabled() && process.env.NITIDO_MARKETING_DELIVERY_ENABLED === 'true' };
 }

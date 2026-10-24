@@ -24,6 +24,6 @@ export interface MarketingCollectionRun {
 }
 export interface MarketingWorkspace {
   settings: MarketingSettings; campaigns: MarketingCampaign[]; simulations: MarketingSimulation[]; collections: MarketingCollectionRun[];
-  totals: { contacts: number; reviewed: number; suppressed: number; eligible: number; campaigns: number; simulations: number; simulatedRecipients: number; realEmailsSent: 0 };
-  deliveryEnabled: false;
+  totals: { contacts: number; reviewed: number; suppressed: number; eligible: number; campaigns: number; simulations: number; simulatedRecipients: number; realEmailsSent: number };
+  deliveryEnabled: boolean;
 }
