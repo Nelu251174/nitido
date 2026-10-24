@@ -138,7 +138,7 @@ async function processCity(db:Database,job:JobRow,reader:PublicReader){
  if(job.state!=='collecting')return;
  // Empty/contact-tagged records need no network request; avoid delaying a municipality by 20 rows per tick.
  // Website reads remain serial and the existing 15-second batch deadline still bounds external work.
- const batch=db.prepare("SELECT * FROM marketing_city_items WHERE job_id=? AND status='pending' ORDER BY id LIMIT 200").all(job.id) as ItemRow[];
+ const batch=db.prepare("SELECT * FROM marketing_city_items WHERE job_id=? AND status='pending' ORDER BY CASE WHEN email<>'' THEN 0 WHEN website='' THEN 1 ELSE 2 END,id LIMIT 200").all(job.id) as ItemRow[];
  const deadline=Date.now()+15000;let inBatch=0;
  for(const item of batch){
   if(inBatch++>0&&Date.now()>deadline)break;
