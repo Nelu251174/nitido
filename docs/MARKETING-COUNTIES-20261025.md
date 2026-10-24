@@ -18,4 +18,13 @@ Surse implementate:
 
 Procesarea unui inventar OSM ori a unui catalog nu demonstrează că au fost găsite toate firmele sau toate emailurile publice de pe Internet. Starea `review` păstrează județul nefinalizat până la verificarea acoperirii și a surselor/site-urilor inaccesibile. București nu este deblocat de finalizarea inventarului municipiului ori numai a sursei OSM.
 
-Verificări locale: 139 de teste Marketing trecute (un test de fum extern este omis fără configurarea lui), inclusiv CSV cu 100.001 rânduri/501 loturi, manifest cu 100.001 înregistrări, export peste 5.000, integritatea loturilor, mai multe adrese/firmă, acord retras păstrat, limite geografice și blocarea Bucureștiului. Buildul de producție a trecut cu trimiterea Marketing oprită. Starea efectiv publicată și rezultatele reale trebuie verificate separat în Coolify; documentul nu reprezintă o declarație de finalizare a județului.
+Verificări locale: 140 de teste Marketing trecute (un test de fum extern este omis fără configurarea lui), inclusiv CSV cu 100.001 rânduri/501 loturi, manifest cu 100.001 înregistrări, export peste 5.000, integritatea loturilor, mai multe adrese/firmă, acord retras păstrat, limite geografice și blocarea Bucureștiului. Buildul de producție a trecut cu trimiterea Marketing oprită. Starea efectiv publicată și rezultatele reale trebuie verificate separat în Coolify; documentul nu reprezintă o declarație de finalizare a județului.
+
+
+## Publicare verificată
+
+LIVE publică efectiv `7d97bfb733341a0623babb7e73d7788f4dc88b45`, pe baza versiunii LIVE anterioare `177cdbc`; main nu a fost folosit ca bază. Sandbox publică varianta corespunzătoare `0bd5a2bccd78044979c33b0e42ad7621a53ee2c2`, păstrând baza sa de autentificare. Deploy-ul LIVE `gual2eavuc7jfofxt8ziuqtn` este finalizat și aplicația este sănătoasă. Diferența față de versiunea LIVE anterioară nu modifică autentificarea, inițializarea generală a bazei sau Compose-ul de producție; Dockerfile adaugă numai scriptul de pregătire a sursei Marketing.
+
+Colectarea reală a județului rămâne în curs. La verificarea sandbox au fost procesate 4.393/4.682 înregistrări OSM, cu 40 de emailuri având sursă și MX verificate și două invalide; catalogul suplimentar începuse parcurgerea categoriilor. Cifrele sunt un punct de control, nu rezultatul final. Livrarea Marketing era blocată și outboxul gol.
+
+Prima pregătire temporară a județului pe LIVE a fost întreruptă la înlocuirea containerului (arhiva și trei treceri erau procesate, inventarul final nepublicat). Pregătirea a fost reluată pe containerul noii versiuni înainte de pornirea cozii. Verificarea succesului acestui pas și a progresului LIVE este obligatorie; nu deduce finalizarea din starea deploy-ului.
