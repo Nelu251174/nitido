@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { MARKETING_CATEGORIES, MARKETING_CONSENTS, MARKETING_STATUSES, type MarketingCategory, type MarketingContact, type MarketingInput, type MarketingList } from '@/lib/adminMarketingShared';
 import { Card, inputClass } from './ui';
+import { AdminMarketingWorkspace } from './AdminMarketingWorkspace';
 
 const emptyContact: MarketingInput = { name: '', category: 'business', email: '', phone: '', city: '', cui: '', website: '', source: '', consent: 'not_recorded', consentEvidence: '', notes: '' };
 const template = 'name,category,email,phone,city,cui,website,source,consent,consentEvidence,notes\r\nFirma exemplu,business,contact@example.com,,București,,https://example.com,Import administrativ,not_recorded,,\r\n';
@@ -22,7 +23,9 @@ function CategoryOptions({ all = false }: { all?: boolean }) {
 }
 
 export function AdminMarketing() {
-  const [tab, setTab] = useState<'contacts' | 'collect'>('contacts');
+  const [tab, setTab] = useState<'overview' | 'contacts' | 'collect' | 'campaigns' | 'results' | 'settings'>('overview');
+  const [revision, setRevision] = useState(0);
+  const [selected, setSelected] = useState<Record<string, number>>({});
   const [list, setList] = useState<MarketingList | null>(null);
   const [filters, setFilters] = useState({ category: '', city: '', search: '', status: '' });
   const [query, setQuery] = useState('');
@@ -60,30 +63,29 @@ export function AdminMarketing() {
     try { await operation(); } catch (e) { setError((e as Error).message); }
     finally { operationRunning.current = false; setBusy(false); }
   }
-  async function saveContacts(contacts: MarketingInput[]) {
-    const result = await api('contacts', 'POST', { contacts });
+  async function saveContacts(contacts: MarketingInput[], collectionInfo?: object) {
+    const result = await api('contacts', 'POST', { contacts, collection: collectionInfo });
+    setRevision(value => value + 1);
     setMessage(`${result.created} contacte salvate. ${result.duplicates} duplicate omise; datele existente au fost păstrate.`);
     await refresh(query);
   }
   function setCollectionField(key: keyof typeof collection, value: string) {
     setCollection(old => ({ ...old, [key]: value })); setPreview(null); setMessage('');
   }
-  function changeQuery(params: string) { setLoading(true); if (params === query) void refresh(params); else setQuery(params); }
+  function changeQuery(params: string) { setSelected({}); setLoading(true); if (params === query) void refresh(params); else setQuery(params); }
   function applyFilters(event: FormEvent) { event.preventDefault(); setError(''); changeQuery(new URLSearchParams(filters).toString()); }
   const previewContactRows = preview?.contacts ?? [];
 
   return <main className="design-container max-w-6xl py-8 space-y-6">
     <header className="flex flex-wrap items-center justify-between gap-4">
       <div><Link href="/admin" className="underline text-sm">← ADMIN</Link><p className="v2-eyebrow mt-4">NITIDO · MEDIU DE TEST</p><h1 className="text-3xl font-bold">Marketing</h1></div>
-      <p className="text-sm text-muted max-w-md">Gestionează contactele și colectarea firmelor. Trimiterea de emailuri nu este activată în această etapă.</p>
+      <p className="text-sm text-muted max-w-md">Contacte, colectare firme și campanii, într-un singur loc. Mod de test: simulări complete, fără emailuri trimise real.</p>
     </header>
     <div className="grid gap-3 sm:grid-cols-3">{Object.entries(MARKETING_CATEGORIES).map(([key, label]) => <Card key={key}><p className="text-muted">{label}</p><b className="text-3xl">{list?.counts[key as MarketingCategory] ?? '—'}</b></Card>)}</div>
-    <nav aria-label="Secțiuni Marketing" className="flex gap-3">
-      <button type="button" className={`v2-btn ${tab === 'contacts' ? 'v2-btn-primary' : 'v2-btn-secondary'}`} aria-current={tab === 'contacts' ? 'page' : undefined} onClick={() => setTab('contacts')}>Contacte</button>
-      <button type="button" className={`v2-btn ${tab === 'collect' ? 'v2-btn-primary' : 'v2-btn-secondary'}`} aria-current={tab === 'collect' ? 'page' : undefined} onClick={() => setTab('collect')}>Colectare firme</button>
-    </nav>
+    <nav aria-label="Secțiuni Marketing" className="flex flex-wrap gap-3">{([['overview', 'Panou general'], ['contacts', 'Contacte'], ['collect', 'Colectare firme'], ['campaigns', 'Campanii'], ['results', 'Rezultate'], ['settings', 'Setări']] as const).map(([key, label]) => <button key={key} type="button" className={`v2-btn ${tab === key ? 'v2-btn-primary' : 'v2-btn-secondary'}`} aria-current={tab === key ? 'page' : undefined} style={tab === key ? { color: '#052e22' } : undefined} onClick={() => { setError(''); setMessage(''); setTab(key); }}>{label}</button>)}</nav>
     {error && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-red-800">{error}</p>}
     {message && <p role="status" className="rounded-xl border border-green-300 bg-green-50 p-4 text-green-900">{message}</p>}
+    {['overview', 'campaigns', 'results', 'settings'].includes(tab) && <AdminMarketingWorkspace key={tab} section={tab as 'overview' | 'campaigns' | 'results' | 'settings'} revision={revision} onContacts={() => setTab('contacts')}/>}
 
     {tab === 'contacts' && <section className="space-y-5" aria-label="Contacte">
       <div className="flex flex-wrap justify-between items-center gap-3"><h2 className="text-2xl font-bold">Contacte</h2><div className="flex flex-wrap gap-3"><button className="v2-btn v2-btn-primary" type="button" onClick={() => { setShowForm(!showForm); setEditing(null); }}>Adaugă contact</button><a className="v2-btn v2-btn-secondary" href={`/api/admin/marketing/contacts?${query}&format=csv`}>Export CSV</a></div></div>
@@ -103,8 +105,16 @@ export function AdminMarketing() {
         <p className="sm:col-span-2 text-sm text-muted">Pentru firme este necesar un email sau CUI. Persoanele fizice se adaugă cu email și dovada acordului pentru marketing.</p>
         <div className="flex gap-3"><button disabled={busy} className="v2-btn v2-btn-primary">{busy ? 'Se salvează…' : 'Salvează contactul'}</button><button type="button" className="v2-btn v2-btn-secondary" onClick={() => setShowForm(false)}>Închide</button></div>
       </form></Card>}
-      {editing && <Card><form className="grid gap-4 sm:grid-cols-2" onSubmit={event => { event.preventDefault(); void run(async () => { await api('contacts', 'PATCH', editing); setEditing(null); setMessage('Contact actualizat.'); await refresh(query); }); }}>
+      {editing && <Card><form className="grid gap-4 sm:grid-cols-2" onSubmit={event => { event.preventDefault(); void run(async () => { await api('contacts', 'PATCH', editing); setEditing(null); setRevision(value => value + 1); setMessage('Contact actualizat.'); await refresh(query); }); }}>
         <h3 className="sm:col-span-2 text-xl font-bold">Actualizează: {editing.name}</h3>
+        <label>Nume / firmă<input className={inputClass} required maxLength={180} value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })}/></label>
+        <label>Categorie<select className={inputClass} value={editing.category} onChange={e => setEditing({ ...editing, category: e.target.value as MarketingCategory })}><CategoryOptions/></select></label>
+        <label>Email<input className={inputClass} type="email" maxLength={254} required={editing.category === 'individual'} value={editing.email} onChange={e => setEditing({ ...editing, email: e.target.value })}/></label>
+        <label>Telefon<input className={inputClass} maxLength={50} value={editing.phone} onChange={e => setEditing({ ...editing, phone: e.target.value })}/></label>
+        <label>Localitate<input className={inputClass} required maxLength={100} value={editing.city} onChange={e => setEditing({ ...editing, city: e.target.value })}/></label>
+        {editing.category !== 'individual' && <label>CUI<input className={inputClass} maxLength={20} value={editing.cui} onChange={e => setEditing({ ...editing, cui: e.target.value })}/></label>}
+        <label>Website<input className={inputClass} type="url" maxLength={500} value={editing.website} onChange={e => setEditing({ ...editing, website: e.target.value })}/></label>
+        <label>Sursa contactului<input className={inputClass} required maxLength={500} value={editing.source} onChange={e => setEditing({ ...editing, source: e.target.value })}/></label>
         <label>Stare<select className={inputClass} value={editing.status} onChange={e => setEditing({ ...editing, status: e.target.value as MarketingContact['status'] })}>{Object.entries(MARKETING_STATUSES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label>Acord pentru marketing<select className={inputClass} value={editing.consent} onChange={e => setEditing({ ...editing, consent: e.target.value as MarketingInput['consent'] })}>{Object.entries(MARKETING_CONSENTS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label className="sm:col-span-2">Dovadă acord (sursă și dată)<input className={inputClass} maxLength={1000} required={editing.consent === 'granted'} value={editing.consentEvidence} onChange={e => setEditing({ ...editing, consentEvidence: e.target.value })}/></label>
@@ -120,8 +130,9 @@ export function AdminMarketing() {
         <button className="v2-btn v2-btn-secondary self-end" disabled={loading}>Aplică filtrele</button>
       </form>
       <p role="status">{loading ? 'Se încarcă…' : `${list?.total ?? 0} contacte în selecție`}</p>
+      {!!list?.contacts.length && <div className="flex flex-wrap items-center gap-3"><label className="flex items-center gap-2"><input type="checkbox" checked={list.contacts.every(row => selected[row.id] !== undefined)} onChange={e => setSelected(e.target.checked ? Object.fromEntries(list.contacts.map(row => [row.id, row.version])) : {})}/>Selectează pagina</label><span>{Object.keys(selected).length} selectate</span>{(['reviewed', 'do_not_contact'] as const).map(status => <button key={status} type="button" className="v2-btn v2-btn-secondary" disabled={busy || !Object.keys(selected).length} onClick={() => void run(async () => { const result = await api('contacts', 'PATCH', { selection: Object.entries(selected).map(([id, version]) => ({ id, version })), status }); setSelected({}); setRevision(value => value + 1); setMessage(`${result.updated} contacte actualizate: ${MARKETING_STATUSES[status]}.`); await refresh(query); })}>{status === 'reviewed' ? 'Marchează selectatele Verificate' : 'Nu contacta selectatele'}</button>)}</div>}
       {!loading && list?.contacts.length === 0 && <Card>Nu există contacte pentru selecția curentă. Adaugă un contact sau deschide Colectare firme.</Card>}
-      {!!list?.contacts.length && <div className="overflow-x-auto rounded-xl border border-line"><table className="w-full text-sm bg-white"><caption className="sr-only">Contacte de marketing</caption><thead className="text-left bg-mist"><tr>{['Contact', 'Categorie', 'Localitate', 'Sursă', 'Stare / acord', 'Acțiuni'].map(label => <th className="p-3" key={label}>{label}</th>)}</tr></thead><tbody>{list.contacts.map(contact => <tr key={contact.id} className="border-t border-line align-top"><td className="p-3"><b>{contact.name}</b><p>{contact.email || 'Email neînregistrat'}</p><p>{contact.phone}</p>{contact.cui && <p>CUI: {contact.cui}</p>}{contact.website && <a className="underline" href={contact.website} target="_blank" rel="noreferrer">Website</a>}</td><td className="p-3">{MARKETING_CATEGORIES[contact.category]}</td><td className="p-3">{contact.city}</td><td className="p-3 max-w-56 break-words">{contact.source}</td><td className="p-3">{MARKETING_STATUSES[contact.status]}<p className="text-muted">{MARKETING_CONSENTS[contact.consent]}</p></td><td className="p-3"><button type="button" className="v2-btn v2-btn-secondary" disabled={busy} onClick={() => { setEditing({ ...contact }); setShowForm(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Actualizează</button></td></tr>)}</tbody></table></div>}
+      {!!list?.contacts.length && <div className="overflow-x-auto rounded-xl border border-line"><table className="w-full text-sm bg-white"><caption className="sr-only">Contacte de marketing</caption><thead className="text-left bg-mist"><tr><th className="p-3"><span className="sr-only">Selectare</span></th>{['Contact', 'Categorie', 'Localitate', 'Sursă', 'Stare / acord', 'Acțiuni'].map(label => <th className="p-3" key={label}>{label}</th>)}</tr></thead><tbody>{list.contacts.map(contact => <tr key={contact.id} className="border-t border-line align-top"><td className="p-3"><input type="checkbox" aria-label={`Selectează ${contact.name}`} checked={selected[contact.id] !== undefined} onChange={e => setSelected(old => { const next = { ...old }; if (e.target.checked) next[contact.id] = contact.version; else delete next[contact.id]; return next; })}/></td><td className="p-3"><b>{contact.name}</b><p>{contact.email || 'Email neînregistrat'}</p><p>{contact.phone}</p>{contact.cui && <p>CUI: {contact.cui}</p>}{contact.website && <a className="underline" href={contact.website} target="_blank" rel="noreferrer">Website</a>}</td><td className="p-3">{MARKETING_CATEGORIES[contact.category]}</td><td className="p-3">{contact.city}</td><td className="p-3 max-w-56 break-words">{contact.source}</td><td className="p-3">{MARKETING_STATUSES[contact.status]}<p className="text-muted">{MARKETING_CONSENTS[contact.consent]}</p></td><td className="p-3"><button type="button" className="v2-btn v2-btn-secondary" disabled={busy} onClick={() => { setEditing({ ...contact }); setShowForm(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Actualizează</button></td></tr>)}</tbody></table></div>}
       {list && list.total > 25 && <div className="flex items-center gap-3"><button className="v2-btn v2-btn-secondary" disabled={loading || list.page <= 1} onClick={() => { const params = new URLSearchParams(query); params.set('page', String(list.page - 1)); changeQuery(params.toString()); }}>Înapoi</button><span>Pagina {list.page} / {Math.ceil(list.total / 25)}</span><button className="v2-btn v2-btn-secondary" disabled={loading || list.page * 25 >= list.total} onClick={() => { const params = new URLSearchParams(query); params.set('page', String(list.page + 1)); changeQuery(params.toString()); }}>Înainte</button></div>}
     </section>}
 
@@ -143,8 +154,9 @@ export function AdminMarketing() {
       </fieldset></form></Card>
       {preview && <Card><h3 className="text-xl font-bold">Previzualizare</h3><p className="my-3">{preview.requested} intrări verificate · {preview.contacts.length} în selecție · {preview.excluded} excluse · {preview.notFound} negăsite.</p><p className="text-sm text-muted mb-4">Datele se salvează când apeși butonul de mai jos. Duplicatele sunt omise; stările „Nu contacta” și acordurile existente sunt păstrate.</p>
         <div className="overflow-x-auto"><table className="w-full text-sm"><caption className="sr-only">Contacte propuse pentru salvare</caption><thead className="text-left"><tr><th className="p-2">Nume</th><th className="p-2">Categorie</th><th className="p-2">Localitate</th><th className="p-2">Email / CUI</th></tr></thead><tbody>{previewContactRows.map((row, i) => <tr className="border-t border-line" key={i}><td className="p-2">{row.name}</td><td className="p-2">{MARKETING_CATEGORIES[row.category]}</td><td className="p-2">{row.city}</td><td className="p-2">{row.email || `CUI ${row.cui}`}</td></tr>)}</tbody></table></div>
-        <button type="button" className="v2-btn v2-btn-primary mt-4" disabled={busy || !preview.contacts.length} onClick={() => void run(async () => { await saveContacts(preview.contacts); setPreview(null); })}>Salvează {preview.contacts.length} contacte</button>
+        <button type="button" className="v2-btn v2-btn-primary mt-4" disabled={busy || !preview.contacts.length} onClick={() => void run(async () => { await saveContacts(preview.contacts, { source: collection.source, city: collection.city, category: collection.category, requested: preview.requested, excluded: preview.requested - preview.contacts.length }); setPreview(null); })}>Salvează {preview.contacts.length} contacte</button>
       </Card>}
+      <AdminMarketingWorkspace section="collections" revision={revision}/>
     </section>}
   </main>;
 }
