@@ -1,0 +1,17 @@
+{
+  "verifiedAt": "2026-10-24T12:49:27.897209+00:00",
+  "diagnosticRun": 40095357731,
+  "cause": "Compose build interpolation required runtime-only STRIPE_CONNECT_WEBHOOK_SECRET",
+  "logTextExported": false,
+  "runtimeSecretPresenceVerified": true,
+  "runtimePresenceEvidence": "Connect runtime presence task succeeded; task removed",
+  "oldFailureReproduced": true,
+  "buildWithoutRuntimeSecret": true,
+  "runtimeSecretPreserved": true,
+  "secretNotBuildArgument": true,
+  "existingVolumesPreserved": true,
+  "requiredPublicConfigPreserved": true,
+  "realCredentialsUsedInComposeTests": false,
+  "containersStartedByComposeTest": false,
+  "applicationSourceUnchangedFrom": "42e435b685864e57b67db45a328c468a1e29131e"
+}

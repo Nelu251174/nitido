@@ -62,7 +62,9 @@ export async function sendApns(token:string,payload:PushPayload):Promise<{provid
         const permanent=reason==="Unregistered"||reason==="BadDeviceToken";
         finish(new PushProviderError(permanent?"PUSH_TOKEN_INVALID":"APNS_TEMPORARY_FAILURE",permanent));
       });
-      req.end(JSON.stringify({...payload.data,aps:{alert:{title:payload.title,body:payload.body},sound:"default"}}));
+      // Updated iOS builds install this resource in Library/Sounds. Older builds
+      // fall back to the iOS default when the new filename is unavailable.
+      req.end(JSON.stringify({...payload.data,aps:{alert:{title:payload.title,body:payload.body},sound:"nitido_sms_v1.wav"}}));
     }catch{finish(new PushProviderError("APNS_TEMPORARY_FAILURE"))}
   });
 }

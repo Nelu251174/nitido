@@ -1,0 +1,21 @@
+name: Read selected NITIDO SMS deployment errors
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+jobs:
+  read-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Read only infrastructure errors of the exact failed deployment
+        env:
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: node scripts/ios-sms-deploy-diagnostic-20261024.mjs

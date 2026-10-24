@@ -1,0 +1,64 @@
+name: Verify louder iPhone SMS sound candidate
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/nitido-ios-sms-20261024]
+    paths: [ios/**, src/lib/pushProviders*, scripts/verify-ios-sms-installed.swift, .github/workflows/ios-sms-candidate-20261024.yml]
+permissions:
+  contents: read
+concurrency:
+  group: nitido-ios-sms-candidate-20261024
+  cancel-in-progress: false
+jobs:
+  notifications:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npx vitest run src/lib/pushProviders.test.ts src/lib/push.test.ts src/lib/pushDelivery.test.ts src/lib/nativePushClient.test.ts src/components/NativePushControls.test.tsx --maxWorkers=2
+      - run: npx eslint src/lib/pushProviders.ts src/lib/pushProviders.test.ts
+  native:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify native toolchain
+        run: swift --version
+      - run: npm ci
+      - name: Sync the existing production app
+        env:
+          NITIDO_NATIVE_SERVER_URL: https://nitido.ro
+        run: npx cap sync ios
+      - name: Compile unsigned device candidate
+        run: xcodebuild -quiet -project ios/App/App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/sms-device" CODE_SIGNING_ALLOWED=NO build
+      - name: Compile simulator candidate
+        run: xcodebuild -quiet -project ios/App/App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/sms-simulator" CODE_SIGNING_ALLOWED=NO build
+      - name: Verify installation of the APNs sound and persistence across launches
+        run: swift scripts/verify-ios-sms-installed.swift "$RUNNER_TEMP/sms-simulator/Build/Products/Release-iphonesimulator/App.app"
+      - name: Report existing App Store publishing binding availability
+        env:
+          TEAM: ${{ secrets.APPLE_TEAM_ID != '' }}
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID != '' }}
+          ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID != '' }}
+          PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY != '' }}
+        run: |
+          node -e 'const fs=require("fs"),keys=["TEAM","KEY_ID","ISSUER","PRIVATE_KEY"];const r={bindings:Object.fromEntries(keys.map(k=>[k,process.env[k]==="true"])),signingOrStoreAccessVerified:false,uploaded:false};fs.mkdirSync(".ios-sms-evidence",{recursive:true});fs.writeFileSync(".ios-sms-evidence/distribution-bindings.json",JSON.stringify(r,null,2));console.log(JSON.stringify(r));'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nitido-ios-sms-candidate-evidence-20261024
+          path: .ios-sms-evidence/*.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 1
