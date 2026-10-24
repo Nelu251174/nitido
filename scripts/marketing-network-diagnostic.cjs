@@ -7,7 +7,7 @@ const dns = require('node:dns/promises');
 const https = require('node:https');
 const { setTimeout: delay } = require('node:timers/promises');
 const report = value => console.log('MKT_NETWORK ' + JSON.stringify(value));
-async function probe(url) {
+async function probe(url, body) {
   const start = Date.now();
   let stage = 'dns';
   let agent;
@@ -35,11 +35,13 @@ async function probe(url) {
       };
       const req = https.request(url, {
         agent, autoSelectFamily: true, autoSelectFamilyAttemptTimeout: 250,
-        signal: AbortSignal.timeout(12000),
+        signal: AbortSignal.timeout(body ? 90000 : 12000),
+        method: body ? 'POST' : 'GET',
         headers: {
           'User-Agent': 'NITIDO-Marketing/1.0 (+https://nitido.ro/contact)',
           Accept: 'text/html,application/json,text/plain;q=0.9',
           'Accept-Encoding': 'identity',
+          ...(body ? { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) } : {}),
         },
       }, response => {
         stage = 'response';
@@ -59,6 +61,7 @@ async function probe(url) {
       req.on('error', error => finish({
         code: /^[A-Z_]+$/.test(error.code ?? '') ? error.code : 'PUBLIC_READ_FAILED',
       }));
+      if (body) req.write(body);
       req.end();
     });
   } catch (error) {
@@ -68,5 +71,7 @@ async function probe(url) {
 }
 (async () => {
   await probe('https://nitido.ro/');
-  await probe('https://overpass.private.coffee/api/status');
+  // Separate provider queue/response time from the five-second query execution budget.
+  await probe('https://overpass.private.coffee/api/interpreter',
+    new URLSearchParams({ data: '[out:json][timeout:5];node(1);out ids;' }).toString());
 })().catch(() => { report({ code: 'DIAGNOSTIC_FAILED' }); process.exitCode = 1; });
