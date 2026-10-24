@@ -43,19 +43,19 @@ export function robotsAllows(text: string, pathname: string): boolean {
   }).sort((a, b) => b.path.length - a.path.length || Number(b.allow) - Number(a.allow));
   return !matches.length || matches[0].allow;
 }
-export async function collectBusinessWebsite(website: string, reader: PublicReader = readPublicPage, depth = 0) {
+export async function collectBusinessWebsite(website: string, reader: PublicReader = readPublicPage, depth = 0, includeContactPages = false) {
   if (depth > 3) throw new MarketingError('Prea multe redirecționări ale site-ului.');
   const start = publicWebsite(website), robots = await reader(new URL('/robots.txt', start).href, { maxBytes: 100000, redirects: false });
   if (robots.status !== 404 && (robots.status < 200 || robots.status >= 300)) throw new MarketingError('Fișierul robots.txt nu poate fi verificat.');
   const rules = robots.status === 404 ? '' : robots.text;
   if (!robotsAllows(rules, start.pathname)) throw new MarketingError('Site-ul nu permite colectarea automată pentru această pagină.');
   const first = await reader(start.href, { redirects: false });
-  if ([301,302,303,307,308].includes(first.status) && first.headers.location) return collectBusinessWebsite(new URL(first.headers.location, start).href, reader, depth + 1);
+  if ([301,302,303,307,308].includes(first.status) && first.headers.location) return collectBusinessWebsite(new URL(first.headers.location, start).href, reader, depth + 1, includeContactPages);
   if (first.status !== 200 || !/text\/html|application\/xhtml/i.test(String(first.headers['content-type'] ?? ''))) throw new MarketingError('Pagina publică a firmei nu este disponibilă ca HTML.');
   if (new URL(first.url).origin !== start.origin || !robotsAllows(rules, new URL(first.url).pathname)) throw new MarketingError('Redirecționarea nu este permisă pentru colectare.');
   const page = extractBusinessPage(first.text, first.url), found = page.emails.map(email => ({ email, source: first.url }));
   for (const link of page.links) {
-    if (found.length) break;
+    if (found.length && !includeContactPages) break;
     if (!robotsAllows(rules, new URL(link).pathname)) continue;
     try { const next = await reader(link, { redirects: false }); if (next.status === 200 && new URL(next.url).origin === start.origin && robotsAllows(rules, new URL(next.url).pathname)) for (const email of extractBusinessPage(next.text, next.url).emails) found.push({ email, source: next.url }); } catch { /* A failed public contact page does not invent an email. */ }
   }

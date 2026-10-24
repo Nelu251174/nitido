@@ -1,0 +1,4 @@
+export const MARKETING_COUNTY_STATES={queued:'În așteptare',preparing:'Pregătire sursă',importing:'Import inventar',collecting:'Colectare site-uri',verifying:'Verificare emailuri',review:'Acoperire de verificat',paused:'În pauză',completed:'Finalizat'} as const;
+export type CountyState=keyof typeof MARKETING_COUNTY_STATES;
+export interface MarketingCountySummary{code:string;name:string;contacts:number;emails:number;verified:number;invalid:number;pending:number;needsReview:number;job:null|{id:string;state:CountyState;total:number;processed:number;withoutEmail:number;warnings:number;message:string;updatedAt:string;nextAttemptAt:string|null}}
+export interface MarketingCountyView{counties:MarketingCountySummary[];order:string[];attribution:string}

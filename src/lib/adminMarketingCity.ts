@@ -1,3 +1,4 @@
+import { processMarketingCounty } from './adminMarketingCounty';
 import type { Database } from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { CITIES } from './cities';
@@ -174,11 +175,16 @@ export async function processMarketingCollections(db:Database,reader:PublicReade
   const old=db.prepare('SELECT until_ms FROM marketing_collection_lock WHERE id=1').get() as {until_ms:number}|undefined;if(old&&old.until_ms>Date.now())return false;
   db.prepare('INSERT INTO marketing_collection_lock VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET owner=excluded.owner,until_ms=excluded.until_ms').run(owner,Date.now()+10*60000);return true;
  }).immediate();if(!locked)return;
+ const heartbeat=()=>{
+  const lock=db.prepare('SELECT owner FROM marketing_collection_lock WHERE id=1').get() as {owner:string}|undefined;if(lock?.owner!==owner)throw Error('COLLECTION_LEASE_LOST');
+  db.prepare('UPDATE marketing_collection_lock SET until_ms=? WHERE id=1 AND owner=?').run(Date.now()+10*60000,owner);
+ };
  const guardedReader:PublicReader=async(url,options)=>{
   const lock=db.prepare('SELECT owner FROM marketing_collection_lock WHERE id=1').get() as {owner:string}|undefined;if(lock?.owner!==owner)throw Error('COLLECTION_LEASE_LOST');
   db.prepare('UPDATE marketing_collection_lock SET until_ms=? WHERE id=1 AND owner=?').run(Date.now()+10*60000,owner);return reader(url,options);
  };
  try{
+  if(await processMarketingCounty(db,guardedReader,heartbeat))return;
   const job=db.prepare(`SELECT * FROM marketing_city_jobs WHERE state IN ${ACTIVE} AND (next_attempt_at IS NULL OR next_attempt_at<=?) ORDER BY created_at LIMIT 1`).get(now()) as JobRow|undefined;
   if(job)await processCity(db,job,guardedReader);else await processMarketingDiscovery(db,guardedReader);
  }finally{db.prepare('DELETE FROM marketing_collection_lock WHERE id=1 AND owner=?').run(owner);}

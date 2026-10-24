@@ -86,6 +86,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/scripts/offsite-backup-runner.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/offsite-backup-admin.mjs ./scripts/offsite-backup-admin.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/healthcheck.mjs ./scripts/healthcheck.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/marketing-city-start.cjs ./scripts/marketing-city-start.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/marketing-osm-snapshot.cjs ./scripts/marketing-osm-snapshot.cjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/verify-database-backup.mjs ./scripts/verify-database-backup.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/recovery.mjs ./scripts/recovery.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/release-preparation.mjs ./scripts/release-preparation.mjs

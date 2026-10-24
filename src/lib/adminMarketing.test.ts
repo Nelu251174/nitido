@@ -16,7 +16,7 @@ describe('Marketing test isolation', () => {
     db.exec("CREATE TABLE jobs(id TEXT, value TEXT); INSERT INTO jobs VALUES('existing','preserve');");
     initializeMarketing(db); initializeMarketing(db); saveMarketingContacts(db, [contact()], 'admin');
     expect(db.prepare('SELECT * FROM jobs').all()).toEqual([{ id: 'existing', value: 'preserve' }]);
-    expect(db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all()).toEqual([{ name: 'jobs' }, { name: 'marketing_contacts' }, { name: 'marketing_suppressions' }]);
+    expect(db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all()).toEqual([{ name: 'jobs' }, { name: 'marketing_contact_regions' }, { name: 'marketing_contacts' }, { name: 'marketing_email_checks' }, { name: 'marketing_suppressions' }]);
   });
 });
 describe('contact integrity', () => {
