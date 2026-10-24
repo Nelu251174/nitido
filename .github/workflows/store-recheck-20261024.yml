@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [codex/nitido-flow-validation-20261024]
-    paths: [.github/workflows/store-recheck-20261024.yml]
+    paths: [.github/workflows/store-recheck-20261024.yml, scripts/store-recheck-20261024.py]
 permissions:
   contents: read
 jobs:
