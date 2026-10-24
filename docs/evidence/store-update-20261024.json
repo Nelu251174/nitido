@@ -1,0 +1,28 @@
+{
+  "version": "1.0.3",
+  "iosBuild": 20,
+  "buildId": "6001e27d-9cbd-45ac-b75d-3db441e0322c",
+  "processingState": "VALID",
+  "uploadRun": 40093542001,
+  "draftRun": 40095207752,
+  "liveSource": "fdb571e395ec664cc510b4787acb6a2b41f40901",
+  "liveDeployment": "umzp9gndcz1qz6m1vt5uv1i1",
+  "liveDeploymentFinishedAt": "2026-10-24T12:52:23.000000Z",
+  "liveHealthy": true,
+  "liveRuntimeSoundAndConnectVerified": true,
+  "runtimeTaskRemoved": true,
+  "httpPageChecks": 66,
+  "httpAssetChecks": 48,
+  "httpFailures": 0,
+  "nativeApplicationSourceUnchangedFrom": "42e435b685864e57b67db45a328c468a1e29131e",
+  "notificationsTestsPassed": 52,
+  "signedIpaSha256": "8e955186e619f4f083b70f38b22cbe23e10a1e099d211cc8bc575356477e07e7",
+  "appReviewSubmitted": false,
+  "publicRelease": false,
+  "googlePlay": {
+    "publisherApiEnabled": false,
+    "dedicatedPublishingIdentityPresent": false,
+    "existingIdentityCanEnableApi": false,
+    "uploadAttempted": false
+  }
+}
