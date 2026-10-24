@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { AdminMarketingCityCollection } from './AdminMarketingCityCollection';
 import { AdminMarketingRegrant } from './AdminMarketingRegrant';
 import { AdminMarketingPublicCollection } from './AdminMarketingPublicCollection';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
@@ -74,6 +75,7 @@ export function AdminMarketing({ testEnvironment = true }: { testEnvironment?: b
   function setCollectionField(key: keyof typeof collection, value: string) {
     setCollection(old => ({ ...old, [key]: value })); setPreview(null); setMessage('');
   }
+  const onCityProgress = useCallback(() => { setRevision(value => value + 1); void refresh(query); }, [query, refresh]);
   function changeQuery(params: string) { setSelected({}); setLoading(true); if (params === query) void refresh(params); else setQuery(params); }
   function applyFilters(event: FormEvent) { event.preventDefault(); setError(''); changeQuery(new URLSearchParams(filters).toString()); }
   const previewContactRows = preview?.contacts ?? [];
@@ -140,6 +142,7 @@ export function AdminMarketing({ testEnvironment = true }: { testEnvironment?: b
 
     {tab === 'collect' && <section className="space-y-5" aria-label="Colectare firme">
       <h2 className="text-2xl font-bold">Colectare firme</h2>
+      <AdminMarketingCityCollection onProgress={onCityProgress}/>
       <AdminMarketingPublicCollection onSave={saveContacts}/>
       <Card><form onSubmit={event => { event.preventDefault(); void run(async () => { setPreview(null); const result = await api('collect', 'POST', collection); setPreview(result); }); }}><fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2">
         <label>Sursă<select className={inputClass} value={collection.source} onChange={e => { setCollectionField('source', e.target.value); if (e.target.value === 'anaf') setCollection(old => ({ ...old, category: 'business' })); }}><option value="csv">Import CSV</option><option value="anaf">ANAF · listă de CUI-uri</option></select></label>

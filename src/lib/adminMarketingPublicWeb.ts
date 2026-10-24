@@ -21,8 +21,8 @@ export function publicWebsite(value: string): URL {
 export function isPublicAddress(address: string): boolean {
   try { const ip = ipaddr.process(address); return ip.range() === 'unicast'; } catch { return false; }
 }
-export function optionsAllLookup(options: {all?:boolean}, selected: LookupAddress, callback: (error:NodeJS.ErrnoException|null,address:string|LookupAddress[],family?:number)=>void) {
-  if(options.all)callback(null,[selected]);else callback(null,selected.address,selected.family);
+export function optionsAllLookup(options: {all?:boolean}, addresses: LookupAddress[], callback: (error:NodeJS.ErrnoException|null,address:string|LookupAddress[],family?:number)=>void) {
+  if(options.all)callback(null,addresses);else callback(null,addresses[0].address,addresses[0].family);
 }
 /** Bounded HTTPS reads. Direct connections pin the checked DNS answer; configured proxies are preserved. */
 export const readPublicPage: PublicReader = async (raw, options = {}) => {
@@ -33,13 +33,15 @@ export const readPublicPage: PublicReader = async (raw, options = {}) => {
       lookup(url.hostname,{all:true,verbatim:true}).then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});
     });
     if (!addresses.length || addresses.some(item => !isPublicAddress(item.address))) throw new MarketingError('Destinația nu este o adresă publică permisă.');
-    const selected = addresses[0], proxy = process.env.HTTPS_PROXY ?? process.env.https_proxy;
-    const agent = proxy ? new HttpsProxyAgent(proxy) : new Agent({ lookup: (_host, _options, callback) => optionsAllLookup(_options,selected,callback) });
+    const proxy = process.env.HTTPS_PROXY ?? process.env.https_proxy;
+    const agent = proxy ? new HttpsProxyAgent(proxy) : new Agent({ lookup: (_host, _options, callback) => optionsAllLookup(_options,addresses,callback) });
+    // HTTPS forwards these socket options to TLS/net; keep both validated families available.
+    const connectionOptions = { autoSelectFamily: true, autoSelectFamilyAttemptTimeout: 250 };
     const current = url;
     let page: PublicPage;
     try {
       page = await new Promise<PublicPage>((resolve, reject) => {
-        const req = request(current, { agent, method: options.method ?? 'GET', signal: AbortSignal.timeout(options.timeoutMs ?? 8000), maxHeaderSize: 16384, headers: { 'User-Agent': 'NITIDO-Marketing/1.0 (+https://nitido.ro/contact)', Accept: 'text/html,application/json,text/plain;q=0.9', 'Accept-Encoding': 'identity', ...(options.body ? { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(options.body) } : {}) } }, response => {
+        const req = request(current, { agent, ...connectionOptions, method: options.method ?? 'GET', signal: AbortSignal.timeout(options.timeoutMs ?? 8000), maxHeaderSize: 16384, headers: { 'User-Agent': 'NITIDO-Marketing/1.0 (+https://nitido.ro/contact)', Accept: 'text/html,application/json,text/plain;q=0.9', 'Accept-Encoding': 'identity', ...(options.body ? { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(options.body) } : {}) } }, response => {
           let rawSize = 0; response.on('data', chunk => { rawSize += chunk.length; if (rawSize > maxBytes) response.destroy(Error('PUBLIC_PAGE_TOO_LARGE')); });
           const encoding = String(response.headers['content-encoding'] ?? 'identity');
           const stream = encoding === 'gzip' ? response.pipe(createGunzip()) : encoding === 'br' ? response.pipe(createBrotliDecompress()) : encoding === 'deflate' ? response.pipe(createInflate()) : response;

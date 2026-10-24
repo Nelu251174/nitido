@@ -4,7 +4,8 @@ import { marketingKey, MarketingError, normalizeMarketingInput } from './adminMa
 import type { MarketingInput } from './adminMarketingShared';
 import { publicWebsite, readPublicPage, type PublicReader } from './adminMarketingPublicWeb';
 
-const OVERPASS = 'https://overpass-api.de/api/interpreter';
+// OSM's public instance list documents this service as available for any project.
+export const MARKETING_PUBLIC_SOURCE = 'https://overpass.private.coffee/api/interpreter';
 const sectors: Record<string, string[]> = {
   all: ['[office]', '[shop]', '[tourism~"^(hotel|guest_house|hostel)$"]', '[amenity~"^(restaurant|cafe|clinic|bank)$"]'],
   hotels: ['[tourism~"^(hotel|guest_house|hostel)$"]'], restaurants: ['[amenity~"^(restaurant|cafe)$"]'], offices: ['[office]'], shops: ['[shop]'],
@@ -83,7 +84,7 @@ export async function collectMarketingWeb(value: unknown, reader: PublicReader =
   else {
     let entries: OSM[];
     try {
-      const response = await reader(OVERPASS, { method: 'POST', body: new URLSearchParams({ data: discoveryQuery(city, String(b.category), String(b.sector ?? 'all'), limit) }).toString(), timeoutMs: 25000, maxBytes: 250000 });
+      const response = await reader(MARKETING_PUBLIC_SOURCE, { method: 'POST', body: new URLSearchParams({ data: discoveryQuery(city, String(b.category), String(b.sector ?? 'all'), limit) }).toString(), timeoutMs: 25000, maxBytes: 250000 });
       const data = JSON.parse(response.text); if (response.status !== 200 || !Array.isArray(data.elements) || data.remark) throw Error(); entries = data.elements;
     } catch { throw new MarketingError('Sursa publică de firme nu este disponibilă acum. Reîncearcă sau introdu site-urile firmelor cunoscute.', 502); }
     candidates = entries.slice(0, limit).map(entry => ({ name: String(entry.tags?.name ?? '').slice(0, 180), website: entry.tags?.['contact:website'] || entry.tags?.website || '', email: publicEmails(entry.tags?.['contact:email'] || entry.tags?.email || '')[0] ?? '', source: `https://www.openstreetmap.org/${entry.type}/${entry.id}`, phone: String(entry.tags?.['contact:phone'] || entry.tags?.phone || '').slice(0, 50) }));
