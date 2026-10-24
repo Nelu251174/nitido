@@ -1,0 +1,26 @@
+name: Inspect available standard iOS SMS audio resources
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/nitido-ios-sms-20261024]
+    paths: [scripts/inspect-ios-sms-sounds.swift, .github/workflows/ios-sms-sounds-20261024.yml]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Swift and inspect installed simulator audio resources
+        run: |
+          swift --version
+          xcrun simctl list runtimes --json > /tmp/nitido-ios-runtimes.json
+          swift scripts/inspect-ios-sms-sounds.swift
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nitido-ios-sms-audio-inspection-20261024
+          path: .ios-sms-evidence/*
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
