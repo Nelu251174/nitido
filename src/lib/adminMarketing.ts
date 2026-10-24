@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { suppressionSchema, suppressMarketingEmail } from './adminMarketingSuppression';
 import { randomUUID } from 'node:crypto';
 import { MARKETING_CATEGORIES, MARKETING_CONSENTS, MARKETING_STATUSES, type MarketingInput, type MarketingCategory, type MarketingContact, type MarketingList } from './adminMarketingShared';
 
@@ -37,7 +38,7 @@ CREATE INDEX IF NOT EXISTS marketing_city ON marketing_contacts(category,city_ke
 `;
 
 export function initializeMarketing(db: Database.Database) {
-  db.exec(MARKETING_SCHEMA);
+  db.exec(MARKETING_SCHEMA + suppressionSchema);
 }
 export function marketingKey(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ş/g, 's').replace(/ţ/g, 't').toLowerCase().trim();
@@ -56,16 +57,16 @@ export function normalizeMarketingInput(value: unknown, options?: { existingIndi
   const category = b.category as MarketingCategory;
   const name = field(b.name, 'Nume', 180, true), city = field(b.city, 'Localitate', 100, true);
   const email = field(b.email, 'Email', 254).toLowerCase();
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new MarketingError('Adresă de email invalidă.');
+  if (email && !/^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$/.test(email)) throw new MarketingError('Adresă de email invalidă.');
   const cuiRaw = field(b.cui, 'CUI', 20).toUpperCase().replace(/^RO\s*/, '');
   if (cuiRaw && !/^\d{2,10}$/.test(cuiRaw)) throw new MarketingError('CUI invalid.');
   const cui = category === 'individual' ? '' : cuiRaw;
-  if (!email && !cui) throw new MarketingError('Completează un email sau CUI pentru identificarea contactului.');
   let website = field(b.website, 'Website', 500);
   if (website) {
     try { const url = new URL(website); if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw Error(); website = url.href; }
     catch { throw new MarketingError('Website-ul trebuie să fie o adresă HTTP sau HTTPS.'); }
   }
+  if (!email && !cui && (category === 'individual' || !website)) throw new MarketingError('Completează un email, CUI sau website pentru identificarea firmei.');
   const consent = b.consent ?? 'not_recorded';
   if (typeof consent !== 'string' || !Object.hasOwn(MARKETING_CONSENTS, consent)) throw new MarketingError('Stare acord invalidă.');
   const consentEvidence = field(b.consentEvidence, 'Dovadă acord', 1000);
@@ -86,6 +87,8 @@ export function saveMarketingContacts(db: Database.Database, values: unknown[], 
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
     for (const row of rows) {
       const now = new Date().toISOString();
+      if (row.consent === 'withdrawn') suppressMarketingEmail(db, row.email, 'manual');
+      if (!row.email && !row.cui && db.prepare('SELECT 1 FROM marketing_contacts WHERE category=? AND website=?').get(row.category, row.website)) continue;
       created += insert.run(randomUUID(), row.name, row.category, row.email, row.phone, row.city, marketingKey(row.city), marketingKey(`${row.name} ${row.email} ${row.cui}`), row.cui, row.website, row.source, row.consent, row.consentEvidence, row.notes, row.consent === 'withdrawn' ? 'do_not_contact' : 'new', actor, now, now).changes;
     }
     return { created, duplicates: rows.length - created };
@@ -102,6 +105,7 @@ export function updateMarketingContact(db: Database.Database, value: unknown) {
   initializeMarketing(db);
   const previous = db.prepare(select + ' WHERE id=?').get(id) as MarketingContact | undefined;
   if (!previous) throw new MarketingError('Contactul nu mai există.', 409);
+  if (previous.status === 'do_not_contact' || previous.consent === 'withdrawn') suppressMarketingEmail(db, previous.email, 'manual');
   const row = normalizeMarketingInput({ ...previous, ...b }, { existingIndividual: previous.category === 'individual' && (b.category ?? previous.category) === 'individual' });
   const duplicate = db.prepare("SELECT 1 FROM marketing_contacts WHERE id<>? AND category=? AND ((email<>'' AND email=?) OR (cui<>'' AND cui=?))").get(id, row.category, row.email, row.cui);
   if (duplicate) throw new MarketingError('Există deja un contact din această categorie cu același email sau CUI.', 409);
@@ -109,6 +113,7 @@ export function updateMarketingContact(db: Database.Database, value: unknown) {
   const changed = db.prepare(`UPDATE marketing_contacts SET name=?,category=?,email=?,phone=?,city=?,city_key=?,search_key=?,cui=?,website=?,source=?,status=?,consent=?,consent_evidence=?,notes=?,version=version+1,updated_at=? WHERE id=? AND version=?`)
     .run(row.name, row.category, row.email, row.phone, row.city, marketingKey(row.city), marketingKey(`${row.name} ${row.email} ${row.cui}`), row.cui, row.website, row.source, status, b.consent, evidence, notes, new Date().toISOString(), id, b.version).changes;
   if (!changed) throw new MarketingError('Contactul a fost modificat sau nu mai există. Reîncarcă lista.', 409);
+  if (status === 'do_not_contact' || b.consent === 'withdrawn') { suppressMarketingEmail(db, previous.email, 'manual'); suppressMarketingEmail(db, row.email, 'manual'); }
   return { id };
 }
 

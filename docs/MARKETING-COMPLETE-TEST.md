@@ -1,3 +1,5 @@
+> Această etapă de simulare a fost extinsă prin [finalizarea colectării și procesării campaniilor](MARKETING-FINALIZATION.md). Limitele de mai jos descriu versiunea 34fd27d, nu implementarea nouă.
+
 # Marketing — flux complet în mediul de test
 
 Continuarea modifică exclusiv Marketing. Baza este versiunea sandbox verificată `62981fa3eed67f0ed6d7bed2e49a35ca6dbefbd1`; `main` este vechi. Autentificarea și recuperarea ADMIN, rezervările, plățile, notificările și restul aplicației nu sunt modificate.

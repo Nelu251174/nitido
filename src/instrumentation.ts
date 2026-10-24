@@ -6,5 +6,7 @@ export async function register() {
     const { startIcalScheduler } = await import("@/lib/icalSync");
     const { db } = await import("@/lib/db");
     startIcalScheduler(db);
+    const { startMarketingScheduler } = await import("@/lib/adminMarketingScheduler");
+    startMarketingScheduler(db);
   }
 }

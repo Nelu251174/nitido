@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { AdminMarketingRegrant } from './AdminMarketingRegrant';
+import { AdminMarketingPublicCollection } from './AdminMarketingPublicCollection';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { MARKETING_CATEGORIES, MARKETING_CONSENTS, MARKETING_STATUSES, type MarketingCategory, type MarketingContact, type MarketingInput, type MarketingList } from '@/lib/adminMarketingShared';
 import { Card, inputClass } from './ui';
@@ -102,7 +104,7 @@ export function AdminMarketing() {
         <label>Acord pentru marketing<select className={inputClass} value={draft.consent} onChange={e => setDraft({ ...draft, consent: e.target.value as MarketingInput['consent'] })}>{Object.entries(MARKETING_CONSENTS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label>Dovadă acord (sursă și dată)<input className={inputClass} maxLength={1000} required={draft.consent === 'granted' || draft.category === 'individual'} value={draft.consentEvidence} onChange={e => setDraft({ ...draft, consentEvidence: e.target.value })}/></label>
         <label className="sm:col-span-2">Observații<textarea className={inputClass} maxLength={2000} value={draft.notes} onChange={e => setDraft({ ...draft, notes: e.target.value })}/></label>
-        <p className="sm:col-span-2 text-sm text-muted">Pentru firme este necesar un email sau CUI. Persoanele fizice se adaugă cu email și dovada acordului pentru marketing.</p>
+        <p className="sm:col-span-2 text-sm text-muted">Pentru firme este necesar un email, CUI sau website. Persoanele fizice se adaugă cu email și dovada acordului pentru marketing.</p>
         <div className="flex gap-3"><button disabled={busy} className="v2-btn v2-btn-primary">{busy ? 'Se salvează…' : 'Salvează contactul'}</button><button type="button" className="v2-btn v2-btn-secondary" onClick={() => setShowForm(false)}>Închide</button></div>
       </form></Card>}
       {editing && <Card><form className="grid gap-4 sm:grid-cols-2" onSubmit={event => { event.preventDefault(); void run(async () => { await api('contacts', 'PATCH', editing); setEditing(null); setRevision(value => value + 1); setMessage('Contact actualizat.'); await refresh(query); }); }}>
@@ -121,7 +123,7 @@ export function AdminMarketing() {
         <label className="sm:col-span-2">Observații<textarea className={inputClass} maxLength={2000} value={editing.notes} onChange={e => setEditing({ ...editing, notes: e.target.value })}/></label>
         <p className="sm:col-span-2 text-sm">Retragerea acordului marchează automat contactul „Nu contacta”.</p>
         <div className="flex gap-3"><button disabled={busy} className="v2-btn v2-btn-primary">Salvează modificările</button><button className="v2-btn v2-btn-secondary" type="button" onClick={() => setEditing(null)}>Închide</button></div>
-      </form></Card>}
+      </form>{editing.email && <AdminMarketingRegrant key={editing.id} contact={editing} onSaved={async()=>{setEditing(null);setRevision(value=>value+1);setMessage('Acord nou înregistrat.');await refresh(query);}}/>}</Card>}
       <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" onSubmit={applyFilters}>
         <label>Categorie<select className={inputClass} value={filters.category} onChange={e => setFilters({ ...filters, category: e.target.value })}><CategoryOptions all/></select></label>
         <label>Localitate<input className={inputClass} maxLength={100} value={filters.city} onChange={e => setFilters({ ...filters, city: e.target.value })}/></label>
@@ -138,6 +140,7 @@ export function AdminMarketing() {
 
     {tab === 'collect' && <section className="space-y-5" aria-label="Colectare firme">
       <h2 className="text-2xl font-bold">Colectare firme</h2>
+      <AdminMarketingPublicCollection onSave={saveContacts}/>
       <Card><form onSubmit={event => { event.preventDefault(); void run(async () => { setPreview(null); const result = await api('collect', 'POST', collection); setPreview(result); }); }}><fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2">
         <label>Sursă<select className={inputClass} value={collection.source} onChange={e => { setCollectionField('source', e.target.value); if (e.target.value === 'anaf') setCollection(old => ({ ...old, category: 'business' })); }}><option value="csv">Import CSV</option><option value="anaf">ANAF · listă de CUI-uri</option></select></label>
         <label>Categorie<select className={inputClass} value={collection.category} onChange={e => setCollectionField('category', e.target.value)}>{collection.source === 'csv' && <option value="">Toate categoriile din fișier</option>}{Object.entries(MARKETING_CATEGORIES).filter(([key]) => collection.source === 'csv' || key !== 'individual').map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
