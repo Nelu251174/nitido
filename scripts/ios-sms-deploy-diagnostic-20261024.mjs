@@ -23,10 +23,11 @@ const patterns={
  missing_file:/no such file or directory/i,
 };
 for(const row of Array.isArray(logs)?logs:[]){
- const text=String(row.output??'');
+ for(const text of String(row.output??'').split(/\r?\n/)){
  for(const [code,re] of Object.entries(patterns))if(re.test(text))classifiers.push({code,phase:errors.length});
  if(!/error|fail|exception|fatal|unable|cannot|could not|not found|missing|invalid|Uh oh/i.test(text))continue;
  if(/token|secret|password|authorization|bearer|private.?key|api.?key|sk_[A-Za-z0-9]|ghp_|github_pat_|BEGIN.*KEY|docker (run|exec)|--env|\\$[A-Z_][A-Z_0-9]*/i.test(text))continue;
  errors.push(text.replace(/https?:\/\/\S+/g,'[URL omitted]').slice(0,600));
+ }
 }
 console.log(JSON.stringify({deployment:id,readable:true,status:d.status,logsAccessible:Array.isArray(logs)&&logs.length>0,logEntryCount:logs.length,classifications:classifiers.slice(-30),infrastructureErrors:errors.slice(-15)}));
