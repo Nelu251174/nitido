@@ -28,3 +28,10 @@ LIVE publică efectiv `7d97bfb733341a0623babb7e73d7788f4dc88b45`, pe baza versiu
 Colectarea reală a județului rămâne în curs. La verificarea sandbox au fost procesate 4.393/4.682 înregistrări OSM, cu 40 de emailuri având sursă și MX verificate și două invalide; catalogul suplimentar începuse parcurgerea categoriilor. Cifrele sunt un punct de control, nu rezultatul final. Livrarea Marketing era blocată și outboxul gol.
 
 Prima pregătire temporară a județului pe LIVE a fost întreruptă la înlocuirea containerului (arhiva și trei treceri erau procesate, inventarul final nepublicat). Pregătirea a fost reluată pe containerul noii versiuni înainte de pornirea cozii. Verificarea succesului acestui pas și a progresului LIVE este obligatorie; nu deduce finalizarea din starea deploy-ului.
+
+
+### Confirmare sursă și pornire LIVE
+
+La 2026-10-24 23:23:39 UTC pregătirea LIVE a reușit: 331.678.126 octeți sursă, limita administrativă 2367022, 4.682 înregistrări, 10 loturi, 563.122 octeți inventar final, livrare blocată. Au fost verificate toate cele patru treceri ale arhivei. Coada CT → B a fost pornită explicit pe noua versiune.
+
+La 23:27:33 UTC aplicația LIVE importase și verificase toate cele 10 loturi/4.682 înregistrări și procesase primele 200. Catalogul suplimentar era în coadă, București era în așteptare, outboxul era gol și livrarea blocată. Rutele administrative noi și exportul au răspuns 401 fără sesiune, atât pe LIVE, cât și pe sandbox. Acesta este un punct de control al unei colectări în curs, nu finalizarea județului.
