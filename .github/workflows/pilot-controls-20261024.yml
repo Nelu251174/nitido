@@ -1,0 +1,21 @@
+name: Validate NITIDO owner pilot operation controls
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nitido-owner-pilot-20261024
+  cancel-in-progress: false
+jobs:
+  approved-operations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check restricted recipients, owner-only devices and duplicate prevention
+        run: node scripts/pc.test.cjs
