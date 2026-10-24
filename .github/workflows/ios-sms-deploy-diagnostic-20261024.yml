@@ -1,9 +1,7 @@
 name: Read selected NITIDO SMS deployment errors
 on:
   workflow_dispatch:
-  push:
-    branches: [codex/nitido-ios-sms-20261024]
-    paths: [.github/workflows/ios-sms-deploy-diagnostic-20261024.yml, scripts/ios-sms-deploy-diagnostic-20261024.mjs]
+
 permissions:
   contents: read
 jobs:

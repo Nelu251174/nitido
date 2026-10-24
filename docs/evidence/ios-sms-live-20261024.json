@@ -1,0 +1,40 @@
+{
+  "source": "fdb571e395ec664cc510b4787acb6a2b41f40901",
+  "previousSource": "b978d3da887427f8a612207424ea31f5fc3a2b45",
+  "application": "zxnelxi2cejranyvfpw0scac",
+  "causeCorrected": "Runtime-only Connect webhook secret no longer required at Compose build interpolation",
+  "applicationCodeIdenticalToVerifiedSource": "42e435b685864e57b67db45a328c468a1e29131e",
+  "requestedAt": "2026-10-24T12:50:34.074374+00:00",
+  "deployment": {
+    "deployments": [
+      {
+        "message": "Application nitido:main-np48pyw4borpoufj7cqclvmo deployment queued.",
+        "resource_uuid": "zxnelxi2cejranyvfpw0scac",
+        "deployment_uuid": "umzp9gndcz1qz6m1vt5uv1i1"
+      }
+    ]
+  },
+  "status": "finished",
+  "finished_at": "2026-10-24T12:52:23.000000Z",
+  "commit": "fdb571e395ec664cc510b4787acb6a2b41f40901",
+  "applicationStatus": "running:healthy",
+  "runtimeCheckTask": "8qglygpxjyge2sdocxynwy5g",
+  "runtimeCheck": {
+    "uuid": "3e1oofqp4fg3tfowgdaktica",
+    "status": "success",
+    "created_at": "2026-10-24T12:52:48.000000Z",
+    "finished_at": "2026-10-24T12:52:49.000000Z"
+  },
+  "runtimeCheckTaskRemoved": true,
+  "http": {
+    "pageChecks": 66,
+    "pageFailures": [],
+    "assetChecks": 48,
+    "assetFailures": []
+  },
+  "appReviewSubmitted": true,
+  "appReviewState": "WAITING_FOR_REVIEW",
+  "reviewSubmissionRun": 40095986798,
+  "publicRelease": false,
+  "newSoundPhysicalPhoneAudibilityTested": false
+}
