@@ -1,0 +1,69 @@
+name: Exact historical Android build and preserved-data upgrade
+on:
+  push:
+    branches: [codex/nitido-android-investigation-20261024]
+    paths: ['scripts/android-lifecycle-investigate.py', '.github/workflows/android-lifecycle-investigate-20261024.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  lifecycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [35, 36]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/download-artifact@v4
+        with:
+          repository: Nelu251174/nitido
+          run-id: 37972301860
+          name: nitido-android-release-aab
+          github-token: ${{ github.token }}
+          path: legacy
+      - uses: actions/download-artifact@v4
+        with:
+          repository: Nelu251174/nitido
+          run-id: 39965743634
+          name: nitido-android-release-aab
+          github-token: ${{ github.token }}
+          path: current
+      - name: Verify exact original bundles; use one disposable emulator certificate
+        run: |
+          echo '9e706599da1b86ee580a907b43916bbda1cec5cc5f06a2a7892a0552bea985a4  legacy/app-release.aab' | sha256sum --check --status
+          echo 'fa77f2dc4f7ef4f4b353911143d00f7e47d9213399b796f2e0e0a5f5a0816439  current/app-release.aab' | sha256sum --check --status
+          curl --fail --silent --show-error --location https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar --output "$RUNNER_TEMP/bundletool.jar"
+          echo "a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29  $RUNNER_TEMP/bundletool.jar" | sha256sum --check --status
+          keytool -genkeypair -keystore "$RUNNER_TEMP/emulator-only.jks" -storepass emulator-only -alias emulator-only -keypass emulator-only -keyalg RSA -keysize 2048 -validity 1 -dname 'CN=Disposable NITIDO lifecycle emulator'
+          for variant in legacy current; do
+            java -jar "$RUNNER_TEMP/bundletool.jar" build-apks --bundle="$variant/app-release.aab" --output="$variant/test.apks" --mode=universal --overwrite --ks="$RUNNER_TEMP/emulator-only.jks" --ks-pass=pass:emulator-only --ks-key-alias=emulator-only --key-pass=pass:emulator-only
+            unzip -q "$variant/test.apks" universal.apk -d "$variant"
+          done
+      - name: Enable disposable runner virtualization
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: python3 scripts/android-lifecycle-investigate.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nitido-lifecycle-api-${{ matrix.api }}
+          path: android-lifecycle-proof/result.json
+          if-no-files-found: ignore
+          retention-days: 3
