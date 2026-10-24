@@ -1,9 +1,7 @@
 name: Read Apple state during NITIDO flow verification
 on:
   workflow_dispatch:
-  push:
-    branches: [codex/nitido-flow-validation-20261024]
-    paths: [.github/workflows/flow-apple-status-20261024.yml]
+
 permissions:
   contents: read
 jobs:
