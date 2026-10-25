@@ -101,3 +101,12 @@ Validare: 162 teste Marketing trecute (un test extern omis), TypeScript și lint
 Confirmare 25.10.2026 08:52 EET: sandbox publică `2887377316c6a14e192482597270a4af018493a6`, iar LIVE `5d7b805b7373b1c6e6d95aa50abc4ad0399e6c48`; ambele deploy-uri sunt finalizate și sănătoase. Pauza de publicare a păstrat stările și mesajele anterioare în auditul Marketing, fără copii ale bazei și fără resetarea cursorilor sau a termenelor sursei. După reluare, LIVE București a avansat de la 12.500 la 13.000/14.001 înregistrări importate. Sandbox importase toate cele 14.001 înregistrări, procesase primele 400 și avea un email verificat și unul în verificare. Aceste rezultate sandbox nu sunt prezentate drept emailuri deja salvate pe LIVE.
 
 Constanța rămâne nefinalizată și activă. Livrarea este blocată și outboxul gol în ambele medii; rutele județelor și exportului răspund 401/JSON fără sesiune. Sarcinile temporare au fost șterse și absența lor verificată. Monitorizarea periodică a conversației rămâne oprită.
+
+
+### Următoarele județe pregătite: Brașov și Ilfov
+
+La 25.10.2026 09:04 EET, utilizatorul a cerut pregătirea Brașovului și Ilfovului după încheierea colectării Constanța/București. Ambele sunt salvate în Market în `queued`, în ordinea Brașov → Ilfov, fără activare separată și fără pornirea pregătirii sursei ori a colectării lor. Starea `review` a unui județ curent continuă să le blocheze: numai finalizarea ambelor județe curente permite continuarea planului.
+
+Pregătirea cozii a fost verificată întâi în sandbox și apoi executată pe LIVE, fără republicarea aplicației și fără întreruperea colectorului. În ambele medii, CT și B au rămas în `collecting`, iar BV și IF în `queued`, cu zero înregistrări importate. Testul dedicat confirmă că Brașov nu este procesat nici după finalizarea doar a Constanței, cât timp București este în `review`; după finalizarea ambelor, urmează Brașov, apoi Ilfov. Toate cele 11 teste ale lucrătorului județelor au trecut.
+
+Livrarea rămâne blocată, outboxul gol, iar monitorizarea periodică a conversației oprită. Sarcinile temporare au fost șterse și absența verificată.
