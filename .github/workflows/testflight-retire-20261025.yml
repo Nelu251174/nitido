@@ -1,0 +1,41 @@
+name: Owner requested TestFlight retirement 20261025
+on:
+  push:
+    branches: [codex/stop-testflight-20261025]
+    paths:
+      - .github/workflows/testflight-retire-20261025.yml
+      - scripts/testflight-retire-20261025.mjs
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nitido-testflight-retirement
+  cancel-in-progress: false
+jobs:
+  retire-testflight:
+    if: github.repository == 'Nelu251174/nitido' && github.ref_name == 'codex/stop-testflight-20261025'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Inspect TestFlight and preserve public App Store release
+        env:
+          TESTFLIGHT_MODE: inspect
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          GH_ACTIONS_TOKEN: ${{ github.token }}
+        run: node scripts/testflight-retire-20261025.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nitido-testflight-retirement
+          path: .testflight-stop/report.json
+          include-hidden-files: true
+          retention-days: 7
