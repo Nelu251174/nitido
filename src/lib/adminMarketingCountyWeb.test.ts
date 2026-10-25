@@ -12,6 +12,19 @@ beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-25T03:00:0
 afterEach(()=>{db.close();vi.useRealTimers();});
 async function drain(website:string,reader:PublicReader,limit=60){let r;for(let i=0;i<limit;i++){r=await collectMarketingCountyWebsite(db,'job',website,reader,()=>true);if(r.complete)return r;vi.setSystemTime(Math.max(Date.now()+3000,Date.parse(r.nextAttemptAt??'')||0));}throw Error('Frontier did not finish');}
 describe('persistent county public contact pages',()=>{
+ it('stops expanding repeated relative contact paths only after matching the page content',async()=>{
+  const reader=vi.fn<PublicReader>(async url=>page(url,url.endsWith('robots.txt')?'':'<p>office@firm.ro</p><a href="contact/">Contact</a><script>nonce'+Math.random()+'</script>'));
+  const result=await drain('https://firm.ro/',reader);expect(result.found.map(f=>f.email)).toEqual(['office@firm.ro']);
+  expect(db.prepare("SELECT COUNT(*) n FROM marketing_county_web_pages WHERE reason='DUPLICATE_CONTENT_CYCLE'").get()).toEqual({n:1});
+  expect(reader.mock.calls.some(([url])=>url.includes('/contact/contact/contact/'))).toBe(false);expect(result.warning).toBe('');
+ });
+ it('honors a declared public HTML base and still follows repeated path names when content changes',async()=>{
+  const baseReader=vi.fn<PublicReader>(async url=>page(url,url.endsWith('robots.txt')?'':'<base href="/"><p>info@base.ro</p><a href="contact/">Contact</a>'));
+  await drain('https://base.ro/branch/',baseReader);expect(baseReader.mock.calls.some(([url])=>url==='https://base.ro/contact/')).toBe(true);expect(baseReader.mock.calls.some(([url])=>url.includes('/branch/contact/'))).toBe(false);
+  const reader=vi.fn<PublicReader>(async url=>page(url,url.endsWith('robots.txt')?'':new URL(url).pathname==='/about/about/'?'branch@unique.ro':'<p>office@unique.ro</p><a href="'+(new URL(url).pathname==='/'?'/about/':'/about/about/')+'">About</a>'));
+  const result=await drain('https://unique.ro/',reader);expect(result.found.map(f=>f.email).sort()).toEqual(['branch@unique.ro','office@unique.ro']);
+ });
+
  it('finds all five linked contact pages, even with an email already on the home page',async()=>{
   const reader:PublicReader=vi.fn(async url=>url.endsWith('robots.txt')?page(url,'User-agent: *\nAllow: /'):new URL(url).pathname==='/'?page(url,'<p>office@firm.ro</p>'+Array.from({length:5},(_,i)=>`<a href="/contact-${i+1}">Contact</a>`).join('')):page(url,`<p>branch${new URL(url).pathname.slice(-1)}@firm.ro</p><a href="/">About home</a>`));
   const r=await drain('https://firm.ro/',reader);expect(r.found).toHaveLength(6);expect(r.warning).toBe('');expect(db.prepare("SELECT COUNT(*) n FROM marketing_county_web_pages WHERE state='done'").get()).toEqual({n:6});

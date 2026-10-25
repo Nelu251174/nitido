@@ -22,5 +22,6 @@ try{
   }
   stats.normalizedRepeatedPaths=normalized.size;stats.uniqueEmailCount=emails.size;aggregates.push(stats);
  }
- console.log('MKT_FRONTIER_STATUS '+JSON.stringify({county:'CT',state:job.state,items,sites:aggregates,delivery:process.env.NITIDO_MARKETING_DELIVERY_ENABLED==='true'?'enabled':'blocked'}));
+ const cycleStops=db.prepare("SELECT COUNT(*) count FROM marketing_county_web_pages WHERE job_id=? AND reason='DUPLICATE_CONTENT_CYCLE'").get(job.id);
+ console.log('MKT_FRONTIER_STATUS '+JSON.stringify({cycleStops,county:'CT',state:job.state,items,sites:aggregates,delivery:process.env.NITIDO_MARKETING_DELIVERY_ENABLED==='true'?'enabled':'blocked'}));
 }finally{db.close();}
