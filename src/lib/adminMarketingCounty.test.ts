@@ -13,6 +13,18 @@ const data:CountySourceItem[]=[{type:'node' as const,id:1,tags:{name:'County bus
 afterEach(()=>vi.useRealTimers());
 const deps={manifest:vi.fn(async()=>manifest),part:vi.fn(async()=>data),domain,directory:async()=>({complete:false,blocked:false})};
 describe('county worker: persistent batches, all emails, correct county order',()=>{
+ it('saves and verifies public email evidence before a website frontier finishes, preserving withdrawn consent',async()=>{
+  vi.useFakeTimers();const db=fixture(),id=(db.prepare("SELECT id FROM marketing_county_jobs WHERE county_code='CT'").get() as {id:string}).id;
+  saveMarketingContacts(db,[{name:'Protected',category:'business',email:'office@partial.ro',city:'Mangalia',county:'CT',source:'Manual',consent:'withdrawn'}],'owner');
+  db.prepare("UPDATE marketing_county_jobs SET state='collecting' WHERE id=?").run(id);
+  db.prepare("INSERT INTO marketing_county_items(id,job_id,identity,name,category,city,website,phone,source) VALUES('partial',?,'partial','Partial','business','Mangalia','https://partial.ro/','','Public')").run(id);
+  const website=vi.fn<typeof collectMarketingCountyWebsite>(async()=>({complete:false,found:[{email:'office@partial.ro',source:'https://partial.ro/contact'}],warning:'',nextAttemptAt:new Date(Date.now()+3600000).toISOString()}));
+  await processMarketingCounty(db,vi.fn(),()=>{},{...deps,website});expect(db.prepare("SELECT status FROM marketing_county_items WHERE id='partial'").get()).toEqual({status:'pending'});
+  expect(db.prepare('SELECT COUNT(*) n FROM marketing_county_item_emails').get()).toEqual({n:1});vi.setSystemTime(Date.now()+20000);await processMarketingCounty(db,vi.fn(),()=>{},{...deps,website});
+  expect(listMarketingContacts(db,new URLSearchParams({county:'CT'})).contacts[0]).toMatchObject({consent:'withdrawn',status:'do_not_contact',emailVerification:'verified'});
+  expect(db.prepare("SELECT COUNT(*) n FROM admin_audit_log WHERE action='marketing.county.item.processed'").get()).toEqual({n:0});expect(website).toHaveBeenCalledOnce();db.close();
+ });
+
  it('keeps prepared Brașov and Ilfov waiting until both Constanța and București are completed',async()=>{
   const db=fixture(),reader:PublicReader=vi.fn();startMarketingCountyPlan(db,'owner',['BV','IF']);
   db.prepare("UPDATE marketing_county_jobs SET state='review' WHERE county_code IN ('CT','B')").run();

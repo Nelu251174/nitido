@@ -12,7 +12,14 @@ CREATE TABLE IF NOT EXISTS marketing_county_web_pages(job_id TEXT NOT NULL,websi
 CREATE INDEX IF NOT EXISTS marketing_county_web_pending ON marketing_county_web_pages(job_id,website,state,next_attempt_at);
 CREATE TABLE IF NOT EXISTS marketing_county_web_hosts(origin TEXT PRIMARY KEY,robots_state TEXT NOT NULL DEFAULT 'pending',robots TEXT NOT NULL DEFAULT '',robots_url TEXT NOT NULL,robots_hops INTEGER NOT NULL DEFAULT 0,robots_attempts INTEGER NOT NULL DEFAULT 0,robots_next_at TEXT,robots_at TEXT,reason TEXT NOT NULL DEFAULT '',next_request_at TEXT,delay_ms INTEGER NOT NULL DEFAULT 2000);
 `;
-export function initializeMarketingCountyWeb(db:Database){db.exec(MARKETING_COUNTY_WEB_SCHEMA);}
+export function initializeMarketingCountyWeb(db:Database){db.exec(MARKETING_COUNTY_WEB_SCHEMA);
+ db.transaction(()=>{if(!(db.prepare('PRAGMA table_info(marketing_county_web_pages)').all() as {name:string}[]).some(c=>c.name==='content_hash'))db.exec("ALTER TABLE marketing_county_web_pages ADD COLUMN content_hash TEXT NOT NULL DEFAULT ''");db.exec('CREATE INDEX IF NOT EXISTS marketing_county_web_content ON marketing_county_web_pages(job_id,website,content_hash)');}).immediate();
+}
+function repeatedContentAncestor(current:URL,previous:string){
+ const old=new URL(previous),parts=current.pathname.split('/').filter(Boolean),seen=new Set(parts.map(p=>p.toLowerCase()));
+ const prefix=old.pathname.endsWith('/')?old.pathname:old.pathname+'/';
+ return current.origin===old.origin&&seen.size<parts.length&&current.pathname.length>old.pathname.length&&current.pathname.startsWith(prefix);
+}
 function websiteUrl(value:string,base?:string){const u=publicWebsite(base?new URL(value,base).href:value);for(const key of [...u.searchParams.keys()])if(/^utm_|^(fbclid|gclid|msclkid)$/i.test(key))u.searchParams.delete(key);return u;}
 function host(db:Database,origin:string){db.prepare('INSERT OR IGNORE INTO marketing_county_web_hosts(origin,robots_url) VALUES(?,?)').run(origin,origin+'/robots.txt');return db.prepare('SELECT * FROM marketing_county_web_hosts WHERE origin=?').get(origin) as Host;}
 function requestAt(db:Database,h:Host){db.prepare('UPDATE marketing_county_web_hosts SET next_request_at=? WHERE origin=?').run(new Date(Date.now()+h.delay_ms).toISOString(),h.origin);}
@@ -90,9 +97,11 @@ export async function collectMarketingCountyWebsite(db:Database,jobId:string,web
   }else if(!/text\/html|application\/xhtml/i.test(String(r.headers['content-type']??''))){pageFailure(db,jobId,website,page,'PAGE_NOT_HTML',false);}
   else{
    const extracted=extractBusinessPage(r.text,url.href,Infinity),found=extracted.emails.map(email=>({email,source:url.href}));
+   const same=db.prepare("SELECT url FROM marketing_county_web_pages WHERE job_id=? AND website=? AND state='done' AND content_hash=?").all(jobId,website,extracted.fingerprint) as {url:string}[];
+   const cycle=same.some(p=>repeatedContentAncestor(url,p.url));
    db.transaction(()=>{
-    for(const raw of extracted.links){const link=websiteUrl(raw,url.href);if(link.origin!==url.origin)continue;db.prepare('INSERT OR IGNORE INTO marketing_county_web_pages(job_id,website,url,state,reason) VALUES(?,?,?,?,?)').run(jobId,website,link.href,link.href.length>500?'blocked':'pending',link.href.length>500?'PAGE_URL_TOO_LONG':'');}
-    db.prepare("UPDATE marketing_county_web_pages SET state='done',found=?,reason='',next_attempt_at=NULL,checked_at=? WHERE job_id=? AND website=? AND url=?").run(JSON.stringify(found),now(),jobId,website,page.url);
+    for(const raw of cycle?[]:extracted.links){const link=websiteUrl(raw,url.href);if(link.origin!==url.origin)continue;db.prepare('INSERT OR IGNORE INTO marketing_county_web_pages(job_id,website,url,state,reason) VALUES(?,?,?,?,?)').run(jobId,website,link.href,link.href.length>500?'blocked':'pending',link.href.length>500?'PAGE_URL_TOO_LONG':'');}
+    db.prepare("UPDATE marketing_county_web_pages SET state='done',found=?,content_hash=?,reason=?,next_attempt_at=NULL,checked_at=? WHERE job_id=? AND website=? AND url=?").run(JSON.stringify(found),extracted.fingerprint,cycle?'DUPLICATE_CONTENT_CYCLE':'',now(),jobId,website,page.url);
    })();
   }
  }catch(error){if(active()){const reason=safeReason(error);pageFailure(db,jobId,website,page,reason,retryable(reason));}}

@@ -158,19 +158,20 @@ export async function processMarketingCounty(db:Database,reader:PublicReader,hea
    const batch=db.prepare("SELECT i.* FROM marketing_county_items i WHERE i.job_id=? AND i.status='pending' AND (i.next_attempt_at IS NULL OR i.next_attempt_at<=?) ORDER BY CASE WHEN i.website='' THEN 0 ELSE 1 END,CASE WHEN EXISTS(SELECT 1 FROM marketing_county_web_pages w WHERE w.job_id=i.job_id AND w.website=i.website) THEN 0 ELSE 1 END,i.attempted_at,i.id LIMIT 200").all(j.id,time()) as Item[];
    for(const item of batch){
     if(Date.now()>deadline||!active())break;
-    const found=(JSON.parse(item.emails) as string[]).map(email=>({email,source:item.source}));let warning='';
+    const found=(JSON.parse(item.emails) as string[]).map(email=>({email,source:item.source}));let warning='',websitePending=false;
     if(item.website){
      const page=await (deps.website??collectMarketingCountyWebsite)(db,j.id,item.website,reader,active);
      if(!active())return true;
      db.prepare('UPDATE marketing_county_items SET attempted_at=?,next_attempt_at=? WHERE id=?').run(time(),page.nextAttemptAt,item.id);
-     if(!page.complete)continue;
+     websitePending=!page.complete;
      found.push(...page.found);warning=page.warning;
+     if(websitePending&&!found.length)continue;
     }
     if(!active())return true;
     db.transaction(()=>{
      if((db.prepare('SELECT status FROM marketing_county_items WHERE id=?').get(item.id) as {status:string}).status!=='pending')return;
      const unique=[...new Map(found.map(f=>[f.email,f])).values()];
-     const inputs=unique.length?unique:[{email:'',source:item.source}];
+     const inputs=unique.length?unique:[{email:'',source:item.source}];let newEvidence=0;
      for(const f of inputs){
       if(!f.email&&!item.website)continue;
       const input=normalizeMarketingInput({...item,email:f.email,source:f.source,county:marketingRegion(j.county_code)!.name,consent:'not_recorded',notes:`Colectare județ ${marketingRegion(j.county_code)!.name}. Sursa inițială ${item.source}. ${item.identity.startsWith('osm:')?'© OpenStreetMap contributors · ODbL.':'Ghidul.ro · date publice de contact ale firmei.'} Emailul public nu reprezintă acord de marketing.`});
@@ -178,13 +179,13 @@ export async function processMarketingCounty(db:Database,reader:PublicReader,hea
       const existing=f.email?db.prepare('SELECT id FROM marketing_contacts WHERE email=? LIMIT 1').get(f.email) as {id:string}|undefined:undefined;
       if(existing)linkMarketingRegion(db,existing.id,input);else saveMarketingContacts(db,[input],j.created_by);
       if(f.email){
-       db.prepare('INSERT OR IGNORE INTO marketing_county_item_emails VALUES(?,?,?)').run(item.id,f.email,f.source);
+       newEvidence+=db.prepare('INSERT OR IGNORE INTO marketing_county_item_emails VALUES(?,?,?)').run(item.id,f.email,f.source).changes;
        db.prepare("INSERT INTO marketing_email_checks(email,source_status) VALUES(?,'verified') ON CONFLICT(email) DO UPDATE SET source_status='verified',status=CASE WHEN source_status<>'verified' THEN 'pending' ELSE status END").run(f.email);
       }
      }
-     db.prepare("UPDATE marketing_county_items SET status='done',warning=? WHERE id=?").run(warning,item.id);
-     db.prepare('UPDATE marketing_county_jobs SET updated_at=? WHERE id=?').run(time(),j.id);
-     audit(db,'marketing.county.item.processed',item.id,j.created_by);
+     db.prepare('UPDATE marketing_county_items SET status=?,warning=? WHERE id=?').run(websitePending?'pending':'done',warning,item.id);
+     if(!websitePending||newEvidence)db.prepare('UPDATE marketing_county_jobs SET updated_at=? WHERE id=?').run(time(),j.id);
+     if(!websitePending||newEvidence)audit(db,websitePending?'marketing.county.item.evidence.saved':'marketing.county.item.processed',item.id,j.created_by);
     }).immediate();
    }
    if(!db.prepare("SELECT 1 FROM marketing_county_items WHERE job_id=? AND status='pending'").get(j.id))db.prepare("UPDATE marketing_county_jobs SET state='verifying',next_attempt_at=NULL,updated_at=? WHERE id=?").run(time(),j.id);

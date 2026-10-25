@@ -1,4 +1,5 @@
 import { load,type CheerioAPI } from 'cheerio';
+import { createHash } from 'node:crypto';
 import { CITIES } from './cities';
 import { marketingKey, MarketingError, normalizeMarketingInput } from './adminMarketing';
 import type { MarketingInput } from './adminMarketingShared';
@@ -19,13 +20,16 @@ export function marketingVisibleText($:CheerioAPI,selector:string){return $(sele
 export function extractBusinessPage(html: string, base: string, maxLinks = 2) {
   const $ = load(html); $('script,style,noscript,template').remove();
   const emails = publicEmails($('a[href^="mailto:"]').map((_, node) => $(node).attr('href')?.slice(7).split('?')[0] ?? '').get().join(' ') + ' ' + marketingVisibleText($,'body'));
-  const url = new URL(base), links: string[] = [];
+  const url = new URL(base), links: string[] = [], hrefs:string[]=[];let resolution=url;
+  try{const declared=$('base[href]').first().attr('href');if(declared)resolution=publicWebsite(new URL(declared,url).href);}catch{ /* An invalid base is not a public destination. */ }
   $('a[href]').each((_, node) => {
     const href = $(node).attr('href') ?? '', text = $(node).text();
     if (!/contact|despre|about/i.test(href + ' ' + text)) return;
-    try { const link = publicWebsite(new URL(href, url).href); if (link.origin === url.origin && !links.includes(link.href)) links.push(link.href); } catch { /* Ignore non-public links. */ }
+    try { const link = publicWebsite(new URL(href, resolution).href); if (link.origin === url.origin){hrefs.push(href.trim());if(!links.includes(link.href))links.push(link.href);} } catch { /* Ignore non-public links. */ }
   });
-  return { name: ($('meta[property="og:site_name"]').attr('content') || $('title').text() || url.hostname).replace(/\s+/g, ' ').trim().slice(0, 180), emails, links: links.slice(0, maxLinks) };
+  const name=($('meta[property="og:site_name"]').attr('content') || $('title').text() || url.hostname).replace(/\s+/g, ' ').trim().slice(0,180);
+  const fingerprint=createHash('sha256').update(JSON.stringify({name,text:marketingVisibleText($,'body').replace(/\s+/g,' ').trim(),emails,hrefs:[...new Set(hrefs)].sort(),base:$('base[href]').first().attr('href')??''})).digest('hex');
+  return {name,emails,links:links.slice(0,maxLinks),fingerprint};
 }
 /** Match applicable robots groups; collection never bypasses an explicit disallow or a failed robots read. */
 export function robotsAllows(text: string, pathname: string): boolean {
