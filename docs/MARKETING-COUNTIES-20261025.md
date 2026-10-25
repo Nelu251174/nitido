@@ -1,12 +1,12 @@
 # Marketing: județe și colectare publică
 
-Cerința curentă este întreg județul Constanța, urmat de București (separat de Ilfov). Cele 2.337 de înregistrări procesate anterior priveau municipiul, nu județul.
+Cerința curentă acoperă întreg județul Constanța și București, separat de Ilfov. Utilizatorul a cerut ulterior pornirea Bucureștiului înainte de finalizarea Constanței. Cele 2.337 de înregistrări procesate anterior priveau municipiul, nu județul.
 
 Market se deschide în secțiunea Județe, cu toate cele 41 de județe și București. Contactele au apartenențe județ/localitate, iar o adresă comună mai multor sedii rămâne vizibilă în fiecare județ sursă fără schimbarea acordului, categoriei sau a stării contactului existent. Inventarul separat include și firmele pentru care nu s-a găsit email. Localitatea necunoscută este etichetată explicit; nu este înlocuită cu municipiul reședință.
 
 Nu există plafon de 200 de contacte pe județ. Limitele de 200 de rânduri și 250 KB sunt limite de cerere/lot pentru formularul mic. Importul de volum citește fișierul treptat, validează toate loturile, prezintă primele 25 de contacte și apoi salvează toate loturile, cu progres și respectarea limitei de cereri. Reluarea omite duplicatele. Exportul trimite toate rezultatele filtrate în pagini interne de 500, fără vechea trunchiere la 5.000.
 
-Colectorul persistă coada CT → B, inventarul și progresul. Încărcarea paginii nu pornește colectarea. Un județ anterior în pauză sau cu acoperirea nerevizuită blochează județele următoare. Se utilizează aceeași închiriere exclusivă a colectorului existent; nu rulează lucrători concurenți asupra aceleiași cozi.
+Colectorul persistă coada CT → B, inventarul și progresul. Încărcarea paginii nu pornește colectarea. Implicit, un județ anterior în pauză sau cu acoperirea nerevizuită blochează județele următoare. Pornirea separată explicită este descrisă mai jos. Se utilizează aceeași închiriere exclusivă a colectorului existent; nu rulează lucrători concurenți asupra aceleiași cozi.
 
 Surse implementate:
 
@@ -78,3 +78,12 @@ La 25.10.2026 utilizatorul a cerut explicit pornirea Bucureștiului în timp ce 
 În mod implicit, un județ anterior în pauză sau `review` continuă să blocheze următoarele județe. Numai acțiunea explicită `activate`, auditată prin autorizarea Marketing existentă, permite unui județ aflat în coadă să avanseze separat. Se persistă turele în `marketing_county_dispatch`, pentru ca același lucrător exclusiv să alterneze județele eligibile. Termenele surselor, pauzele și starea `review` a fiecărui județ rămân respectate. Pornirea separată nu modifică acorduri, nu marchează Constanța finalizată și nu pornește un colector concurent.
 
 Testele de pornire separată verifică alternarea CT/B, păstrarea termenelor și pauzelor, lipsa unui job Ilfov și păstrarea Constanței în `review`. Testul sursei folosește explicit limita administrativă admin4/ISO RO-B în prezența limitei RO-IF; parserul catalogului exclude rândurile Ilfov din lista București.
+
+
+Confirmare 25.10.2026 08:34 EET: sandbox publică `218480df88878a403cba5cfce6fd4d5ae8210046`, iar LIVE `e533f15a30c14abcbf3525d8c87df02f0b489b0e`; ambele deploy-uri sunt finalizate și sănătoase. Au trecut 158 teste Marketing (un test extern omis), opt teste ale pregătirii sursei OSM, TypeScript și lint. Rutele județelor și exportului București răspund 401/JSON fără sesiune.
+
+Pornirea separată a Bucureștiului a fost executată și auditată în ambele medii. Sandbox a pregătit deja inventarul OSM pentru limita RO-B, relația 377733: 14.001 înregistrări în 29 de loturi, manifest verificat; importul începuse cu primele 500 de înregistrări. Pe LIVE, București este în `preparing`, cu sursa în curs de pregătire; cifrele sandbox nu sunt prezentate drept date deja importate pe LIVE.
+
+Constanța este reluată în `collecting`, fără resetarea datelor: LIVE 5.584/5.590 înregistrări procesate, 1.562 emailuri cu sursă și MX verificate, 105 invalide și 44 care necesită verificare. Județul rămâne nefinalizat. Ambele medii au livrarea blocată și outboxul gol. Sarcinile temporare au fost șterse, iar absența lor a fost verificată.
+
+În timpul înlocuirii containerului LIVE, o pagină deschisă a afișat textul temporar al proxy-ului „no available server” drept eroare de parsare JSON, păstrând fotografia stării din pauza de publicare. Verificarea de după publicare confirmă aplicația sănătoasă, răspuns JSON și colectarea reluată; reîncărcarea paginii citește noua stare.
