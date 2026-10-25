@@ -69,3 +69,12 @@ Confirmare la 25.10.2026, 03:52 UTC: sandbox publică `e004d49371d18b0a8a8417a20
 Pe LIVE, reluarea explicită a pus la verificare cele 1.470 de rânduri cu site și 22 de verificări DNS temporare. La primul control, inventarul CT era 5.590, cu 1.132 emailuri având sursă și MX verificate, 98 invalide, 20 care necesită verificare și 22 în așteptarea reverificării DNS. Aceasta este o verificare suplimentară a acoperirii, nu resetarea datelor sau finalizarea județului. București rămâne în coadă, separat de Ilfov. Livrarea este blocată și outboxul gol. Rutele județelor și contactelor/exportului răspund 401 fără sesiune în ambele medii.
 
 Sarcinile temporare de diagnostic și reluare au fost șterse după verificare în ambele medii, iar absența lor a fost confirmată. Colectarea continuă exclusiv prin schedulerul aplicației.
+
+
+### Pornirea separată a Bucureștiului, aprobată de utilizator
+
+La 25.10.2026 utilizatorul a cerut explicit pornirea Bucureștiului în timp ce Constanța este încă în lucru. Această cerere modifică ordinea strictă inițială CT → B. Constanța rămâne nefinalizată, iar București și Ilfov rămân regiuni distincte în inventar, contacte și export. Monitorizarea periodică a conversației rămâne dezactivată; cererea pornește colectarea aplicației, nu o automatizare nouă de notificări.
+
+În mod implicit, un județ anterior în pauză sau `review` continuă să blocheze următoarele județe. Numai acțiunea explicită `activate`, auditată prin autorizarea Marketing existentă, permite unui județ aflat în coadă să avanseze separat. Se persistă turele în `marketing_county_dispatch`, pentru ca același lucrător exclusiv să alterneze județele eligibile. Termenele surselor, pauzele și starea `review` a fiecărui județ rămân respectate. Pornirea separată nu modifică acorduri, nu marchează Constanța finalizată și nu pornește un colector concurent.
+
+Testele de pornire separată verifică alternarea CT/B, păstrarea termenelor și pauzelor, lipsa unui job Ilfov și păstrarea Constanței în `review`. Testul sursei folosește explicit limita administrativă admin4/ISO RO-B în prezența limitei RO-IF; parserul catalogului exclude rândurile Ilfov din lista București.

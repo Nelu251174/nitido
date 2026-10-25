@@ -9,8 +9,10 @@ try{
   const emails=db.prepare("SELECT e.status,COUNT(DISTINCT e.email) count FROM marketing_email_checks e JOIN marketing_county_item_emails x ON x.email=e.email JOIN marketing_county_items i ON i.id=x.item_id WHERE i.job_id=? GROUP BY e.status").all(j.id);
   const directory=exists('marketing_directory_pages')?db.prepare("SELECT kind,state,COUNT(*) count FROM marketing_directory_pages WHERE job_id=? GROUP BY kind,state").all(j.id):[];
   const sourceIssues=exists('marketing_directory_pages')?db.prepare("SELECT kind,reason,COUNT(*) count FROM marketing_directory_pages WHERE job_id=? AND reason<>'' GROUP BY kind,reason").all(j.id):[];
+  let source=null;const sourcePath='/app/data/marketing-sources/counties/'+j.county_code+'/current.json';
+  if(fs.existsSync(sourcePath)){const m=JSON.parse(fs.readFileSync(sourcePath,'utf8'));const {sha256,...payload}=m;source={county:m.countyCode,boundaryRelation:m.boundaryRelation,total:m.total,parts:m.parts?.length,integrity:require('node:crypto').createHash('sha256').update(JSON.stringify(payload)).digest('hex')===sha256?'verified':'invalid'};}
   const dispatch=exists('marketing_county_dispatch')?db.prepare('SELECT independent,last_turn FROM marketing_county_dispatch WHERE job_id=?').get(j.id):null;
-  return {dispatch,directory,sourceIssues,...Object.fromEntries(Object.entries(j).filter(([k])=>k!=='id')),...inventory,emails};
+  return {source,dispatch,directory,sourceIssues,...Object.fromEntries(Object.entries(j).filter(([k])=>k!=='id')),...inventory,emails};
  }):[];
  const collector=exists('marketing_collection_lock')&&db.prepare('SELECT 1 FROM marketing_collection_lock WHERE until_ms>?').get(Date.now())?'busy':'idle';
  console.log('MKT_COUNTY_STATUS '+JSON.stringify({scope,collector,buildId:fs.readFileSync('/app/.next/BUILD_ID','utf8').trim(),delivery:process.env.NITIDO_MARKETING_DELIVERY_ENABLED==='true'?'enabled':'blocked',jobs,outbox:exists('marketing_outbox')?db.prepare('SELECT mode,status,COUNT(*) count FROM marketing_outbox GROUP BY mode,status').all():[]}));
