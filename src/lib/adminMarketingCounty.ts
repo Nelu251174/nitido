@@ -148,7 +148,7 @@ export async function processMarketingCounty(db:Database,reader:PublicReader,hea
    for(const e of early){if(!active())return true;await verifyMarketingEmail(db,e.email,deps.domain);}
 
    const deadline=Date.now()+15000;
-   const batch=db.prepare("SELECT * FROM marketing_county_items WHERE job_id=? AND status='pending' AND (next_attempt_at IS NULL OR next_attempt_at<=?) ORDER BY CASE WHEN website='' THEN 0 ELSE 1 END,attempted_at,id LIMIT 200").all(j.id,time()) as Item[];
+   const batch=db.prepare("SELECT i.* FROM marketing_county_items i WHERE i.job_id=? AND i.status='pending' AND (i.next_attempt_at IS NULL OR i.next_attempt_at<=?) ORDER BY CASE WHEN i.website='' THEN 0 ELSE 1 END,CASE WHEN EXISTS(SELECT 1 FROM marketing_county_web_pages w WHERE w.job_id=i.job_id AND w.website=i.website) THEN 0 ELSE 1 END,i.attempted_at,i.id LIMIT 200").all(j.id,time()) as Item[];
    for(const item of batch){
     if(Date.now()>deadline||!active())break;
     const found=(JSON.parse(item.emails) as string[]).map(email=>({email,source:item.source}));let warning='';

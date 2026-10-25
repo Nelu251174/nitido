@@ -10,5 +10,6 @@ try{
  const hostKinds=db.prepare("SELECT CASE WHEN website LIKE '%whatsapp.%' OR website LIKE '%wa.me/%' THEN 'messaging' WHEN website LIKE '%facebook.%' OR website LIKE '%instagram.%' THEN 'social' WHEN website LIKE '%google.%' OR website LIKE '%maps.%' THEN 'map' ELSE 'other' END kind,COUNT(DISTINCT website) count FROM marketing_county_items WHERE job_id=? AND website<>'' GROUP BY 1").all(job.id);
  const webPages=db.prepare("SELECT 1 FROM sqlite_master WHERE name='marketing_county_web_pages'").get()?db.prepare('SELECT state,reason,COUNT(*) count FROM marketing_county_web_pages WHERE job_id=? GROUP BY state,reason').all(job.id):[];
  const webHosts=db.prepare("SELECT 1 FROM sqlite_master WHERE name='marketing_county_web_hosts'").get()?db.prepare('SELECT robots_state,reason,COUNT(*) count FROM marketing_county_web_hosts GROUP BY robots_state,reason').all():[];
- console.log('MKT_REVIEW_STATUS '+JSON.stringify({state:job.state,total:job.total,sources,sites,emailChecks,hostKinds,webPages,webHosts,delivery:process.env.NITIDO_MARKETING_DELIVERY_ENABLED==='true'?'enabled':'blocked'}));
+ const collectorBusy=!!db.prepare('SELECT 1 FROM marketing_collection_lock WHERE id=1 AND until_ms>?').get(Date.now());
+ console.log('MKT_REVIEW_STATUS '+JSON.stringify({state:job.state,total:job.total,sources,sites,emailChecks,hostKinds,webPages,webHosts,collectorBusy,delivery:process.env.NITIDO_MARKETING_DELIVERY_ENABLED==='true'?'enabled':'blocked'}));
 }finally{db.close();}
