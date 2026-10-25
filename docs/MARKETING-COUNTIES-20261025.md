@@ -21,7 +21,7 @@ Procesarea unui inventar OSM ori a unui catalog nu demonstrează că au fost gă
 Verificări locale: 140 de teste Marketing trecute (un test de fum extern este omis fără configurarea lui), inclusiv CSV cu 100.001 rânduri/501 loturi, manifest cu 100.001 înregistrări, export peste 5.000, integritatea loturilor, mai multe adrese/firmă, acord retras păstrat, limite geografice și blocarea Bucureștiului. Buildul de producție a trecut cu trimiterea Marketing oprită. Starea efectiv publicată și rezultatele reale trebuie verificate separat în Coolify; documentul nu reprezintă o declarație de finalizare a județului.
 
 
-## Publicare verificată
+## Publicare verificată la 24.10.2026
 
 LIVE publică efectiv `7d97bfb733341a0623babb7e73d7788f4dc88b45`, pe baza versiunii LIVE anterioare `177cdbc`; main nu a fost folosit ca bază. Sandbox publică varianta corespunzătoare `0bd5a2bccd78044979c33b0e42ad7621a53ee2c2`, păstrând baza sa de autentificare. Deploy-ul LIVE `gual2eavuc7jfofxt8ziuqtn` este finalizat și aplicația este sănătoasă. Diferența față de versiunea LIVE anterioară nu modifică autentificarea, inițializarea generală a bazei sau Compose-ul de producție; Dockerfile adaugă numai scriptul de pregătire a sursei Marketing.
 
@@ -44,3 +44,8 @@ La verificarea din 25.10, colectarea era în pauză în ambele medii la prima li
 Parserul citește fiecare titlu și îi asociază numai metadatele din propriile rânduri, oprindu-se înaintea firmei următoare. Validarea numărului de rânduri folosește toate titlurile din listă, iar salvarea rămâne filtrată după județ. Lipsa metadatelor, un județ necunoscut și trunchierea reală continuă să oprească importul. Reluarea explicită poate reîncerca erorile de structură HTML; nu resetează refuzuri de acces, robots sau erori de transport și păstrează termenele sursei.
 
 Verificări: 144 teste Marketing trecute, inclusiv nouă firme într-un tabel, firme din județe diferite în același tabel, metadate lipsă fără preluarea județului firmei următoare și reluare care păstrează refuzul de acces și pauza sursei. Buildul local de producție a trecut. Publicarea și verificarea reluării în sandbox/LIVE se înregistrează separat.
+
+
+Confirmare după remediere: sandbox publică `4b2f781dfb93c6d24eed0fcdee47cfb9f4902c0b`, iar LIVE publică `c2ea79e70edbcef85ef4d43c98514a765797450f`; ambele sunt sănătoase. Reluarea a reîncercat numai lista verificată care fusese oprită de eroarea parserului, fără refacerea inventarului OSM sau a verificărilor existente.
+
+La punctul de control după publicare, LIVE procesase 14 liste din catalog și avea 46 de profiluri în coadă, fără pagini blocate sau erori de sursă. Sandbox avansase la 86 de liste și 282 de profiluri în coadă. LIVE păstra 417 emailuri cu sursă și MX verificate, 12 invalide și nouă care necesitau verificare; cele 4.682 de rânduri OSM erau procesate. Acestea sunt valori intermediare, nu finalizarea județului. București rămânea în așteptare, livrarea era blocată și outboxul gol în ambele medii. Sarcinile temporare de diagnostic/reluare au fost șterse și absența lor a fost verificată.
