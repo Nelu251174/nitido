@@ -67,6 +67,11 @@ export async function publisherStatus(api,retire=false){
  }
  return {id:w.id,path:w.path,state:w.state,activeRuns:active};
 }
+// Public evidence contains aggregate outcomes only, never Apple's internal resource identifiers.
+export function publicReport(report){
+ const snapshot=s=>s?{publicVersions:s.versions.map(v=>({version:v.version,state:v.state})),builds:s.builds.length,unexpiredBuilds:s.builds.filter(b=>!b.expired).length,autoNotificationsEnabled:s.builds.filter(b=>b.autoNotifyEnabled===true).length,betaGroups:s.groups.length,publicLinksEnabled:s.groups.filter(g=>g.publicLinkEnabled).length}:null;
+ return {checkedAt:report.checkedAt,mode:report.mode,bundleId:BUNDLE,status:report.status,reason:report.reason??null,before:snapshot(report.before),after:snapshot(report.result?.after),expiredBuildCount:report.result?.expiredBuilds.length??0,notificationsDisabledCount:report.result?.notificationsDisabled.length??0,publicLinksDisabledCount:report.result?.publicLinksDisabled.length??0,appStoreWrites:report.result?.appStoreWrites??0,appStoreSnapshotUnchanged:report.result?.appStoreSnapshotUnchanged??null,publisher:report.publisher?{path:report.publisher.path??null,state:report.publisher.state??report.publisher.status,cancelledRunCount:report.publisher.cancelledRuns??0,activeRunCount:report.publisher.activeRuns?.length??null,reason:report.publisher.reason??null}:null};
+}
 export async function main(env=process.env){
  const mode=env.TESTFLIGHT_MODE??'inspect',report={checkedAt:new Date().toISOString(),mode,bundleId:BUNDLE,status:'started',mutations:0};
  try{
@@ -79,6 +84,6 @@ export async function main(env=process.env){
    if(report.publisher.status==='blocked'){report.status='testflight_retired_uploader_blocked';process.exitCode=1;}
   }else{report.publisher=await publisherStatus(apiClient('https://api.github.com',env.GH_ACTIONS_TOKEN));report.status='read_only_verified';}
  }catch(e){report.status='blocked';report.reason=/^[A-Z_0-9]+$/.test(e.message)?e.message:'TESTFLIGHT_OPERATION_FAILED';process.exitCode=1;}
- await mkdir('.testflight-stop',{recursive:true});await writeFile('.testflight-stop/report.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report));return report;
+ const safe=publicReport(report);await mkdir('.testflight-stop',{recursive:true});await writeFile('.testflight-stop/report.json',JSON.stringify(safe,null,2)+'\n');console.log(JSON.stringify(safe));return safe;
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)await main();
