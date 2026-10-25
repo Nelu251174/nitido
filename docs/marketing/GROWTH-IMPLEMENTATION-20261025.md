@@ -24,4 +24,23 @@ Sunt pregătite texte și linkuri distribuibile; nu sunt lansate reclame plătit
 
 ## Verificare
 
-Rezultatele finale ale testelor, publicarea în sandbox/LIVE, verificarea formularului și numărul ciornelor se consemnează după execuție. Nu reprezintă o declarație că întreg județul Constanța sau București este finalizat.
+Verificare și publicare la 25.10.2026:
+
+- 191 teste Marketing trecute; un test de fum extern omis fără configurare. TypeScript, ESLint și toate verificările i18n au trecut. Buildurile de producție în Coolify au trecut.
+- Sandbox `680deb38ea29037f87034f0798ca88df0172d0d4`, sănătos. LIVE `07af7df1146ff34e5734a74140b03dd0f5dac47d`, sănătos, deploy finalizat. Au fost transferate selectiv numai schimbările Marketing; autentificarea fiecărui mediu a fost păstrată.
+- În fiecare mediu au fost create 42 de ciorne: șase pentru fiecare CT, B, BV, IF, CJ, IS, TM. Starea este `draft`; pilotul este 50, fără plafon total al bazei. Nicio campanie nu a fost activată.
+- Chromium la 390 px: formular 200, fără depășire orizontală sau erori JavaScript, acord nebifat, preselectare CT/persoane fizice. Formularul real sandbox a răspuns 202 cu numai `received:true`; solicitarea a rămas pending, fără contact sau token creat, apoi fixture-ul exact a fost șters. Nu au fost introduse solicitări de test pe LIVE.
+- Cerere cu altă origine: 403; API administrativ fără sesiune: 401/JSON. LIVE: formular și confirmare 200; corp invalid 400/JSON. Testul browserului a folosit proxy-ul și conexiuni validate TLS prin configurația Node existentă, fără modificarea listei permanente de certificate.
+
+## Remedierea catalogului București
+
+Diagnosticul read-only a identificat etichete goale în unele ancore ale catalogului, cu metadate și URL-uri prezente. Parserul acceptă acum eticheta goală numai dacă județul și URL-ul profilului sunt valide. Numele real rămâne obligatoriu în profil; nu este inventat și nu este împrumutat de la firma următoare. Testul de regresie păstrează separarea București/Ilfov și respinge profilurile fără identitate.
+
+Reluarea îngustă a paginii blocate a păstrat pauzele sursei, inventarul și lucrătorul unic. În sandbox, listele procesate au crescut de la 13 la 33, fără surse blocate, iar firmele procesate de la 10.688 la 10.736. Aceeași remediere testată a fost publicată pe LIVE și CT/B au fost reluate. Niciun județ nu este declarat finalizat.
+
+
+## Stare LIVE confirmată după reluare
+
+Constanța: `collecting`, 5.588/5.590 firme procesate, 1.570 emailuri cu sursă și MX verificate; catalogul are 1.530 pagini procesate, fără pagini blocate. București: `collecting`, 10.837/14.001 firme procesate, 272 emailuri cu sursă și MX verificate; listele catalogului au avansat 13 → 23, fără pagini blocate. Aceste cifre sunt un instantaneu, nu o declarație de finalizare sau de existență garantată a căsuțelor.
+
+În LIVE există 42 de campanii, toate `draft`, câte șase per județ din plan. Nu există înscrieri PF fabricate, tokenuri de confirmare sau mesaje în outbox; livrarea este blocată. Cele cinci județe viitoare rămân `queued`, cu zero inventar importat. Colectorul existent continuă CT/B; monitorizarea periodică a conversației nu a fost repornită. Sarcinile temporare din ambele medii au fost șterse și absența lor verificată.

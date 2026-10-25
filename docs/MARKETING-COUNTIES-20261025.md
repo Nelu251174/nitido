@@ -1,5 +1,7 @@
 # Marketing: județe și colectare publică
 
+Stare curentă, 25.10.2026: LIVE `07af7df1146ff34e5734a74140b03dd0f5dac47d`, sandbox `680deb38ea29037f87034f0798ca88df0172d0d4`, ambele sănătoase. Market include acum înscrieri voluntare separate și 42 de ciorne pentru clienți business, firme de curățenie și persoane fizice. CT/B rămân nefinalizate; BV → IF → CJ → IS → TM rămân în coadă. Livrarea și monitorizarea periodică sunt oprite. [Implementare și verificări](marketing/GROWTH-IMPLEMENTATION-20261025.md).
+
 Cerința curentă acoperă întreg județul Constanța și București, separat de Ilfov. Utilizatorul a cerut ulterior pornirea Bucureștiului înainte de finalizarea Constanței. Cele 2.337 de înregistrări procesate anterior priveau municipiul, nu județul.
 
 Market se deschide în secțiunea Județe, cu toate cele 41 de județe și București. Contactele au apartenențe județ/localitate, iar o adresă comună mai multor sedii rămâne vizibilă în fiecare județ sursă fără schimbarea acordului, categoriei sau a stării contactului existent. Inventarul separat include și firmele pentru care nu s-a găsit email. Localitatea necunoscută este etichetată explicit; nu este înlocuită cu municipiul reședință.
