@@ -87,3 +87,17 @@ Pornirea separată a Bucureștiului a fost executată și auditată în ambele m
 Constanța este reluată în `collecting`, fără resetarea datelor: LIVE 5.584/5.590 înregistrări procesate, 1.562 emailuri cu sursă și MX verificate, 105 invalide și 44 care necesită verificare. Județul rămâne nefinalizat. Ambele medii au livrarea blocată și outboxul gol. Sarcinile temporare au fost șterse, iar absența lor a fost verificată.
 
 În timpul înlocuirii containerului LIVE, o pagină deschisă a afișat textul temporar al proxy-ului „no available server” drept eroare de parsare JSON, păstrând fotografia stării din pauza de publicare. Verificarea de după publicare confirmă aplicația sănătoasă, răspuns JSON și colectarea reluată; reîncărcarea paginii citește noua stare.
+
+
+### Afișarea importului înaintea colectării emailurilor
+
+În etapa de import București, cardul afișa numai firmele deja procesate și emailurile salvate, ceea ce ascundea progresul încărcării sursei. API-ul județelor expune acum distinct numărul de înregistrări importate. Market afișează „Inventar încărcat” și folosește acest număr pentru bara de import; după import afișează separat firmele procesate. Pregătirea sursei are o explicație proprie, fără o bară de colectare goală.
+
+Răspunsurile temporare de proxy care nu sunt JSON sunt înlocuite cu un mesaj clar în română. O citire reușită curăță eroarea anterioară, astfel încât pagina să nu păstreze o eroare tehnică după revenirea serverului. API-ul și autorizarea existente rămân neschimbate.
+
+Validare: 162 teste Marketing trecute (un test extern omis), TypeScript și lint trecute. Testele verifică inclusiv 5.000 de rânduri importate din 14.001 înainte de procesarea vreunei firme, etapa de pregătire fără bară falsă și răspunsuri proxy urmate de recuperare. Publicarea și verificarea reală se consemnează separat mai jos.
+
+
+Confirmare 25.10.2026 08:52 EET: sandbox publică `2887377316c6a14e192482597270a4af018493a6`, iar LIVE `5d7b805b7373b1c6e6d95aa50abc4ad0399e6c48`; ambele deploy-uri sunt finalizate și sănătoase. Pauza de publicare a păstrat stările și mesajele anterioare în auditul Marketing, fără copii ale bazei și fără resetarea cursorilor sau a termenelor sursei. După reluare, LIVE București a avansat de la 12.500 la 13.000/14.001 înregistrări importate. Sandbox importase toate cele 14.001 înregistrări, procesase primele 400 și avea un email verificat și unul în verificare. Aceste rezultate sandbox nu sunt prezentate drept emailuri deja salvate pe LIVE.
+
+Constanța rămâne nefinalizată și activă. Livrarea este blocată și outboxul gol în ambele medii; rutele județelor și exportului răspund 401/JSON fără sesiune. Sarcinile temporare au fost șterse și absența lor verificată. Monitorizarea periodică a conversației rămâne oprită.
