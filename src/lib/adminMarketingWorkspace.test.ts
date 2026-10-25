@@ -10,6 +10,7 @@ function add(patch: Record<string, unknown> = {}, reviewed = true) {
   const rows = listMarketingContacts(db, new URLSearchParams()).contacts;
   const row = rows.find(row => row.email === (patch.email ?? 'one@example.test') && row.category === (patch.category ?? 'business'))!;
   if (reviewed && row.consent !== 'withdrawn') updateMarketingContact(db, { ...row, status: 'reviewed' });
+  if(row.email)db.prepare("INSERT OR REPLACE INTO marketing_email_checks(email,status,source_status,domain_status) VALUES(?,'verified','verified','mx')").run(row.email);
   return row.id;
 }
 function settings(patch = {}) { return saveMarketingSettings(db, { ...marketingSettings(db), senderEmail: 'marketing@example.test', replyTo: 'reply@example.test', postalAddress: 'Adresă sintetică', unitCostRon: 0.01, ...patch }, actor); }
@@ -115,3 +116,26 @@ describe('contact maintenance and collection history', () => {
     expect(() => recordMarketingCollection(db, { source: 'csv', requested: 4, excluded: 0 }, 3, { created: 3, duplicates: 0 }, actor)).toThrow('Contoare');
   });
 });
+
+describe('county campaigns and pilot batches',()=>{
+ it('selects all localities in a county, including memberships of a shared email, while keeping București separate from Ilfov',()=>{
+  add({email:'a@fixture.ro',county:'CT',city:'Mangalia'});add({email:'b@fixture.ro',county:'B',city:'București'});add({email:'c@fixture.ro',county:'IF',city:'Otopeni'});
+  saveMarketingContacts(db,[{name:'Shared',category:'business',city:'Năvodari',county:'CT',email:'b@fixture.ro',source:'Public second location',consent:'not_recorded'}],actor);
+  const ct=previewMarketingCampaign(db,draft({county:'CT'}).id);expect(ct.selected).toBe(2);expect(previewMarketingCampaign(db,draft({county:'CT',city:'Năvodari'}).id).selected).toBe(1);
+  expect(previewMarketingCampaign(db,draft({county:'B'}).id).selected).toBe(1);expect(previewMarketingCampaign(db,draft({county:'IF'}).id).selected).toBe(1);
+ });
+ it('scans more than 5000 selected contacts and reports a limited pilot without truncating the audience',()=>{
+  const put=db.prepare("INSERT INTO marketing_contacts(id,name,category,email,city,city_key,search_key,source,consent,consent_evidence,status,created_by,created_at,updated_at) VALUES(?,?,'business',?,'București','bucuresti','','Fixture','granted','Fixture opt-in','reviewed','owner','2026-10-25','2026-10-25')");
+  db.transaction(()=>{for(let i=0;i<5003;i++)put.run('id'+i,'Firm '+i,'firm'+i+'@fixture.ro');})();
+  db.prepare("INSERT INTO marketing_email_checks(email,status,source_status,domain_status) SELECT email,'verified','verified','mx' FROM marketing_contacts").run();
+  const p=previewMarketingCampaign(db,draft({recipientLimit:50}).id);expect(p).toMatchObject({selected:5003,eligible:50,deferred:4953,excluded:0});
+ });
+});
+
+describe('stable subject variants',()=>{it('keeps A and B disjoint for shared email addresses without reducing the complete audience',async()=>{
+ for(let i=0;i<12;i++)add({email:'v'+i+'@fixture.ro'});
+ const {selectAudience}=await import('./adminMarketingWorkspace');const a=selectAudience(db,draft({variant:'A'})).eligible,b=selectAudience(db,draft({variant:'B'})).eligible;
+ expect(a.length+b.length).toBe(12);expect(a.filter(id=>b.includes(id))).toHaveLength(0);expect(selectAudience(db,draft({variant:'A'})).eligible).toEqual(a);
+});});
+
+describe('technical email readiness',()=>{it('excludes an unverified email even when consent and manual review are present',()=>{add();db.prepare("UPDATE marketing_email_checks SET status='invalid'").run();expect(previewMarketingCampaign(db,draft().id)).toMatchObject({eligible:0,reasons:{unverifiedEmail:1}});});});

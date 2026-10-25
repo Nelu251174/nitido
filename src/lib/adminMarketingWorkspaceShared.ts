@@ -6,12 +6,12 @@ export interface MarketingSettings {
 }
 export interface MarketingCampaign {
   id: string; version: number; name: string; subject: string; body: string; category: MarketingCategory | '';
-  city: string; ctaLabel: string; ctaUrl: string; budgetRon: number | null;
+  county?: string; variant?: ''|'A'|'B'; recipientLimit?: number | null; city: string; ctaLabel: string; ctaUrl: string; budgetRon: number | null;
   state: keyof typeof CAMPAIGN_STATES; updatedAt: string;
 }
 export interface MarketingAudience {
-  selected: number; eligible: number; excluded: number;
-  reasons: { suppressed: number; noEmail: number; noConsent: number; notReviewed: number; duplicate: number };
+  selected: number; eligible: number; excluded: number; deferred: number;
+  reasons: { suppressed: number; noEmail: number; noConsent: number; notReviewed: number; duplicate: number; unverifiedEmail: number };
   estimatedCostRon: number | null; blockers: string[]; html: string;
 }
 export interface MarketingSimulation {

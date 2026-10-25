@@ -2,6 +2,7 @@ import { processMarketingCounty } from './adminMarketingCounty';
 import type { Database } from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { CITIES } from './cities';
+import { processMarketingAudienceChecks } from './adminMarketingSignup';
 import { initializeMarketing, marketingKey, MarketingError, normalizeMarketingInput, saveMarketingContacts } from './adminMarketing';
 import { collectBusinessWebsite, MARKETING_PUBLIC_SOURCE, publicEmails } from './adminMarketingWebCollection';
 import { processMarketingDiscovery } from './adminMarketingDiscovery';
@@ -184,6 +185,7 @@ export async function processMarketingCollections(db:Database,reader:PublicReade
   db.prepare('UPDATE marketing_collection_lock SET until_ms=? WHERE id=1 AND owner=?').run(Date.now()+10*60000,owner);return reader(url,options);
  };
  try{
+  await processMarketingAudienceChecks(db);
   if(await processMarketingCounty(db,guardedReader,heartbeat))return;
   const job=db.prepare(`SELECT * FROM marketing_city_jobs WHERE state IN ${ACTIVE} AND (next_attempt_at IS NULL OR next_attempt_at<=?) ORDER BY created_at LIMIT 1`).get(now()) as JobRow|undefined;
   if(job)await processCity(db,job,guardedReader);else await processMarketingDiscovery(db,guardedReader);

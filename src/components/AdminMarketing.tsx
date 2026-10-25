@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { AdminMarketingSignups } from './AdminMarketingSignups';
 import { AdminMarketingCounties } from './AdminMarketingCounties';
 import { AdminMarketingCsvImport } from './AdminMarketingCsvImport';
 import { MARKETING_REGIONS,MARKETING_EMAIL_VERIFICATIONS } from '@/lib/adminMarketingRegions';
@@ -29,7 +30,7 @@ function CategoryOptions({ all = false }: { all?: boolean }) {
 }
 
 export function AdminMarketing({ testEnvironment = true }: { testEnvironment?: boolean }) {
-  const [tab, setTab] = useState<'counties' | 'overview' | 'contacts' | 'collect' | 'campaigns' | 'results' | 'settings'>('counties');
+  const [tab, setTab] = useState<'signups' | 'counties' | 'overview' | 'contacts' | 'collect' | 'campaigns' | 'results' | 'settings'>('counties');
   const [revision, setRevision] = useState(0);
   const [selected, setSelected] = useState<Record<string, number>>({});
   const [list, setList] = useState<MarketingList | null>(null);
@@ -89,9 +90,10 @@ export function AdminMarketing({ testEnvironment = true }: { testEnvironment?: b
       <p className="text-sm text-muted max-w-md">Contacte, colectare firme și campanii, într-un singur loc. Trimiterea reală este oprită; verificările și coada de test nu expediază emailuri.</p>
     </header>
     <div className="grid gap-3 sm:grid-cols-3">{Object.entries(MARKETING_CATEGORIES).map(([key, label]) => <Card key={key}><p className="text-muted">{label}</p><b className="text-3xl">{list?.counts[key as MarketingCategory] ?? '—'}</b></Card>)}</div>
-    <nav aria-label="Secțiuni Marketing" className="flex flex-wrap gap-3">{([['counties','Județe'],['overview', 'Panou general'], ['contacts', 'Contacte'], ['collect', 'Colectare firme'], ['campaigns', 'Campanii'], ['results', 'Rezultate'], ['settings', 'Setări']] as const).map(([key, label]) => <button key={key} type="button" className={`v2-btn ${tab === key ? 'v2-btn-primary' : 'v2-btn-secondary'}`} aria-current={tab === key ? 'page' : undefined} style={tab === key ? { color: '#052e22' } : undefined} onClick={() => { setError(''); setMessage(''); setTab(key); }}>{label}</button>)}</nav>
+    <nav aria-label="Secțiuni Marketing" className="flex flex-wrap gap-3">{([['counties','Județe'],['signups','Înscrieri'],['overview', 'Panou general'], ['contacts', 'Contacte'], ['collect', 'Colectare firme'], ['campaigns', 'Campanii'], ['results', 'Rezultate'], ['settings', 'Setări']] as const).map(([key, label]) => <button key={key} type="button" className={`v2-btn ${tab === key ? 'v2-btn-primary' : 'v2-btn-secondary'}`} aria-current={tab === key ? 'page' : undefined} style={tab === key ? { color: '#052e22' } : undefined} onClick={() => { setError(''); setMessage(''); setTab(key); }}>{label}</button>)}</nav>
     {error && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-red-800">{error}</p>}
     {message && <p role="status" className="rounded-xl border border-green-300 bg-green-50 p-4 text-green-900">{message}</p>}
+    {tab==='signups'&&<AdminMarketingSignups/>}
     {tab==='counties'&&<AdminMarketingCounties onContacts={code=>{const next={...filters,county:code,city:'',search:'',status:'',emailVerification:''};setFilters(next);changeQuery(new URLSearchParams(next).toString());setTab('contacts');}}/>}
     {['overview', 'campaigns', 'results', 'settings'].includes(tab) && <AdminMarketingWorkspace key={tab} section={tab as 'overview' | 'campaigns' | 'results' | 'settings'} revision={revision} onContacts={() => setTab('contacts')}/>}
 
