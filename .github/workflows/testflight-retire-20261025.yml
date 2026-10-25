@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  actions: read
+  actions: write
 concurrency:
   group: nitido-testflight-retirement
   cancel-in-progress: false
@@ -24,9 +24,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Inspect TestFlight and preserve public App Store release
+      - name: Verify beta retirement safety guards
+        run: node scripts/testflight-retire-20261025.test.mjs
+      - name: Stop TestFlight while preserving public App Store release
         env:
-          TESTFLIGHT_MODE: inspect
+          TESTFLIGHT_MODE: retire
+          TESTFLIGHT_OWNER_AUTHORIZATION: ro.nitido.app:stop:2026-10-25
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
