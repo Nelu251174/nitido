@@ -110,3 +110,21 @@ La 25.10.2026 09:04 EET, utilizatorul a cerut pregătirea Brașovului și Ilfovu
 Pregătirea cozii a fost verificată întâi în sandbox și apoi executată pe LIVE, fără republicarea aplicației și fără întreruperea colectorului. În ambele medii, CT și B au rămas în `collecting`, iar BV și IF în `queued`, cu zero înregistrări importate. Testul dedicat confirmă că Brașov nu este procesat nici după finalizarea doar a Constanței, cât timp București este în `review`; după finalizarea ambelor, urmează Brașov, apoi Ilfov. Toate cele 11 teste ale lucrătorului județelor au trecut.
 
 Livrarea rămâne blocată, outboxul gol, iar monitorizarea periodică a conversației oprită. Sarcinile temporare au fost șterse și absența verificată.
+
+
+### Criteriu de încheiere și corecția buclelor de legături
+
+Nu există criteriu de oprire la 200 de contacte, la totalul inventarului sau la un număr de emailuri. Când sursele configurate și verificările tehnice au fost procesate, județul intră în `review`, nu în `completed`. Acoperirea și excepțiile surselor trebuie evaluate separat înaintea declarării finalizării. Refuzurile de acces și termenele surselor sunt păstrate.
+
+Diagnosticul anonim al celor șase înregistrări Constanța rămase a găsit două site-uri care generau sute de căi relative repetitive: până la 88, respectiv 61 de segmente, dar câte un singur email distinct. Creșterea artificială a frontierei nu reprezenta acoperire nouă. Corecția respectă baza HTML declarată și persistă amprenta conținutului vizibil și a legăturilor de contact; numai o cale descendentă repetitivă cu același conținut verificat încetează să extindă aceeași buclă. Paginile cu informații diferite continuă să fie parcurse. Nu este introdus un plafon total de pagini sau emailuri.
+
+Emailurile cu dovadă publică se salvează și se verifică pe parcurs, chiar dacă site-ul mai are pagini în așteptare. Firma rămâne `pending` până la încheierea frontierei, iar acordul și starea contactului existent sunt păstrate. Nu se recitesc sau șterg automat dovezile anterioare și nu se resetează refuzurile ori pauzele serverelor.
+
+Validare: 166 teste Marketing trecute, un test extern omis fără configurare, TypeScript și lint trecute. Verificarea reală și versiunile publicate se consemnează după publicare mai jos.
+
+
+Confirmare 25.10.2026 09:33 EET: sandbox publică `7e7b9b462ff3812e000ad107ee6315b7ca6de0c7`, iar LIVE `093b432028538f2f7b1f839ae1896908932a93b9`; ambele sunt sănătoase, cu deploy-uri finalizate. Pe cele două site-uri afectate din sandbox, listele s-au stabilizat la 655 și 947 de adrese, iar paginile în așteptare au scăzut 40→37 și 55→52, fără generarea altor adrese repetitive. Această stabilizare a rezultat din respectarea bazei HTML; protecția suplimentară prin amprenta conținutului rămâne disponibilă pentru bucle fără o bază declarată.
+
+Pe LIVE, după reluare, Constanța a avansat de la 5.584 la 5.585 înregistrări procesate. Șapte adrese au fost salvate din dovezile parțiale ale site-urilor: șase au fost verificate, ridicând totalul de la 1.562 la 1.568, iar una rămânea în verificare. Alte 105 erau invalide și 44 necesitau verificare. Site-urile restante și excepțiile de acces sunt încă în lucru; județul nu este declarat finalizat. București continua cu 10.202 înregistrări procesate și 122 emailuri verificate.
+
+Brașov și Ilfov au rămas în `queued`. Livrarea este blocată și outboxul gol în ambele medii; ruta județelor răspunde 401/JSON fără sesiune. Sarcinile temporare au fost șterse și absența verificată. Monitorizarea periodică a conversației rămâne oprită.
