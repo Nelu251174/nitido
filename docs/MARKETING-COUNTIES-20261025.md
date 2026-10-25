@@ -35,3 +35,12 @@ Prima pregătire temporară a județului pe LIVE a fost întreruptă la înlocui
 La 2026-10-24 23:23:39 UTC pregătirea LIVE a reușit: 331.678.126 octeți sursă, limita administrativă 2367022, 4.682 înregistrări, 10 loturi, 563.122 octeți inventar final, livrare blocată. Au fost verificate toate cele patru treceri ale arhivei. Coada CT → B a fost pornită explicit pe noua versiune.
 
 La 23:27:33 UTC aplicația LIVE importase și verificase toate cele 10 loturi/4.682 înregistrări și procesase primele 200. Catalogul suplimentar era în coadă, București era în așteptare, outboxul era gol și livrarea blocată. Rutele administrative noi și exportul au răspuns 401 fără sesiune, atât pe LIVE, cât și pe sandbox. Acesta este un punct de control al unei colectări în curs, nu finalizarea județului.
+
+
+### Remediere catalog: mai multe firme în același tabel
+
+La verificarea din 25.10, colectarea era în pauză în ambele medii la prima listă de firme din catalogul suplimentar. Diagnosticul structural pe pagina publică a confirmat HTTP 200, nouă firme declarate, nouă titluri și nouă etichete Constanța, dar un singur tabel HTML. Parserul anterior lua numai primul titlu din fiecare tabel și considera în mod eronat pagina incompletă.
+
+Parserul citește fiecare titlu și îi asociază numai metadatele din propriile rânduri, oprindu-se înaintea firmei următoare. Validarea numărului de rânduri folosește toate titlurile din listă, iar salvarea rămâne filtrată după județ. Lipsa metadatelor, un județ necunoscut și trunchierea reală continuă să oprească importul. Reluarea explicită poate reîncerca erorile de structură HTML; nu resetează refuzuri de acces, robots sau erori de transport și păstrează termenele sursei.
+
+Verificări: 144 teste Marketing trecute, inclusiv nouă firme într-un tabel, firme din județe diferite în același tabel, metadate lipsă fără preluarea județului firmei următoare și reluare care păstrează refuzul de acces și pauza sursei. Buildul local de producție a trecut. Publicarea și verificarea reluării în sandbox/LIVE se înregistrează separat.
