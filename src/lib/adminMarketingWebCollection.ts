@@ -16,7 +16,7 @@ export function publicEmails(text: string): string[] {
 }
 /** Keep adjacent DOM nodes separated; concatenating text can invent an email address. */
 export function marketingVisibleText($:CheerioAPI,selector:string){return $(selector).find('*').addBack().contents().filter((_,node)=>node.type==='text').map((_,node)=>node.type==='text'?node.data:'').get().join(' ');}
-export function extractBusinessPage(html: string, base: string) {
+export function extractBusinessPage(html: string, base: string, maxLinks = 2) {
   const $ = load(html); $('script,style,noscript,template').remove();
   const emails = publicEmails($('a[href^="mailto:"]').map((_, node) => $(node).attr('href')?.slice(7).split('?')[0] ?? '').get().join(' ') + ' ' + marketingVisibleText($,'body'));
   const url = new URL(base), links: string[] = [];
@@ -25,7 +25,7 @@ export function extractBusinessPage(html: string, base: string) {
     if (!/contact|despre|about/i.test(href + ' ' + text)) return;
     try { const link = publicWebsite(new URL(href, url).href); if (link.origin === url.origin && !links.includes(link.href)) links.push(link.href); } catch { /* Ignore non-public links. */ }
   });
-  return { name: ($('meta[property="og:site_name"]').attr('content') || $('title').text() || url.hostname).replace(/\s+/g, ' ').trim().slice(0, 180), emails, links: links.slice(0, 2) };
+  return { name: ($('meta[property="og:site_name"]').attr('content') || $('title').text() || url.hostname).replace(/\s+/g, ' ').trim().slice(0, 180), emails, links: links.slice(0, maxLinks) };
 }
 /** Match applicable robots groups; collection never bypasses an explicit disallow or a failed robots read. */
 export function robotsAllows(text: string, pathname: string): boolean {

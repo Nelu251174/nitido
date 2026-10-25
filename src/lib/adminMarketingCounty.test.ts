@@ -1,4 +1,4 @@
-import {describe,it,expect,vi} from 'vitest';
+import {describe,it,expect,vi,afterEach} from 'vitest';
 import Database from 'better-sqlite3';
 import {startMarketingCountyPlan,processMarketingCounty,marketingCountyView,setMarketingCountyState} from './adminMarketingCounty';
 import {listMarketingContacts,saveMarketingContacts} from './adminMarketing';
@@ -9,6 +9,7 @@ const page=(url:string,text:string)=>({url,status:200,text,headers:{'content-typ
 function fixture(){const db=new Database(':memory:');db.exec('CREATE TABLE admin_audit_log(id TEXT PRIMARY KEY,action TEXT,target_id TEXT,details TEXT)');startMarketingCountyPlan(db,'owner');return db;}
 const domain=vi.fn(async()=>({state:'mx' as const,reason:'PUBLIC_MX_PRESENT'}));
 const data:CountySourceItem[]=[{type:'node' as const,id:1,tags:{name:'County business',email:'office@business.ro;info@business.ro','addr:city':'Mangalia'}},{type:'way' as const,id:2,tags:{name:'Without email','addr:city':'Năvodari'}}];
+afterEach(()=>vi.useRealTimers());
 const deps={manifest:vi.fn(async()=>manifest),part:vi.fn(async()=>data),domain,directory:async()=>({complete:false,blocked:false})};
 describe('county worker: persistent batches, all emails, correct county order',()=>{
  it('saves every public address and keeps inventory without email, preserving consent and waiting for coverage review',async()=>{
@@ -24,12 +25,12 @@ describe('county worker: persistent batches, all emails, correct county order',(
   setMarketingCountyState(db,'CT','resume','owner');await processMarketingCounty(db,reader,()=>{},deps);await processMarketingCounty(db,reader,()=>{},{...deps,part:async()=>{throw Error('corrupt');}});expect(marketingCountyView(db).counties[0].job?.state).toBe('paused');expect(db.prepare('SELECT COUNT(*) n FROM marketing_county_items').get()).toEqual({n:0});db.close();
  });
  it('reads contact pages even when the home page already exposes another email',async()=>{
-  const db=fixture();const reader:PublicReader=vi.fn(async url=>page(url,url.endsWith('robots.txt')?'User-agent: *\nAllow: /':url.endsWith('/contact')?'info@business.ro':'office@business.ro<a href="/contact">Contact</a>'));
-  const d={...deps,part:async()=>[{...data[0],tags:{name:'Website firm',website:'https://business.ro','addr:city':'Mangalia'}},data[1]]};for(let i=0;i<5;i++)await processMarketingCounty(db,reader,()=>{},d);
-  expect(listMarketingContacts(db,new URLSearchParams({county:'CT'})).total).toBe(2);expect(reader).toHaveBeenCalledWith('https://business.ro/contact',{redirects:false});db.close();
+  vi.useFakeTimers();const db=fixture();const reader:PublicReader=vi.fn(async url=>page(url,url.endsWith('robots.txt')?'User-agent: *\nAllow: /':url.endsWith('/contact')?'info@business.ro':'office@business.ro<a href="/contact">Contact</a>'));
+  const d={...deps,part:async()=>[{...data[0],tags:{name:'Website firm',website:'https://business.ro','addr:city':'Mangalia'}},data[1]]};for(let i=0;i<30;i++){await processMarketingCounty(db,reader,()=>{},d);vi.setSystemTime(Date.now()+3000);}
+  expect(listMarketingContacts(db,new URLSearchParams({county:'CT'})).total).toBe(2);expect(reader).toHaveBeenCalledWith('https://business.ro/contact',expect.objectContaining({redirects:false}));db.close();
  });
  it('stops without saving when paused during a site request',async()=>{
-  const db=fixture();const reader:PublicReader=vi.fn(async url=>{if(!url.endsWith('robots.txt'))setMarketingCountyState(db,'CT','pause','owner');return page(url,url.endsWith('robots.txt')?'':'office@business.ro');});const d={...deps,part:async()=>[{...data[0],tags:{name:'Website firm',website:'https://business.ro'}},data[1]]};for(let i=0;i<4;i++)await processMarketingCounty(db,reader,()=>{},d);expect(listMarketingContacts(db,new URLSearchParams({county:'CT'})).total).toBe(0);db.close();
+  vi.useFakeTimers();const db=fixture();const reader:PublicReader=vi.fn(async url=>{if(!url.endsWith('robots.txt'))setMarketingCountyState(db,'CT','pause','owner');return page(url,url.endsWith('robots.txt')?'':'office@business.ro');});const d={...deps,part:async()=>[{...data[0],tags:{name:'Website firm',website:'https://business.ro'}},data[1]]};for(let i=0;i<12;i++){await processMarketingCounty(db,reader,()=>{},d);vi.setSystemTime(Date.now()+3000);}expect(listMarketingContacts(db,new URLSearchParams({county:'CT'})).total).toBe(0);db.close();
  });
  it('retries only listing structure errors on explicit resume, preserving source pauses and access refusals',()=>{
   const db=fixture(),id=(db.prepare("SELECT id FROM marketing_county_jobs WHERE county_code='CT'").get() as {id:string}).id;
@@ -40,6 +41,23 @@ describe('county worker: persistent batches, all emails, correct county order',(
   setMarketingCountyState(db,'CT','pause','owner');setMarketingCountyState(db,'CT','resume','owner');
   expect(db.prepare('SELECT state,next_attempt_at FROM marketing_directory_pages ORDER BY url').all()).toEqual([{state:'pending',next_attempt_at:deadline},{state:'blocked',next_attempt_at:deadline}]);
   expect(marketingCountyView(db).counties.find(c=>c.code==='B')?.job?.state).toBe('queued');db.close();
+ });
+
+ it('reopens website review without changing contacts, completed directory pages or the București queue',()=>{
+  const db=fixture(),id=(db.prepare("SELECT id FROM marketing_county_jobs WHERE county_code='CT'").get() as {id:string}).id;
+  saveMarketingContacts(db,[{name:'Protected',category:'business',email:'office@business.ro',city:'Mangalia',county:'CT',source:'Manual',consent:'withdrawn'}],'owner');
+  db.prepare("INSERT INTO marketing_county_items(id,job_id,identity,name,category,city,website,phone,source,status) VALUES('item',?,'fixture','Firm','business','Mangalia','https://business.ro/','','Public','done')").run(id);
+  db.prepare("UPDATE marketing_county_jobs SET state='review' WHERE id=?").run(id);setMarketingCountyState(db,'CT','enrich','owner');
+  expect(db.prepare('SELECT status,attempted_at FROM marketing_county_items').get()).toEqual({status:'pending',attempted_at:''});expect(marketingCountyView(db).counties.find(c=>c.code==='B')?.job?.state).toBe('queued');expect(listMarketingContacts(db,new URLSearchParams()).contacts[0]).toMatchObject({consent:'withdrawn',status:'do_not_contact'});db.close();
+ });
+
+ it('keeps other sites and DNS verification moving while one host requests a long pause',async()=>{
+  vi.useFakeTimers();const db=fixture();
+  const reader=vi.fn<PublicReader>(async url=>url.startsWith('https://slow.ro')?{...page(url,'Unavailable'),status:503,headers:{'content-type':'text/plain','retry-after':'86400'}}:page(url,url.endsWith('robots.txt')?'':'office@fast.ro'));
+  const part:CountySourceItem[]=[{type:'node',id:1,tags:{name:'Slow',website:'https://slow.ro'}},{type:'node',id:2,tags:{name:'Fast',website:'https://fast.ro'}}];
+  for(let i=0;i<12;i++){await processMarketingCounty(db,reader,()=>{},{...deps,part:async()=>part});vi.setSystemTime(Date.now()+15000);}
+  expect(listMarketingContacts(db,new URLSearchParams({county:'CT'})).contacts.find(c=>c.email==='office@fast.ro')?.emailVerification).toBe('verified');
+  expect(reader.mock.calls.filter(([url])=>url.startsWith('https://slow.ro'))).toHaveLength(1);expect(marketingCountyView(db).counties[0].job?.state).toBe('collecting');db.close();
  });
 
 });
