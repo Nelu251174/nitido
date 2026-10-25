@@ -9,3 +9,19 @@ describe('public business directory completeness and geography',()=>{
  it('rejects silently truncated listings and missing company profile identity',()=>{expect(()=>parseDirectoryListing(listing().replace('1 firme','100 firme').replace(/<ul[\s\S]*<\/ul>/,''),base+'constanta/','CT')).toThrow();expect(()=>parseDirectoryProfile('<body>Email provider@other.ro</body>','https://www.ghidul.ro/firm/','CT')).toThrow();});
  it('collects all visible business addresses while excluding page scripts and unrelated footer/forms',()=>{const r=parseDirectoryProfile('<body><div id="td_continut"><span id="span_left_nume">Public firm</span><a href="mailto:office@firm.ro">Office</a><p>info@firm.ro</p><a href="https://firm.ro">www.firm.ro</a><form>provider@other.ro</form><script>script@other.ro</script></div><footer>footer@other.ro</footer></body>','https://www.ghidul.ro/firm/','CT');expect(r.emails).toEqual(['info@firm.ro','office@firm.ro']);expect(r.city).toBe('Localitate neprecizată');expect(r.website).toBe('https://firm.ro/');});
 });
+
+describe('shared catalog table regression',()=>{
+ const firm=(id:string,county:string)=>`<tr><td><a class="inscriere_titlu" href="https://www.ghidul.ro/${id}/">Synthetic ${id}</a></td></tr><tr><td>Separator</td></tr><tr><td><table><tr><td><span class="firma_txt">Firma</span></td><td>|</td><td>${county}</td><td>Afisari: 20</td></tr></table></td></tr>`;
+ const shared=(rows:string,count:number)=>`<body>${count} firme<table class="rubrica_firma"><tbody>${rows}</tbody></table></body>`;
+ it('reads all nine titles and their county metadata from one shared table, as on the real CT audit listing',()=>{
+  const html=shared(Array.from({length:9},(_,i)=>firm('firm'+i,'Constanta')).join(''),9);
+  const parsed=parseDirectoryListing(html,base+'constanta/','CT');expect(parsed.profiles).toHaveLength(9);expect(new Set(parsed.profiles.map(p=>p.url)).size).toBe(9);expect(parsed.pages).toEqual([]);
+ });
+ it('counts all listing rows when validating completeness and only saves rows from the selected county',()=>{
+  expect(parseDirectoryListing(shared(firm('ct','Constanta')+firm('b','Bucuresti'),2),base+'constanta/','CT').profiles.map(p=>p.url)).toEqual(['https://www.ghidul.ro/ct/']);
+ });
+ it('does not take metadata from the next business when the current row is incomplete',()=>{
+  const html=shared('<tr><td><a class="inscriere_titlu" href="https://www.ghidul.ro/missing/">Missing metadata</a></td></tr>'+firm('ct','Constanta'),2);
+  expect(()=>parseDirectoryListing(html,base+'constanta/','CT')).toThrow('incomplete');
+ });
+});

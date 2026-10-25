@@ -1,4 +1,4 @@
-import { initializeMarketingDirectory, processMarketingDirectory } from './adminMarketingDirectory';
+import { initializeMarketingDirectory, processMarketingDirectory, retryMarketingDirectoryListings } from './adminMarketingDirectory';
 import type { Database } from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
@@ -50,6 +50,8 @@ export function setMarketingCountyState(db:Database,code:string,action:string,ac
   if(action==='pause'&&!['completed','review','paused'].includes(j.state))db.prepare("UPDATE marketing_county_jobs SET state='paused',updated_at=? WHERE id=?").run(time(),j.id);
   else if(action==='resume'&&j.state==='paused'){
    if(j.next_attempt_at&&j.next_attempt_at>time())throw new MarketingError('Pauza sursei nu a expirat.',409);
+   const retried=retryMarketingDirectoryListings(db,j.id);
+   if(retried)audit(db,'marketing.county.listing.retry',j.id,actor);
    db.prepare("UPDATE marketing_county_jobs SET state=?,message='',updated_at=? WHERE id=?").run(j.manifest?'importing':'queued',time(),j.id);
   }else throw new MarketingError('Acțiunea nu este disponibilă.',409);
   audit(db,'marketing.county.'+action,j.id,actor);

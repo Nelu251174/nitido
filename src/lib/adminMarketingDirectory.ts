@@ -30,16 +30,28 @@ export function parseDirectoryListing(html:string,url:string,code:string){
  const $=load(html),current=directoryUrl(url),slug=marketingDirectorySlug(code),base=current.pathname.replace(/pag-\d+\/$/,'');
  if(!base.endsWith('/'+slug+'/'))throw new MarketingError('Catalogul nu este filtrat după județ.',502);
  const profiles:{url:string;name:string}[]=[];
- $('table.rubrica_firma').each((_,node)=>{
-  const row=$(node),anchor=row.find('a.inscriere_titlu').first(),name=anchor.text().replace(/\s+/g,' ').trim();
-  const locality=marketingKey(row.find('.firma_txt').first().closest('tr').find('td').map((_,e)=>$(e).text()).get().join(' ')).replace(/\s+/g,' ');
-  if(!name||!new RegExp('(?:^|[^a-z])'+'(?:'+marketingRegion(code)!.key.replace(/-/g,'[- ]')+'|'+slug.replace(/-/g,'[- ]')+')'+'(?:[^a-z]|$)').test(locality))return;
-  try{const u=directoryUrl(anchor.attr('href')!,current.href);if(/^\/[^/]+\/$/.test(u.pathname)&&!u.pathname.startsWith('/firme-'))profiles.push({url:u.href,name:name.slice(0,180)});}catch{}
+ const titles=$('table.rubrica_firma a.inscriere_titlu');
+ titles.each((_,node)=>{
+  const anchor=$(node),name=anchor.text().replace(/\s+/g,' ').trim();
+  const titleRow=anchor.closest('tr');let row=titleRow,marker=row.find('.firma_txt').first();
+  // A catalog page may use one shared table for many firms. Find only this title's
+  // following metadata rows; never borrow the county from the next firm's title.
+  while(!marker.length){row=row.next();if(!row.length||row.find('a.inscriere_titlu').length)break;marker=row.find('.firma_txt').first();}
+  if(!name||!marker.length)throw new MarketingError('Datele unui rând din catalog sunt incomplete. Colectarea necesită verificare.',502);
+  const locality=marketingKey(marker.closest('tr').find('td').map((_,e)=>$(e).text()).get().join(' ')).replace(/\s+/g,' ');
+  const matches=(key:string)=>new RegExp('(?:^|[^a-z])'+key.replace(/-/g,'[- ]')+'(?:[^a-z]|$)').test(locality);
+  if(!matches(marketingRegion(code)!.key)&&!matches(slug)){
+   if(!MARKETING_REGIONS.some(r=>matches(r.key)||matches(marketingDirectorySlug(r.code))))throw new MarketingError('Județul unui rând din catalog nu poate fi verificat.',502);
+   return;
+  }
+  const u=directoryUrl(anchor.attr('href')??'',current.href);
+  if(!/^\/[^/]+\/$/.test(u.pathname)||u.pathname.startsWith('/firme-'))throw new MarketingError('Profilul unui rând din catalog nu poate fi verificat.',502);
+  profiles.push({url:u.href,name:name.slice(0,180)});
  });
  const pages=new Set<string>();$('.all_pages a[href]').each((_,e)=>{try{const u=directoryUrl($(e).attr('href')!,current.href);if(u.pathname.startsWith(base)&&/^pag-[1-9]\d*\/$/.test(u.pathname.slice(base.length)))pages.add(u.href);}catch{}});
  const body=marketingVisibleText($,'body').replace(/\s+/g,' '),count=Number(body.match(/\b(\d[\d.,]*)\s+firme\b/i)?.[1].replace(/[.,]/g,'')??NaN);
  if(!profiles.length&&count!==0)throw new MarketingError('Firmele catalogului nu pot fi citite complet pentru județ.',502);
- if(count>profiles.length&&!pages.size)throw new MarketingError('Catalogul indică mai multe firme decât pagina primită, fără paginare verificabilă.',502);
+ if(count>titles.length&&!pages.size)throw new MarketingError('Catalogul indică mai multe firme decât pagina primită, fără paginare verificabilă.',502);
  return {profiles,pages:[...pages]};
 }
 export function parseDirectoryProfile(html:string,url:string,code:string){
@@ -53,6 +65,18 @@ export function parseDirectoryProfile(html:string,url:string,code:string){
  return {identity:'ghidul:'+directoryUrl(url).pathname.split('/')[1],name,category:/cur[ăa][țţt]enie|cleaning/i.test(name)?'cleaning':'business',city,website:external[0]??'',phone:'',emails,source:url};
 }
 function retryAt(value:string|string[]|undefined){const raw=Array.isArray(value)?value[0]:value,parsed=raw&&/^\d+$/.test(raw)?Date.now()+Number(raw)*1000:Date.parse(raw??'');return new Date(Number.isFinite(parsed)?Math.max(Date.now()+300000,parsed):Date.now()+300000).toISOString();}
+const listingStructureReasons=[
+ 'Catalogul indică mai multe firme decât pagina primită, fără paginare verificabilă.',
+ 'Firmele catalogului nu pot fi citite complet pentru județ.',
+ 'Datele unui rând din catalog sunt incomplete. Colectarea necesită verificare.',
+ 'Județul unui rând din catalog nu poate fi verificat.',
+ 'Profilul unui rând din catalog nu poate fi verificat.',
+];
+/** An explicit operator resume may retry HTML parsing failures, preserving source deadlines.
+ * Access denials, robots restrictions and transport failures are not reset here. */
+export function retryMarketingDirectoryListings(db:Database,jobId:string){
+ return db.prepare(`UPDATE marketing_directory_pages SET state='pending',attempts=0,reason='' WHERE job_id=? AND kind='listing' AND state='blocked' AND reason IN (${listingStructureReasons.map(()=>'?').join(',')})`).run(jobId,...listingStructureReasons).changes;
+}
 /** Persisted public-source frontier: all linked categories, county pages, pagination and firm profiles. */
 export async function processMarketingDirectory(db:Database,job:{id:string;county_code:string},reader:PublicReader,active:()=>boolean){
  initializeMarketingDirectory(db);
