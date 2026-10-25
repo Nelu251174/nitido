@@ -13,6 +13,19 @@ const data:CountySourceItem[]=[{type:'node' as const,id:1,tags:{name:'County bus
 afterEach(()=>vi.useRealTimers());
 const deps={manifest:vi.fn(async()=>manifest),part:vi.fn(async()=>data),domain,directory:async()=>({complete:false,blocked:false})};
 describe('county worker: persistent batches, all emails, correct county order',()=>{
+ it('keeps prepared Brașov and Ilfov waiting until both Constanța and București are completed',async()=>{
+  const db=fixture(),reader:PublicReader=vi.fn();startMarketingCountyPlan(db,'owner',['BV','IF']);
+  db.prepare("UPDATE marketing_county_jobs SET state='review' WHERE county_code IN ('CT','B')").run();
+  const manifestReader=vi.fn(async(code:string)=>({...manifest,countyCode:code} as CountyManifest));
+  await processMarketingCounty(db,reader,()=>{},{...deps,manifest:manifestReader});expect(manifestReader).not.toHaveBeenCalled();
+  db.prepare("UPDATE marketing_county_jobs SET state='completed' WHERE county_code='CT'").run();
+  await processMarketingCounty(db,reader,()=>{},{...deps,manifest:manifestReader});expect(manifestReader).not.toHaveBeenCalled();
+  for(const code of ['BV','IF'])expect(marketingCountyView(db).counties.find(c=>c.code===code)?.job).toMatchObject({state:'queued',imported:0,startedSeparately:false});
+  db.prepare("UPDATE marketing_county_jobs SET state='completed' WHERE county_code='B'").run();
+  await processMarketingCounty(db,reader,()=>{},{...deps,manifest:manifestReader});expect(manifestReader).toHaveBeenCalledWith('BV');
+  expect(marketingCountyView(db).counties.find(c=>c.code==='IF')?.job?.state).toBe('queued');db.close();
+ });
+
  it('starts București only after explicit activation while preserving unfinished Constanța and excluding Ilfov',async()=>{
   const db=fixture(),reader:PublicReader=vi.fn();db.prepare("UPDATE marketing_county_jobs SET state='review' WHERE county_code='CT'").run();
   await processMarketingCounty(db,reader,()=>{},deps);expect(marketingCountyView(db).counties.find(c=>c.code==='B')?.job?.state).toBe('queued');
