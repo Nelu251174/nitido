@@ -1,6 +1,6 @@
 # Marketing: județe și colectare publică
 
-Stare curentă, 25.10.2026: LIVE `07af7df1146ff34e5734a74140b03dd0f5dac47d`, sandbox `680deb38ea29037f87034f0798ca88df0172d0d4`, ambele sănătoase. Market include acum înscrieri voluntare separate și 42 de ciorne pentru clienți business, firme de curățenie și persoane fizice. CT/B rămân nefinalizate; BV → IF → CJ → IS → TM rămân în coadă. Livrarea și monitorizarea periodică sunt oprite. [Implementare și verificări](marketing/GROWTH-IMPLEMENTATION-20261025.md).
+Stare curentă, 25.10.2026: LIVE `62c8d0b26634a49a647c0c9015dc6556cd69df24`, sandbox `4bd0fd2de2f0d3152a1549a6101a0c91dd17a9c9`, ambele sănătoase. Market include acum înscrieri voluntare separate și 42 de ciorne pentru clienți business, firme de curățenie și persoane fizice. CT/B rămân nefinalizate; BV → IF → CJ → IS → TM rămân în coadă. Livrarea și monitorizarea periodică sunt oprite. [Implementare și verificări](marketing/GROWTH-IMPLEMENTATION-20261025.md). [Ritm și prioritatea curățeniei](marketing/COLLECTION-THROUGHPUT-20261025.md).
 
 Cerința curentă acoperă întreg județul Constanța și București, separat de Ilfov. Utilizatorul a cerut ulterior pornirea Bucureștiului înainte de finalizarea Constanței. Cele 2.337 de înregistrări procesate anterior priveau municipiul, nu județul.
 

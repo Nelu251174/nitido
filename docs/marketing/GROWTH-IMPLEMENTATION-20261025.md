@@ -1,5 +1,7 @@
 # Marketing: clienți, firme partenere și persoane fizice
 
+Actualizarea ulterioară a colectorului este publicată în LIVE `62c8d0b26634a49a647c0c9015dc6556cd69df24` și sandbox `4bd0fd2de2f0d3152a1549a6101a0c91dd17a9c9`. [Prioritatea curățeniei, ritmul și verificările](COLLECTION-THROUGHPUT-20261025.md). Rezultatele lansării inițiale de mai jos sunt păstrate cu versiunile lor.
+
 Cerința utilizatorului este implementarea efectivă a extinderii Marketing, cu emailurile oprite. Autentificarea, rezervarea și celelalte module nu se modifică. Colectarea CT/B continuă, iar BV → IF → CJ → IS → TM rămân în coadă conform planului existent.
 
 ## Implementare
