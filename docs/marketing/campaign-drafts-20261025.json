@@ -1,0 +1,74 @@
+{
+  "schema": "editorial-campaign-drafts-v1",
+  "status": "draft-not-imported-not-scheduled",
+  "deliveryEnabled": false,
+  "firstCounties": [
+    "CT",
+    "B"
+  ],
+  "nextCounties": [
+    "BV",
+    "IF",
+    "CJ",
+    "IS",
+    "TM"
+  ],
+  "requiresBeforeSending": [
+    "county-audience-selection",
+    "documented-consent-and-contact-review",
+    "service-capacity-per-area",
+    "sender-and-reply-address",
+    "postal-footer-and-unsubscribe",
+    "approved-budget-and-external-delivery-authorization",
+    "pilot-audience-selection"
+  ],
+  "templates": [
+    {
+      "key": "business",
+      "category": "business",
+      "goal": "Cerere de curățenie pentru spațiul firmei",
+      "subjectA": "Curățenia spațiului firmei, organizată online",
+      "subjectB": "Vezi prețul curățeniei înainte să publici cererea",
+      "body": "Bună ziua,\n\nPrin NITIDO puteți organiza curățenia spațiului firmei: introduceți localitatea, tipul spațiului și suprafața, vedeți prețul înainte de publicare și alegeți firma potrivită dintre cele interesate.\n\nDisponibilitatea se confirmă pentru fiecare cerere.\n\nEchipa NITIDO",
+      "ctaLabel": "Calculează prețul",
+      "ctaUrl": "https://nitido.ro/rezervare"
+    },
+    {
+      "key": "cleaning",
+      "category": "cleaning",
+      "goal": "Înscrierea unei firme de curățenie partenere",
+      "subjectA": "Înscrie firma ta de curățenie în NITIDO",
+      "subjectB": "Un loc pentru programările și echipa firmei tale",
+      "body": "Bună ziua,\n\nAdministrați o firmă de curățenie? În NITIDO puteți să vă înscrieți firma, să vă prezentați serviciile și să organizați programările, echipele și istoricul lucrărilor.\n\nOportunitățile depind de cererile din zonă și de eligibilitatea firmei.\n\nEchipa NITIDO",
+      "ctaLabel": "Înscrie firma",
+      "ctaUrl": "https://nitido.ro/signup?role=firma"
+    },
+    {
+      "key": "individual",
+      "category": "individual",
+      "goal": "Cerere de curățenie pentru locuință, pentru persoane înscrise cu acord documentat",
+      "subjectA": "Mai mult timp pentru tine. Curățenia începe aici.",
+      "subjectB": "Vezi cât ar costa curățenia locuinței tale",
+      "body": "Bună,\n\nAi nevoie de curățenie pentru locuința ta? În NITIDO alegi tipul spațiului, suprafața și programarea, vezi prețul înainte să publici cererea și alegi firma potrivită dintre cele interesate.\n\nDisponibilitatea se confirmă pentru cererea ta.\n\nEchipa NITIDO",
+      "ctaLabel": "Vezi prețul curățeniei",
+      "ctaUrl": "https://nitido.ro/rezervare"
+    }
+  ],
+  "followUp": {
+    "proposedDelayDays": 7,
+    "maxFollowUps": 1,
+    "body": "Bună ziua,\n\nRevin o singură dată la informațiile despre NITIDO. Dacă serviciul vă este util, puteți consulta opțiunile folosind butonul de mai jos.\n\nEchipa NITIDO",
+    "conditions": [
+      "Audience is still eligible and has not withdrawn consent",
+      "Exclude replied or converted contacts",
+      "No scheduling while delivery remains disabled"
+    ]
+  },
+  "individualConsentCopy": "Vreau să primesc prin email noutăți și oferte NITIDO. Mă pot dezabona oricând.",
+  "individualConsentControl": "Căsuță separată, nebifată implicit; păstrarea datei, sursei, versiunii textului și referinței dovezii.",
+  "notes": [
+    "Acestea sunt texte editoriale, nu fișiere importabile direct în campaniile existente.",
+    "Nu sunt introduse contacte reale sau acorduri fictive.",
+    "Nu sunt promise tarife, reduceri, disponibilitate imediată ori venituri pentru parteneri."
+  ]
+}
