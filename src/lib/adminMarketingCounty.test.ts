@@ -18,7 +18,8 @@ describe('county worker: persistent batches, all emails, correct county order',(
   await processMarketingCounty(db,reader,()=>{},deps);expect(marketingCountyView(db).counties.find(c=>c.code==='B')?.job?.state).toBe('queued');
   setMarketingCountyState(db,'B','activate','owner');const manifestReader=vi.fn(async(code:string)=>({...manifest,countyCode:code} as CountyManifest));
   await processMarketingCounty(db,reader,()=>{},{...deps,manifest:manifestReader});
-  expect(manifestReader).toHaveBeenCalledWith('B');expect(marketingCountyView(db).counties.find(c=>c.code==='B')?.job).toMatchObject({state:'importing',startedSeparately:true});
+  expect(manifestReader).toHaveBeenCalledWith('B');expect(marketingCountyView(db).counties.find(c=>c.code==='B')?.job).toMatchObject({state:'importing',startedSeparately:true,imported:0});
+  await processMarketingCounty(db,reader,()=>{},deps);expect(marketingCountyView(db).counties.find(c=>c.code==='B')?.job).toMatchObject({state:'importing',total:2,imported:2,processed:0});
   expect(marketingCountyView(db).counties.find(c=>c.code==='CT')?.job?.state).toBe('review');expect(marketingCountyView(db).counties.find(c=>c.code==='IF')?.job).toBeNull();
   expect(db.prepare("SELECT COUNT(*) n FROM admin_audit_log WHERE action='marketing.county.activate'").get()).toEqual({n:1});db.close();
  });
