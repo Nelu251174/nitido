@@ -13,6 +13,24 @@ const data:CountySourceItem[]=[{type:'node' as const,id:1,tags:{name:'County bus
 afterEach(()=>vi.useRealTimers());
 const deps={manifest:vi.fn(async()=>manifest),part:vi.fn(async()=>data),domain,directory:async()=>({complete:false,blocked:false})};
 describe('county worker: persistent batches, all emails, correct county order',()=>{
+ it('starts București only after explicit activation while preserving unfinished Constanța and excluding Ilfov',async()=>{
+  const db=fixture(),reader:PublicReader=vi.fn();db.prepare("UPDATE marketing_county_jobs SET state='review' WHERE county_code='CT'").run();
+  await processMarketingCounty(db,reader,()=>{},deps);expect(marketingCountyView(db).counties.find(c=>c.code==='B')?.job?.state).toBe('queued');
+  setMarketingCountyState(db,'B','activate','owner');const manifestReader=vi.fn(async(code:string)=>({...manifest,countyCode:code} as CountyManifest));
+  await processMarketingCounty(db,reader,()=>{},{...deps,manifest:manifestReader});
+  expect(manifestReader).toHaveBeenCalledWith('B');expect(marketingCountyView(db).counties.find(c=>c.code==='B')?.job).toMatchObject({state:'importing',startedSeparately:true});
+  expect(marketingCountyView(db).counties.find(c=>c.code==='CT')?.job?.state).toBe('review');expect(marketingCountyView(db).counties.find(c=>c.code==='IF')?.job).toBeNull();
+  expect(db.prepare("SELECT COUNT(*) n FROM admin_audit_log WHERE action='marketing.county.activate'").get()).toEqual({n:1});db.close();
+ });
+ it('alternates explicitly activated counties using persisted turns without overriding either source deadline or pause',async()=>{
+  const db=fixture(),reader:PublicReader=vi.fn();setMarketingCountyState(db,'B','activate','owner');
+  const seen:string[]=[];const manifestReader=async(code:string)=>{seen.push(code);return {...manifest,countyCode:code} as CountyManifest;};
+  await processMarketingCounty(db,reader,()=>{},{...deps,manifest:manifestReader});await processMarketingCounty(db,reader,()=>{},{...deps,manifest:manifestReader});expect(seen).toEqual(['CT','B']);
+  db.prepare("UPDATE marketing_county_jobs SET state='queued' WHERE county_code='CT'").run();db.prepare("UPDATE marketing_county_jobs SET state='queued',next_attempt_at='2099-01-01T00:00:00.000Z' WHERE county_code='B'").run();
+  await processMarketingCounty(db,reader,()=>{},{...deps,manifest:manifestReader});expect(seen).toEqual(['CT','B','CT']);
+  setMarketingCountyState(db,'CT','pause','owner');await processMarketingCounty(db,reader,()=>{},{...deps,manifest:manifestReader});expect(seen).toHaveLength(3);
+  db.prepare("UPDATE marketing_county_jobs SET next_attempt_at=NULL WHERE county_code='B'").run();await processMarketingCounty(db,reader,()=>{},{...deps,manifest:manifestReader});expect(seen).toEqual(['CT','B','CT','B']);expect(marketingCountyView(db).counties[0].job?.state).toBe('paused');db.close();
+ });
  it('saves every public address and keeps inventory without email, preserving consent and waiting for coverage review',async()=>{
   const db=fixture(),reader:PublicReader=vi.fn();saveMarketingContacts(db,[{name:'Protected',category:'business',email:'office@business.ro',city:'București',source:'Manual',consent:'withdrawn'}],'owner');
   for(let i=0;i<5;i++)await processMarketingCounty(db,reader,()=>{},deps);

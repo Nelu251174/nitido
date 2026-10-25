@@ -18,6 +18,7 @@ CREATE INDEX IF NOT EXISTS marketing_county_pending ON marketing_county_items(jo
 CREATE TABLE IF NOT EXISTS marketing_county_item_emails(item_id TEXT NOT NULL REFERENCES marketing_county_items(id),email TEXT NOT NULL,source TEXT NOT NULL,PRIMARY KEY(item_id,email));
 CREATE INDEX IF NOT EXISTS marketing_county_email ON marketing_county_item_emails(email,item_id);
 CREATE TABLE IF NOT EXISTS marketing_county_sites(job_id TEXT NOT NULL,website TEXT NOT NULL,result TEXT NOT NULL,warning TEXT NOT NULL DEFAULT '',PRIMARY KEY(job_id,website));
+CREATE TABLE IF NOT EXISTS marketing_county_dispatch(job_id TEXT PRIMARY KEY REFERENCES marketing_county_jobs(id),independent INTEGER NOT NULL DEFAULT 0 CHECK(independent IN (0,1)),last_turn INTEGER NOT NULL DEFAULT 0);
 `;
 const time=()=>new Date().toISOString();
 type Job={id:string;county_code:string;position:number;state:CountyState;manifest:string;part_cursor:number;total:number;message:string;next_attempt_at:string|null;created_at:string;updated_at:string;created_by:string};
@@ -38,7 +39,7 @@ export function marketingCountyView(db:Database):MarketingCountyView{
   const counts=db.prepare(`SELECT COUNT(DISTINCT c.id) contacts,COUNT(DISTINCT NULLIF(c.email,'')) emails,COUNT(DISTINCT CASE WHEN e.status='verified' THEN c.email END) verified,COUNT(DISTINCT CASE WHEN e.status='invalid' THEN c.email END) invalid,COUNT(DISTINCT CASE WHEN e.status='needs_review' THEN c.email END) needsReview,COUNT(DISTINCT CASE WHEN c.email<>'' AND COALESCE(e.status,'pending')='pending' THEN c.email END) pending FROM marketing_contact_regions r JOIN marketing_contacts c ON c.id=r.contact_id LEFT JOIN marketing_email_checks e ON e.email=c.email WHERE r.county_key=?`).get(r.key) as {contacts:number;emails:number;verified:number;invalid:number;needsReview:number;pending:number};
   const j=db.prepare('SELECT * FROM marketing_county_jobs WHERE county_code=?').get(code) as Job|undefined;
   const progress=j?db.prepare(`SELECT COUNT(*) total,COALESCE(SUM(status='done'),0) processed,COALESCE(SUM(status='done' AND NOT EXISTS(SELECT 1 FROM marketing_county_item_emails e WHERE e.item_id=marketing_county_items.id)),0) withoutEmail,COALESCE(SUM(warning<>''),0) warnings FROM marketing_county_items WHERE job_id=?`).get(j.id) as {total:number;processed:number;withoutEmail:number;warnings:number}:null;
-  return {code,name:r.name,...counts,job:j?{id:j.id,state:j.state,total:j.total,processed:progress!.processed,withoutEmail:progress!.withoutEmail,warnings:progress!.warnings,message:j.message,updatedAt:j.updated_at,nextAttemptAt:j.next_attempt_at,directory:db.prepare("SELECT COUNT(*) total,COALESCE(SUM(state='done'),0) processed,COALESCE(SUM(state='blocked'),0) blocked FROM marketing_directory_pages WHERE job_id=?").get(j.id) as {total:number;processed:number;blocked:number},websites:db.prepare("SELECT COUNT(*) total,COALESCE(SUM(state='done'),0) processed,COALESCE(SUM(state='blocked'),0) blocked FROM marketing_county_web_pages WHERE job_id=?").get(j.id) as {total:number;processed:number;blocked:number}}:null};
+  return {code,name:r.name,...counts,job:j?{id:j.id,state:j.state,startedSeparately:!!db.prepare('SELECT 1 FROM marketing_county_dispatch WHERE job_id=? AND independent=1').get(j.id),total:j.total,processed:progress!.processed,withoutEmail:progress!.withoutEmail,warnings:progress!.warnings,message:j.message,updatedAt:j.updated_at,nextAttemptAt:j.next_attempt_at,directory:db.prepare("SELECT COUNT(*) total,COALESCE(SUM(state='done'),0) processed,COALESCE(SUM(state='blocked'),0) blocked FROM marketing_directory_pages WHERE job_id=?").get(j.id) as {total:number;processed:number;blocked:number},websites:db.prepare("SELECT COUNT(*) total,COALESCE(SUM(state='done'),0) processed,COALESCE(SUM(state='blocked'),0) blocked FROM marketing_county_web_pages WHERE job_id=?").get(j.id) as {total:number;processed:number;blocked:number}}:null};
  })};
 }
 /** Explicitly authorized plan; reading the dashboard never starts collection. */
@@ -55,7 +56,10 @@ export function setMarketingCountyState(db:Database,code:string,action:string,ac
  initializeMarketingCounty(db);const r=marketingRegion(code);if(!r)throw new MarketingError('Județ invalid.');
  db.transaction(()=>{const j=db.prepare('SELECT * FROM marketing_county_jobs WHERE county_code=?').get(r.code) as Job|undefined;
   if(!j)throw new MarketingError('Județul nu este în coadă.',404);
-  if(action==='pause'&&!['completed','review','paused'].includes(j.state))db.prepare("UPDATE marketing_county_jobs SET state='paused',updated_at=? WHERE id=?").run(time(),j.id);
+  if(action==='activate'&&j.state==='queued'){
+   db.prepare('INSERT INTO marketing_county_dispatch(job_id,independent) VALUES(?,1) ON CONFLICT(job_id) DO UPDATE SET independent=1').run(j.id);
+   db.prepare("UPDATE marketing_county_jobs SET message='Pornire separată aprobată. Colectarea nu așteaptă finalizarea celorlalte județe.',updated_at=? WHERE id=?").run(time(),j.id);
+  }else if(action==='pause'&&!['completed','review','paused'].includes(j.state))db.prepare("UPDATE marketing_county_jobs SET state='paused',updated_at=? WHERE id=?").run(time(),j.id);
   else if(action==='resume'&&j.state==='paused'){
    if(j.next_attempt_at&&j.next_attempt_at>time())throw new MarketingError('Pauza sursei nu a expirat.',409);
    const retried=retryMarketingDirectoryListings(db,j.id);
@@ -100,10 +104,11 @@ export async function prepareMarketingCountySource(code:string,active:()=>boolea
  });
 }
 type Dependencies={manifest?:typeof readCountyManifest;part?:typeof readCountyPart;prepare?:typeof prepareMarketingCountySource;domain?:DomainReader;directory?:typeof processMarketingDirectory;website?:typeof collectMarketingCountyWebsite};
-const progressLog=new WeakMap<Database,{at:number;state:string;code:string}>();
+const progressLog=new WeakMap<Database,Map<string,{at:number;state:string}>>();
 function reportCountyProgress(db:Database,j:Job){
- const last=progressLog.get(db);if(last?.state===j.state&&last.code===j.county_code&&Date.now()-last.at<5*60000)return;
- progressLog.set(db,{at:Date.now(),state:j.state,code:j.county_code});
+ const entries=progressLog.get(db)??new Map<string,{at:number;state:string}>();progressLog.set(db,entries);
+ const last=entries.get(j.county_code);if(last?.state===j.state&&Date.now()-last.at<5*60000)return;
+ entries.set(j.county_code,{at:Date.now(),state:j.state});
  const inventory=db.prepare("SELECT COUNT(*) inventory,COALESCE(SUM(status='done'),0) processed,COALESCE(SUM(warning<>''),0) warnings FROM marketing_county_items WHERE job_id=?").get(j.id);
  const emails=db.prepare("SELECT e.status,COUNT(DISTINCT e.email) count FROM marketing_email_checks e JOIN marketing_county_item_emails x ON x.email=e.email JOIN marketing_county_items i ON i.id=x.item_id WHERE i.job_id=? GROUP BY e.status").all(j.id);
  const directory=db.prepare("SELECT COUNT(*) total,COALESCE(SUM(state='done'),0) processed,COALESCE(SUM(state='blocked'),0) blocked FROM marketing_directory_pages WHERE job_id=?").get(j.id);
@@ -112,11 +117,13 @@ function reportCountyProgress(db:Database,j:Job){
 }
 export async function processMarketingCounty(db:Database,reader:PublicReader,heartbeat:()=>void=()=>{},deps:Dependencies={}){
  initializeMarketingCounty(db);
- // A paused or unreviewed earlier county blocks following counties, including București.
- const j=db.prepare("SELECT * FROM marketing_county_jobs WHERE state<>'completed' ORDER BY position,created_at LIMIT 1").get() as Job|undefined;
- if(!j)return false;
+ // Ordered by default. Only an explicit activation lets a later county advance independently.
+ const first=db.prepare("SELECT * FROM marketing_county_jobs WHERE state<>'completed' ORDER BY position,created_at LIMIT 1").get() as Job|undefined;
+ if(!first)return false;
+ const j=db.prepare("SELECT j.* FROM marketing_county_jobs j LEFT JOIN marketing_county_dispatch d ON d.job_id=j.id WHERE (j.id=? OR d.independent=1) AND j.state NOT IN ('completed','paused','review') AND (j.next_attempt_at IS NULL OR j.next_attempt_at<=?) ORDER BY COALESCE(d.last_turn,0),j.position,j.created_at LIMIT 1").get(first.id,time()) as Job|undefined;
+ if(!j){reportCountyProgress(db,first);return true;}
+ db.prepare('INSERT INTO marketing_county_dispatch(job_id,last_turn) VALUES(?,(SELECT COALESCE(MAX(last_turn),0)+1 FROM marketing_county_dispatch)) ON CONFLICT(job_id) DO UPDATE SET last_turn=excluded.last_turn').run(j.id);
  reportCountyProgress(db,j);
- if(['paused','review'].includes(j.state)||j.next_attempt_at&&j.next_attempt_at>time())return true;
  const active=()=>{heartbeat();return (db.prepare('SELECT state FROM marketing_county_jobs WHERE id=?').get(j.id) as {state:string})?.state!=='paused';};
  try{
   if(['queued','preparing'].includes(j.state)){
