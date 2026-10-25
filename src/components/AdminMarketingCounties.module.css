@@ -1,0 +1,64 @@
+.grid {
+  display: grid;
+  gap: 16px;
+}
+
+.card {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 7;
+  row-gap: 0;
+  min-width: 0;
+}
+
+.progress {
+  display: contents;
+}
+
+.inventory {
+  align-self: end;
+  padding-top: 16px;
+}
+
+.sources,
+.notes {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.notes {
+  padding-top: 12px;
+}
+
+.emptyProgress {
+  grid-row: span 3;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-self: end;
+  gap: 8px;
+  padding-top: 16px;
+}
+
+.actions :is(button, a) {
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 10px;
+  font-size: 14px;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+@media (min-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
