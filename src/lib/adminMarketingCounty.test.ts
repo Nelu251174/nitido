@@ -13,6 +13,26 @@ const data:CountySourceItem[]=[{type:'node' as const,id:1,tags:{name:'County bus
 afterEach(()=>vi.useRealTimers());
 const deps={manifest:vi.fn(async()=>manifest),part:vi.fn(async()=>data),domain,directory:async()=>({complete:false,blocked:false})};
 describe('county worker: persistent batches, all emails, correct county order',()=>{
+ it('saves captured source emails before website retry deadlines, prioritizes cleaning, and preserves existing categories and opt-outs',async()=>{
+  vi.useFakeTimers();const db=fixture(),id=(db.prepare("SELECT id FROM marketing_county_jobs WHERE county_code='CT'").get() as {id:string}).id;db.prepare("UPDATE marketing_county_jobs SET state='collecting' WHERE id=?").run(id);
+  saveMarketingContacts(db,[{name:'Existing business',category:'business',email:'shared@captured.ro',city:'Cluj-Napoca',county:'CJ',source:'Manual',consent:'withdrawn'}],'owner');
+  const insert=db.prepare("INSERT INTO marketing_county_items(id,job_id,identity,name,category,city,website,phone,emails,source,next_attempt_at) VALUES(?,?,?,'Synthetic',?,'Mangalia','https://captured.ro/','',?,'https://www.openstreetmap.org/node/1','2099-01-01T00:00:00.000Z')");
+  for(let n=0;n<102;n++)insert.run(String(n),id,'osm:node/'+n,n===101?'cleaning':'business',JSON.stringify([n===101?'shared@captured.ro':`source${n}@captured.ro`]));
+  const website=vi.fn<typeof collectMarketingCountyWebsite>(),dns=vi.fn(async()=>({state:'mx' as const,reason:'PUBLIC_MX_PRESENT'}));await processMarketingCounty(db,vi.fn(),()=>{},{...deps,domain:dns,website});
+  expect(website).not.toHaveBeenCalled();expect(db.prepare('SELECT COUNT(*) n FROM marketing_county_item_emails').get()).toEqual({n:100});expect(db.prepare("SELECT COUNT(*) n FROM marketing_county_item_emails WHERE item_id='101'").get()).toEqual({n:1});
+  expect(listMarketingContacts(db,new URLSearchParams({county:'CT',search:'shared@captured.ro'})).contacts[0]).toMatchObject({category:'business',consent:'withdrawn',status:'do_not_contact'});expect(db.prepare("SELECT COUNT(*) n FROM marketing_county_items WHERE status='done'").get()).toEqual({n:0});
+  vi.setSystemTime(Date.now()+20000);await processMarketingCounty(db,vi.fn(),()=>{},{...deps,domain:dns,website});expect(db.prepare('SELECT COUNT(*) n FROM marketing_county_item_emails').get()).toEqual({n:102});expect(db.prepare("SELECT COUNT(*) n FROM marketing_contacts WHERE consent='granted'").get()).toEqual({n:0});expect(dns).toHaveBeenCalledOnce();db.close();
+ });
+ it('bounds early DNS work by time while checking more than three cached or fast addresses',async()=>{
+  vi.useFakeTimers();const db=fixture(),id=(db.prepare("SELECT id FROM marketing_county_jobs WHERE county_code='CT'").get() as {id:string}).id;db.prepare("UPDATE marketing_county_jobs SET state='collecting' WHERE id=?").run(id);
+  const insert=db.prepare("INSERT INTO marketing_county_items(id,job_id,identity,name,category,city,website,phone,emails,source,next_attempt_at) VALUES(?,?,?,'Synthetic','business','Mangalia','https://captured.ro/','',?,'https://www.openstreetmap.org/node/1','2099-01-01T00:00:00.000Z')");for(let n=0;n<25;n++)insert.run(String(n),id,'osm:node/'+n,JSON.stringify([`office@source${n}.ro`]));
+  const dns=vi.fn(async()=>{vi.setSystemTime(Date.now()+6000);return {state:'mx' as const,reason:'PUBLIC_MX_PRESENT'};});await processMarketingCounty(db,vi.fn(),()=>{},{...deps,domain:dns});expect(dns).toHaveBeenCalledOnce();expect(db.prepare("SELECT COUNT(*) n FROM marketing_email_checks WHERE status='verified'").get()).toEqual({n:1});db.close();
+ });
+ it('starts a fresh cleaning website before revisiting an already attempted deep business frontier',async()=>{
+  vi.useFakeTimers();const db=fixture(),id=(db.prepare("SELECT id FROM marketing_county_jobs WHERE county_code='CT'").get() as {id:string}).id;db.prepare("UPDATE marketing_county_jobs SET state='collecting' WHERE id=?").run(id);
+  const insert=db.prepare("INSERT INTO marketing_county_items(id,job_id,identity,name,category,city,website,phone,source,attempted_at) VALUES(?,?,?,'Synthetic',?,'Mangalia',?,'','Public',?)");insert.run('old',id,'old','business','https://deep.ro/',new Date().toISOString());insert.run('new',id,'new','cleaning','https://cleaning.ro/','');
+  const website=vi.fn<typeof collectMarketingCountyWebsite>(async()=>{vi.setSystemTime(Date.now()+16000);return {complete:false,found:[],warning:'',nextAttemptAt:null};});await processMarketingCounty(db,vi.fn(),()=>{},{...deps,website});expect(website).toHaveBeenCalledOnce();expect(website.mock.calls[0][2]).toBe('https://cleaning.ro/');db.close();
+ });
  it('saves and verifies public email evidence before a website frontier finishes, preserving withdrawn consent',async()=>{
   vi.useFakeTimers();const db=fixture(),id=(db.prepare("SELECT id FROM marketing_county_jobs WHERE county_code='CT'").get() as {id:string}).id;
   saveMarketingContacts(db,[{name:'Protected',category:'business',email:'office@partial.ro',city:'Mangalia',county:'CT',source:'Manual',consent:'withdrawn'}],'owner');
@@ -105,12 +125,12 @@ describe('county worker: persistent batches, all emails, correct county order',(
   expect(reader.mock.calls.filter(([url])=>url.startsWith('https://slow.ro'))).toHaveLength(1);expect(marketingCountyView(db).counties[0].job?.state).toBe('collecting');db.close();
  });
 
- it('continues a started contact-page frontier before seeding every remaining website',async()=>{
+ it('does not let a deep started frontier delay a fresh website, while continuing both within the available time',async()=>{
   const db=fixture(),id=(db.prepare("SELECT id FROM marketing_county_jobs WHERE county_code='CT'").get() as {id:string}).id;
   db.prepare("UPDATE marketing_county_jobs SET state='collecting' WHERE id=?").run(id);
   const put=db.prepare("INSERT INTO marketing_county_items(id,job_id,identity,name,category,city,website,phone,source,attempted_at) VALUES(?,?,?,'Firm','business','Mangalia',?,'','Public',?)");put.run('new',id,'new','https://new.ro/','');put.run('started',id,'started','https://started.ro/',new Date().toISOString());
   db.prepare('INSERT INTO marketing_county_web_pages(job_id,website,url) VALUES(?,?,?)').run(id,'https://started.ro/','https://started.ro/');
-  const website=vi.fn<typeof collectMarketingCountyWebsite>(async()=>({complete:false,found:[],warning:'',nextAttemptAt:null}));await processMarketingCounty(db,vi.fn(),()=>{},{...deps,website});expect(website.mock.calls[0][2]).toBe('https://started.ro/');db.close();
+  const website=vi.fn<typeof collectMarketingCountyWebsite>(async()=>({complete:false,found:[],warning:'',nextAttemptAt:null}));await processMarketingCounty(db,vi.fn(),()=>{},{...deps,website});expect(website.mock.calls.map(call=>call[2])).toEqual(['https://new.ro/','https://started.ro/']);db.close();
  });
 
 });
