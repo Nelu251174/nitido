@@ -37,7 +37,9 @@ export function parseDirectoryListing(html:string,url:string,code:string){
   // A catalog page may use one shared table for many firms. Find only this title's
   // following metadata rows; never borrow the county from the next firm's title.
   while(!marker.length){row=row.next();if(!row.length||row.find('a.inscriere_titlu').length)break;marker=row.find('.firma_txt').first();}
-  if(!name||!marker.length)throw new MarketingError('Datele unui rând din catalog sunt incomplete. Colectarea necesită verificare.',502);
+  // Some real listings have an empty anchor label. Its URL and county can still
+  // identify a profile; the profile parser requires the firm's actual name.
+  if(!marker.length)throw new MarketingError('Datele unui rând din catalog sunt incomplete. Colectarea necesită verificare.',502);
   const locality=marketingKey(marker.closest('tr').find('td').map((_,e)=>$(e).text()).get().join(' ')).replace(/\s+/g,' ');
   const matches=(key:string)=>new RegExp('(?:^|[^a-z])'+key.replace(/-/g,'[- ]')+'(?:[^a-z]|$)').test(locality);
   if(!matches(marketingRegion(code)!.key)&&!matches(slug)){

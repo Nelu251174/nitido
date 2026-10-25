@@ -23,6 +23,12 @@ describe('shared catalog table regression',()=>{
  it('keeps București profiles separate from Ilfov even when the catalog table mixes both',()=>{
   expect(parseDirectoryListing(shared(firm('b','Bucuresti')+firm('if','Ilfov'),2),base+'bucuresti/','B').profiles.map(p=>p.url)).toEqual(['https://www.ghidul.ro/b/']);
  });
+ it('queues an empty listing title only when its profile URL and county are verified; identity is required on the profile',()=>{
+  const html=shared(firm('empty-title','Bucuresti').replace('Synthetic empty-title','')+firm('if','Ilfov'),2);
+  expect(parseDirectoryListing(html,base+'bucuresti/','B').profiles).toEqual([{url:'https://www.ghidul.ro/empty-title/',name:''}]);
+  expect(()=>parseDirectoryListing(html.replace('https://www.ghidul.ro/empty-title/','https://outside.example/firm/'),base+'bucuresti/','B')).toThrow();
+  expect(()=>parseDirectoryProfile('<div id="td_continut">office@firm.ro</div>','https://www.ghidul.ro/empty-title/','B')).toThrow();
+ });
  it('does not take metadata from the next business when the current row is incomplete',()=>{
   const html=shared('<tr><td><a class="inscriere_titlu" href="https://www.ghidul.ro/missing/">Missing metadata</a></td></tr>'+firm('ct','Constanta'),2);
   expect(()=>parseDirectoryListing(html,base+'constanta/','CT')).toThrow('incomplete');
