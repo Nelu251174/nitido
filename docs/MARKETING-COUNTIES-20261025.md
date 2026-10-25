@@ -128,3 +128,12 @@ Confirmare 25.10.2026 09:33 EET: sandbox publică `7e7b9b462ff3812e000ad107ee631
 Pe LIVE, după reluare, Constanța a avansat de la 5.584 la 5.585 înregistrări procesate. Șapte adrese au fost salvate din dovezile parțiale ale site-urilor: șase au fost verificate, ridicând totalul de la 1.562 la 1.568, iar una rămânea în verificare. Alte 105 erau invalide și 44 necesitau verificare. Site-urile restante și excepțiile de acces sunt încă în lucru; județul nu este declarat finalizat. București continua cu 10.202 înregistrări procesate și 122 emailuri verificate.
 
 Brașov și Ilfov au rămas în `queued`. Livrarea este blocată și outboxul gol în ambele medii; ruta județelor răspunde 401/JSON fără sesiune. Sarcinile temporare au fost șterse și absența verificată. Monitorizarea periodică a conversației rămâne oprită.
+
+
+### Cluj, Iași și Timiș pregătite după Brașov și Ilfov
+
+La 25.10.2026 09:40 EET, utilizatorul a cerut pregătirea Clujului, Iașiului și Timișoarei. În contextul planului pe județe, Timișoara este inclusă în întreg județul Timiș (RO-TM), iar celelalte două sunt întreg județul Cluj (RO-CJ) și întreg județul Iași (RO-IS). Pregătirea înseamnă salvarea în coadă, fără pornirea surselor sau a colectării în această etapă.
+
+Ordinea efectivă a joburilor este CT/B în lucru, apoi Brașov → Ilfov → Cluj → Iași → Timiș. Pozițiile explicite păstrează Clujul și Iașiul după Ilfov, chiar dacă ordinea implicită a listei geografice este diferită. Cele cinci județe viitoare sunt `queued`, fără activare separată și fără înregistrări importate.
+
+Pregătirea a trecut două teste dedicate (ordine, păstrarea județelor active, idempotență și refuzul suprascrierii unui județ pornit), a fost verificată în sandbox și apoi aplicată pe LIVE. Nu a necesitat publicarea unei versiuni noi sau întreruperea colectorului. Livrarea este blocată, outboxul gol, monitorizarea periodică oprită. Sarcinile temporare au fost șterse și absența verificată.
