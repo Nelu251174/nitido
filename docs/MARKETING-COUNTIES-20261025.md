@@ -1,6 +1,6 @@
 # Marketing: județe și colectare publică
 
-Stare curentă, 25.10.2026: LIVE `62c8d0b26634a49a647c0c9015dc6556cd69df24`, sandbox `4bd0fd2de2f0d3152a1549a6101a0c91dd17a9c9`, ambele sănătoase. Market include acum înscrieri voluntare separate și 42 de ciorne pentru clienți business, firme de curățenie și persoane fizice. CT/B rămân nefinalizate; BV → IF → CJ → IS → TM rămân în coadă. Livrarea și monitorizarea periodică sunt oprite. [Implementare și verificări](marketing/GROWTH-IMPLEMENTATION-20261025.md). [Ritm și prioritatea curățeniei](marketing/COLLECTION-THROUGHPUT-20261025.md).
+Stare curentă, 25.10.2026: LIVE `98f27119bf14a3de8846eb831850fe7260ebcd56`, sandbox `812bd050bcb954ccfe9c9880bb592bc16ccd853b`, ambele sănătoase. La cererea explicită de pornire simultană, CT, B, BV, IF, CJ, IS și TM sunt activate, fără a mai aștepta finalizarea CT/B. Un singur colector alternează județele eligibile; un preparator separat pregătește câte un inventar public fără să țină blocat colectorul. Niciun județ nu este declarat finalizat. Livrarea și monitorizarea periodică a conversației rămân oprite. [Implementare și verificări](marketing/GROWTH-IMPLEMENTATION-20261025.md). [Ritm și prioritatea curățeniei](marketing/COLLECTION-THROUGHPUT-20261025.md).
 
 Cerința curentă acoperă întreg județul Constanța și București, separat de Ilfov. Utilizatorul a cerut ulterior pornirea Bucureștiului înainte de finalizarea Constanței. Cele 2.337 de înregistrări procesate anterior priveau municipiul, nu județul.
 
@@ -139,3 +139,18 @@ La 25.10.2026 09:40 EET, utilizatorul a cerut pregătirea Clujului, Iașiului ș
 Ordinea efectivă a joburilor este CT/B în lucru, apoi Brașov → Ilfov → Cluj → Iași → Timiș. Pozițiile explicite păstrează Clujul și Iașiul după Ilfov, chiar dacă ordinea implicită a listei geografice este diferită. Cele cinci județe viitoare sunt `queued`, fără activare separată și fără înregistrări importate.
 
 Pregătirea a trecut două teste dedicate (ordine, păstrarea județelor active, idempotență și refuzul suprascrierii unui județ pornit), a fost verificată în sandbox și apoi aplicată pe LIVE. Nu a necesitat publicarea unei versiuni noi sau întreruperea colectorului. Livrarea este blocată, outboxul gol, monitorizarea periodică oprită. Sarcinile temporare au fost șterse și absența verificată.
+
+
+### Pornirea tuturor județelor cerute și izolarea profilului incomplet
+
+Cererea explicită din 25.10 de a porni toate județele pregătite înlocuiește așteptarea secvențială anterioară. Activarea BV, IF, CJ, IS și TM a fost verificată întâi în sandbox și apoi aplicată pe LIVE. București rămâne separat de Ilfov; Timiș include întreg județul, cu Timișoara. Toate cele șapte regiuni își păstrează inventarul, contactele, acordurile și exportul separat.
+
+București se oprise la un profil public HTTP 200 fără elementele care identifică firma. Diagnosticul structural nu a găsit CAPTCHA sau refuz de acces. Numai această lipsă de identitate este acum păstrată ca `needs_review`, cu motiv vizibil; celelalte profiluri permise continuă. Refuzurile HTTP, robots, CAPTCHA, paginile de listă incomplete și termenele sursei continuă să oprească sau să amâne citirea. Județul ajunge în `review` cu această excepție, fără o finalizare automată.
+
+Pregătirea unei arhive județene ținea anterior închirierea colectorului pe întreaga durată. Ea are acum o închiriere distinctă, persistentă, cu un singur preparator. Schedulerul și colectorul original continuă să alterneze importul, catalogul și verificarea contactelor în celelalte județe. După pregătire, inventarul verificat trece direct la import; repornirea recuperează numai închirierile expirate. Nu se pornesc colectori concurenți și nu se schimbă autentificarea.
+
+Validare: 206 teste Marketing și patru teste ale operațiunilor au trecut; un test extern rămâne omis fără configurare. TypeScript, ESLint, verificările i18n și buildurile sandbox/LIVE au trecut. Testele acoperă continuarea colectării în timpul pregătirii, importul unui județ în timp ce se pregătește altul, pauza explicită, recuperarea unei închirieri expirate, păstrarea excepției de profil și oprirea la CAPTCHA.
+
+LIVE publică versiunea testată `98f27119bf14a3de8846eb831850fe7260ebcd56`, sandbox `812bd050bcb954ccfe9c9880bb592bc16ccd853b`. La controlul după reluare, București a avansat de la 831 la 840 de profiluri procesate, iar emailurile cu sursă și MX verificate au crescut de la 2.632 la 2.667. BV, IF și CJ importau primele loturi; IS și TM își pregăteau sursele. Acestea sunt valori intermediare, nu finalizarea județelor. Rutele administrative și exportul răspund 401/JSON fără sesiune în ambele medii.
+
+Constanța are 5.589/5.590 înregistrări procesate și 1.570 de emailuri cu sursă și MX verificate. Ultimul site a răspuns 503 la robots.txt și are termen de reîncercare 26.10.2026 04:57:47 UTC (06:57:47 EET). Termenul este păstrat, fără cereri repetate sau ocolirea sursei. Constanța rămâne nefinalizată; această așteptare nu mai blochează celelalte județe activate. Diagnosticul frontierei expune doar stări și termene anonime, fără domenii, URL-uri sau adrese de email.
