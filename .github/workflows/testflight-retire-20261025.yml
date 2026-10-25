@@ -1,12 +1,9 @@
 name: Owner requested TestFlight retirement 20261025
 on:
-  push:
-    branches: [codex/stop-testflight-20261025]
-    paths: [.github/workflows/testflight-retire-20261025.yml, scripts/testflight-retire-20261025.mjs, scripts/testflight-artifact-cleanup-20261025.mjs]
   workflow_dispatch:
 permissions:
   contents: read
-  actions: write
+  actions: read
 concurrency:
   group: nitido-testflight-retirement
   cancel-in-progress: false
@@ -24,10 +21,6 @@ jobs:
           node-version: 22
       - name: Verify beta retirement safety guards
         run: node scripts/testflight-retire-20261025.test.mjs
-      - name: Remove the two temporary detailed reports and logs
-        env:
-          GH_ACTIONS_TOKEN: ${{ github.token }}
-        run: node scripts/testflight-artifact-cleanup-20261025.mjs
       - name: Read TestFlight retirement and public App Store status
         env:
           TESTFLIGHT_MODE: inspect
