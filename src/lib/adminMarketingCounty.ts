@@ -23,6 +23,21 @@ CREATE TABLE IF NOT EXISTS marketing_county_dispatch(job_id TEXT PRIMARY KEY REF
 const time=()=>new Date().toISOString();
 type Job={id:string;county_code:string;position:number;state:CountyState;manifest:string;part_cursor:number;total:number;message:string;next_attempt_at:string|null;created_at:string;updated_at:string;created_by:string};
 type Item={id:string;job_id:string;identity:string;name:string;category:'business'|'cleaning';city:string;website:string;phone:string;emails:string;source:string;status:string;warning:string};
+function saveCountyEvidence(db:Database,j:Job,item:Item,found:{email:string;source:string}[]){
+ const unique=[...new Map(found.map(f=>[f.email,f])).values()],inputs=unique.length?unique:[{email:'',source:item.source}];let newEvidence=0;
+ for(const f of inputs){
+  if(!f.email&&!item.website)continue;
+  const input=normalizeMarketingInput({...item,email:f.email,source:f.source,county:marketingRegion(j.county_code)!.name,consent:'not_recorded',notes:`Colectare județ ${marketingRegion(j.county_code)!.name}. Sursa inițială ${item.source}. ${item.identity.startsWith('osm:')?'© OpenStreetMap contributors · ODbL.':'Ghidul.ro · date publice de contact ale firmei.'} Emailul public nu reprezintă acord de marketing.`});
+  // A shared email retains its existing consent/category; add membership instead of cloning it.
+  const existing=f.email?db.prepare('SELECT id FROM marketing_contacts WHERE email=? LIMIT 1').get(f.email) as {id:string}|undefined:undefined;
+  if(existing)linkMarketingRegion(db,existing.id,input);else saveMarketingContacts(db,[input],j.created_by);
+  if(f.email){
+   newEvidence+=db.prepare('INSERT OR IGNORE INTO marketing_county_item_emails VALUES(?,?,?)').run(item.id,f.email,f.source).changes;
+   db.prepare("INSERT INTO marketing_email_checks(email,source_status) VALUES(?,'verified') ON CONFLICT(email) DO UPDATE SET source_status='verified',status=CASE WHEN source_status<>'verified' THEN 'pending' ELSE status END").run(f.email);
+  }
+ }
+ return newEvidence;
+}
 function audit(db:Database,action:string,id:string,actor:string){db.prepare('INSERT INTO admin_audit_log(id,action,target_id,details) VALUES(?,?,?,?)').run(randomUUID(),action,id,JSON.stringify({actor}));}
 export function initializeMarketingCounty(db:Database){initializeMarketingEmailChecks(db);db.exec(MARKETING_COUNTY_SCHEMA);initializeMarketingDirectory(db);initializeMarketingCountyWeb(db);
  const columns=db.prepare('PRAGMA table_info(marketing_county_items)').all() as {name:string}[];
@@ -151,11 +166,15 @@ export async function processMarketingCounty(db:Database,reader:PublicReader,hea
    const source=await (deps.directory??processMarketingDirectory)(db,j,reader,active);
    if(source.blocked)throw new MarketingError('Catalogul public are pagini blocate sau incomplete. Verificarea sursei este necesară.',502);
    if(!active())return true;
-   const early=db.prepare("SELECT e.email FROM marketing_email_checks e WHERE e.status='pending' AND (e.next_attempt_at IS NULL OR e.next_attempt_at<=?) AND EXISTS(SELECT 1 FROM marketing_county_item_emails x JOIN marketing_county_items i ON i.id=x.item_id WHERE x.email=e.email AND i.job_id=?) LIMIT 3").all(time(),j.id) as {email:string}[];
-   for(const e of early){if(!active())return true;await verifyMarketingEmail(db,e.email,deps.domain);}
+   // Already captured public evidence does not wait for its website frontier or retry deadline.
+   const captured=db.prepare("SELECT i.* FROM marketing_county_items i WHERE i.job_id=? AND i.status='pending' AND EXISTS(SELECT 1 FROM json_each(i.emails) t WHERE NOT EXISTS(SELECT 1 FROM marketing_county_item_emails x WHERE x.item_id=i.id AND x.email=t.value)) ORDER BY CASE WHEN i.category='cleaning' THEN 0 ELSE 1 END,i.id LIMIT 100").all(j.id) as Item[];
+   db.transaction(()=>{for(const item of captured){if(!active())break;const added=saveCountyEvidence(db,j,item,(JSON.parse(item.emails) as string[]).map(email=>({email,source:item.source})));if(added){db.prepare('UPDATE marketing_county_jobs SET updated_at=? WHERE id=?').run(time(),j.id);audit(db,'marketing.county.item.evidence.saved',item.id,j.created_by);}}}).immediate();
+   const early=db.prepare("SELECT e.email FROM marketing_email_checks e WHERE e.status='pending' AND (e.next_attempt_at IS NULL OR e.next_attempt_at<=?) AND EXISTS(SELECT 1 FROM marketing_county_item_emails x JOIN marketing_county_items i ON i.id=x.item_id WHERE x.email=e.email AND i.job_id=?) ORDER BY COALESCE(e.checked_at,''),e.email LIMIT 20").all(time(),j.id) as {email:string}[];
+   const verificationDeadline=Date.now()+5000;
+   for(const e of early){if(!active())return true;if(Date.now()>verificationDeadline)break;await verifyMarketingEmail(db,e.email,deps.domain);}
 
    const deadline=Date.now()+15000;
-   const batch=db.prepare("SELECT i.* FROM marketing_county_items i WHERE i.job_id=? AND i.status='pending' AND (i.next_attempt_at IS NULL OR i.next_attempt_at<=?) ORDER BY CASE WHEN i.website='' THEN 0 ELSE 1 END,CASE WHEN EXISTS(SELECT 1 FROM marketing_county_web_pages w WHERE w.job_id=i.job_id AND w.website=i.website) THEN 0 ELSE 1 END,i.attempted_at,i.id LIMIT 200").all(j.id,time()) as Item[];
+   const batch=db.prepare("SELECT i.* FROM marketing_county_items i WHERE i.job_id=? AND i.status='pending' AND (i.next_attempt_at IS NULL OR i.next_attempt_at<=?) ORDER BY CASE WHEN i.website='' THEN 0 ELSE 1 END,i.attempted_at,CASE WHEN i.category='cleaning' THEN 0 ELSE 1 END,i.id LIMIT 200").all(j.id,time()) as Item[];
    for(const item of batch){
     if(Date.now()>deadline||!active())break;
     const found=(JSON.parse(item.emails) as string[]).map(email=>({email,source:item.source}));let warning='',websitePending=false;
@@ -170,19 +189,7 @@ export async function processMarketingCounty(db:Database,reader:PublicReader,hea
     if(!active())return true;
     db.transaction(()=>{
      if((db.prepare('SELECT status FROM marketing_county_items WHERE id=?').get(item.id) as {status:string}).status!=='pending')return;
-     const unique=[...new Map(found.map(f=>[f.email,f])).values()];
-     const inputs=unique.length?unique:[{email:'',source:item.source}];let newEvidence=0;
-     for(const f of inputs){
-      if(!f.email&&!item.website)continue;
-      const input=normalizeMarketingInput({...item,email:f.email,source:f.source,county:marketingRegion(j.county_code)!.name,consent:'not_recorded',notes:`Colectare județ ${marketingRegion(j.county_code)!.name}. Sursa inițială ${item.source}. ${item.identity.startsWith('osm:')?'© OpenStreetMap contributors · ODbL.':'Ghidul.ro · date publice de contact ale firmei.'} Emailul public nu reprezintă acord de marketing.`});
-      // A shared email retains its existing consent/category; add county membership instead of cloning it.
-      const existing=f.email?db.prepare('SELECT id FROM marketing_contacts WHERE email=? LIMIT 1').get(f.email) as {id:string}|undefined:undefined;
-      if(existing)linkMarketingRegion(db,existing.id,input);else saveMarketingContacts(db,[input],j.created_by);
-      if(f.email){
-       newEvidence+=db.prepare('INSERT OR IGNORE INTO marketing_county_item_emails VALUES(?,?,?)').run(item.id,f.email,f.source).changes;
-       db.prepare("INSERT INTO marketing_email_checks(email,source_status) VALUES(?,'verified') ON CONFLICT(email) DO UPDATE SET source_status='verified',status=CASE WHEN source_status<>'verified' THEN 'pending' ELSE status END").run(f.email);
-      }
-     }
+     const newEvidence=saveCountyEvidence(db,j,item,found);
      db.prepare('UPDATE marketing_county_items SET status=?,warning=? WHERE id=?').run(websitePending?'pending':'done',warning,item.id);
      if(!websitePending||newEvidence)db.prepare('UPDATE marketing_county_jobs SET updated_at=? WHERE id=?').run(time(),j.id);
      if(!websitePending||newEvidence)audit(db,websitePending?'marketing.county.item.evidence.saved':'marketing.county.item.processed',item.id,j.created_by);
