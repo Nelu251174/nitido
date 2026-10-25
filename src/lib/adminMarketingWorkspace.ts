@@ -1,4 +1,5 @@
-import { marketingEmailSuppressed } from './adminMarketingSuppression';
+import { marketingRegion } from './adminMarketingRegions';
+import { marketingEmailSuppressed,emailHash } from './adminMarketingSuppression';
 import type { Database } from 'better-sqlite3';
 import { createHash, randomUUID } from 'node:crypto';
 import { initializeMarketing, marketingEnabled, marketingKey, MarketingError } from './adminMarketing';
@@ -50,12 +51,16 @@ export function getMarketingCampaign(db: Database, id: string): MarketingCampaig
   initializeMarketingWorkspace(db);
   const row = db.prepare('SELECT id,version,state,payload,updated_at FROM marketing_campaigns WHERE id=?').get(id) as { id: string; version: number; state: MarketingCampaign['state']; payload: string; updated_at: string } | undefined;
   if (!row) throw new MarketingError('Campania nu există.', 404);
-  return { ...JSON.parse(row.payload), id: row.id, version: row.version, state: row.state, updatedAt: row.updated_at };
+  return { county:'',variant:'',recipientLimit:null,...JSON.parse(row.payload), id: row.id, version: row.version, state: row.state, updatedAt: row.updated_at };
 }
 export function saveMarketingCampaign(db: Database, value: unknown, actor: string): MarketingCampaign {
   const b = record(value), id = b.id ? string(b.id, 'Campanie', 80, true) : randomUUID();
   const category = string(b.category, 'Categorie', 20); if (category && !Object.hasOwn(MARKETING_CATEGORIES, category)) throw new MarketingError('Categorie invalidă.');
-  const campaign: MarketingCampaign = { id, version: 1, state: 'draft', name: string(b.name, 'Nume campanie', 180, true), subject: string(b.subject, 'Subiect', 200), body: string(b.body, 'Mesaj', 10000), category: category as MarketingCampaign['category'], city: string(b.city, 'Localitate', 100), ctaLabel: string(b.ctaLabel, 'Text buton', 100), ctaUrl: string(b.ctaUrl, 'Adresă buton', 1000), budgetRon: money(b.budgetRon, 'Buget campanie'), updatedAt: new Date().toISOString() };
+  const variant=b.variant??'';if(typeof variant!=='string'||!['','A','B'].includes(variant))throw new MarketingError('Variantă invalidă.');
+  const region=b.county?marketingRegion(b.county):null;if(b.county&&!region)throw new MarketingError('Județ invalid.');
+  const recipientLimit=b.recipientLimit===undefined||b.recipientLimit===null||b.recipientLimit===''?null:Number(b.recipientLimit);
+  if(recipientLimit!==null&&(!Number.isInteger(recipientLimit)||recipientLimit<1||recipientLimit>5000))throw new MarketingError('Lotul de expediere trebuie să fie între 1 și 5.000 de destinatari.');
+  const campaign: MarketingCampaign = { county:region?.code??'',variant:variant as ''|'A'|'B',recipientLimit,id, version: 1, state: 'draft', name: string(b.name, 'Nume campanie', 180, true), subject: string(b.subject, 'Subiect', 200), body: string(b.body, 'Mesaj', 10000), category: category as MarketingCampaign['category'], city: string(b.city, 'Localitate', 100), ctaLabel: string(b.ctaLabel, 'Text buton', 100), ctaUrl: string(b.ctaUrl, 'Adresă buton', 1000), budgetRon: money(b.budgetRon, 'Buget campanie'), updatedAt: new Date().toISOString() };
   if (campaign.ctaUrl) { try { const url = new URL(campaign.ctaUrl); if (url.protocol !== 'https:' || url.username || url.password) throw Error(); campaign.ctaUrl = url.href; } catch { throw new MarketingError('Butonul necesită o adresă HTTPS validă.'); } }
   initializeMarketingWorkspace(db);
   return db.transaction(() => {
@@ -74,19 +79,26 @@ export function marketingCampaignHtml(campaign: MarketingCampaign, settings: Mar
   return `<!doctype html><html lang="ro"><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>${escape(campaign.subject)}</title><body style="font-family:Arial,sans-serif;max-width:600px;padding:24px;margin:auto;line-height:1.6"><h2>${escape(settings.senderName)}</h2><h1>${escape(campaign.subject)}</h1><div style="white-space:pre-wrap">${escape(campaign.body)}</div>${link}<hr><p>${escape(settings.postalAddress)}</p><p style="font-size:12px">${unsubscribe ? `<a href="${escape(unsubscribe)}">Dezabonare de la mesajele Marketing</a>` : 'Previzualizare. Linkul personal de dezabonare este adăugat la procesarea mesajului.'}</p></body></html>`;
 }
 export function selectAudience(db: Database, campaign: MarketingCampaign) {
-  const contacts = db.prepare('SELECT id,name,category,email,consent,consent_evidence,status,city_key FROM marketing_contacts WHERE (?=\'\' OR category=?) AND (?=\'\' OR city_key=?) ORDER BY created_at,id LIMIT 5001').all(campaign.category, campaign.category, marketingKey(campaign.city), marketingKey(campaign.city)) as (MarketingContact & { consent_evidence: string })[];
-  if (contacts.length > 5000) throw new MarketingError('Selecția depășește 5.000 de contacte. Restrânge categoria sau localitatea.');
+  initializeMarketingWorkspace(db);
+  const region=campaign.county?marketingRegion(campaign.county):null;if(campaign.county&&!region)throw new MarketingError('Județ invalid.');
+  const city=marketingKey(campaign.city),county=region?.key??'';
+  const contacts=db.prepare(`SELECT c.id,c.name,c.category,c.email,c.consent,c.consent_evidence,c.status,e.status AS email_verification FROM marketing_contacts c LEFT JOIN marketing_email_checks e ON e.email=c.email WHERE (?='' OR c.category=?) AND
+   ((?='' AND (?='' OR c.city_key=?)) OR (?<>'' AND EXISTS(SELECT 1 FROM marketing_contact_regions r WHERE r.contact_id=c.id AND r.county_key=? AND (?='' OR r.city_key=?)))) ORDER BY c.created_at,c.id`).iterate(campaign.category,campaign.category,county,city,city,county,county,city,city) as Iterable<MarketingContact & {consent_evidence:string;email_verification:string|null}>;
   const suppressed = new Set((db.prepare("SELECT DISTINCT email FROM marketing_contacts WHERE email<>'' AND (status='do_not_contact' OR consent='withdrawn')").all() as { email: string }[]).map(row => row.email));
-  const seen = new Set<string>(), eligible: string[] = [], reasons = { suppressed: 0, noEmail: 0, noConsent: 0, notReviewed: 0, duplicate: 0 };
+  const suppressedHashes=new Set((db.prepare('SELECT email_hash FROM marketing_suppressions').all() as {email_hash:string}[]).map(r=>r.email_hash));
+  const seen = new Set<string>(), eligible: string[] = [], reasons = { suppressed: 0, noEmail: 0, noConsent: 0, notReviewed: 0, duplicate: 0, unverifiedEmail:0 };
+  let selected=0,deferred=0;
   for (const row of contacts) {
-    if (row.status === 'do_not_contact' || row.consent === 'withdrawn' || suppressed.has(row.email) || marketingEmailSuppressed(db, row.email)) reasons.suppressed++;
+    selected++;
+    if (row.status === 'do_not_contact' || row.consent === 'withdrawn' || suppressed.has(row.email) || suppressedHashes.has(emailHash(row.email))) reasons.suppressed++;
     else if (!row.email) reasons.noEmail++;
     else if (row.consent !== 'granted' || !row.consent_evidence.trim()) reasons.noConsent++;
     else if (row.status !== 'reviewed') reasons.notReviewed++;
+    else if(row.email_verification!=='verified')reasons.unverifiedEmail++;
     else if (seen.has(row.email)) reasons.duplicate++;
-    else { seen.add(row.email); eligible.push(row.id); }
+    else { seen.add(row.email); if(marketingCampaignVariantMatches(campaign,row.email)&&eligible.length<(campaign.recipientLimit??Infinity))eligible.push(row.id);else deferred++; }
   }
-  return { selected: contacts.length, eligible, reasons };
+  return { selected, eligible, deferred, reasons };
 }
 export function previewMarketingCampaign(db: Database, id: string): MarketingAudience {
   const campaign = getMarketingCampaign(db, id), settings = marketingSettings(db), audience = selectAudience(db, campaign);
@@ -100,7 +112,7 @@ export function previewMarketingCampaign(db: Database, id: string): MarketingAud
   if ((campaign.budgetRon !== null || settings.monthlyBudgetRon !== null) && estimated === null) blockers.push('Configurează costul estimat per email pentru verificarea bugetului.');
   if (estimated !== null && campaign.budgetRon !== null && estimated > campaign.budgetRon) blockers.push('Costul estimat depășește bugetul campaniei.');
   if (estimated !== null && settings.monthlyBudgetRon !== null && estimated > settings.monthlyBudgetRon) blockers.push('Costul estimat depășește bugetul lunar configurat.');
-  return { selected: audience.selected, eligible: audience.eligible.length, excluded: audience.selected - audience.eligible.length, reasons: audience.reasons, estimatedCostRon: estimated, blockers, html: marketingCampaignHtml(campaign, settings) };
+  return { selected: audience.selected, eligible: audience.eligible.length, excluded: audience.selected - audience.eligible.length-audience.deferred, deferred:audience.deferred, reasons: audience.reasons, estimatedCostRon: estimated, blockers, html: marketingCampaignHtml(campaign, settings) };
 }
 export function setMarketingCampaignState(db: Database, value: unknown, actor: string): MarketingCampaign {
   const b = record(value), id = string(b.id, 'Campanie', 80, true);
@@ -146,13 +158,21 @@ export function recordMarketingCollection(db: Database, value: unknown, selected
 }
 export function getMarketingWorkspace(db: Database): MarketingWorkspace {
   initializeMarketingWorkspace(db);
-  const ids = db.prepare('SELECT id FROM marketing_campaigns ORDER BY updated_at DESC,id LIMIT 200').all() as { id: string }[];
+  const ids = db.prepare('SELECT id FROM marketing_campaigns ORDER BY updated_at DESC,id').all() as { id: string }[];
   const simulations = (db.prepare('SELECT payload FROM marketing_simulations ORDER BY created_at DESC,id LIMIT 100').all() as { payload: string }[]).map(row => JSON.parse(row.payload) as MarketingSimulation);
   const collections = (db.prepare('SELECT payload FROM marketing_collection_runs ORDER BY created_at DESC,id LIMIT 100').all() as { payload: string }[]).map(row => JSON.parse(row.payload) as MarketingCollectionRun);
   const counts = db.prepare("SELECT COUNT(*) contacts,COALESCE(SUM(status='reviewed'),0) reviewed,COALESCE(SUM(status='do_not_contact' OR consent='withdrawn'),0) suppressed FROM marketing_contacts").get() as { contacts: number; reviewed: number; suppressed: number };
   const stats = db.prepare("SELECT COUNT(*) simulations,COALESCE(SUM(json_extract(payload,'$.eligible')),0) simulatedRecipients FROM marketing_simulations").get() as { simulations: number; simulatedRecipients: number };
-  const audienceRows = db.prepare("SELECT DISTINCT c.email FROM marketing_contacts c WHERE c.email<>'' AND c.status='reviewed' AND c.consent='granted' AND TRIM(c.consent_evidence)<>'' AND NOT EXISTS(SELECT 1 FROM marketing_contacts s WHERE s.email=c.email AND (s.status='do_not_contact' OR s.consent='withdrawn'))").all() as {email:string}[];
+  const audienceRows = db.prepare("SELECT DISTINCT c.email FROM marketing_contacts c WHERE c.email<>'' AND EXISTS(SELECT 1 FROM marketing_email_checks e WHERE e.email=c.email AND e.status='verified') AND c.status='reviewed' AND c.consent='granted' AND TRIM(c.consent_evidence)<>'' AND NOT EXISTS(SELECT 1 FROM marketing_contacts s WHERE s.email=c.email AND (s.status='do_not_contact' OR s.consent='withdrawn'))").all() as {email:string}[];
   const audience = {eligible:audienceRows.filter(row=>!marketingEmailSuppressed(db,row.email)).length};
   const realEmailsSent = db.prepare("SELECT 1 FROM sqlite_master WHERE name='marketing_outbox'").get() ? (db.prepare("SELECT COUNT(*) n FROM marketing_outbox WHERE mode='live' AND provider_id IS NOT NULL").get() as {n:number}).n : 0;
   return { settings: marketingSettings(db), campaigns: ids.map(row => getMarketingCampaign(db, row.id)), simulations, collections, totals: { ...counts, ...stats, campaigns: (db.prepare('SELECT COUNT(*) n FROM marketing_campaigns').get() as { n: number }).n, eligible: audience.eligible, realEmailsSent }, deliveryEnabled: marketingEnabled() && process.env.NITIDO_MARKETING_DELIVERY_ENABLED === 'true' };
+}
+
+/** Recheck geography/category at dispatch, after any edits to a contact's county memberships. */
+export function marketingCampaignVariantMatches(campaign:MarketingCampaign,email:string){return !campaign.variant||(parseInt(emailHash(email)[0],16)%2===0?'A':'B')===campaign.variant;}
+export function marketingCampaignMatchesContact(db:Database,campaign:MarketingCampaign,id:string){
+ const region=campaign.county?marketingRegion(campaign.county):null;if(campaign.county&&!region)return false;
+ const county=region?.key??'',city=marketingKey(campaign.city);
+ const row=db.prepare(`SELECT c.email FROM marketing_contacts c WHERE c.id=? AND (?='' OR c.category=?) AND ((?='' AND (?='' OR c.city_key=?)) OR (?<>'' AND EXISTS(SELECT 1 FROM marketing_contact_regions r WHERE r.contact_id=c.id AND r.county_key=? AND (?='' OR r.city_key=?))))`).get(id,campaign.category,campaign.category,county,city,city,county,county,city,city) as {email:string}|undefined;return !!row&&marketingCampaignVariantMatches(campaign,row.email);
 }

@@ -3,7 +3,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { Webhook } from 'svix';
 import { marketingEnabled, MarketingError } from './adminMarketing';
 import { emailHash, marketingEmailSuppressed, suppressMarketingEmail } from './adminMarketingSuppression';
-import { getMarketingCampaign, initializeMarketingWorkspace, marketingCampaignHtml, marketingSettings, previewMarketingCampaign, selectAudience } from './adminMarketingWorkspace';
+import { marketingCampaignMatchesContact, getMarketingCampaign, initializeMarketingWorkspace, marketingCampaignHtml, marketingSettings, previewMarketingCampaign, selectAudience } from './adminMarketingWorkspace';
 import type { MarketingCampaign, MarketingSettings } from './adminMarketingWorkspaceShared';
 
 export const DELIVERY_SCHEMA = `
@@ -19,7 +19,7 @@ export function marketingDeliveryReadiness() {
   return { enabled: marketingEnabled() && process.env.NITIDO_MARKETING_DELIVERY_ENABLED === 'true', providerConfigured: !!process.env.RESEND_API_KEY, webhookConfigured: !!process.env.NITIDO_MARKETING_WEBHOOK_SECRET };
 }
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
-const fingerprint = (c: MarketingCampaign) => hash(JSON.stringify([c.name,c.subject,c.body,c.category,c.city,c.ctaLabel,c.ctaUrl,c.budgetRon]));
+const fingerprint = (c: MarketingCampaign) => hash(JSON.stringify([c.name,c.subject,c.body,c.category,c.county??'',c.variant??'',c.recipientLimit??null,c.city,c.ctaLabel,c.ctaUrl,c.budgetRon]));
 function audit(db: Database, action: string, id: string, actor: string) { db.prepare('INSERT INTO admin_audit_log(id,action,target_id,details) VALUES(?,?,?,?)').run(randomUUID(),action,id,JSON.stringify({actor})); }
 type Snapshot = { campaign: MarketingCampaign; settings: MarketingSettings; fingerprint: string };
 type Run = { id: string; campaign_id: string; mode: 'test'|'live'; scheduled_at: string; payload: string };
@@ -72,9 +72,9 @@ function canSpend(db: Database, job: Job, snapshot: Snapshot) {
   const campaignCost=used.filter(row=>row.campaign_id===job.campaign_id).reduce((n,row)=>n+row.cost,0);
   return daily < Math.min(settings.dailyLimit,snapshot.settings.dailyLimit) && (settings.monthlyBudgetRon===null || monthly+job.cost <= settings.monthlyBudgetRon+1e-7) && (snapshot.settings.monthlyBudgetRon===null || monthly+job.cost<=snapshot.settings.monthlyBudgetRon+1e-7) && (snapshot.campaign.budgetRon===null || campaignCost+job.cost<=snapshot.campaign.budgetRon+1e-7);
 }
-function eligible(db: Database, job: Job) {
-  const row=db.prepare("SELECT 1 FROM marketing_contacts c WHERE id=? AND email=? AND status='reviewed' AND consent='granted' AND TRIM(consent_evidence)<>'' AND NOT EXISTS(SELECT 1 FROM marketing_contacts s WHERE s.email=c.email AND (s.status='do_not_contact' OR s.consent='withdrawn'))").get(job.contact_id,job.email);
-  return !!row && !marketingEmailSuppressed(db,job.email);
+function eligible(db: Database, job: Job,campaign:MarketingCampaign) {
+  const row=db.prepare("SELECT 1 FROM marketing_contacts c WHERE id=? AND email=? AND EXISTS(SELECT 1 FROM marketing_email_checks e WHERE e.email=c.email AND e.status='verified') AND status='reviewed' AND consent='granted' AND TRIM(consent_evidence)<>'' AND NOT EXISTS(SELECT 1 FROM marketing_contacts s WHERE s.email=c.email AND (s.status='do_not_contact' OR s.consent='withdrawn'))").get(job.contact_id,job.email);
+  return !!row && !marketingEmailSuppressed(db,job.email) && marketingCampaignMatchesContact(db,campaign,job.contact_id);
 }
 export async function processMarketingDelivery(db: Database, transport: MarketingTransport=sendMarketingResend) {
   initializeMarketingDelivery(db); const owner=randomUUID(), now=Date.now();
@@ -91,7 +91,7 @@ export async function processMarketingDelivery(db: Database, transport: Marketin
       const jobs=db.prepare("SELECT * FROM marketing_outbox WHERE run_id=? AND status='pending' ORDER BY id LIMIT ?").all(run.id,5-processed) as Job[];
       for(const job of jobs) {
         const claimed=db.transaction(()=>{
-          if(!eligible(db,job)){db.prepare("UPDATE marketing_outbox SET status='suppressed',updated_at=? WHERE id=? AND status='pending'").run(new Date().toISOString(),job.id);return false;}
+          if(!eligible(db,job,snapshot.campaign)){db.prepare("UPDATE marketing_outbox SET status='suppressed',updated_at=? WHERE id=? AND status='pending'").run(new Date().toISOString(),job.id);return false;}
           if(!canSpend(db,job,snapshot))return false;
           return !!db.prepare("UPDATE marketing_outbox SET status='sending',updated_at=? WHERE id=? AND status='pending'").run(new Date().toISOString(),job.id).changes;
         }).immediate(); if(!claimed)continue;
@@ -102,7 +102,7 @@ export async function processMarketingDelivery(db: Database, transport: Marketin
           if(run.mode==='test') db.prepare("UPDATE marketing_outbox SET status='captured',html=?,updated_at=? WHERE id=?").run(html,new Date().toISOString(),job.id);
           else {
             // Re-read immediately before external dispatch; no implicit retry after ambiguous outcomes.
-            if(!eligible(db,job) || getMarketingCampaign(db,run.campaign_id).state!=='ready' || !marketingDeliveryReadiness().enabled) {db.prepare("UPDATE marketing_outbox SET status='suppressed',updated_at=? WHERE id=?").run(new Date().toISOString(),job.id);continue;}
+            if(!eligible(db,job,snapshot.campaign) || getMarketingCampaign(db,run.campaign_id).state!=='ready' || !marketingDeliveryReadiness().enabled) {db.prepare("UPDATE marketing_outbox SET status='suppressed',updated_at=? WHERE id=?").run(new Date().toISOString(),job.id);continue;}
             const result=await transport({to:job.email,from:`${snapshot.settings.senderName.replace(/[<>\r\n"]/g,'')} <${snapshot.settings.senderEmail}>`,reply_to:snapshot.settings.replyTo,subject:snapshot.campaign.subject,html,text:snapshot.campaign.body+'\n\n'+snapshot.settings.postalAddress+'\nDezabonare: '+unsubscribe,headers:{'List-Unsubscribe':`<${unsubscribe}>`}},'nitido-marketing-'+job.id);
             db.prepare("UPDATE marketing_outbox SET status=CASE WHEN status='sending' THEN 'accepted' ELSE status END,provider_id=?,updated_at=? WHERE id=?").run(result.id,new Date().toISOString(),job.id);
             applyMarketingProviderEvents(db,{...job,provider_id:result.id,status:'accepted'});

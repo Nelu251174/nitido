@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { marketingAccess, marketingBody, marketingFailure } from '@/lib/adminMarketingAccess';
+import { prepareMarketingLaunchCampaigns } from '@/lib/adminMarketingCampaignPreparation';
 import { MarketingError } from '@/lib/adminMarketing';
 import { getMarketingWorkspace, previewMarketingCampaign, saveMarketingCampaign, saveMarketingSettings, setMarketingCampaignState, simulateMarketingCampaign } from '@/lib/adminMarketingWorkspace';
 export async function GET(req: NextRequest) {
@@ -11,7 +12,8 @@ export async function POST(req: NextRequest) {
   const access = await marketingAccess(req, true); if (access.error) return access.error;
   try {
     const body = await marketingBody(req); let result: unknown;
-    if (body.action === 'settings') result = saveMarketingSettings(db, body.data, access.actor!);
+    if(body.action==='prepareDrafts')result=prepareMarketingLaunchCampaigns(db,access.actor!);
+    else if (body.action === 'settings') result = saveMarketingSettings(db, body.data, access.actor!);
     else if (body.action === 'save') result = saveMarketingCampaign(db, body.data, access.actor!);
     else if (body.action === 'state') result = setMarketingCampaignState(db, body.data, access.actor!);
     else if (body.action === 'simulate') result = simulateMarketingCampaign(db, body.data, access.actor!);
