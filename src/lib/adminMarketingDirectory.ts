@@ -78,7 +78,11 @@ export function parseDirectoryListing(html:string,url:string,code:string){
 }
 export function parseDirectoryProfile(html:string,url:string,code:string,listingUrl=''){
  const $=load(html),name=$('#span_left_nume').text().replace(/\s+/g,' ').trim().slice(0,180),content=$('#td_continut');
- if(!name||!content.length)throw new MarketingError('Profilul firmei nu poate fi identificat în catalog.',502);
+ if(!name||!content.length){
+  $('script,style,noscript,template').remove();
+  if(/captcha|verify (?:that )?you are (?:a )?human|access denied|checking your browser|verific.{0,30}(?:robot|uman)/i.test(marketingVisibleText($,'body')))throw new MarketingError('Catalogul solicită verificare de acces. Colectarea este oprită pentru această sursă.',403);
+  throw new MarketingError('Profilul firmei nu poate fi identificat în catalog.',502);
+ }
  content.find('script,style,noscript,template,form,footer,.footer,#footer').remove();
  const emails=publicEmails(content.find('a[href^="mailto:"]').map((_,e)=>$(e).attr('href')?.slice(7).split('?')[0]??'').get().join(' ')+' '+marketingVisibleText($,'#td_continut'));
  const external:string[]=[];content.find('a[href]').each((_,e)=>{try{const u=publicWebsite(new URL($(e).attr('href')!,url).href);if(!/(^|\.)(ghidul\.ro|anuntul\.ro|anuntulvideo\.ro|facebook\.com|instagram\.com|youtube\.com|google\.com|google\.ro|twitter\.com|linkedin\.com|trafic\.ro)$/.test(u.hostname)&&!external.includes(u.href))external.push(u.href);}catch{}});
@@ -100,7 +104,7 @@ export function retryMarketingDirectoryListings(db:Database,jobId:string){
  return db.prepare(`UPDATE marketing_directory_pages SET state='pending',attempts=0,reason='' WHERE job_id=? AND kind='listing' AND state='blocked' AND reason IN (${listingStructureReasons.map(()=>'?').join(',')})`).run(jobId,...listingStructureReasons).changes;
 }
 /** Persisted public-source frontier: all linked categories, county pages, pagination and firm profiles. */
-export async function processMarketingDirectory(db:Database,job:{id:string;county_code:string},reader:PublicReader,active:()=>boolean){
+export async function processMarketingDirectory(db:Database,job:{id:string;county_code:string},reader:PublicReader,active:()=>boolean):Promise<{complete:boolean;blocked:boolean;exhausted?:boolean;needsReview?:number}>{
  initializeMarketingDirectory(db);
  // Keep explicit cleaning provenance if a profile was first linked from another category.
  const enqueue=db.prepare("INSERT INTO marketing_directory_pages(job_id,url,kind,parent) VALUES(?,?,?,?) ON CONFLICT(job_id,url) DO UPDATE SET parent=CASE WHEN excluded.parent LIKE 'https://www.ghidul.ro/firme-servicii-diverse/curatenie-servicii/%' THEN excluded.parent ELSE parent END");
@@ -138,11 +142,17 @@ export async function processMarketingDirectory(db:Database,job:{id:string;count
     db.prepare("UPDATE marketing_directory_pages SET state='done',reason='' WHERE job_id=? AND url=?").run(job.id,row.url);
    }).immediate();
   }catch(error){
+   if(row.kind==='profile'&&error instanceof MarketingError&&error.status===502&&error.message==='Profilul firmei nu poate fi identificat în catalog.'){
+    // An individual unidentified profile is a coverage gap, not permission to invent a firm
+    // and not a reason to stop reading all other permitted profiles. Access refusals stay blocking.
+    db.prepare("UPDATE marketing_directory_pages SET state='needs_review',attempts=attempts+1,reason=? WHERE job_id=? AND url=?").run(error.message,job.id,row.url);
+   }else{
    const err=error as {denied?:boolean;retry?:string};const denied=err.denied||error instanceof MarketingError&&error.status===403,blocked=denied||row.attempts>=2||error instanceof MarketingError;
    const at=err.retry??retryAt(undefined);
    db.prepare("UPDATE marketing_directory_pages SET state=?,attempts=attempts+1,next_attempt_at=?,reason=? WHERE job_id=? AND url=?").run(blocked?'blocked':'pending',at,error instanceof MarketingError?error.message:'Sursa publică nu a răspuns complet.',job.id,row.url);
    db.prepare('UPDATE marketing_directory_host SET next_attempt_at=? WHERE host=?').run(at,ORIGIN);
    return {complete:false,blocked};
+   }
   }
   // Requests remain serial, including the source's Crawl-delay. Yield longer waits to the scheduler.
   const next=(db.prepare('SELECT next_attempt_at FROM marketing_directory_host WHERE host=?').get(ORIGIN) as {next_attempt_at:string}).next_attempt_at;
@@ -150,6 +160,6 @@ export async function processMarketingDirectory(db:Database,job:{id:string;count
   if(delay>3000||Date.now()+delay>=deadline)return {complete:false,blocked:false};
   if(delay)await new Promise(resolve=>setTimeout(resolve,delay));
  }
- const counts=db.prepare("SELECT COALESCE(SUM(state='pending'),0) pending,COALESCE(SUM(state='blocked'),0) blocked FROM marketing_directory_pages WHERE job_id=?").get(job.id) as {pending:number;blocked:number};
- return {complete:!counts.pending&&!counts.blocked,blocked:!!counts.blocked};
+ const counts=db.prepare("SELECT COALESCE(SUM(state='pending'),0) pending,COALESCE(SUM(state='blocked'),0) blocked,COALESCE(SUM(state='needs_review'),0) needsReview FROM marketing_directory_pages WHERE job_id=?").get(job.id) as {pending:number;blocked:number;needsReview:number};
+ return {complete:!counts.pending&&!counts.blocked&&!counts.needsReview,blocked:!!counts.blocked,exhausted:!counts.pending&&!counts.blocked,needsReview:counts.needsReview};
 }

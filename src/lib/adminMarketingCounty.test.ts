@@ -13,6 +13,12 @@ const data:CountySourceItem[]=[{type:'node' as const,id:1,tags:{name:'County bus
 afterEach(()=>vi.useRealTimers());
 const deps={manifest:vi.fn(async()=>manifest),part:vi.fn(async()=>data),domain,directory:async()=>({complete:false,blocked:false})};
 describe('county worker: persistent batches, all emails, correct county order',()=>{
+ it('finishes permitted work with explicit profile coverage gaps while keeping the county in review and later counties queued',async()=>{
+  const db=fixture(),id=(db.prepare("SELECT id FROM marketing_county_jobs WHERE county_code='CT'").get() as {id:string}).id;
+  db.prepare("UPDATE marketing_county_jobs SET state='directory' WHERE id=?").run(id);db.prepare("INSERT INTO marketing_directory_pages(job_id,url,kind,state) VALUES(?,'https://www.ghidul.ro/sumar','index','done')").run(id);db.prepare("INSERT INTO marketing_directory_pages(job_id,url,kind,state,reason) VALUES(?,'https://www.ghidul.ro/missing/','profile','needs_review','Profilul firmei nu poate fi identificat în catalog.')").run(id);
+  const directory=async()=>({complete:false,blocked:false,exhausted:true,needsReview:1});for(let n=0;n<3;n++)await processMarketingCounty(db,vi.fn(),()=>{},{...deps,directory});
+  const view=marketingCountyView(db);expect(view.counties.find(c=>c.code==='CT')?.job).toMatchObject({state:'review',directory:{needsReview:1}});expect(view.counties.find(c=>c.code==='B')?.job?.state).toBe('queued');expect(db.prepare("SELECT state FROM marketing_directory_pages WHERE kind='profile'").get()).toEqual({state:'needs_review'});db.close();
+ });
  it('saves captured source emails before website retry deadlines, prioritizes cleaning, and preserves existing categories and opt-outs',async()=>{
   vi.useFakeTimers();const db=fixture(),id=(db.prepare("SELECT id FROM marketing_county_jobs WHERE county_code='CT'").get() as {id:string}).id;db.prepare("UPDATE marketing_county_jobs SET state='collecting' WHERE id=?").run(id);
   saveMarketingContacts(db,[{name:'Existing business',category:'business',email:'shared@captured.ro',city:'Cluj-Napoca',county:'CJ',source:'Manual',consent:'withdrawn'}],'owner');

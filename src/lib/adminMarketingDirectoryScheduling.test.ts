@@ -7,6 +7,17 @@ const origin='https://www.ghidul.ro',cleaning=origin+'/firme-servicii-diverse/cu
 function setup(){const db=new Database(':memory:');db.exec('CREATE TABLE admin_audit_log(id TEXT PRIMARY KEY,action TEXT,target_id TEXT,details TEXT)');startMarketingCountyPlan(db,'owner');const job=db.prepare("SELECT id,county_code FROM marketing_county_jobs WHERE county_code='B'").get() as {id:string;county_code:string};db.prepare("INSERT INTO marketing_directory_pages(job_id,url,kind,state) VALUES(?,?,'index','done')").run(job.id,origin+'/sumar');db.prepare('INSERT INTO marketing_directory_host(host,robots,robots_at) VALUES(?,?,?)').run(origin,'User-agent: *\nCrawl-delay: 20',new Date().toISOString());return {db,job};}
 afterEach(()=>vi.useRealTimers());
 describe('directory progress without category starvation',()=>{
+ it('retains one unidentified profile as a visible coverage gap while allowed profiles continue',async()=>{
+  vi.useFakeTimers();const {db,job}=setup();db.prepare("INSERT INTO marketing_directory_pages(job_id,url,kind) VALUES(?,?,'profile')").run(job.id,origin+'/missing/');db.prepare("INSERT INTO marketing_directory_pages(job_id,url,kind) VALUES(?,?,'profile')").run(job.id,origin+'/valid/');
+  const reader=vi.fn<PublicReader>(async url=>({url,status:200,headers:{'content-type':'text/html'},text:url.endsWith('/missing/')?'<body><div id="td_continut"></div></body>':'<div id="td_continut"><span id="span_left_nume">Synthetic firm</span><p>office@synthetic.ro</p></div>'}));
+  expect((await processMarketingDirectory(db,job,reader,()=>true)).blocked).toBe(false);expect(db.prepare("SELECT state FROM marketing_directory_pages WHERE url=?").get(origin+'/missing/')).toEqual({state:'needs_review'});
+  vi.setSystemTime(Date.now()+20000);await processMarketingDirectory(db,job,reader,()=>true);vi.setSystemTime(Date.now()+20000);const result=await processMarketingDirectory(db,job,reader,()=>true);
+  expect(result).toMatchObject({complete:false,blocked:false,exhausted:true,needsReview:1});expect(db.prepare('SELECT COUNT(*) n FROM marketing_county_items').get()).toEqual({n:1});expect(reader).toHaveBeenCalledTimes(2);db.close();
+ });
+ it('never turns a CAPTCHA or access refusal into a reviewable profile that would allow source collection',async()=>{
+  vi.useFakeTimers();const {db,job}=setup();db.prepare("INSERT INTO marketing_directory_pages(job_id,url,kind) VALUES(?,?,'profile')").run(job.id,origin+'/challenge/');
+  const reader=vi.fn<PublicReader>(async url=>({url,status:200,headers:{'content-type':'text/html'},text:'<body><form>CAPTCHA: verify you are human</form></body>'}));expect((await processMarketingDirectory(db,job,reader,()=>true)).blocked).toBe(true);expect(db.prepare("SELECT state FROM marketing_directory_pages WHERE url=?").get(origin+'/challenge/')).toEqual({state:'blocked'});db.close();
+ });
  it('reads profiles while hundreds of listing pages remain and gives every frontier a persisted turn',()=>{
   const {db,job}=setup(),insert=db.prepare('INSERT INTO marketing_directory_pages(job_id,url,kind,parent) VALUES(?,?,?,?)');
   for(let n=0;n<500;n++)insert.run(job.id,origin+'/listing-'+n+'/','listing','');

@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS marketing_county_item_emails(item_id TEXT NOT NULL RE
 CREATE INDEX IF NOT EXISTS marketing_county_email ON marketing_county_item_emails(email,item_id);
 CREATE TABLE IF NOT EXISTS marketing_county_sites(job_id TEXT NOT NULL,website TEXT NOT NULL,result TEXT NOT NULL,warning TEXT NOT NULL DEFAULT '',PRIMARY KEY(job_id,website));
 CREATE TABLE IF NOT EXISTS marketing_county_dispatch(job_id TEXT PRIMARY KEY REFERENCES marketing_county_jobs(id),independent INTEGER NOT NULL DEFAULT 0 CHECK(independent IN (0,1)),last_turn INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS marketing_county_source_lock(id INTEGER PRIMARY KEY CHECK(id=1),owner TEXT NOT NULL,job_id TEXT NOT NULL,until_ms INTEGER NOT NULL);
 `;
 const time=()=>new Date().toISOString();
 type Job={id:string;county_code:string;position:number;state:CountyState;manifest:string;part_cursor:number;total:number;message:string;next_attempt_at:string|null;created_at:string;updated_at:string;created_by:string};
@@ -54,7 +55,7 @@ export function marketingCountyView(db:Database):MarketingCountyView{
   const counts=db.prepare(`SELECT COUNT(DISTINCT c.id) contacts,COUNT(DISTINCT NULLIF(c.email,'')) emails,COUNT(DISTINCT CASE WHEN e.status='verified' THEN c.email END) verified,COUNT(DISTINCT CASE WHEN e.status='invalid' THEN c.email END) invalid,COUNT(DISTINCT CASE WHEN e.status='needs_review' THEN c.email END) needsReview,COUNT(DISTINCT CASE WHEN c.email<>'' AND COALESCE(e.status,'pending')='pending' THEN c.email END) pending FROM marketing_contact_regions r JOIN marketing_contacts c ON c.id=r.contact_id LEFT JOIN marketing_email_checks e ON e.email=c.email WHERE r.county_key=?`).get(r.key) as {contacts:number;emails:number;verified:number;invalid:number;needsReview:number;pending:number};
   const j=db.prepare('SELECT * FROM marketing_county_jobs WHERE county_code=?').get(code) as Job|undefined;
   const progress=j?db.prepare(`SELECT COUNT(*) total,COALESCE(SUM(status='done'),0) processed,COALESCE(SUM(status='done' AND NOT EXISTS(SELECT 1 FROM marketing_county_item_emails e WHERE e.item_id=marketing_county_items.id)),0) withoutEmail,COALESCE(SUM(warning<>''),0) warnings FROM marketing_county_items WHERE job_id=?`).get(j.id) as {total:number;processed:number;withoutEmail:number;warnings:number}:null;
-  return {code,name:r.name,...counts,job:j?{id:j.id,state:j.state,startedSeparately:!!db.prepare('SELECT 1 FROM marketing_county_dispatch WHERE job_id=? AND independent=1').get(j.id),total:j.total,imported:progress!.total,processed:progress!.processed,withoutEmail:progress!.withoutEmail,warnings:progress!.warnings,message:j.message,updatedAt:j.updated_at,nextAttemptAt:j.next_attempt_at,directory:db.prepare("SELECT COUNT(*) total,COALESCE(SUM(state='done'),0) processed,COALESCE(SUM(state='blocked'),0) blocked FROM marketing_directory_pages WHERE job_id=?").get(j.id) as {total:number;processed:number;blocked:number},websites:db.prepare("SELECT COUNT(*) total,COALESCE(SUM(state='done'),0) processed,COALESCE(SUM(state='blocked'),0) blocked FROM marketing_county_web_pages WHERE job_id=?").get(j.id) as {total:number;processed:number;blocked:number}}:null};
+  return {code,name:r.name,...counts,job:j?{id:j.id,state:j.state,startedSeparately:!!db.prepare('SELECT 1 FROM marketing_county_dispatch WHERE job_id=? AND independent=1').get(j.id),total:j.total,imported:progress!.total,processed:progress!.processed,withoutEmail:progress!.withoutEmail,warnings:progress!.warnings,message:j.message,updatedAt:j.updated_at,nextAttemptAt:j.next_attempt_at,directory:db.prepare("SELECT COUNT(*) total,COALESCE(SUM(state='done'),0) processed,COALESCE(SUM(state='blocked'),0) blocked,COALESCE(SUM(state='needs_review'),0) needsReview FROM marketing_directory_pages WHERE job_id=?").get(j.id) as {total:number;processed:number;blocked:number},websites:db.prepare("SELECT COUNT(*) total,COALESCE(SUM(state='done'),0) processed,COALESCE(SUM(state='blocked'),0) blocked FROM marketing_county_web_pages WHERE job_id=?").get(j.id) as {total:number;processed:number;blocked:number}}:null};
  })};
 }
 /** Explicitly authorized plan; reading the dashboard never starts collection. */
@@ -109,14 +110,34 @@ export async function prepareMarketingCountySource(code:string,active:()=>boolea
  const env:NodeJS.ProcessEnv={NODE_ENV:'production',NEXT_PUBLIC_SITE_URL:site,NITIDO_MARKETING_DELIVERY_ENABLED:'false'};
  for(const k of ['PATH','TMPDIR','HOME','HTTPS_PROXY','HTTP_PROXY','NO_PROXY','NODE_EXTRA_CA_CERTS','SSL_CERT_FILE'])if(process.env[k])env[k]=process.env[k];
  await new Promise<void>((resolve,reject)=>{
-  const child=spawn(process.execPath,args,{env,stdio:'ignore'});let stopped=false;
+  const child=spawn(process.execPath,args,{env,stdio:['ignore','pipe','ignore']});let stopped=false,lastFailure='',buffer='';
+  child.stdout.on('data',chunk=>{buffer+=String(chunk);const lines=buffer.split('\n');buffer=lines.pop()!.slice(-4096);for(const line of lines){if(!line.startsWith('MKT_SNAPSHOT '))continue;try{const p=JSON.parse(line.slice(13));if(!['download','boundary','boundary-ways','boundary-coordinates','businesses','ready','failed'].includes(p.phase))continue;const out:Record<string,string|number>={county:r.code,phase:p.phase};for(const k of ['entities','expectedBytes','total','sourceBytes','inventoryBytes','parts'])if(Number.isSafeInteger(p[k])&&p[k]>=0)out[k]=p[k];if(p.phase==='failed'&&/^[A-Z_]+$/.test(p.code)){lastFailure=p.code;out.code=p.code;}console.log('MKT_SOURCE_PROGRESS '+JSON.stringify(out));}catch{}}});
   const stop=()=>{stopped=true;child.kill('SIGTERM');};
   const pulse=setInterval(()=>{try{heartbeat();if(!active())stop();}catch{stop();}},5000);
   const timeout=setTimeout(stop,30*60000);
   const cleanup=()=>{clearInterval(pulse);clearTimeout(timeout);};
   child.once('error',()=>{cleanup();reject(Error('COUNTY_SOURCE_PROCESS_FAILED'));});
-  child.once('exit',status=>{cleanup();if(status===0&&!stopped)resolve();else reject(Error('COUNTY_SOURCE_PREPARATION_INCOMPLETE'));});
+  child.once('exit',status=>{cleanup();if(status===0&&!stopped)resolve();else reject(Error(lastFailure||'COUNTY_SOURCE_PREPARATION_INCOMPLETE'));});
  });
+}
+/** One source preparer, with its own persisted lease, while the sole contact collector continues. */
+function startCountyPreparation(db:Database,j:Job,prepare:typeof prepareMarketingCountySource,readManifest:typeof readCountyManifest){
+ const owner=randomUUID(),acquired=db.transaction(()=>{
+  if(db.prepare('SELECT 1 FROM marketing_county_source_lock WHERE until_ms>?').get(Date.now()))return false;
+  db.prepare('INSERT INTO marketing_county_source_lock VALUES(1,?,?,?) ON CONFLICT(id) DO UPDATE SET owner=excluded.owner,job_id=excluded.job_id,until_ms=excluded.until_ms').run(owner,j.id,Date.now()+90000);
+  db.prepare("UPDATE marketing_county_jobs SET state='preparing',next_attempt_at=NULL,message='Se pregătește inventarul public. Colectarea celorlalte județe continuă.',updated_at=? WHERE id=?").run(time(),j.id);return true;
+ }).immediate();
+ if(!acquired)return;
+ const owns=()=>db.open&&!!db.prepare('SELECT 1 FROM marketing_county_source_lock WHERE owner=? AND job_id=?').get(owner,j.id);
+ const active=()=>owns()&&(db.prepare('SELECT state FROM marketing_county_jobs WHERE id=?').get(j.id) as {state:string})?.state==='preparing';
+ const heartbeat=()=>{if(!active())throw Error('COUNTY_SOURCE_LEASE_LOST');db.prepare('UPDATE marketing_county_source_lock SET until_ms=? WHERE owner=?').run(Date.now()+90000,owner);};
+ void Promise.resolve().then(()=>prepare(j.county_code,active,heartbeat)).then(async()=>{
+  if(!active())return;
+  const manifest=await readManifest(j.county_code);if(!active())return;if(!manifest)throw Error('COUNTY_MANIFEST_MISSING');
+  db.prepare("UPDATE marketing_county_jobs SET state='importing',manifest=?,total=?,message='Inventarul public este pregătit. Urmează importul și verificarea.',next_attempt_at=NULL,updated_at=? WHERE id=?").run(JSON.stringify(manifest),manifest.total,time(),j.id);
+ }).catch(error=>{
+  if(active()){const code=error instanceof Error&&/^[A-Z_]+$/.test(error.message)?error.message:'COUNTY_SOURCE_PREPARATION_INCOMPLETE';db.prepare("UPDATE marketing_county_jobs SET state='paused',message=?,updated_at=? WHERE id=?").run('Pregătirea inventarului public necesită verificare ['+code+'].',time(),j.id);}
+ }).finally(()=>{if(owns())db.prepare('DELETE FROM marketing_county_source_lock WHERE owner=?').run(owner);});
 }
 type Dependencies={manifest?:typeof readCountyManifest;part?:typeof readCountyPart;prepare?:typeof prepareMarketingCountySource;domain?:DomainReader;directory?:typeof processMarketingDirectory;website?:typeof collectMarketingCountyWebsite};
 const progressLog=new WeakMap<Database,Map<string,{at:number;state:string}>>();
@@ -126,7 +147,7 @@ function reportCountyProgress(db:Database,j:Job){
  entries.set(j.county_code,{at:Date.now(),state:j.state});
  const inventory=db.prepare("SELECT COUNT(*) inventory,COALESCE(SUM(status='done'),0) processed,COALESCE(SUM(warning<>''),0) warnings FROM marketing_county_items WHERE job_id=?").get(j.id);
  const emails=db.prepare("SELECT e.status,COUNT(DISTINCT e.email) count FROM marketing_email_checks e JOIN marketing_county_item_emails x ON x.email=e.email JOIN marketing_county_items i ON i.id=x.item_id WHERE i.job_id=? GROUP BY e.status").all(j.id);
- const directory=db.prepare("SELECT COUNT(*) total,COALESCE(SUM(state='done'),0) processed,COALESCE(SUM(state='blocked'),0) blocked FROM marketing_directory_pages WHERE job_id=?").get(j.id);
+ const directory=db.prepare("SELECT COUNT(*) total,COALESCE(SUM(state='done'),0) processed,COALESCE(SUM(state='blocked'),0) blocked,COALESCE(SUM(state='needs_review'),0) needsReview FROM marketing_directory_pages WHERE job_id=?").get(j.id);
  const websites=db.prepare("SELECT COUNT(*) total,COALESCE(SUM(state='done'),0) processed,COALESCE(SUM(state='blocked'),0) blocked FROM marketing_county_web_pages WHERE job_id=?").get(j.id);
  console.log('MKT_COUNTY_PROGRESS '+JSON.stringify({county:j.county_code,state:j.state,total:j.total,...inventory as object,emails,directory,websites,delivery:process.env.NITIDO_MARKETING_DELIVERY_ENABLED==='true'?'enabled':'blocked'}));
 }
@@ -135,16 +156,16 @@ export async function processMarketingCounty(db:Database,reader:PublicReader,hea
  // Ordered by default. Only an explicit activation lets a later county advance independently.
  const first=db.prepare("SELECT * FROM marketing_county_jobs WHERE state<>'completed' ORDER BY position,created_at LIMIT 1").get() as Job|undefined;
  if(!first)return false;
- const j=db.prepare("SELECT j.* FROM marketing_county_jobs j LEFT JOIN marketing_county_dispatch d ON d.job_id=j.id WHERE (j.id=? OR d.independent=1) AND j.state NOT IN ('completed','paused','review') AND (j.next_attempt_at IS NULL OR j.next_attempt_at<=?) ORDER BY COALESCE(d.last_turn,0),j.position,j.created_at LIMIT 1").get(first.id,time()) as Job|undefined;
+ const j=db.prepare("SELECT j.* FROM marketing_county_jobs j LEFT JOIN marketing_county_dispatch d ON d.job_id=j.id WHERE (j.id=? OR d.independent=1) AND j.state NOT IN ('completed','paused','review') AND (j.next_attempt_at IS NULL OR j.next_attempt_at<=?) AND (j.state NOT IN ('queued','preparing') OR NOT EXISTS(SELECT 1 FROM marketing_county_source_lock s WHERE s.until_ms>?) OR EXISTS(SELECT 1 FROM marketing_county_source_lock s WHERE s.job_id=j.id AND s.until_ms>?)) ORDER BY COALESCE(d.last_turn,0),j.position,j.created_at LIMIT 1").get(first.id,time(),Date.now(),Date.now()) as Job|undefined;
  if(!j){reportCountyProgress(db,first);return true;}
  db.prepare('INSERT INTO marketing_county_dispatch(job_id,last_turn) VALUES(?,(SELECT COALESCE(MAX(last_turn),0)+1 FROM marketing_county_dispatch)) ON CONFLICT(job_id) DO UPDATE SET last_turn=excluded.last_turn').run(j.id);
  reportCountyProgress(db,j);
  const active=()=>{heartbeat();return (db.prepare('SELECT state FROM marketing_county_jobs WHERE id=?').get(j.id) as {state:string})?.state!=='paused';};
  try{
   if(['queued','preparing'].includes(j.state)){
-   let manifest=await (deps.manifest??readCountyManifest)(j.county_code);
+   const manifest=await (deps.manifest??readCountyManifest)(j.county_code);
    if(!active())return true;
-   if(!manifest){db.prepare("UPDATE marketing_county_jobs SET state='preparing',updated_at=? WHERE id=?").run(time(),j.id);await (deps.prepare??prepareMarketingCountySource)(j.county_code,active,heartbeat);manifest=await (deps.manifest??readCountyManifest)(j.county_code);}
+   if(!manifest){startCountyPreparation(db,j,deps.prepare??prepareMarketingCountySource,deps.manifest??readCountyManifest);return true;}
    if(!active())return true;if(!manifest)throw Error('COUNTY_MANIFEST_MISSING');
    db.prepare("UPDATE marketing_county_jobs SET state='importing',manifest=?,total=?,message='',updated_at=? WHERE id=?").run(JSON.stringify(manifest),manifest.total,time(),j.id);return true;
   }
@@ -206,7 +227,7 @@ export async function processMarketingCounty(db:Database,reader:PublicReader,hea
   if(j.state==='directory'){
    const source=await (deps.directory??processMarketingDirectory)(db,j,reader,active);
    if(source.blocked)throw new MarketingError('Catalogul public are pagini blocate sau incomplete. Județul rămâne nefinalizat; verificarea sursei este necesară.',502);
-   if(source.complete)db.prepare("UPDATE marketing_county_jobs SET state='collecting',message='',updated_at=? WHERE id=?").run(time(),j.id);
+   if(source.complete||source.exhausted)db.prepare("UPDATE marketing_county_jobs SET state='collecting',message='',updated_at=? WHERE id=?").run(time(),j.id);
    return true;
   }
   if(j.state==='verifying'){
@@ -217,7 +238,7 @@ export async function processMarketingCounty(db:Database,reader:PublicReader,hea
    const pending=db.prepare("SELECT 1 FROM marketing_email_checks e WHERE e.status='pending' AND EXISTS(SELECT 1 FROM marketing_county_item_emails i JOIN marketing_county_items c ON c.id=i.item_id WHERE i.email=e.email AND c.job_id=?) LIMIT 1").get(j.id);
    if(!pending){
     const directoryExists=db.prepare("SELECT 1 FROM sqlite_master WHERE name='marketing_directory_pages'").get();
-    if(!directoryExists||!db.prepare("SELECT 1 FROM marketing_directory_pages WHERE job_id=? AND kind='index' AND state='done'").get(j.id)||db.prepare("SELECT 1 FROM marketing_directory_pages WHERE job_id=? AND state<>'done'").get(j.id)){db.prepare("UPDATE marketing_county_jobs SET state='directory',message='Completare din catalogul public, pe toate categoriile și paginile disponibile.',updated_at=? WHERE id=?").run(time(),j.id);return true;}
+    if(!directoryExists||!db.prepare("SELECT 1 FROM marketing_directory_pages WHERE job_id=? AND kind='index' AND state='done'").get(j.id)||db.prepare("SELECT 1 FROM marketing_directory_pages WHERE job_id=? AND state IN ('pending','blocked')").get(j.id)){db.prepare("UPDATE marketing_county_jobs SET state='directory',message='Completare din catalogul public, pe toate categoriile și paginile disponibile.',updated_at=? WHERE id=?").run(time(),j.id);return true;}
     // Completing configured sources does not establish exhaustive county coverage. Never unlock București on this alone.
     db.transaction(()=>{db.prepare("UPDATE marketing_county_jobs SET state='review',message=?,updated_at=? WHERE id=?").run('Inventarul OSM și catalogul public au fost procesate. Urmează verificarea acoperirii și a site-urilor rămase inaccesibile. Județul nu este declarat finalizat.',time(),j.id);audit(db,'marketing.county.source.processed',j.id,j.created_by);}).immediate();
    }
