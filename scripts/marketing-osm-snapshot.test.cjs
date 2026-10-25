@@ -50,3 +50,11 @@ test('spilled public geometry membership remains exact without retaining every I
  try{const set=new SpillSet(db,'nodes',3);for(let i=1;i<=30;i++)set.add(4294967296+i);set.add(4294967297);assert.equal(set.size,30);for(let i=1;i<=30;i++)assert.equal(set.has(4294967296+i),true);assert.equal(set.has(4294967399),false);assert.ok(set.memory.size<3);}
  finally{db.close();}
 });
+test('București uses RO-B admin4 boundary and excludes Ilfov points and relations',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'mkt-bucharest-')),file=path.join(dir,'fixture');fs.writeFileSync(file,'fixture');
+ const items=entities().map(e=>e.id===100?{...e,tags:{name:'București',boundary:'administrative',admin_level:'4','ISO3166-2':'RO-B'}}:e);
+ items.push({...boundary,id:101,tags:{name:'Ilfov',boundary:'administrative',admin_level:'4','ISO3166-2':'RO-IF'}});
+ const emitted=[];
+ try{const result=await prepare(file,parser(items),{source:'synthetic'},{region:{code:'B',iso:'RO-B'},emit:item=>emitted.push(item.id)});assert.equal(result.boundaryRelation,100);assert.equal(result.total,3);assert.deepEqual(emitted,[20,30,210]);assert.equal(JSON.parse(result.output).countyCode,'B');}
+ finally{fs.rmSync(dir,{recursive:true,force:true});}
+});

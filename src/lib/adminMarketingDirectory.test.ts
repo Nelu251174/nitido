@@ -20,6 +20,9 @@ describe('shared catalog table regression',()=>{
  it('counts all listing rows when validating completeness and only saves rows from the selected county',()=>{
   expect(parseDirectoryListing(shared(firm('ct','Constanta')+firm('b','Bucuresti'),2),base+'constanta/','CT').profiles.map(p=>p.url)).toEqual(['https://www.ghidul.ro/ct/']);
  });
+ it('keeps București profiles separate from Ilfov even when the catalog table mixes both',()=>{
+  expect(parseDirectoryListing(shared(firm('b','Bucuresti')+firm('if','Ilfov'),2),base+'bucuresti/','B').profiles.map(p=>p.url)).toEqual(['https://www.ghidul.ro/b/']);
+ });
  it('does not take metadata from the next business when the current row is incomplete',()=>{
   const html=shared('<tr><td><a class="inscriere_titlu" href="https://www.ghidul.ro/missing/">Missing metadata</a></td></tr>'+firm('ct','Constanta'),2);
   expect(()=>parseDirectoryListing(html,base+'constanta/','CT')).toThrow('incomplete');
