@@ -4,6 +4,7 @@ import {startMarketingCountyPlan,processMarketingCounty,marketingCountyView,setM
 import {listMarketingContacts,saveMarketingContacts} from './adminMarketing';
 import type {CountyManifest,CountySourceItem} from './adminMarketingCountySnapshot';
 import type {PublicReader} from './adminMarketingPublicWeb';
+import type {collectMarketingCountyWebsite} from './adminMarketingCountyWeb';
 const manifest={schemaVersion:2,scope:'county',countyCode:'CT',generation:'fixture',total:2,parts:[{count:2}]} as CountyManifest;
 const page=(url:string,text:string)=>({url,status:200,text,headers:{'content-type':'text/html'}});
 function fixture(){const db=new Database(':memory:');db.exec('CREATE TABLE admin_audit_log(id TEXT PRIMARY KEY,action TEXT,target_id TEXT,details TEXT)');startMarketingCountyPlan(db,'owner');return db;}
@@ -58,6 +59,14 @@ describe('county worker: persistent batches, all emails, correct county order',(
   for(let i=0;i<12;i++){await processMarketingCounty(db,reader,()=>{},{...deps,part:async()=>part});vi.setSystemTime(Date.now()+15000);}
   expect(listMarketingContacts(db,new URLSearchParams({county:'CT'})).contacts.find(c=>c.email==='office@fast.ro')?.emailVerification).toBe('verified');
   expect(reader.mock.calls.filter(([url])=>url.startsWith('https://slow.ro'))).toHaveLength(1);expect(marketingCountyView(db).counties[0].job?.state).toBe('collecting');db.close();
+ });
+
+ it('continues a started contact-page frontier before seeding every remaining website',async()=>{
+  const db=fixture(),id=(db.prepare("SELECT id FROM marketing_county_jobs WHERE county_code='CT'").get() as {id:string}).id;
+  db.prepare("UPDATE marketing_county_jobs SET state='collecting' WHERE id=?").run(id);
+  const put=db.prepare("INSERT INTO marketing_county_items(id,job_id,identity,name,category,city,website,phone,source,attempted_at) VALUES(?,?,?,'Firm','business','Mangalia',?,'','Public',?)");put.run('new',id,'new','https://new.ro/','');put.run('started',id,'started','https://started.ro/',new Date().toISOString());
+  db.prepare('INSERT INTO marketing_county_web_pages(job_id,website,url) VALUES(?,?,?)').run(id,'https://started.ro/','https://started.ro/');
+  const website=vi.fn<typeof collectMarketingCountyWebsite>(async()=>({complete:false,found:[],warning:'',nextAttemptAt:null}));await processMarketingCounty(db,vi.fn(),()=>{},{...deps,website});expect(website.mock.calls[0][2]).toBe('https://started.ro/');db.close();
  });
 
 });
