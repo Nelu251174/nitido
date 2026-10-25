@@ -31,4 +31,15 @@ describe('county worker: persistent batches, all emails, correct county order',(
  it('stops without saving when paused during a site request',async()=>{
   const db=fixture();const reader:PublicReader=vi.fn(async url=>{if(!url.endsWith('robots.txt'))setMarketingCountyState(db,'CT','pause','owner');return page(url,url.endsWith('robots.txt')?'':'office@business.ro');});const d={...deps,part:async()=>[{...data[0],tags:{name:'Website firm',website:'https://business.ro'}},data[1]]};for(let i=0;i<4;i++)await processMarketingCounty(db,reader,()=>{},d);expect(listMarketingContacts(db,new URLSearchParams({county:'CT'})).total).toBe(0);db.close();
  });
+ it('retries only listing structure errors on explicit resume, preserving source pauses and access refusals',()=>{
+  const db=fixture(),id=(db.prepare("SELECT id FROM marketing_county_jobs WHERE county_code='CT'").get() as {id:string}).id;
+  const deadline='2099-01-01T00:00:00.000Z';
+  const insert=db.prepare("INSERT INTO marketing_directory_pages(job_id,url,kind,state,reason,next_attempt_at) VALUES(?,?,'listing','blocked',?,?)");
+  insert.run(id,'https://www.ghidul.ro/firme-afaceri/audit-contabili/constanta/','Catalogul indică mai multe firme decât pagina primită, fără paginare verificabilă.',deadline);
+  insert.run(id,'https://www.ghidul.ro/firme-afaceri/other/constanta/','Catalogul nu permite colectarea automată a acestei pagini.',deadline);
+  setMarketingCountyState(db,'CT','pause','owner');setMarketingCountyState(db,'CT','resume','owner');
+  expect(db.prepare('SELECT state,next_attempt_at FROM marketing_directory_pages ORDER BY url').all()).toEqual([{state:'pending',next_attempt_at:deadline},{state:'blocked',next_attempt_at:deadline}]);
+  expect(marketingCountyView(db).counties.find(c=>c.code==='B')?.job?.state).toBe('queued');db.close();
+ });
+
 });
