@@ -49,3 +49,21 @@ Verificări: 144 teste Marketing trecute, inclusiv nouă firme într-un tabel, f
 Confirmare după remediere: sandbox publică `4b2f781dfb93c6d24eed0fcdee47cfb9f4902c0b`, iar LIVE publică `c2ea79e70edbcef85ef4d43c98514a765797450f`; ambele sunt sănătoase. Reluarea a reîncercat numai lista verificată care fusese oprită de eroarea parserului, fără refacerea inventarului OSM sau a verificărilor existente.
 
 La punctul de control după publicare, LIVE procesase 14 liste din catalog și avea 46 de profiluri în coadă, fără pagini blocate sau erori de sursă. Sandbox avansase la 86 de liste și 282 de profiluri în coadă. LIVE păstra 417 emailuri cu sursă și MX verificate, 12 invalide și nouă care necesitau verificare; cele 4.682 de rânduri OSM erau procesate. Acestea sunt valori intermediare, nu finalizarea județului. București rămânea în așteptare, livrarea era blocată și outboxul gol în ambele medii. Sarcinile temporare de diagnostic/reluare au fost șterse și absența lor a fost verificată.
+
+
+### Verificare extinsă a site-urilor publice
+
+După procesarea catalogului, inventarul județului avea 5.590 de înregistrări: 4.682 OSM și 908 din catalog. Cele 1.530 de pagini de catalog erau procesate fără pagini blocate, însă județul rămânea în `review`: 1.470 de rânduri aveau site, iar multe verificări anterioare ale site-urilor nu reușiseră. Această stare nu deblochează București.
+
+Colectorul județului păstrează acum o frontieră de pagini de contact în `marketing_county_web_pages`, fără vechiul plafon de două legături pe site. Paginile reușite și adresele cu URL sursă se salvează între execuții; o reluare nu recitește paginile deja procesate. Site-urile începute sunt prioritizate înaintea celor încă nedeschise, cu un singur lucrător. Limitele pe citire/execuție nu sunt limite totale pe județ sau site.
+
+Regulile robots, redirectările validate, pauzele pe gazdă și Retry-After persistă separat. Refuzurile HTTP/robots, erorile de certificat, domeniile inexistente, paginile prea mari și erorile temporare au cauze distincte. Refuzurile nu sunt reîncercate automat; erorile temporare au cel mult trei încercări, cu pauze. O pagină inaccesibilă rămâne o limită explicită de acoperire, nu dovadă de colectare completă.
+
+Reluarea verificării păstrează toate contactele, dovezile, acordurile și stările existente. Reia numai site-urile și verificările DNS temporare; verificarea sintaxei respinge și punctele incorecte din partea locală. Nu folosește SMTP. Rutele și autorizarea existente sunt păstrate; autentificarea și celelalte module nu sunt modificate.
+
+Validare: 155 teste Marketing trecute, un test extern omis fără configurare; TypeScript și lint trecute. Testele acoperă frontiera cu peste două pagini, reluarea după redeschiderea bazei, redirectări, robots/refuzuri, Retry-After, Crawl-delay, păstrarea dovezilor și prioritizarea site-urilor începute. Publicarea și progresul real se confirmă separat mai jos.
+
+
+Confirmare la 25.10.2026, 03:52 UTC: sandbox publică `e004d49371d18b0a8a8417a20515cb9804468fbd`, iar LIVE `d9c90ca9154e32e943af93ac791f409cfc942a00`; ambele deploy-uri sunt finalizate și sănătoase. În sandbox, după reluare, paginile procesate ale noii frontiere au crescut de la 7 la 22, iar rândurile din inventar procesate în această verificare au avansat la 4.253/5.590. Refuzurile și termenele surselor au rămas păstrate.
+
+Pe LIVE, reluarea explicită a pus la verificare cele 1.470 de rânduri cu site și 22 de verificări DNS temporare. La primul control, inventarul CT era 5.590, cu 1.132 emailuri având sursă și MX verificate, 98 invalide, 20 care necesită verificare și 22 în așteptarea reverificării DNS. Aceasta este o verificare suplimentară a acoperirii, nu resetarea datelor sau finalizarea județului. București rămâne în coadă, separat de Ilfov. Livrarea este blocată și outboxul gol. Rutele județelor și contactelor/exportului răspund 401 fără sesiune în ambele medii.
