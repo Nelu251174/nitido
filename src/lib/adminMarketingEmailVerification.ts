@@ -8,6 +8,7 @@ export type DomainReader=(domain:string)=>Promise<DomainVerdict>;
 export function marketingEmailDomain(email:string){
  const parts=email.trim().toLowerCase().split('@');
  if(parts.length!==2||!parts[0]||parts[0].length>64||email.length>254||/[\s<>\",;]/.test(email))return null;
+ if(parts[0].startsWith('.')||parts[0].endsWith('.')||parts[0].includes('..'))return null;
  const domain=domainToASCII(parts[1]);
  if(!domain||domain.length>253||!domain.includes('.')||domain.split('.').some(p=>!p||p.length>63||!/[a-z0-9]$/.test(p)||!/^[a-z0-9]/.test(p)||!/^[a-z0-9-]+$/.test(p))||/(^|\.)(localhost|local|internal|invalid|test|example|onion)$/.test(domain)||/^(example\.(com|net|org))$/.test(domain))return null;
  return domain;
