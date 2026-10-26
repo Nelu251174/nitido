@@ -27,3 +27,11 @@ export interface MarketingWorkspace {
   totals: { contacts: number; reviewed: number; suppressed: number; eligible: number; campaigns: number; simulations: number; simulatedRecipients: number; realEmailsSent: number };
   deliveryEnabled: boolean;
 }
+
+/** Calendar dates in Romania, independent of browser locale; no scheduling time. */
+export function formatMarketingDate(value:string):string {
+  const parsed=new Date(value);
+  if(!Number.isFinite(parsed.getTime()))return '—';
+  const parts=new Intl.DateTimeFormat('ro-RO',{timeZone:'Europe/Bucharest',day:'2-digit',month:'2-digit',year:'numeric'}).formatToParts(parsed);
+  return ['day','month','year'].map(type=>parts.find(part=>part.type===type)!.value).join('/');
+}
