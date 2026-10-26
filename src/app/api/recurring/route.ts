@@ -1,3 +1,4 @@
+import {validAutomaticCleaningType,cleaningAssessmentUrl,type AutomaticCleaningType} from '@/lib/cleaningTypes';
 import {consumeRateLimit,hasTrustedMutationOrigin} from "@/lib/security";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -46,16 +47,18 @@ export async function POST(req: NextRequest) {
     floor: b?.floor ?? null,
     sqm: b?.sqm,
     bathroomCount:b.bathroomCount,
+    ...(b.cleaningType===undefined?{}:{cleaningType:b.cleaningType as AutomaticCleaningType}),
     spaceType: b?.spaceType as SpaceType,
     hour: b?.hour,
     details: b?.details ?? null,
     startDate: b?.startDate,
     endDate: b?.endDate,
   };
+  if(b.cleaningType!==undefined&&!validAutomaticCleaningType(b.cleaningType))return NextResponse.json({error:'Tipul curățeniei necesită evaluare.',assessmentRequired:b.cleaningType==='renovation',assessmentUrl:cleaningAssessmentUrl(input.city,input.sqm)},{status:b.cleaningType==='renovation'?422:400});
   const invalid=validateRecurringPlan(input);
   if(invalid)return NextResponse.json({error:invalid.error},{status:invalid.status});
   if(!validBathroomCount(b.bathroomCount))return NextResponse.json({error:"Confirmă numărul de băi, întreg între 0 și 20."},{status:400});
-  const expectedPrice=calcServicePrice(input.spaceType,input.sqm,0,b.bathroomCount);
+  const expectedPrice=calcServicePrice(input.spaceType,input.sqm,0,b.bathroomCount,input.cleaningType);
   if((b.pricingVersion!==undefined&&b.pricingVersion!==PRICING_VERSION)||(b.expectedPriceGross!==undefined&&b.expectedPriceGross!==expectedPrice))return NextResponse.json({error:"Tariful s-a actualizat. Verifică prețul pe vizită înainte de creare."},{status:409});
   // Metodă salvată pentru confirmarea financiară separată a fiecărei vizite.
   const card = getClientCardInfo(db, user.id);

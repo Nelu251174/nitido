@@ -58,6 +58,15 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
 
   afterEach(() => { db.close(); vi.useRealTimers(); vi.unstubAllEnvs(); });
 
+  it('keeps the selected maintenance tariff on generated visits and never rewrites an existing snapshot',async()=>{
+    seedClientAndFirm(db);
+    const input={...basePlan,cleaningType:'maintenance' as const,sqm:60,bathroomCount:1,frequency:'weekly' as const,startDate:'2026-01-02'};
+    const plan=createRecurringPlan(db,input);expect(plan.ok).toBe(true);if(!plan.ok)return;
+    const result=await generateDueRecurringJobs(db,new Date('2026-01-01T08:00:00Z'));expect(result.created).toHaveLength(1);
+    const row=db.prepare('SELECT cleaning_type,price_gross,pricing_snapshot FROM jobs WHERE id=?').get(result.created[0]) as {cleaning_type:string;price_gross:number;pricing_snapshot:string};
+    expect(row).toMatchObject({cleaning_type:'maintenance',price_gross:550});expect(JSON.parse(row.pricing_snapshot).cleaningType).toBe('maintenance');
+    await generateDueRecurringJobs(db,new Date('2026-01-01T08:00:00Z'));expect(db.prepare('SELECT pricing_snapshot FROM jobs WHERE id=?').get(result.created[0])).toEqual({pricing_snapshot:row.pricing_snapshot});
+  });
   it("computeNextDate adaugă corect intervalul", () => {
     expect(computeNextDate("weekly", new Date("2026-01-01T00:00:00+02:00"))).toBe("2026-01-08");
     expect(computeNextDate("biweekly", new Date("2026-01-01T00:00:00+02:00"))).toBe("2026-01-15");

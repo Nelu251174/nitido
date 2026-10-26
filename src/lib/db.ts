@@ -573,6 +573,8 @@ db.exec(JOB_ACTUAL_COSTS_SCHEMA);
   ensureColumn("jobs", "pricing_snapshot", "TEXT");
   ensureColumn("jobs", "windows_sqm", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn("jobs", "bathroom_count", "INTEGER");
+  ensureColumn("jobs", "cleaning_type", "TEXT");
+  ensureColumn("recurring_plans", "cleaning_type", "TEXT");
   ensureColumn("recurring_plans", "bathroom_count", "INTEGER");
   // Published pricing is an audit record, separate from later refunds/adjustments.
   db.exec(PRICING_SNAPSHOT_LOCK_SQL);

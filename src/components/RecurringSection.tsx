@@ -8,11 +8,14 @@ import {Field,inputClass,Button} from './ui';
 import {BathroomExtra} from './BathroomExtra';
 import {SeriesChanges} from './SeriesChanges';
 import {NewBadge} from './NewBadge';
+import {CleaningTypeChoice,CleaningTypeLabel} from './CleaningTypeChoice';
+import type {AutomaticCleaningType} from '@/lib/cleaningTypes';
 import {calcServicePrice,validBathroomCount,PRICING_VERSION,SLOT_HOURS,type SpaceType} from '@/lib/pricing';
 import {JOB_STATUS} from "@/lib/workspaceShared";
 import {bucharestDateKey} from '@/lib/scheduling';
 
 interface PlanView {
+ cleaning_type?:AutomaticCleaningType|null;
   bathroom_count?:number|null;
   preferred_firm_id?:string|null;
   preferred_firm_name?:string|null;
@@ -43,6 +46,7 @@ export function RecurringSection({ defaults }: { defaults: { street: string; pos
  const locale=useLocale();
 
   const [address, setAddress] = useState(defaults);
+  const [seriesCleaningType,setSeriesCleaningType]=useState<AutomaticCleaningType>('general');
   const [seriesBathrooms,setSeriesBathrooms]=useState(1);
   const [visitDetails, setVisitDetails] = useState("");
   const [preferredFirm,setPreferredFirm]=useState(''),[previousFirms,setPreviousFirms]=useState<Array<{id:string;name:string}>>([]);
@@ -87,7 +91,7 @@ export function RecurringSection({ defaults }: { defaults: { street: string; pos
     statusLock.current=true;setBusy(true);setMsg(null);
     try {
       if(!validBathroomCount(seriesBathrooms))throw new Error("Introdu numărul de băi, întreg între 0 și 20.");
-      const input={...address,bathroomCount:seriesBathrooms,pricingVersion:PRICING_VERSION,expectedPriceGross:calcServicePrice(address.spaceType,address.sqm,0,seriesBathrooms),preferredFirmId:preferredFirm||null,propertyId:seriesPropertyId||null,details:visitDetails,frequency,hour,startDate,endDate:endDate||null};
+      const input={...address,cleaningType:seriesCleaningType,bathroomCount:seriesBathrooms,pricingVersion:PRICING_VERSION,expectedPriceGross:calcServicePrice(address.spaceType,address.sqm,0,seriesBathrooms,seriesCleaningType),preferredFirmId:preferredFirm||null,propertyId:seriesPropertyId||null,details:visitDetails,frequency,hour,startDate,endDate:endDate||null};
       const payload=JSON.stringify(input);
       if(!creationRequest.current||creationRequest.current.payload!==payload)creationRequest.current={payload,id:crypto.randomUUID()};
       const r=await fetch("/api/recurring",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...input,requestId:creationRequest.current.id})});
@@ -220,7 +224,7 @@ export function RecurringSection({ defaults }: { defaults: { street: string; pos
                 {p.end_date&&<span className="block text-xs text-muted"><UiText text={"Ultima zi a seriei: "}/>{p.end_date}<UiText text={" inclusiv"}/></span>}
                 {p.pause_start&&p.pause_end&&<span className="block text-xs text-aqua-deep"><UiText text={"Pauză programată: "}/>{p.pause_start} – {p.pause_end}<UiText text={" inclusiv"}/><button type="button" disabled={statusBusy||busy} onClick={()=>void removePause(p)} className="block mt-2 underline disabled:opacity-50"><UiText text={"Elimină pauza programată"}/></button></span>}
                 <label className="block text-xs my-2"><UiText text={"Firma preferată"}/><select className={inputClass} disabled={statusBusy||busy} value={p.preferred_firm_id??''} onChange={e=>void savePreferredFirm(p.id,e.target.value||null)}><option value=""><UiText text={"Aleg la fiecare vizită"}/></option>{previousFirms.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}{p.preferred_firm_id&&!previousFirms.some(f=>f.id===p.preferred_firm_id)&&<option value={p.preferred_firm_id}>{p.preferred_firm_name??<UiText text={'Firmă indisponibilă'}/>}</option>}</select></label>
-                <b className="text-sm block truncate">{<UiText text={FREQ_LABELS[p.frequency]}/>} · <UiSpaceType value={p.space_type}/> · {p.city}</b>{p.bathroom_count!=null&&<span className="block text-xs text-muted">{p.bathroom_count}<UiText text=" băi · o bucătărie inclusă"/></span>}
+                <b className="text-sm block truncate"><UiText text={FREQ_LABELS[p.frequency]}/> <CleaningTypeLabel value={p.cleaning_type}/> · <UiSpaceType value={p.space_type}/> · {p.city}</b>{p.bathroom_count!=null&&<span className="block text-xs text-muted">{p.bathroom_count}<UiText text=" băi · o bucătărie inclusă"/></span>}
                 <span className="text-xs text-[#6b756f]">{p.next_visit_at?<UiTemplate text={"Următoarea vizită: {p0}"} values={[new Intl.DateTimeFormat(locale,{timeZone:'Europe/Bucharest',dateStyle:'medium',timeStyle:'short'}).format(new Date(p.next_visit_at))]}/>:p.end_date&&p.next_run_date>p.end_date?<UiText text={"Generarea seriei s-a încheiat"}/>:<UiTemplate text={"Următoarea dată de generat: {p0}"} values={[p.next_run_date]}/>} · {p.status === "active" ? <UiText text={"activ"}/> : p.status === "paused" ? <UiText text={"pe pauză"}/> : p.status}</span>
                 <span className="block text-xs text-muted"><UiText text={"Ora "}/>{String(p.hour).padStart(2,"0")}<UiText text={":00 · ora României"}/></span>
               </span>
@@ -291,8 +295,8 @@ export function RecurringSection({ defaults }: { defaults: { street: string; pos
             <Field label="Suprafață, m²"><input className={inputClass} type="number" min={1} max={1000} step={1} value={address.sqm} onChange={event=>setAddress({...address,sqm:Number(event.target.value)})}/></Field>
             <Field label="Tip spațiu"><select className={inputClass} value={address.spaceType} onChange={event=>setAddress({...address,spaceType:event.target.value as SpaceType})}><option value="apartament"><UiText text={"Apartament"}/></option><option value="casa"><UiText text={"Casă"}/></option><option value="birou"><UiText text={"Birou"}/></option><option value="altul"><UiText text={"Alt spațiu"}/></option></select></Field>
           </div>
-          <BathroomExtra value={seriesBathrooms} onChange={setSeriesBathrooms}/>
-          {Number.isSafeInteger(address.sqm)&&address.sqm>0&&validBathroomCount(seriesBathrooms)&&<p className="text-sm font-bold mb-3"><UiText text="Preț pe vizită, înainte de credit: "/>{calcServicePrice(address.spaceType,address.sqm,0,seriesBathrooms)}<UiText text=" lei. Geamurile nu sunt incluse. Plata și firma se confirmă separat pentru fiecare vizită."/></p>}
+          <CleaningTypeChoice value={seriesCleaningType} automaticOnly onChange={value=>{if(value!=='renovation')setSeriesCleaningType(value)}}/><BathroomExtra value={seriesBathrooms} onChange={setSeriesBathrooms}/>
+          {Number.isSafeInteger(address.sqm)&&address.sqm>0&&validBathroomCount(seriesBathrooms)&&<p className="text-sm font-bold mb-3"><UiText text="Preț pe vizită, înainte de credit: "/>{calcServicePrice(address.spaceType,address.sqm,0,seriesBathrooms,seriesCleaningType)}<UiText text=" lei. Geamurile nu sunt incluse. Plata și firma se confirmă separat pentru fiecare vizită."/></p>}
           <Field label="Preferințe pentru vizite"><UiElement as="textarea" className={inputClass} maxLength={500} rows={3} value={visitDetails} onChange={event=>setVisitDetails(event.target.value)} placeholder="Materiale sensibile, animale de companie, preferințe de curățenie…"/></Field>
           <span className="block text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1"><UiText text={"Frecvență"}/></span>
           <div className="grid grid-cols-3 gap-2 mb-3">

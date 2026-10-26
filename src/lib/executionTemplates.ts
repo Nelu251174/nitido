@@ -1,4 +1,5 @@
 import type {Database} from 'better-sqlite3';
+import {CLEANING_SCOPE,type AutomaticCleaningType} from './cleaningTypes';
 import {CHECKLIST} from './workspaceShared';
 import {EXECUTION_SCOPES,type PhotoRules,type ExecutionItem,type ExecutionTemplate} from './executionTemplatesShared';
 export class ExecutionTemplateError extends Error{constructor(message:string,public status=400){super(message)}}
@@ -8,6 +9,13 @@ export function executionTemplate(db:Database,scope:string):ExecutionTemplate{
  const row=db.prepare('SELECT revision,items_json,reason,actor_id,created_at FROM execution_templates WHERE scope=? ORDER BY revision DESC LIMIT 1').get(scope) as {revision:number;items_json:string;reason:string;actor_id:string;created_at:string}|undefined;
  const photoRules=row?(db.prepare('SELECT arrival_min AS arrivalMin,completion_min AS completionMin FROM execution_photo_templates WHERE scope=? AND revision=?').get(scope,row.revision) as PhotoRules|undefined):undefined;
  return row?{photoRules:photoRules??{arrivalMin:1,completionMin:1},scope,revision:row.revision,items:JSON.parse(row.items_json),reason:row.reason,actor:row.actor_id,createdAt:row.created_at}:{photoRules:{arrivalMin:1,completionMin:1},scope,revision:0,items:CHECKLIST.map(i=>({...i})),reason:null,actor:null,createdAt:null};
+}
+/** Automatic packages opt into their scope; older manual offers keep their existing defaults. */
+export function automaticExecutionTemplate(db:Database,mode:string,cleaningType?:AutomaticCleaningType):ExecutionTemplate{
+ const current=executionTemplate(db,mode);
+ if(!cleaningType||(cleaningType==='general'&&current.revision>0))return current;
+ const typed=executionTemplate(db,cleaningType);
+ return typed.revision?typed:{...typed,items:CLEANING_SCOPE[cleaningType].map(item=>({...item}))};
 }
 export function executionTemplates(db:Database){return EXECUTION_SCOPES.map(([scope])=>executionTemplate(db,scope));}
 export function saveExecutionTemplate(db:Database,b:Record<string,unknown>,actor:string){
@@ -35,11 +43,11 @@ export function jobExecutionRules(db:Database,jobId:string):{scope:string;revisi
  return row?{scope:row.scope,revision:row.revision,items:JSON.parse(row.items_json)}:{scope:'legacy',revision:0,items:CHECKLIST.map(i=>({...i}))};
 }
 // Must run during creation, after mode/service is resolved, within the creation transaction.
-export function freezeExecutionRules(db:Database,jobId:string,scope:string,parentJobId?:string){
+export function freezeExecutionRules(db:Database,jobId:string,scope:string,parentJobId?:string,cleaningType?:AutomaticCleaningType){
  if(!db.inTransaction)throw new ExecutionTemplateError('Tranzacție obligatorie.',500);
  if(db.prepare('SELECT 1 FROM job_execution_rules WHERE job_id=?').get(jobId))return;
- const rules=parentJobId?jobExecutionRules(db,parentJobId):executionTemplate(db,scope);
+ const rules=parentJobId?jobExecutionRules(db,parentJobId):automaticExecutionTemplate(db,scope,cleaningType);
  db.prepare('INSERT INTO job_execution_rules VALUES(?,?,?,?,?)').run(jobId,rules.scope,rules.revision,JSON.stringify(rules.items),new Date().toISOString());
- const photos=parentJobId?jobPhotoRules(db,parentJobId):executionTemplate(db,scope).photoRules;
+ const photos=parentJobId?jobPhotoRules(db,parentJobId):executionTemplate(db,rules.scope).photoRules;
  db.prepare('INSERT INTO job_photo_rules VALUES(?,?,?)').run(jobId,photos.arrivalMin,photos.completionMin);
 }
