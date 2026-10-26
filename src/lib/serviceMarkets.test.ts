@@ -21,6 +21,6 @@ describe('owner-approved EU billing policy',()=>{
       catch(error){expect(error).toMatchObject({status:422,countryCode:country,currency:'EUR'});}
       expect(()=>pricingSnapshot({spaceType:'apartament',sqm:80,expressFeeLei:0,creditLei:0,countryCode:country})).toThrow();
     }
-    expect(pricingSnapshot({spaceType:'apartament',sqm:80,expressFeeLei:0,creditLei:0})).toMatchObject({countryCode:'RO',currency:'RON',grossBani:55000});
+    expect(pricingSnapshot({spaceType:'apartament',sqm:80,expressFeeLei:0,creditLei:0})).toMatchObject({countryCode:'RO',currency:'RON',grossBani:120000});
   });
 });

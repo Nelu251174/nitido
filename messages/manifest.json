@@ -14,8 +14,8 @@
   ],
   "targetLanguages": 24,
   "sourceLanguage": "ro",
-  "sourceMessages": 5325,
-  "sourceHash": "057434defa0ba5c15d16adee44fff8641cfca3795a350cbd22d04cceb88d6350",
+  "sourceMessages": 5334,
+  "sourceHash": "da93ce5301e0e720abc1f047e98305c87971d407327be3cc13becb86fce99f5e",
   "provider": "OpenAI",
   "model": "gpt-5.4-mini",
   "review": "machine translation; specialist legal review pending",
@@ -24,6 +24,10 @@
       "messages": 20,
       "scope": "Marketing signup and confirmation only",
       "review": "assistant-prepared translations; specialist review pending"
+    },
+    "pricing20261026": {
+      "messages": 9,
+      "scope": "Current tariff parameters; existing translated prose preserved"
     }
   }
 }

@@ -27,7 +27,7 @@ describe('managed pricing calculation',()=>{
   it('uses exactly one primary method and applies windows separately',()=>{
     const d=initialPriceDefinition();d.rules.birou={method:'hour',rateBani:12345,minimumBani:30000};
     const result=calculateManagedPrice(d,{spaceType:'birou',sqm:900,hours:2,windowsSqm:10});
-    expect(result).toMatchObject({cleaningBani:30000,windowsBani:8000,totalBani:38000});
+    expect(result).toMatchObject({cleaningBani:30000,windowsBani:12000,totalBani:42000});
     expect(result.lines.reduce((sum,l)=>sum+l.amountBani,0)).toBe(result.totalBani);
     expect(()=>calculateManagedPrice(d,{spaceType:'birou',sqm:100})).toThrow();
   });

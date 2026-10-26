@@ -43,9 +43,9 @@ it('focuses the invalid field, preserves steps and restores edited selections af
  await input('#booking-city','Iași');await input('#booking-area','90');await submit();expect(container.textContent).toContain('Când și cum rezervi');await submit();expect(container.textContent).toContain('Totul este pregătit');await click('Modifică spațiul');expect(container.querySelector<HTMLInputElement>('#booking-area')?.value).toBe('90');
  await act(()=>root.unmount());root=createRoot(container);await render(React.createElement(BookingConfigurator,{initial,options}));expect(container.querySelector<HTMLInputElement>('#booking-area')?.value).toBe('90');expect(container.querySelector<HTMLInputElement>('#booking-city')?.value).toBe('Iași');
 });
-it('shows 550 → 630 → 680 lei and hands off without publishing or payment',async()=>{
- await render(React.createElement(BookingConfigurator,{initial:{city:'Iași',sqm:'80'},options}));expect(container.querySelector('output')?.textContent).toBe('550 lei');
- await input('#booking-windowsSqm','10');expect(container.querySelector('output')?.textContent).toBe('630 lei');await input('#booking-bathroomCount','2');expect(container.querySelector('output')?.textContent).toBe('680 lei');await submit();await submit();await submit();expect(state.push).toHaveBeenCalledTimes(1);expect(state.push.mock.calls[0][0]).toContain('bathroomCount=2');expect(fetch).not.toHaveBeenCalled();
+it('shows 1200 → 1320 → 1420 lei and hands off without publishing or payment',async()=>{
+ await render(React.createElement(BookingConfigurator,{initial:{city:'Iași',sqm:'80'},options}));expect(container.querySelector('output')?.textContent).toBe('1200 lei');
+ await input('#booking-windowsSqm','10');expect(container.querySelector('output')?.textContent).toBe('1320 lei');await input('#booking-bathroomCount','2');expect(container.querySelector('output')?.textContent).toBe('1420 lei');await submit();await submit();await submit();expect(state.push).toHaveBeenCalledTimes(1);expect(state.push.mock.calls[0][0]).toContain('bathroomCount=2');expect(fetch).not.toHaveBeenCalled();
 });
 it('keeps refusal through navigation and loads no advertising script, then reopens settings to accept',async()=>{
  await render(React.createElement(React.Fragment,null,React.createElement(GoogleAdsConsent,{}),React.createElement(AdsCookieSettingsButton,{})));

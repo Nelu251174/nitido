@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useState} from 'react';
 import type {Tariff,SimulationRow} from '@/lib/managedPricingStore';
-import type {PriceDefinition,PriceScope,PriceRule} from '@/lib/managedPricing';
+import {initialPriceDefinition,type PriceDefinition,type PriceScope,type PriceRule} from '@/lib/managedPricing';
 import type {SpaceType} from '@/lib/pricing';
 
 const spaces:[SpaceType,string][]=[['apartament','Apartament'],['casa','Casă / vilă'],['birou','Birou'],['altul','Alt spațiu']];
@@ -53,7 +53,7 @@ export function AdminPricing(){
           {form.scope.kind==='contract'&&<label>Identificator contract Pro<input required maxLength={120} value={form.scope.contractId} onChange={e=>patch({scope:{kind:'contract',contractId:e.target.value}})}/></label>}</div>
           <p className="booking-muted">Prioritate: contract Pro, zonă, localitate, național. Două versiuni pentru aceeași arie nu pot avea perioade suprapuse. Identificatorul contractului trebuie legat de un contract valid înainte de activarea la rezervare.</p>
           {spaces.map(([key,label])=>{const r=form.definition.rules[key];return <fieldset key={key}><legend>{label}</legend>
-            <label>Metodă principală<select value={r.method} onChange={e=>{const method=e.target.value as PriceRule['method'];rule(key,method==='manual'?{method}:method==='package'?{method,tiers:[{maxSqm:100,amountBani:65000}],overflowRateBani:650}:{method,rateBani:500,minimumBani:25000});}}><option value="package">Pachet pe praguri de suprafață</option><option value="sqm">Preț pe m²</option><option value="hour">Preț pe oră</option><option value="manual">Ofertă manuală</option></select></label>
+            <label>Metodă principală<select value={r.method} onChange={e=>{const method=e.target.value as PriceRule['method'];rule(key,method==='manual'?{method}:method==='package'?initialPriceDefinition().rules.apartament:method==='sqm'?initialPriceDefinition().rules[key==='apartament'?'altul':key]:{method,rateBani:0,minimumBani:0});}}><option value="package">Pachet pe praguri de suprafață</option><option value="sqm">Preț pe m²</option><option value="hour">Preț pe oră</option><option value="manual">Ofertă manuală</option></select></label>
             {r.method==='package'&&<>{r.tiers.map((t,i)=><div className="booking-fields" key={i}>{numeric(`Pragul ${i+1}: până la m²`,t.maxSqm,n=>rule(key,{...r,tiers:r.tiers.map((x,j)=>i===j?{...x,maxSqm:n}:x)}),1,1000)}{numeric(`Pragul ${i+1}: preț în bani`,t.amountBani,n=>rule(key,{...r,tiers:r.tiers.map((x,j)=>i===j?{...x,amountBani:n}:x)}),1)}<button type="button" disabled={r.tiers.length===1} onClick={()=>rule(key,{...r,tiers:r.tiers.filter((_,j)=>j!==i)})}>Elimină pragul {i+1}</button></div>)}<button type="button" disabled={r.tiers.length>=12||r.tiers[r.tiers.length-1].maxSqm>=1000} onClick={()=>{const last=r.tiers[r.tiers.length-1];rule(key,{...r,tiers:[...r.tiers,{maxSqm:Math.min(1000,last.maxSqm+20),amountBani:last.amountBani}]});}}>Adaugă prag</button>{numeric('Peste ultimul prag: bani/m²',r.overflowRateBani,n=>rule(key,{...r,overflowRateBani:n}),1)}</>}
             {(r.method==='sqm'||r.method==='hour')&&<div className="booking-fields">{numeric(r.method==='sqm'?'Tarif în bani/m²':'Tarif în bani/oră',r.rateBani,n=>rule(key,{...r,rateBani:n}),1)}{numeric('Preț minim în bani',r.minimumBani,n=>rule(key,{...r,minimumBani:n}))}</div>}
             {r.method==='manual'&&<p>Motorul va cere ofertă manuală. Nu va inventa un total și nu va permite confirmarea automată.</p>}
