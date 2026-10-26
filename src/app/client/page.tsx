@@ -9,8 +9,8 @@ import {FlexibleClientPanel} from "@/components/FlexibleClientPanel";
 import {AUTHORIZATION_NOTICE,confirmationOpensAt} from '@/lib/authorizationPolicy';
 import {BOOKING_DURATION_NOTICE,BOOKING_TEAM_NOTICE} from "@/lib/bookingTerms";
 import {CREDIT_POLICY_NOTICE} from "@/lib/referral";
-import {calcServiceDuration} from "@/lib/pricing";
-import {UiSpaceType,UiText,UiElement} from '@/components/UiText';
+import {calcServiceDuration,WINDOWS_RATE_LEI} from "@/lib/pricing";
+import {UiSpaceType,UiText,UiElement,UiTemplate} from '@/components/UiText';
 import {useLocale} from 'next-intl';
 import {UiDate} from '@/components/UiDate';
 
@@ -915,7 +915,7 @@ export default function ClientPage() {
             </div>
 
             {needsAssessment?<section className="design-panel"><h2><UiText text={"Este necesară o evaluare"}/></h2><p><UiText text={"Suprafața depășește limita calculatorului automat."}/></p><Link className="design-button" href={`/client/evaluari?${new URLSearchParams({city,sqm:String(sqm)})}`}><UiText text={"Trimite spre evaluare"}/></Link></section>:confirmedOffer?null:<div className="bg-mist border border-aqua rounded-xl p-3.5 my-4">
-              <p className="text-sm mb-2">{priceExplanation(spaceType,sqm)}<UiText text={". Camerele nu se taxează separat."}/></p><p className="text-sm mb-2"><UiText text={"Curățenie: "}/>{basePrice}<UiText text=" lei · Supliment băi: "/>{bathroomPrice}<UiText text={" lei · Geamuri: "}/>{windowsSqm}<UiText text={" m² × 8 lei = "}/>{windowsPrice}<UiText text={" lei"}/></p>
+              <p className="text-sm mb-2">{priceExplanation(spaceType,sqm)}<UiText text={". Camerele nu se taxează separat."}/></p><p className="text-sm mb-2"><UiText text={"Curățenie: "}/>{basePrice}<UiText text=" lei · Supliment băi: "/>{bathroomPrice}<UiText text={" lei · Geamuri: "}/>{windowsSqm}<UiTemplate text=" m² × {p0} lei = " values={[WINDOWS_RATE_LEI]}/>{windowsPrice}<UiText text={" lei"}/></p>
               {express60Active && (
                 <div className="flex justify-between items-center text-[11.5px] text-muted mb-1.5 pb-1.5 border-b border-line/60">
                   <span><UiText text={"Curățenie "}/>{basePrice}<UiText text={" lei · 🔥 Express 60 +"}/>{<UiText text={express60Fee}/>}<UiText text={" lei"}/></span>

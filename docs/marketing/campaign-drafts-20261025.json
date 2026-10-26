@@ -1,6 +1,6 @@
 {
   "schema": "editorial-campaign-drafts-v1",
-  "status": "draft-not-imported-not-scheduled",
+  "status": "editorial-drafts-delivery-disabled",
   "deliveryEnabled": false,
   "firstCounties": [
     "CT",
@@ -27,9 +27,9 @@
       "key": "business",
       "category": "business",
       "goal": "Cerere de curățenie pentru spațiul firmei",
-      "subjectA": "Curățenia spațiului firmei, organizată online",
-      "subjectB": "Vezi prețul curățeniei înainte să publici cererea",
-      "body": "Bună ziua,\n\nPrin NITIDO puteți organiza curățenia spațiului firmei: introduceți localitatea, tipul spațiului și suprafața, vedeți prețul înainte de publicare și alegeți firma potrivită dintre cele interesate.\n\nDisponibilitatea se confirmă pentru fiecare cerere.\n\nEchipa NITIDO",
+      "subjectA": "Curățenia firmei, cu prețul clar înainte de rezervare",
+      "subjectB": "Birou curat, cerere organizată. Vezi opțiunile NITIDO",
+      "body": "Bună ziua,\n\nUn spațiu de lucru curat se vede în felul în care vă primiți clienții și în confortul echipei. Organizarea curățeniei ar trebui să fie la fel de clară: ce solicitați, când aveți nevoie și cât plătiți.\n\nCu NITIDO, porniți de la nevoia concretă a firmei. Introduceți localitatea, tipul spațiului și suprafața, apoi completați programarea dorită. Puteți configura curățenia unui birou, magazin sau alt spațiu obișnuit, fără să calculați separat o taxă pentru fiecare cameră.\n\nÎnainte de publicare vedeți totalul și componentele lui. Pachetul obișnuit include pardoselile, suprafețele accesibile, o baie și o bucătărie. Băile suplimentare și spălarea geamurilor apar distinct, dacă le selectați. Pentru lucrări după constructor, murdărie dificilă sau alte cerințe speciale, solicitați evaluare, astfel încât intervenția să fie discutată în funcție de situația reală.\n\nCererea și statusul lucrării rămân în contul dumneavoastră. La o cerere Standard, puteți analiza candidaturile primite și alege firma; disponibilitatea depinde de zonă, data solicitată și firmele eligibile. Publicarea nu înseamnă confirmarea automată a unei echipe.\n\nÎncepeți cu spațiul pe care îl aveți acum de curățat. Configurați cererea, verificați prețul și condițiile afișate și decideți în cunoștință de cauză. Aveți informațiile esențiale într-un singur loc, înainte să confirmați.\n\nEchipa NITIDO",
       "ctaLabel": "Calculează prețul",
       "ctaUrl": "https://nitido.ro/rezervare"
     },
@@ -37,19 +37,19 @@
       "key": "cleaning",
       "category": "cleaning",
       "goal": "Înscrierea unei firme de curățenie partenere",
-      "subjectA": "Înscrie firma ta de curățenie în NITIDO",
-      "subjectB": "Un loc pentru programările și echipa firmei tale",
-      "body": "Bună ziua,\n\nAdministrați o firmă de curățenie? În NITIDO puteți să vă înscrieți firma, să vă prezentați serviciile și să organizați programările, echipele și istoricul lucrărilor.\n\nOportunitățile depind de cererile din zonă și de eligibilitatea firmei.\n\nEchipa NITIDO",
-      "ctaLabel": "Înscrie firma",
-      "ctaUrl": "https://nitido.ro/signup?role=firma"
+      "subjectA": "Mai multă ordine în programările firmei tale de curățenie",
+      "subjectB": "Firma ta de curățenie: cereri și echipe într-un singur cont",
+      "body": "Bună ziua,\n\nTimpul unei firme de curățenie trebuie să ajungă la lucrări bine organizate, nu să se piardă între mesaje, programări și informații greu de găsit. NITIDO aduce cererile, echipele și istoricul lucrărilor într-un singur cont de firmă.\n\nVă puteți înscrie firma, prezenta serviciile și configura zonele în care lucrați. Completați datele firmei și parcurgeți pașii de eligibilitate, astfel încât profilul să reflecte serviciile pe care le puteți prelua efectiv.\n\nPentru oportunitățile disponibile, consultați detaliile lucrării, zona, programarea și suma afișată pentru firmă înainte de a decide dacă participați. La cererile Standard, firma își exprimă interesul, iar clientul alege dintre candidaturi. Preluarea se face potrivit fluxului și condițiilor afișate în platformă.\n\nCalendarul, organizarea echipelor și istoricul vă ajută să urmăriți ce aveți programat și cum evoluează lucrările. Puteți centraliza informațiile operaționale, în loc să reconstruiți fiecare programare din conversații separate. Verificați capacitatea echipei și condițiile intervenției înainte de a vă angaja la o lucrare.\n\nÎnscrierea nu garantează un anumit volum de comenzi sau venituri. Oportunitățile depind de cererea reală din zonă, de disponibilitate și de eligibilitatea firmei; condițiile comerciale și de plată se consultă înainte de acceptare.\n\nDacă vreți să vă organizați activitatea și să evaluați cereri noi prin NITIDO, vedeți cum funcționează contul de firmă. Următorul pas este simplu: consultați opțiunile și începeți completarea profilului.\n\nEchipa NITIDO",
+      "ctaLabel": "Vezi contul pentru firme",
+      "ctaUrl": "https://nitido.ro/pentru-firme"
     },
     {
       "key": "individual",
       "category": "individual",
       "goal": "Cerere de curățenie pentru locuință, pentru persoane înscrise cu acord documentat",
-      "subjectA": "Mai mult timp pentru tine. Curățenia începe aici.",
-      "subjectB": "Vezi cât ar costa curățenia locuinței tale",
-      "body": "Bună,\n\nAi nevoie de curățenie pentru locuința ta? În NITIDO alegi tipul spațiului, suprafața și programarea, vezi prețul înainte să publici cererea și alegi firma potrivită dintre cele interesate.\n\nDisponibilitatea se confirmă pentru cererea ta.\n\nEchipa NITIDO",
+      "subjectA": "O casă curată începe cu o cerere simplă",
+      "subjectB": "Vezi costul curățeniei și pregătește timpul pentru tine",
+      "body": "Bună,\n\nO casă curată înseamnă mai mult confort și mai puține lucruri rămase pe lista de făcut. Când ai nevoie de ajutor, contează să poți explica simplu ce dorești și să vezi costul înainte să iei o decizie.\n\nÎn NITIDO configurezi curățenia locuinței tale pornind de la localitate, tipul spațiului și suprafață. Alegi programarea dorită și completezi informațiile despre intervenție. Numărul camerelor nu adaugă o taxă separată; calculatorul folosește tipul locuinței și suprafața declarată.\n\nPachetul obișnuit include aspirarea și spălarea pardoselilor, ștergerea prafului pe suprafețe accesibile, o baie și o bucătărie. Dacă ai mai multe băi sau dorești și spălarea geamurilor, le selectezi separat și vezi costurile în rezumat. Pentru curățenie după constructor, murdărie dificilă, tapițerii ori alte cerințe speciale, ceri o evaluare potrivită situației tale.\n\nVezi totalul înainte să publici cererea. La o cerere Standard, poți consulta candidaturile primite și alege firma, iar statusul lucrării rămâne vizibil în cont. Disponibilitatea se confirmă în funcție de localitate, data dorită și firmele eligibile, fără promisiunea unei echipe disponibile imediat.\n\nÎncepe cu locuința ta și cu ceea ce ai nevoie să fie curățat. Verifică opțiunile, prețul și condițiile afișate; publici cererea când informațiile sunt corecte pentru tine. Primul pas este să vezi cum arată configurația potrivită casei tale.\n\nEchipa NITIDO",
       "ctaLabel": "Vezi prețul curățeniei",
       "ctaUrl": "https://nitido.ro/rezervare"
     }
@@ -70,5 +70,6 @@
     "Acestea sunt texte editoriale, nu fișiere importabile direct în campaniile existente.",
     "Nu sunt introduse contacte reale sau acorduri fictive.",
     "Nu sunt promise tarife, reduceri, disponibilitate imediată ori venituri pentru parteneri."
-  ]
+  ],
+  "revision": "2026-10-26-persuasive-v3"
 }

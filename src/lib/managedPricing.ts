@@ -1,4 +1,4 @@
-import type {SpaceType} from './pricing';
+import {APARTMENT_TIERS,APARTMENT_OVERFLOW_RATE_LEI,PER_SQM_RATES,MINIMUM_PRICES,WINDOWS_RATE_LEI,type SpaceType} from './pricing';
 import {normalizeCity} from './text';
 
 export const PRICING_SPACES: SpaceType[] = ['apartament','casa','birou','altul'];
@@ -25,11 +25,11 @@ const text=(v:unknown)=>typeof v==='string'&&v.trim().length>0&&v.trim().length<
 
 /** Initial configurable tariff reproduces the approved legacy calculator, including whole-leu rounding. */
 export function initialPriceDefinition():PriceDefinition {
-  return {currency:'RON',timezone:'Europe/Bucharest',roundingBani:100,windowsRateBani:800,rules:{
-    apartament:{method:'package',tiers:[{maxSqm:40,amountBani:35000},{maxSqm:60,amountBani:45000},{maxSqm:80,amountBani:55000},{maxSqm:100,amountBani:65000}],overflowRateBani:650},
-    casa:{method:'sqm',rateBani:700,minimumBani:35000},
-    birou:{method:'sqm',rateBani:500,minimumBani:25000},
-    altul:{method:'sqm',rateBani:600,minimumBani:30000},
+  return {currency:'RON',timezone:'Europe/Bucharest',roundingBani:100,windowsRateBani:WINDOWS_RATE_LEI*100,rules:{
+    apartament:{method:'package',tiers:APARTMENT_TIERS.map(t=>({maxSqm:t.max,amountBani:t.price*100})),overflowRateBani:APARTMENT_OVERFLOW_RATE_LEI*100},
+    casa:{method:'sqm',rateBani:PER_SQM_RATES.casa*100,minimumBani:MINIMUM_PRICES.casa*100},
+    birou:{method:'sqm',rateBani:PER_SQM_RATES.birou*100,minimumBani:MINIMUM_PRICES.birou*100},
+    altul:{method:'sqm',rateBani:PER_SQM_RATES.altul*100,minimumBani:MINIMUM_PRICES.altul*100},
   }};
 }
 export function validatePriceDefinition(value:unknown):PriceDefinition {

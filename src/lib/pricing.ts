@@ -1,4 +1,4 @@
-// Tarif NITIDO din 15.09.2026; fundamentare în docs/pricing-2026-09-15.md.
+// Tarif NITIDO revizuit la 26.10.2026; fundamentare în docs/pricing-2026-10-26.md.
 // Funcții pure, testabile independent de bază de date sau server.
 
 export type SpaceType = "apartament" | "casa" | "birou" | "altul";
@@ -14,25 +14,26 @@ export const MIN_CLEANING_DURATION_MINUTES = 180; // New bookings: on-site team 
 export const BUFFER_MINUTES = 30; // buffer obligatoriu între lucrări consecutive — spec secțiunea 5d
 
 export const APARTMENT_TIERS: { max: number; price: number }[] = [
-  { max: 40, price: 350 },
-  { max: 60, price: 450 },
-  { max: 80, price: 550 },
-  { max: 100, price: 650 },
+  { max: 40, price: 750 },
+  { max: 60, price: 1000 },
+  { max: 80, price: 1200 },
+  { max: 100, price: 1450 },
 ];
 
 export const PER_SQM_RATES: Record<Exclude<SpaceType, "apartament">, number> = {
-  casa: 7,
-  birou: 5,
-  altul: 6,
+  casa: 14,
+  birou: 10,
+  altul: 12,
 };
 
-export const MINIMUM_PRICES = {casa:350,birou:250,altul:300} as const;
-export const WINDOWS_RATE_LEI = 8;
+export const MINIMUM_PRICES = {casa:700,birou:500,altul:600} as const;
+export const WINDOWS_RATE_LEI = 12;
 export const WINDOWS_MAX_SQM = 200;
-export const PRICING_VERSION = 'nitido-2026-10-20-bathrooms-v1';
-export const EXTRA_BATHROOM_FEE_LEI = 50;
+export const PRICING_VERSION = 'nitido-2026-10-26-market-v2';
+export const EXTRA_BATHROOM_FEE_LEI = 100;
 export const BATHROOM_MAX_COUNT = 20;
-export const BATHROOM_PRICING_NOTICE = 'Pachetul include o baie și o bucătărie, pentru curățenie obișnuită. Fiecare baie suplimentară: +50 lei pentru obiecte sanitare, cadă/duș, baterii și oglinzi. Pardoseala este deja inclusă în suprafață și nu se taxează din nou. Interiorul electrocasnicelor, degresarea dificilă și bucătăriile suplimentare necesită evaluare.';
+export const APARTMENT_OVERFLOW_RATE_LEI = 14.5;
+export const BATHROOM_PRICING_NOTICE = `Pachetul include o baie și o bucătărie, pentru curățenie obișnuită. Fiecare baie suplimentară: +${EXTRA_BATHROOM_FEE_LEI} lei pentru obiecte sanitare, cadă/duș, baterii și oglinzi. Pardoseala este deja inclusă în suprafață și nu se taxează din nou. Interiorul electrocasnicelor, degresarea dificilă și bucătăriile suplimentare necesită evaluare.`;
 export function validBathroomCount(value:unknown):value is number {
  return typeof value==='number' && Number.isSafeInteger(value) && value>=0 && value<=BATHROOM_MAX_COUNT;
 }
@@ -56,7 +57,8 @@ export function calcServiceDuration(sqm:number,windowsSqm=0){
 export function priceExplanation(type:SpaceType,sqm:number):string {
   if(type==='apartament'){
     const tier=APARTMENT_TIERS.find(t=>sqm<=t.max);
-    return tier?`Pachet până la ${tier.max} m²: ${tier.price} lei`:'650 lei pentru primii 100 m² + 6,50 lei/m² peste 100 m²';
+    const last=APARTMENT_TIERS[APARTMENT_TIERS.length-1];
+    return tier?`Pachet până la ${tier.max} m²: ${tier.price} lei`:`${last.price} lei pentru primii ${last.max} m² + ${APARTMENT_OVERFLOW_RATE_LEI.toFixed(2).replace('.',',')} lei/m² peste ${last.max} m²`;
   }
   return `${PER_SQM_RATES[type]} lei/m² · minimum ${MINIMUM_PRICES[type]} lei/intervenție`;
 }
@@ -71,8 +73,9 @@ export function calcGrossPrice(spaceType: SpaceType, sqm: number): number {
   if (spaceType === "apartament") {
     const tier = APARTMENT_TIERS.find((t) => sqm <= t.max);
     if (tier) return tier.price;
-    // peste 100 mp: +6,5 lei/mp suplimentar față de treapta de 650 lei
-    return Math.round(650 + (sqm - 100) * 6.5);
+    // Continue from the final package; round once, to the nearest leu.
+    const last=APARTMENT_TIERS[APARTMENT_TIERS.length-1];
+    return Math.round(last.price + (sqm - last.max) * APARTMENT_OVERFLOW_RATE_LEI);
   }
 
   if (!(spaceType in PER_SQM_RATES)) throw new Error("Tip de spațiu invalid");
