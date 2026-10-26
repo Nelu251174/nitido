@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auditAdminAction } from '@/lib/adminAuth';
-import { exportMarketingCsv, listMarketingContacts, saveMarketingContacts, updateMarketingContact, bulkMarketingContactStatus, MarketingError } from '@/lib/adminMarketing';
+import { marketingCsvChunks, listMarketingContacts, saveMarketingContacts, updateMarketingContact, bulkMarketingContactStatus, MarketingError } from '@/lib/adminMarketing';
 import { marketingAccess, marketingBody, marketingFailure } from '@/lib/adminMarketingAccess';
 import { recordMarketingCollection } from '@/lib/adminMarketingWorkspace';
 
@@ -9,9 +9,12 @@ export async function GET(req: NextRequest) {
   const access = await marketingAccess(req); if (access.error) return access.error;
   try {
     if (req.nextUrl.searchParams.get('format') === 'csv') {
-      const csv = exportMarketingCsv(db, req.nextUrl.searchParams);
+      const csv = marketingCsvChunks(db, req.nextUrl.searchParams);
+      const first=csv.next(); // Validate filters and initialize before sending response headers.
+      const encoder=new TextEncoder();let initial=true;
+      const stream=new ReadableStream<Uint8Array>({pull(controller){try{const next=initial?first:csv.next();initial=false;if(next.done)controller.close();else controller.enqueue(encoder.encode(next.value));}catch(error){controller.error(error);}},cancel(){csv.return(undefined);}});
       auditAdminAction('marketing.contacts.exported', null);
-      return new NextResponse(csv, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="contacte-marketing.csv"', 'Cache-Control': 'private, no-store' } });
+      return new NextResponse(stream, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="contacte-marketing.csv"', 'Cache-Control': 'private, no-store' } });
     }
     return NextResponse.json(listMarketingContacts(db, req.nextUrl.searchParams));
   } catch (error) { return marketingFailure(error); }

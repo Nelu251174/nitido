@@ -1,0 +1,23 @@
+# Marketing: colectare la nivel de municipiu
+
+Baza LIVE confirmată: `2887f87c64ede5ba2a9d5724173c551730aa425b`. Extensia privește exclusiv colectarea Marketing. Configurația `NITIDO_MARKETING_DELIVERY_ENABLED=false` rămâne forțată în Compose; colectorul nu importă și nu apelează transportul de email.
+
+În ADMIN → Marketing → Colectare firme există „Colectare municipiu întreg”, cu Constanța precompletată. Interogarea cuprinde întreg municipiul din OpenStreetMap și toate categoriile comerciale configurate, inclusiv firmele de curățenie. Nu se aplică limita primelor 20 de rezultate. Este verificată existența unei singure limite administrative; lipsa/ambiguitatea limitei, erorile sursei sau răspunsul incomplet nu sunt raportate drept succes.
+
+Inventarul este păstrat în SQLite înaintea verificării site-urilor. Fiecare înregistrare are identitatea OSM originală, independentă de pagina de pe care a fost găsit emailul. Verificarea continuă în fundal, în loturi cu timp limitat, prin colectorul existent care respectă robots.txt și verificările pentru destinații publice. Jobul poate fi pus în pauză, reluat sau oprit. Inventarul și rezultatele persistă la restart; nu se reia căutarea primelor înregistrări. Un lease persistent serializează colectorul public inclusiv între procese.
+
+Firmele cu email ori website se salvează automat drept contacte Noi, cu acord neînregistrat. Duplicatele după email/website, în toate categoriile, sunt păstrate fără modificare. Contactele existente și dezabonările nu sunt reactivate. Firmele fără date de contact rămân în inventar și export. Rapoartele arată firmele găsite în sursă, procesate, cu/fără email, contactele noi, duplicatele și site-urile care necesită verificare. Exportul CSV include întreg inventarul, inclusiv înregistrările fără email, și protecție împotriva formulelor.
+
+OpenStreetMap nu este registrul complet ONRC: acoperirea poate fi incompletă, pot exista puncte de lucru ale aceleiași firme, iar datele/categoria/localitatea necesită verificare. „Municipiu întreg” indică aria geografică a căutării și procesarea tuturor înregistrărilor returnate de sursă, nu garanția tuturor firmelor înregistrate ori a unui email pentru fiecare.
+
+Limite de protecție: inventar de maximum 20.000 de înregistrări, răspuns de maximum 2 MB; peste aceste limite jobul nu este considerat complet. Maximum 20 de căutări publice și 8 MB rezervați pentru sursă pe zi, partajate cu căutările rapide. Website-urile au limitele proprii existente. În caz de indisponibilitate, reluare după 5 minute, apoi pauză după trei încercări; limitele zilnice amână colectarea până în ziua următoare.
+
+Comanda `node scripts/marketing-city-start.cjs` pornește idempotent numai jobul Constanța pentru intervenția explicit autorizată de proprietar. Acceptă doar originile NITIDO cunoscute, verifică faptul că emailurile nu sunt activate și înregistrează acțiunea în audit. Nu descarcă surse și nu trimite mesaje; procesorul normal al aplicației efectuează colectarea.
+
+Verificări: teste pe date sintetice pentru >20 de înregistrări, limite geografice, deduplicare, păstrarea acordurilor, cote, erori, pauză, restart, lease, audit atomic și acces API. Chromium folosește un inventar sintetic de 47 de firme, cu trafic extern blocat, și verifică procesarea tuturor înregistrărilor, pauza/reluarea, două reporniri, salvarea automată, exportul și mobil390. Nu se prezintă aceste date sintetice drept firme reale colectate.
+
+Instanța publică implicită este Private.coffee (`https://overpass.private.coffee/api/interpreter`), listată de OSM ca disponibilă pentru orice proiect: https://wiki.openstreetmap.org/wiki/Overpass_API#Public_Overpass_API_instances. Instanța generală overpass-api.de nu a răspuns în rularea reală și documentația ei avertizează asupra supraîncărcării/uzului comercial. Nu se ocolesc limitele unei instanțe prin apeluri repetate: cota locală rămâne comună, se păstrează pauza și nu se descarcă un răspuns parțial drept inventar complet. Erorile afișate conțin numai coduri fixe HTTP/transport, niciodată corpul răspunsului sau date de contact.
+
+La conexiunile directe, toate adresele DNS sunt verificate înaintea conectării și apoi fixate pentru selecția IPv4/IPv6 a Node.js. O primă adresă inaccesibilă nu exclude celelalte adrese publice deja validate; nicio nouă rezoluție DNS și nicio adresă privată nu sunt acceptate. Proxy-ul configurat, TLS, limitele de timp și cotele rămân active.
+
+Pentru Constanța, colectorul poate folosi și [inventarul local verificat din extractul oficial OSM România](MARKETING-OSM-SNAPSHOT-20261025.md), pregătit manual. Acesta elimină dependența de disponibilitatea Overpass pentru preluarea inventarului, păstrând verificarea site-urilor și protecțiile contactelor.

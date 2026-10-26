@@ -1,0 +1,90 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import Database from 'better-sqlite3';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { listMarketingContacts, saveMarketingContacts, MarketingError } from './adminMarketing';
+const snapshot=vi.hoisted(()=>({read:vi.fn()}));
+vi.mock('./adminMarketingCitySnapshot',()=>({readMarketingCitySnapshot:snapshot.read}));
+import { cancelMarketingDiscovery, startMarketingDiscovery } from './adminMarketingDiscovery';
+import { exportMarketingCity, initializeMarketingCity, marketingCityQuery, marketingCityView, processMarketingCollections, reserveMarketingCitySource, setMarketingCityState, startMarketingCity } from './adminMarketingCity';
+import type { PublicReader } from './adminMarketingPublicWeb';
+let db:Database.Database;
+const actor='synthetic-owner';
+const entry=(id:number,tags:Record<string,string>={})=>({type:'node',id,tags:{name:'Firma '+id,office:'company',email:`office${id}@fixture.example`,...tags}});
+const page=(url:string,text:string,status=200)=>({url,text,status,headers:{'content-type':url.includes('overpass')?'application/json':'text/html'}});
+const reader=vi.fn<PublicReader>();
+function source(elements:unknown[]){reader.mockImplementation(async url=>page(url,JSON.stringify({elements:[{type:'area',id:360000001},...elements]})));}
+function start(){return startMarketingCity(db,{city:'CONSTANTA'},actor).job.id;}
+beforeEach(()=>{db=new Database(':memory:');db.exec('CREATE TABLE admin_audit_log(id TEXT PRIMARY KEY,action TEXT,target_id TEXT,details TEXT)');reader.mockReset();snapshot.read.mockReset().mockResolvedValue(null);});
+afterEach(()=>{db.close();vi.restoreAllMocks();vi.useRealTimers();});
+describe('whole municipality Marketing collection',()=>{
+ it('uses the verified municipal extract without an Overpass request and keeps normal contact safeguards',async()=>{
+  for(let i=0;i<4;i++)expect(reserveMarketingCitySource(db)).toBe(true);
+  snapshot.read.mockResolvedValue(page('https://download.geofabrik.de/europe/romania-latest.osm.pbf',JSON.stringify({elements:[{type:'area',id:3600000100},entry(1),entry(2)]})));
+  const id=start();await processMarketingCollections(db,reader);await processMarketingCollections(db,reader);
+  expect(marketingCityView(db,id)?.job).toMatchObject({state:'completed',total:2,processed:2,saved:2,emails:2});expect(reader).not.toHaveBeenCalled();
+  expect(listMarketingContacts(db,new URLSearchParams()).contacts.every(c=>c.consent==='not_recorded'&&c.status==='new')).toBe(true);
+ });
+ it('pauses on an invalid prepared extract instead of importing or silently trying another source',async()=>{
+  snapshot.read.mockRejectedValue(new MarketingError('Inventarul local este invalid.'));const id=start();await processMarketingCollections(db,reader);
+  expect(marketingCityView(db,id)?.job).toMatchObject({state:'paused',total:0,saved:0});expect(reader).not.toHaveBeenCalled();
+ });
+ it('keeps the website time budget when larger local batches encounter slow public sites',async()=>{
+  vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-25T06:00:00.000Z'));
+  source([entry(1,{email:'',website:'https://one.fixture.example'}),entry(2,{email:'',website:'https://two.fixture.example'})]);
+  const id=start();await processMarketingCollections(db,reader);
+  reader.mockImplementation(async url=>{vi.setSystemTime(Date.now()+10000);return page(url,url.endsWith('robots.txt')?'':'<body>No email</body>');});
+  await processMarketingCollections(db,reader);
+  expect(marketingCityView(db,id)?.job).toMatchObject({state:'collecting',processed:1,saved:1});expect(reader).toHaveBeenCalledTimes(3);
+ });
+ it('saves ready public emails before an unavailable website can delay or pause the batch',async()=>{
+  source([entry(1,{email:'',website:'https://slow.fixture.example'}),entry(2),entry(3)]);const id=start();await processMarketingCollections(db,reader);
+  reader.mockImplementation(async url=>{expect(listMarketingContacts(db,new URLSearchParams()).total).toBe(2);setMarketingCityState(db,id,'pause',actor);return page(url,'');});
+  await processMarketingCollections(db,reader);expect(marketingCityView(db,id)?.job).toMatchObject({state:'paused',saved:2,processed:2,emails:2});
+ });
+ it('covers the municipality and all business sectors without the quick-search row limit',()=>{const q=marketingCityQuery('Constanta');expect(q).toContain('"Constanța"');expect(q).toContain('[craft]');expect(q).toContain('[company]');expect(q).toContain('out tags;');expect(q).not.toMatch(/out tags.*\d/);expect(marketingCityQuery('x";out;')).toContain('"x\\";out;"');});
+ it('processes every source record beyond twenty, with persistent progress and no message transport',async()=>{source(Array.from({length:47},(_,i)=>entry(i+1)));const id=start();await processMarketingCollections(db,reader);expect(marketingCityView(db,id)!.job.total).toBe(47);expect(marketingCityView(db,id)!.job.processed).toBe(0);for(let i=0;i<3;i++)await processMarketingCollections(db,reader);const view=marketingCityView(db,id)!;expect(view.job).toMatchObject({state:'completed',total:47,processed:47,emails:47,saved:47});expect(reader).toHaveBeenCalledOnce();expect(listMarketingContacts(db,new URLSearchParams()).total).toBe(47);expect(db.prepare("SELECT COUNT(*) n FROM marketing_contacts WHERE status<>'new' OR consent<>'not_recorded'").get()).toEqual({n:0});});
+ it('keeps no-contact firms in the inventory and separates cleaning companies from business',async()=>{source([entry(1,{name:'Curățenie exemplu'}),entry(2,{email:''})]);const id=start();await processMarketingCollections(db,reader);await processMarketingCollections(db,reader);const view=marketingCityView(db,id)!;expect(view.job).toMatchObject({total:2,processed:2,saved:1,withoutEmail:1});expect(view.items.find(row=>row.name==='Curățenie exemplu')?.category).toBe('cleaning');expect(view.items.some(row=>row.category==='individual')).toBe(false);expect(view.items.find(row=>row.name==='Firma 2')?.contactId).toBeNull();});
+ it('does not report completion when no unique municipality boundary was identified',async()=>{reader.mockImplementation(async url=>page(url,JSON.stringify({elements:[entry(1)]})));const id=start();await processMarketingCollections(db,reader);expect(marketingCityView(db,id)?.job).toMatchObject({state:'paused',total:0,saved:0});expect(marketingCityView(db,id)?.job.message).toContain('limită administrativă');});
+ it('serializes municipal starts, replays the same city, and prevents interleaving quick searches',()=>{const id=start();expect(start()).toBe(id);expect(()=>startMarketingCity(db,{city:'Brașov'},actor)).toThrow('municipiu');expect(()=>startMarketingDiscovery(db,{city:'Constanța',category:'business'},actor)).toThrow('municipiului');setMarketingCityState(db,id,'pause',actor);const normal=startMarketingDiscovery(db,{city:'Constanța',category:'business'},actor);expect(()=>setMarketingCityState(db,id,'resume',actor)).toThrow('Altă');cancelMarketingDiscovery(db,normal.id);setMarketingCityState(db,id,'resume',actor);expect(marketingCityView(db,id)?.job.state).toBe('queued');});
+ it('resumes a paused inventory without requerying the source and does not save after cancellation',async()=>{source([entry(1),entry(2)]);const id=start();await processMarketingCollections(db,reader);setMarketingCityState(db,id,'pause',actor);await processMarketingCollections(db,reader);expect(marketingCityView(db,id)?.job.processed).toBe(0);setMarketingCityState(db,id,'resume',actor);await processMarketingCollections(db,reader);expect(reader).toHaveBeenCalledOnce();expect(marketingCityView(db,id)?.job.state).toBe('completed');const next=start();setMarketingCityState(db,next,'cancel',actor);await processMarketingCollections(db,reader);expect(reader).toHaveBeenCalledOnce();});
+ it('deduplicates node/way locations sharing the same website and email, preserving separate source identities',async()=>{const elements=[entry(1,{email:'',website:'https://firm.example/'}),{...entry(2,{email:'',website:'https://firm.example/'}),type:'way'}];reader.mockImplementation(async url=>url.includes('overpass')?page(url,JSON.stringify({elements:[{type:'area',id:360000001},...elements]})):url.endsWith('robots.txt')?page(url,'User-agent: *\nAllow: /'):page(url,'<body><a href="mailto:contact@firm.example">Email</a></body>'));const id=start();await processMarketingCollections(db,reader);await processMarketingCollections(db,reader);const view=marketingCityView(db,id)!;expect(view.job).toMatchObject({total:2,processed:2,saved:1,duplicates:1,emails:2});expect(reader).toHaveBeenCalledTimes(3);expect(new Set(view.items.map(row=>row.source)).size).toBe(1);expect(listMarketingContacts(db,new URLSearchParams()).total).toBe(1);});
+ it('preserves existing opted-out contacts and does not grant consent or overwrite their data',async()=>{saveMarketingContacts(db,[{name:'Manual opt-out',category:'individual',city:'Constanța',email:'office1@fixture.example',source:'Manual',consent:'granted',consentEvidence:'Synthetic form 2026-10-24'}],actor);db.prepare("UPDATE marketing_contacts SET consent='withdrawn',status='do_not_contact'").run();source([entry(1)]);const id=start();await processMarketingCollections(db,reader);await processMarketingCollections(db,reader);expect(marketingCityView(db,id)?.job).toMatchObject({saved:0,duplicates:1});expect(listMarketingContacts(db,new URLSearchParams()).contacts[0]).toMatchObject({name:'Manual opt-out',category:'individual',consent:'withdrawn',status:'do_not_contact'});});
+ it('honors global collector leases across separate worker invocations',async()=>{initializeMarketingCity(db);const id=start();db.prepare('INSERT INTO marketing_collection_lock VALUES(1,?,?)').run('another-worker',Date.now()+60000);source([entry(1)]);await processMarketingCollections(db,reader);expect(reader).not.toHaveBeenCalled();db.prepare('DELETE FROM marketing_collection_lock').run();await processMarketingCollections(db,reader);expect(marketingCityView(db,id)?.job.total).toBe(1);});
+ it('resumes from a persisted city inventory after closing and reopening the database',async()=>{const root=mkdtempSync(join(tmpdir(),'marketing-city-test-')),file=join(root,'fixture.db');db.close();db=new Database(file);db.exec('CREATE TABLE admin_audit_log(id TEXT PRIMARY KEY,action TEXT,target_id TEXT,details TEXT)');try{source([entry(1),entry(2)]);const id=start();await processMarketingCollections(db,reader);db.close();db=new Database(file);await processMarketingCollections(db,reader);expect(marketingCityView(db,id)?.job).toMatchObject({state:'completed',total:2,saved:2});expect(reader).toHaveBeenCalledOnce();}finally{db.close();db=new Database(':memory:');rmSync(root,{recursive:true,force:true});}});
+ it('does not claim completion on source failures/truncation and backs off before pausing',async()=>{reader.mockImplementation(async url=>page(url,JSON.stringify({elements:[entry(1)],remark:'runtime timeout'})));const id=start();for(let i=0;i<3;i++){await processMarketingCollections(db,reader);db.prepare("UPDATE marketing_city_jobs SET next_attempt_at='2000-01-01T00:00:00.000Z' WHERE id=?").run(id);}expect(marketingCityView(db,id)?.job).toMatchObject({state:'paused',total:0,saved:0});expect(reader).toHaveBeenCalledTimes(3);await processMarketingCollections(db,reader);expect(reader).toHaveBeenCalledTimes(3);});
+ it('uses the documented project-permitted OSM instance and reports only safe failure codes',async()=>{reader.mockImplementation(async url=>page(url,'Private response containing sensitive-looking text',503));const id=start();await processMarketingCollections(db,reader);expect(reader.mock.calls[0][0]).toBe('https://overpass.private.coffee/api/interpreter');expect(marketingCityView(db,id)?.job).toMatchObject({state:'waiting',total:0});expect(marketingCityView(db,id)?.job.message).toContain('SOURCE_HTTP_503');expect(marketingCityView(db,id)?.job.message).not.toContain('sensitive-looking');});
+ it.each([429,503])('honors a provider Retry-After on HTTP %s without reading again early',async(status)=>{
+  vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-25T06:00:00.000Z'));
+  reader.mockImplementation(async url=>({...page(url,'unavailable',status),headers:{'retry-after':'3600'}}));
+  const id=start();await processMarketingCollections(db,reader);
+  expect(marketingCityView(db,id)?.job).toMatchObject({state:'waiting',nextAttemptAt:'2026-10-25T07:00:00.000Z',total:0,saved:0});
+  expect(()=>setMarketingCityState(db,id,'resume',actor)).toThrow('pauzei sursei');
+  vi.setSystemTime(new Date('2026-10-25T06:59:59.000Z'));await processMarketingCollections(db,reader);expect(reader).toHaveBeenCalledOnce();
+  source([entry(1)]);vi.setSystemTime(new Date('2026-10-25T07:00:00.000Z'));await processMarketingCollections(db,reader);expect(marketingCityView(db,id)?.job).toMatchObject({state:'collecting',total:1});
+ });
+ it.each(['Sun, 25 Oct 2026 08:00:00 GMT','invalid','1','999999999999999999999'])('handles Retry-After date, invalid and short values safely: %s',async(value)=>{
+  vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-25T06:00:00.000Z'));
+  reader.mockImplementation(async url=>({...page(url,'unavailable',429),headers:{'retry-after':value}}));
+  const id=start();await processMarketingCollections(db,reader);
+  expect(marketingCityView(db,id)?.job.nextAttemptAt).toBe(value.startsWith('Sun')?'2026-10-25T08:00:00.000Z':'2026-10-25T06:05:00.000Z');
+ });
+ it.each([403,406])('pauses immediately on HTTP %s instead of repeatedly retrying access denials',async(status)=>{
+  reader.mockImplementation(async url=>page(url,'denied',status));const id=start();await processMarketingCollections(db,reader);await processMarketingCollections(db,reader);
+  expect(reader).toHaveBeenCalledOnce();expect(marketingCityView(db,id)?.job).toMatchObject({state:'paused',total:0,saved:0,nextAttemptAt:null});
+  expect(marketingCityView(db,id)?.job.message).toContain('SOURCE_HTTP_'+status);
+ });
+ it('retains the provider pause after the automatic attempt cap is reached',async()=>{
+  vi.useFakeTimers();const startTime=Date.parse('2026-10-25T06:00:00.000Z');vi.setSystemTime(startTime);
+  reader.mockImplementation(async url=>({...page(url,'unavailable',429),headers:{'retry-after':'3600'}}));const id=start();
+  for(let i=0;i<3;i++){vi.setSystemTime(startTime+i*3600000);await processMarketingCollections(db,reader);}
+  expect(marketingCityView(db,id)?.job).toMatchObject({state:'paused',nextAttemptAt:'2026-10-25T09:00:00.000Z'});expect(()=>setMarketingCityState(db,id,'resume',actor)).toThrow('pauzei sursei');
+ });
+ it('shares source budgets with quick collection and waits instead of bypassing the daily quota',async()=>{for(let i=0;i<20;i++){const job=startMarketingDiscovery(db,{category:'business',city:'Constanța'},actor);cancelMarketingDiscovery(db,job.id);}source([entry(1)]);const id=start();await processMarketingCollections(db,reader);expect(reader).not.toHaveBeenCalled();expect(marketingCityView(db,id)?.job.state).toBe('waiting');expect(reserveMarketingCitySource(db)).toBe(false);});
+ it('limits full-city source response reservations to the daily byte budget',()=>{initializeMarketingCity(db);for(let i=0;i<4;i++)expect(reserveMarketingCitySource(db)).toBe(true);expect(reserveMarketingCitySource(db)).toBe(false);expect(()=>startMarketingDiscovery(db,{category:'business',city:'Constanța'},actor)).toThrow('Limita');});
+ it('exports all inventory rows including missing email and protects spreadsheet formulas',async()=>{source([entry(1,{name:'=FORMULA',email:''})]);const id=start();await processMarketingCollections(db,reader);await processMarketingCollections(db,reader);const csv=exportMarketingCity(db,id);expect(csv).toContain('"\'=FORMULA"');expect(csv).toContain('openstreetmap.org/node/1');expect(csv).toContain('Constanța');});
+ it('rolls back contacts if their audit cannot be recorded',async()=>{source([entry(1)]);const id=start();await processMarketingCollections(db,reader);db.exec('DROP TABLE admin_audit_log');await expect(processMarketingCollections(db,reader)).rejects.toThrow();expect(listMarketingContacts(db,new URLSearchParams()).total).toBe(0);expect(marketingCityView(db,id)?.job.processed).toBe(0);});
+ it('does not save an item when the user pauses during its website read',async()=>{const id=start();reader.mockImplementation(async url=>{if(url.includes('overpass'))return page(url,JSON.stringify({elements:[{type:'area',id:360000001},entry(1,{email:'',website:'https://firm.example'})]}));if(url.endsWith('robots.txt'))return page(url,'');setMarketingCityState(db,id,'pause',actor);return page(url,'<body>contact@firm.example</body>');});await processMarketingCollections(db,reader);await processMarketingCollections(db,reader);expect(marketingCityView(db,id)?.job).toMatchObject({state:'paused',processed:0,saved:0});});
+ it('does not insert an inventory if the user pauses while the source response is in flight',async()=>{const id=start();reader.mockImplementation(async url=>{setMarketingCityState(db,id,'pause',actor);return page(url,JSON.stringify({elements:[{type:'area',id:360000001},entry(1)]}));});await processMarketingCollections(db,reader);expect(marketingCityView(db,id)?.job).toMatchObject({state:'paused',total:0,processed:0});});
+});

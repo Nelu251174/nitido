@@ -13,8 +13,14 @@ export function startMarketingDiscovery(db:Database,value:unknown,actor:string) 
     const stale=new Date(Date.now()-10*60000).toISOString();
     db.prepare("UPDATE marketing_discovery SET status='failed',result=? WHERE status IN ('running','cancel_requested') AND updated_at<?").run(JSON.stringify({error:'Colectare întreruptă. Pornește o căutare nouă.'}),stale);
     if(db.prepare("SELECT 1 FROM marketing_discovery WHERE status IN ('pending','running','cancel_requested')").get())throw new MarketingError('Există deja o colectare în curs. Așteaptă finalizarea.',409);
+    const cityExists=db.prepare("SELECT 1 FROM sqlite_master WHERE name='marketing_city_jobs'").get();
+    if(cityExists&&db.prepare("SELECT 1 FROM marketing_city_jobs WHERE state IN ('queued','discovering','collecting','waiting')").get())throw new MarketingError('Colectarea municipiului este în curs. Pune-o în pauză pentru o căutare separată.',409);
     const day=new Date().toISOString().slice(0,10);
-    if((db.prepare('SELECT COUNT(*) n FROM marketing_discovery WHERE created_at>=?').get(day) as {n:number}).n>=20)throw new MarketingError('Limita de 20 de căutări publice pe zi a fost atinsă.',429);
+    const usageExists=db.prepare("SELECT 1 FROM sqlite_master WHERE name='marketing_city_usage'").get();
+    const cityUsage=usageExists?db.prepare('SELECT COUNT(*) n,COALESCE(SUM(reserved_bytes),0) bytes FROM marketing_city_usage WHERE created_at>=?').get(day) as {n:number;bytes:number}:{n:0,bytes:0};
+
+    const normalCount=(db.prepare('SELECT COUNT(*) n FROM marketing_discovery WHERE created_at>=?').get(day) as {n:number}).n;
+    if(normalCount+cityUsage.n>=20||(normalCount+1)*250000+cityUsage.bytes>8000000)throw new MarketingError('Limita de 20 de căutări publice pe zi a fost atinsă.',429);
     const id=randomUUID(),now=new Date().toISOString();
     db.prepare("INSERT INTO marketing_discovery(id,status,request,created_at,updated_at,created_by) VALUES(?,'pending',?,?,?,?)").run(id,JSON.stringify(b),now,now,actor);return getMarketingDiscovery(db,id);
   }).immediate();

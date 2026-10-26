@@ -14,9 +14,16 @@
   ],
   "targetLanguages": 24,
   "sourceLanguage": "ro",
-  "sourceMessages": 5305,
-  "sourceHash": "2f6c47e9187e5ef75f7b01f62109e1d68925d4e3a5e69d9b7c86dd55224b39fd",
+  "sourceMessages": 5325,
+  "sourceHash": "057434defa0ba5c15d16adee44fff8641cfca3795a350cbd22d04cceb88d6350",
   "provider": "OpenAI",
   "model": "gpt-5.4-mini",
-  "review": "machine translation; specialist legal review pending"
+  "review": "machine translation; specialist legal review pending",
+  "supplements": {
+    "marketingAudience20261025": {
+      "messages": 20,
+      "scope": "Marketing signup and confirmation only",
+      "review": "assistant-prepared translations; specialist review pending"
+    }
+  }
 }

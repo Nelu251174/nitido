@@ -14,6 +14,7 @@ export interface MarketingInput {
   email: string;
   phone: string;
   city: string;
+  county?: string;
   cui: string;
   website: string;
   source: string;
@@ -26,6 +27,8 @@ export interface MarketingContact extends MarketingInput {
   status: MarketingStatus;
   version: number;
   createdAt: string;
+  regions?: {county:string;city:string}[];
+  emailVerification?: import('./adminMarketingRegions').MarketingEmailVerification;
 }
 export interface MarketingList {
   contacts: MarketingContact[];

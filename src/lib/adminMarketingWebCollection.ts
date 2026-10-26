@@ -1,10 +1,12 @@
-import { load } from 'cheerio';
+import { load,type CheerioAPI } from 'cheerio';
+import { createHash } from 'node:crypto';
 import { CITIES } from './cities';
 import { marketingKey, MarketingError, normalizeMarketingInput } from './adminMarketing';
 import type { MarketingInput } from './adminMarketingShared';
 import { publicWebsite, readPublicPage, type PublicReader } from './adminMarketingPublicWeb';
 
-const OVERPASS = 'https://overpass-api.de/api/interpreter';
+// OSM's public instance list documents this service as available for any project.
+export const MARKETING_PUBLIC_SOURCE = 'https://overpass.private.coffee/api/interpreter';
 const sectors: Record<string, string[]> = {
   all: ['[office]', '[shop]', '[tourism~"^(hotel|guest_house|hostel)$"]', '[amenity~"^(restaurant|cafe|clinic|bank)$"]'],
   hotels: ['[tourism~"^(hotel|guest_house|hostel)$"]'], restaurants: ['[amenity~"^(restaurant|cafe)$"]'], offices: ['[office]'], shops: ['[shop]'],
@@ -13,16 +15,21 @@ const emailPattern = /[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9
 export function publicEmails(text: string): string[] {
   return [...new Set((text.match(emailPattern) ?? []).map(value => value.toLowerCase().replace(/[.,;:]+$/, '')).filter(value => value.length <= 254 && !/\.(png|jpe?g|svg|webp|gif|css|js)$/i.test(value) && !/^(example|test|noreply|no-reply)@/.test(value)))].sort((a, b) => Number(!/^(contact|office|info|hello|rezervari)@/.test(a)) - Number(!/^(contact|office|info|hello|rezervari)@/.test(b)) || a.localeCompare(b));
 }
-export function extractBusinessPage(html: string, base: string) {
+/** Keep adjacent DOM nodes separated; concatenating text can invent an email address. */
+export function marketingVisibleText($:CheerioAPI,selector:string){return $(selector).find('*').addBack().contents().filter((_,node)=>node.type==='text').map((_,node)=>node.type==='text'?node.data:'').get().join(' ');}
+export function extractBusinessPage(html: string, base: string, maxLinks = 2) {
   const $ = load(html); $('script,style,noscript,template').remove();
-  const emails = publicEmails($('a[href^="mailto:"]').map((_, node) => $(node).attr('href')?.slice(7).split('?')[0] ?? '').get().join(' ') + ' ' + $('body').text());
-  const url = new URL(base), links: string[] = [];
+  const emails = publicEmails($('a[href^="mailto:"]').map((_, node) => $(node).attr('href')?.slice(7).split('?')[0] ?? '').get().join(' ') + ' ' + marketingVisibleText($,'body'));
+  const url = new URL(base), links: string[] = [], hrefs:string[]=[];let resolution=url;
+  try{const declared=$('base[href]').first().attr('href');if(declared)resolution=publicWebsite(new URL(declared,url).href);}catch{ /* An invalid base is not a public destination. */ }
   $('a[href]').each((_, node) => {
     const href = $(node).attr('href') ?? '', text = $(node).text();
     if (!/contact|despre|about/i.test(href + ' ' + text)) return;
-    try { const link = publicWebsite(new URL(href, url).href); if (link.origin === url.origin && !links.includes(link.href)) links.push(link.href); } catch { /* Ignore non-public links. */ }
+    try { const link = publicWebsite(new URL(href, resolution).href); if (link.origin === url.origin){hrefs.push(href.trim());if(!links.includes(link.href))links.push(link.href);} } catch { /* Ignore non-public links. */ }
   });
-  return { name: ($('meta[property="og:site_name"]').attr('content') || $('title').text() || url.hostname).replace(/\s+/g, ' ').trim().slice(0, 180), emails, links: links.slice(0, 2) };
+  const name=($('meta[property="og:site_name"]').attr('content') || $('title').text() || url.hostname).replace(/\s+/g, ' ').trim().slice(0,180);
+  const fingerprint=createHash('sha256').update(JSON.stringify({name,text:marketingVisibleText($,'body').replace(/\s+/g,' ').trim(),emails,hrefs:[...new Set(hrefs)].sort(),base:$('base[href]').first().attr('href')??''})).digest('hex');
+  return {name,emails,links:links.slice(0,maxLinks),fingerprint};
 }
 /** Match applicable robots groups; collection never bypasses an explicit disallow or a failed robots read. */
 export function robotsAllows(text: string, pathname: string): boolean {
@@ -42,19 +49,19 @@ export function robotsAllows(text: string, pathname: string): boolean {
   }).sort((a, b) => b.path.length - a.path.length || Number(b.allow) - Number(a.allow));
   return !matches.length || matches[0].allow;
 }
-export async function collectBusinessWebsite(website: string, reader: PublicReader = readPublicPage, depth = 0) {
+export async function collectBusinessWebsite(website: string, reader: PublicReader = readPublicPage, depth = 0, includeContactPages = false) {
   if (depth > 3) throw new MarketingError('Prea multe redirecționări ale site-ului.');
   const start = publicWebsite(website), robots = await reader(new URL('/robots.txt', start).href, { maxBytes: 100000, redirects: false });
   if (robots.status !== 404 && (robots.status < 200 || robots.status >= 300)) throw new MarketingError('Fișierul robots.txt nu poate fi verificat.');
   const rules = robots.status === 404 ? '' : robots.text;
   if (!robotsAllows(rules, start.pathname)) throw new MarketingError('Site-ul nu permite colectarea automată pentru această pagină.');
   const first = await reader(start.href, { redirects: false });
-  if ([301,302,303,307,308].includes(first.status) && first.headers.location) return collectBusinessWebsite(new URL(first.headers.location, start).href, reader, depth + 1);
+  if ([301,302,303,307,308].includes(first.status) && first.headers.location) return collectBusinessWebsite(new URL(first.headers.location, start).href, reader, depth + 1, includeContactPages);
   if (first.status !== 200 || !/text\/html|application\/xhtml/i.test(String(first.headers['content-type'] ?? ''))) throw new MarketingError('Pagina publică a firmei nu este disponibilă ca HTML.');
   if (new URL(first.url).origin !== start.origin || !robotsAllows(rules, new URL(first.url).pathname)) throw new MarketingError('Redirecționarea nu este permisă pentru colectare.');
   const page = extractBusinessPage(first.text, first.url), found = page.emails.map(email => ({ email, source: first.url }));
   for (const link of page.links) {
-    if (found.length) break;
+    if (found.length && !includeContactPages) break;
     if (!robotsAllows(rules, new URL(link).pathname)) continue;
     try { const next = await reader(link, { redirects: false }); if (next.status === 200 && new URL(next.url).origin === start.origin && robotsAllows(rules, new URL(next.url).pathname)) for (const email of extractBusinessPage(next.text, next.url).emails) found.push({ email, source: next.url }); } catch { /* A failed public contact page does not invent an email. */ }
   }
@@ -83,7 +90,7 @@ export async function collectMarketingWeb(value: unknown, reader: PublicReader =
   else {
     let entries: OSM[];
     try {
-      const response = await reader(OVERPASS, { method: 'POST', body: new URLSearchParams({ data: discoveryQuery(city, String(b.category), String(b.sector ?? 'all'), limit) }).toString(), timeoutMs: 25000, maxBytes: 250000 });
+      const response = await reader(MARKETING_PUBLIC_SOURCE, { method: 'POST', body: new URLSearchParams({ data: discoveryQuery(city, String(b.category), String(b.sector ?? 'all'), limit) }).toString(), timeoutMs: 25000, maxBytes: 250000 });
       const data = JSON.parse(response.text); if (response.status !== 200 || !Array.isArray(data.elements) || data.remark) throw Error(); entries = data.elements;
     } catch { throw new MarketingError('Sursa publică de firme nu este disponibilă acum. Reîncearcă sau introdu site-urile firmelor cunoscute.', 502); }
     candidates = entries.slice(0, limit).map(entry => ({ name: String(entry.tags?.name ?? '').slice(0, 180), website: entry.tags?.['contact:website'] || entry.tags?.website || '', email: publicEmails(entry.tags?.['contact:email'] || entry.tags?.email || '')[0] ?? '', source: `https://www.openstreetmap.org/${entry.type}/${entry.id}`, phone: String(entry.tags?.['contact:phone'] || entry.tags?.phone || '').slice(0, 50) }));
