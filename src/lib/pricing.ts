@@ -1,6 +1,8 @@
 // Tarif NITIDO revizuit la 26.10.2026; fundamentare în docs/pricing-2026-10-26.md.
 // Funcții pure, testabile independent de bază de date sau server.
 
+import {MAINTENANCE_TIERS,MAINTENANCE_RATES,MAINTENANCE_MINIMUMS,MAINTENANCE_OVERFLOW_RATE_LEI,validAutomaticCleaningType,type AutomaticCleaningType} from './cleaningTypes';
+
 export type SpaceType = "apartament" | "casa" | "birou" | "altul";
 
 // Maximum area supported by the existing automatic booking calculator.
@@ -29,7 +31,7 @@ export const PER_SQM_RATES: Record<Exclude<SpaceType, "apartament">, number> = {
 export const MINIMUM_PRICES = {casa:700,birou:500,altul:600} as const;
 export const WINDOWS_RATE_LEI = 12;
 export const WINDOWS_MAX_SQM = 200;
-export const PRICING_VERSION = 'nitido-2026-10-26-market-v2';
+export const PRICING_VERSION = 'nitido-2026-10-26-cleaning-types-v3';
 export const EXTRA_BATHROOM_FEE_LEI = 100;
 export const BATHROOM_MAX_COUNT = 20;
 export const APARTMENT_OVERFLOW_RATE_LEI = 14.5;
@@ -49,37 +51,43 @@ export function calcWindowsPrice(sqm:number=0):number {
   if(!validWindowsSqm(sqm))throw new Error('Suprafața geamurilor trebuie să fie între 0 și 200 m², fără zecimale');
   return sqm*WINDOWS_RATE_LEI;
 }
-export function calcServicePrice(type:SpaceType,sqm:number,windowsSqm=0,bathroomCount=1){return calcGrossPrice(type,sqm)+calcWindowsPrice(windowsSqm)+calcBathroomPrice(bathroomCount);}
+export function calcServicePrice(type:SpaceType,sqm:number,windowsSqm=0,bathroomCount=1,cleaningType:AutomaticCleaningType='general'){return calcGrossPrice(type,sqm,cleaningType)+calcWindowsPrice(windowsSqm)+calcBathroomPrice(bathroomCount);}
 export function calcServiceDuration(sqm:number,windowsSqm=0){
   calcWindowsPrice(windowsSqm);
   return calcDurationMinutes(sqm)+(windowsSqm?Math.ceil(windowsSqm/5)*15:0);
 }
-export function priceExplanation(type:SpaceType,sqm:number):string {
+export function priceExplanation(type:SpaceType,sqm:number,cleaningType:AutomaticCleaningType='general'):string {
   if(type==='apartament'){
-    const tier=APARTMENT_TIERS.find(t=>sqm<=t.max);
-    const last=APARTMENT_TIERS[APARTMENT_TIERS.length-1];
-    return tier?`Pachet până la ${tier.max} m²: ${tier.price} lei`:`${last.price} lei pentru primii ${last.max} m² + ${APARTMENT_OVERFLOW_RATE_LEI.toFixed(2).replace('.',',')} lei/m² peste ${last.max} m²`;
+    const tiers=cleaningType==='maintenance'?MAINTENANCE_TIERS:APARTMENT_TIERS;
+    const overflow=cleaningType==='maintenance'?MAINTENANCE_OVERFLOW_RATE_LEI:APARTMENT_OVERFLOW_RATE_LEI;
+    const tier=tiers.find(t=>sqm<=t.max);
+    const last=tiers[tiers.length-1];
+    return tier?`Pachet până la ${tier.max} m²: ${tier.price} lei`:`${last.price} lei pentru primii ${last.max} m² + ${overflow.toFixed(2).replace('.',',')} lei/m² peste ${last.max} m²`;
   }
-  return `${PER_SQM_RATES[type]} lei/m² · minimum ${MINIMUM_PRICES[type]} lei/intervenție`;
+  const rates=cleaningType==='maintenance'?MAINTENANCE_RATES:PER_SQM_RATES,minima=cleaningType==='maintenance'?MAINTENANCE_MINIMUMS:MINIMUM_PRICES;
+  return `${rates[type]} lei/m² · minimum ${minima[type]} lei/intervenție`;
 }
 
 /**
  * Calculează prețul BRUT (ce plătește clientul), pe baza tipului de spațiu și suprafeței.
  * Apartament: trepte fixe. Restul: preț/mp. — spec secțiunea 6.
  */
-export function calcGrossPrice(spaceType: SpaceType, sqm: number): number {
+export function calcGrossPrice(spaceType: SpaceType, sqm: number,cleaningType:AutomaticCleaningType='general'): number {
+  if(!validAutomaticCleaningType(cleaningType))throw new Error('Tipul curățeniei necesită evaluare.');
   if (!Number.isFinite(sqm) || sqm <= 0) throw new Error("Suprafața trebuie să fie pozitivă");
 
   if (spaceType === "apartament") {
-    const tier = APARTMENT_TIERS.find((t) => sqm <= t.max);
+    const tiers=cleaningType==='maintenance'?MAINTENANCE_TIERS:APARTMENT_TIERS;
+    const tier = tiers.find((t) => sqm <= t.max);
     if (tier) return tier.price;
     // Continue from the final package; round once, to the nearest leu.
-    const last=APARTMENT_TIERS[APARTMENT_TIERS.length-1];
-    return Math.round(last.price + (sqm - last.max) * APARTMENT_OVERFLOW_RATE_LEI);
+    const last=tiers[tiers.length-1],overflow=cleaningType==='maintenance'?MAINTENANCE_OVERFLOW_RATE_LEI:APARTMENT_OVERFLOW_RATE_LEI;
+    return Math.round(last.price + (sqm - last.max) * overflow);
   }
 
   if (!(spaceType in PER_SQM_RATES)) throw new Error("Tip de spațiu invalid");
-  return Math.max(MINIMUM_PRICES[spaceType], Math.round(sqm * PER_SQM_RATES[spaceType]));
+  const rates=cleaningType==='maintenance'?MAINTENANCE_RATES:PER_SQM_RATES,minima=cleaningType==='maintenance'?MAINTENANCE_MINIMUMS:MINIMUM_PRICES;
+  return Math.max(minima[spaceType], Math.round(sqm * rates[spaceType]));
 }
 
 /**

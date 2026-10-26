@@ -10,13 +10,14 @@ export const dynamic='force-dynamic';
 const sourceMetadata={title:'Evaluare asistată NITIDO',robots:{index:false,follow:false}};
 export default async function Page({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}){
  const q=await searchParams,city=typeof q.city==='string'?q.city.slice(0,100):'',area=Number(q.sqm),sqm=Number.isSafeInteger(area)&&area>0&&area<=1000000?area:100;
- const user=await getCurrentUser();if(!user){const next=`/client/evaluari?${new URLSearchParams({city,sqm:String(sqm)})}`;redirect(`/login?role=client&next=${encodeURIComponent(next)}`)}if(user.role!=='client')redirect('/firma');
+ const category=typeof q.category==='string'&&['maintenance','general','renovation'].includes(q.category)?q.category:'general';
+ const user=await getCurrentUser();if(!user){const next=`/client/evaluari?${new URLSearchParams({category,city,sqm:String(sqm)})}`;redirect(`/login?role=client&next=${encodeURIComponent(next)}`)}if(user.role!=='client')redirect('/firma');
  return <div className="operations-layout approved-operations role-client">
   <aside className="operations-sidebar"><Logo href="/client"/><WorkspaceNav role="client"/><div className="sidebar-user"><b>{user.name}</b><span>{user.email}</span></div></aside>
   <main id="main-content" className="operations-main min-w-0">
    <div className="operations-topbar"><span><UiText text={"NITIDO · CONT CLIENT"}/></span><Link className="account-profile-link" href="/client#sec-cont">{user.name}</Link></div>
    <Link className="v2-btn v2-btn-secondary mb-6" href="/client"><UiText text={"Înapoi în contul meu"}/></Link>
-   <ClientAssessments initialCity={city} initialSqm={sqm} sandboxDemo={process.env.NEXT_PUBLIC_SITE_URL==='https://sandbox.nitido.ro'}/>
+   <ClientAssessments initialCategory={category} initialCity={city} initialSqm={sqm} sandboxDemo={process.env.NEXT_PUBLIC_SITE_URL==='https://sandbox.nitido.ro'}/>
   </main>
  </div>;
 }

@@ -39,3 +39,11 @@ it('quotes bathroom fixtures separately and rejects absent or tampered counts',a
  expect(await (await POST(request({spaceType:'apartament',sqm:60,bathroomCount:2,windowsSqm:10}))).json()).toMatchObject({quote:{priceGross:1220}});
  for(const bathroomCount of [undefined,null,'2',-1,1.5,21])expect((await POST(request({spaceType:'apartament',sqm:60,bathroomCount}))).status).toBe(400);
 });
+
+it('quotes the selected cleaning type and requires evaluation for renovation or rejects invalid types',async()=>{
+ getCurrentUser.mockResolvedValue({id:'client',role:'client'});
+ const r=await POST(request({spaceType:'apartament',sqm:60,bathroomCount:2,windowsSqm:10,cleaningType:'maintenance'}));
+ expect(r.status).toBe(200);expect(await r.json()).toMatchObject({quote:{cleaningType:'maintenance',priceGross:770,pricing:{cleaningType:'maintenance'}}});
+ const renovation=await POST(request({spaceType:'apartament',sqm:60,cleaningType:'renovation'}));expect(renovation.status).toBe(422);expect(await renovation.json()).toMatchObject({assessmentRequired:true});
+ for(const cleaningType of ['unknown',null,1])expect((await POST(request({spaceType:'apartament',sqm:60,cleaningType}))).status).toBe(400);
+});

@@ -14,8 +14,8 @@
   ],
   "targetLanguages": 24,
   "sourceLanguage": "ro",
-  "sourceMessages": 5334,
-  "sourceHash": "da93ce5301e0e720abc1f047e98305c87971d407327be3cc13becb86fce99f5e",
+  "sourceMessages": 5354,
+  "sourceHash": "16849914e22d3394b860f8cbd3c793a2fe0527fcc11e4f3150cba174f6b0ba60",
   "provider": "OpenAI",
   "model": "gpt-5.4-mini",
   "review": "machine translation; specialist legal review pending",
@@ -28,6 +28,11 @@
     "pricing20261026": {
       "messages": 9,
       "scope": "Current tariff parameters; existing translated prose preserved"
+    },
+    "cleaningTypes20261026": {
+      "messages": 20,
+      "scope": "Service type selection, scope and assessment routing",
+      "review": "assistant-prepared translations"
     }
   }
 }

@@ -60,3 +60,18 @@ it('records no funnel event on refusal, then sanitized steps once after consent 
 });
 
 it('keeps malformed date input recoverable instead of crashing the configurator',async()=>{await render(React.createElement(BookingConfigurator,{initial:{city:'Iași',sqm:'80',date:'not-a-date',spaceType:'unsupported'},options}));expect(container.textContent).toContain('Alege data');await submit();await submit();expect(document.activeElement?.id).toBe('booking-date');});
+
+it('changes package price, restores the selected service and transfers it to the account',async()=>{
+ const initial={city:'Iași',sqm:'60'};await render(React.createElement(BookingConfigurator,{initial,options}));
+ await act(()=>container.querySelector<HTMLInputElement>('input[name="cleaning-type"][value="maintenance"]')!.click());
+ expect(container.querySelector('output')?.textContent).toBe('550 lei');
+ await act(()=>root.unmount());root=createRoot(container);await render(React.createElement(BookingConfigurator,{initial,options}));
+ expect(container.querySelector<HTMLInputElement>('input[value="maintenance"]')?.checked).toBe(true);
+ await submit();await submit();await submit();expect(state.push.mock.calls[0][0]).toContain('cleaningType=maintenance');expect(fetch).not.toHaveBeenCalled();
+});
+it('opens renovation assessment with the selected geography without showing an ordinary total or posting a job',async()=>{
+ await render(React.createElement(BookingConfigurator,{initial:{city:'Constanța',sqm:'60'},options}));
+ await act(()=>container.querySelector<HTMLInputElement>('input[name="cleaning-type"][value="renovation"]')!.click());
+ expect(container.querySelector('output')?.textContent).toBe('Ofertă după evaluare');expect(container.querySelector('.booking-price-lines')).toBeNull();
+ await submit();const url=new URL(state.push.mock.calls[0][0],'https://nitido.ro');expect(url.pathname).toBe('/client/evaluari');expect(url.searchParams.get('category')).toBe('renovation');expect(url.searchParams.get('city')).toBe('Constanța');expect(fetch).not.toHaveBeenCalled();
+});

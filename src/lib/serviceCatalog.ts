@@ -1,5 +1,5 @@
 import type {Database} from 'better-sqlite3';
-export const CATALOG_CATEGORIES=[['maintenance','Întreținere'],['general','Curățenie generală'],['renovation','După renovare'],['moving','Mutare'],['office','Birouri'],['host','Pregătire proprietăți turistice']] as const;
+export const CATALOG_CATEGORIES=[['maintenance','Întreținere'],['general','Curățenie generală'],['renovation','După constructor / renovare'],['moving','Mutare'],['office','Birouri'],['host','Pregătire proprietăți turistice']] as const;
 export interface CatalogDefinition {includes:string;excludes:string;equipment:string;cities:string;minSqm:number;maxSqm:number;durationMinutes:number|null;extras:{name:string;unit:'aparat'|'mp'|'set'|'ora';rateBani:number|null}[]}
 export interface CatalogDraft {key:string;label:string;version:number;definition:CatalogDefinition;updatedAt:string}
 export const CATALOG_SCHEMA=`CREATE TABLE IF NOT EXISTS service_catalog_drafts(key TEXT PRIMARY KEY,label TEXT NOT NULL,version INTEGER NOT NULL,definition TEXT NOT NULL,updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP); CREATE TABLE IF NOT EXISTS service_catalog_history(key TEXT NOT NULL,version INTEGER NOT NULL,definition TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(key,version));`;

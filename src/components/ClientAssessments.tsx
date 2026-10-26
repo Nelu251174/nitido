@@ -7,8 +7,8 @@ import type {Assessment,AssessmentInput} from '@/lib/assessmentShared';
 import {ManualOfferPanel} from './ManualOfferPanel';
 import {AssessmentEvidence} from './AssessmentEvidence';
 import {AssessmentThread} from './AssessmentThread';
-export function ClientAssessments({initialCity='',initialSqm=100,sandboxDemo=false}:{initialCity?:string;initialSqm?:number;sandboxDemo?:boolean}){
- const [input,setInput]=useState<AssessmentInput>({category:'general',city:initialCity,sqm:initialSqm,rooms:0,bathrooms:0,difficulty:'normal',notes:'',appliances:0,windowsSqm:0,linenSets:0,extraHours:0}),[requests,setRequests]=useState<Assessment[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
+export function ClientAssessments({initialCategory='general',initialCity='',initialSqm=100,sandboxDemo=false}:{initialCategory?:string;initialCity?:string;initialSqm?:number;sandboxDemo?:boolean}){
+ const [input,setInput]=useState<AssessmentInput>({category:CATALOG_CATEGORIES.some(([key])=>key===initialCategory)?initialCategory:'general',city:initialCity,sqm:initialSqm,rooms:0,bathrooms:0,difficulty:'normal',notes:'',appliances:0,windowsSqm:0,linenSets:0,extraHours:0}),[requests,setRequests]=useState<Assessment[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const retry=useRef<{payload:string;key:string}|null>(null);
  const load=useCallback(async()=>{const r=await fetch('/api/assessments'),d=await r.json();if(!r.ok)throw new Error(d.error||'Cererile nu pot fi încărcate');setRequests(d.requests)},[]);
  useEffect(()=>{const controller=new AbortController();fetch('/api/assessments',{signal:controller.signal}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||'Cererile nu pot fi încărcate');return d}).then(d=>{if(!controller.signal.aborted)setRequests(d.requests)}).catch(e=>{if(!controller.signal.aborted)setError(e.message)}).finally(()=>{if(!controller.signal.aborted)setLoading(false)});return()=>controller.abort()},[]);

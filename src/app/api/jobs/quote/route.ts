@@ -1,3 +1,4 @@
+import {validAutomaticCleaningType,cleaningAssessmentUrl} from '@/lib/cleaningTypes';
 import {db} from "@/lib/db";
 import {configuredServiceMarket,ServiceMarketError} from '@/lib/serviceMarkets';
 import {managedBookingEnabled,bookingPriceContext,issueBookingQuote} from "@/lib/bookingQuotes";
@@ -28,6 +29,8 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as { spaceType?: unknown; sqm?: unknown; windowsSqm?:unknown;countryCode?:unknown;currency?:unknown; [key:string]:unknown } | null;
   let market;
   try{market=configuredServiceMarket(body??{});}catch(error){if(error instanceof ServiceMarketError)return NextResponse.json({error:error.message,countryCode:error.countryCode,currency:error.currency},{status:error.status});throw error;}
+  const cleaningType=body?.cleaningType===undefined?'general':body.cleaningType;
+  if(!validAutomaticCleaningType(cleaningType))return NextResponse.json({error:'Tipul curățeniei necesită evaluare.',assessmentRequired:cleaningType==='renovation',assessmentUrl:cleaningAssessmentUrl(String(body?.city??''),Number(body?.sqm)||100)},{status:cleaningType==='renovation'?422:400});
   if(managedBookingEnabled()){
     if(!hasTrustedMutationOrigin(req))return NextResponse.json({error:"Origine invalidă"},{status:403});
     try{
@@ -56,11 +59,11 @@ export async function POST(req: NextRequest) {
     quote: {
       spaceType,
       sqm,
-      windowsSqm,bathroomCount,
-      priceGross: calcServicePrice(spaceType as SpaceType, sqm,windowsSqm,bathroomCount),
+      windowsSqm,bathroomCount,cleaningType,
+      priceGross: calcServicePrice(spaceType as SpaceType, sqm,windowsSqm,bathroomCount,cleaningType),
       durationMinutes: calcServiceDuration(sqm,windowsSqm),
       ...market,
-      pricing: pricingSnapshot({spaceType:spaceType as SpaceType,sqm,windowsSqm,bathroomCount,expressFeeLei:0,creditLei:0}),
+      pricing: pricingSnapshot({spaceType:spaceType as SpaceType,sqm,windowsSqm,bathroomCount,cleaningType,expressFeeLei:0,creditLei:0}),
     },
     scheduling: { slotHours: SLOT_HOURS, minLeadHours: MIN_LEAD_HOURS },
   });

@@ -1,4 +1,5 @@
 "use client";
+import {CleaningTypeLabel} from '@/components/CleaningTypeChoice';
 import {NewBadge} from '@/components/NewBadge';
 import {FlexibleFirmOffer} from "@/components/FlexibleFirmOffer";
 import {AUTHORIZATION_NOTICE,confirmationOpensAt} from '@/lib/authorizationPolicy';
@@ -335,7 +336,7 @@ export default function FirmaPage() {
                     {job.mode === "standard" ? <UiText text={"✦ STANDARD"}/> : <UiText text={"⚡ EXPRESS"}/>}
                   </span>
                 )}
-                <div className="font-display font-bold text-sm text-ink"><UiText text={"Curățenie "}/><UiSpaceType value={job.space_type}/>, {job.city}
+                <div className="font-display font-bold text-sm text-ink"><UiText text={"Curățenie "}/><UiSpaceType value={job.space_type}/>, {job.city} · <CleaningTypeLabel value={job.cleaning_type}/>
                 </div>
                 <div className="text-xs text-muted mb-2"><UiText text={"Adresa exactă devine vizibilă după acceptare."}/></div>
                 <div className="flex gap-2 flex-wrap mb-2">
