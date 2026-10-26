@@ -105,9 +105,9 @@ export function previewMarketingCampaign(db: Database, id: string): MarketingAud
   const blockers: string[] = [];
   if (!campaign.subject || !campaign.body) blockers.push('Completează subiectul și mesajul.');
   if (Boolean(campaign.ctaLabel) !== Boolean(campaign.ctaUrl)) blockers.push('Completează atât textul, cât și adresa butonului, sau lasă ambele câmpuri goale.');
-  if (!settings.senderEmail || !settings.replyTo || !settings.postalAddress) blockers.push('Completează expeditorul, adresa de răspuns și adresa poștală în Setări.');
+  const missingSender = [!settings.senderEmail && 'emailul expeditorului', !settings.replyTo && 'adresa de răspuns', !settings.postalAddress && 'adresa poștală'].filter(Boolean);
+  if (missingSender.length) blockers.push(`Completează în Setări: ${missingSender.join(', ')}.`);
   if (!audience.eligible.length) blockers.push('Nu există contacte eligibile. Verifică acordul, emailul și starea Verificat.');
-  if (audience.eligible.length > settings.dailyLimit) blockers.push('Selecția depășește limita de contacte per rulare din Setări.');
   const estimated = settings.unitCostRon === null ? null : Math.round(audience.eligible.length * settings.unitCostRon * 1000000) / 1000000;
   if ((campaign.budgetRon !== null || settings.monthlyBudgetRon !== null) && estimated === null) blockers.push('Configurează costul estimat per email pentru verificarea bugetului.');
   if (estimated !== null && campaign.budgetRon !== null && estimated > campaign.budgetRon) blockers.push('Costul estimat depășește bugetul campaniei.');
