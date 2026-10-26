@@ -1,4 +1,6 @@
 "use client";
+import {CleaningTypeChoice} from '@/components/CleaningTypeChoice';
+import {CLEANING_DESCRIPTION,cleaningAssessmentUrl,validCleaningType,type CleaningType} from '@/lib/cleaningTypes';
 import {RecurringSection} from '@/components/RecurringSection';
 import {NewBadge} from '@/components/NewBadge';
 import {PreferredFirmChoice} from '@/components/FavoriteFirms';
@@ -134,6 +136,7 @@ export default function ClientPage() {
   const [preferredFirmId,setPreferredFirmId]=useState<string|null>(null);
   const [repeatJobId,setRepeatJobId]=useState<string|null>(null);
   const [details,setDetails]=useState("");
+  const [cleaningType,setCleaningType]=useState<CleaningType>('general');
   const [bathroomCount,setBathroomCount]=useState(1);
   const [windowsSqm,setWindowsSqm]=useState(0);
   const [sqm, setSqm] = useState(75);
@@ -222,7 +225,7 @@ export default function ClientPage() {
       if(draft){
         // eslint-disable-next-line react-hooks/set-state-in-effect -- restore external tab storage only after the authenticated account is known
         setEntrance(draft.entrance??null);setStreet(draft.street);setPostalCode(draft.postalCode);setCity(draft.city);setFloor(draft.floor);setDetails(draft.details);
-        setBathroomCount(draft.bathroomCount??1);setWindowsSqm(draft.windowsSqm??0);setSqm(draft.sqm);setSpaceType(draft.spaceType);setWhenType(draft.whenType);setMode(draft.mode);setExpress60(draft.express60);
+        setCleaningType(draft.cleaningType??'general');setBathroomCount(draft.bathroomCount??1);setWindowsSqm(draft.windowsSqm??0);setSqm(draft.sqm);setSpaceType(draft.spaceType);setWhenType(draft.whenType);setMode(draft.mode);setExpress60(draft.express60);
         setAlertBatchId(draft.alertBatchId??null);setPreferredFirmId(draft.preferredFirmId??null);setRepeatJobId(draft.repeatJobId??null);setBeneficiary(draft.beneficiary??null);setWeekSlot(draft.weekSlot??null);setPhotoDraftId(draft.photoDraftId??null);setFlexibleWindows(draft.flexibleWindows??null);setScheduledDate(draft.scheduledDate);setScheduledHour(draft.scheduledHour);
         restoredCardId.current=draft.cardId??null;
         setHostEventId(draft.hostEventId??null);setHostRevision(draft.hostRevision??null);setPropertyId(draft.propertyId);setApprovalId(draft.approvalId);setPhotos(draft.photos);setShowBooking(true);
@@ -234,6 +237,7 @@ export default function ClientPage() {
     if(params.has('photoDraftId')){setFeatureLoading(true);void fetch('/api/photo-scope/drafts/'+encodeURIComponent(params.get('photoDraftId')!)).then(async r=>{const b=await r.json();if(!r.ok)throw Error(b.error);setPhotoDraftId(b.draft.id);setDetails(b.draft.description);setPhotos(b.draft.photos)}).catch(e=>setError(e.message)).finally(()=>setFeatureLoading(false));}
     if(params.has('slotId')){setFeatureLoading(true);void fetch('/api/availability/week?'+params.toString()).then(async r=>{const b=await r.json();if(!r.ok)throw Error(b.error);const v=b.selection;setWeekSlot({slotId:v.slotId,revision:v.revision,startsAt:v.startsAt,firmName:v.firmName});setWhenType('scheduled');setMode('standard');setExpress60(false);setFlexibleWindows(null);setScheduledDate(bucharestDateKey(new Date(v.startsAt)));setScheduledHour(Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Bucharest',hour:'2-digit',hourCycle:'h23'}).format(new Date(v.startsAt))))}).catch(e=>setError(e.message)).finally(()=>setFeatureLoading(false));}
     if(window.location.hash==="#sec-form"||params.has("propertyId")||params.has("spaceType")||params.has("mode")||params.has("forFamily")||params.has("photoDraftId")||params.has("slotId"))setShowBooking(true);
+    const selectedCleaning=params.get('cleaningType');if(selectedCleaning==='renovation'){router.replace(cleaningAssessmentUrl(params.get('city')??'',params.get('sqm')??''));return;}if(validCleaningType(selectedCleaning))setCleaningType(selectedCleaning);
     const type=params.get("spaceType");if(type&&["apartament","casa","birou","altul"].includes(type))setSpaceType(type as SpaceType);
     const area=Number(params.get("sqm"));if(Number.isInteger(area)&&area>0&&area<=1000)setSqm(area);
     if(params.get("mode")==="express")setMode("express");
@@ -343,7 +347,7 @@ export default function ClientPage() {
       }
       if(showBooking){
         let saved=false;
-        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{alertBatchId,preferredFirmId,repeatJobId,beneficiary,weekSlot,photoDraftId,flexibleWindows,street,postalCode,city,floor,details,sqm,windowsSqm,bathroomCount,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,hostEventId,hostRevision,photos,cardId:selectedCardId,entrance:entrance&&validEntrance(entrance,{street,city,postalCode})?entrance:undefined}));}catch{/* Storage can be blocked by the browser. */}
+        try{saved=Boolean(user&&saveBookingDraft(window.sessionStorage,user.id,{cleaningType:cleaningType==='renovation'?undefined:cleaningType,alertBatchId,preferredFirmId,repeatJobId,beneficiary,weekSlot,photoDraftId,flexibleWindows,street,postalCode,city,floor,details,sqm,windowsSqm,bathroomCount,spaceType,whenType,mode,express60,scheduledDate,scheduledHour,propertyId,approvalId,hostEventId,hostRevision,photos,cardId:selectedCardId,entrance:entrance&&validEntrance(entrance,{street,city,postalCode})?entrance:undefined}));}catch{/* Storage can be blocked by the browser. */}
         if(!saved){setCardError('Rezervarea nu poate fi păstrată în această filă. Permite stocarea pentru site și încearcă din nou.');setCardBusy(false);return;}
       }else{try{clearBookingDraft(window.sessionStorage);}catch{/* No draft to preserve. */}}
       window.location.href = d.url; // redirect către pagina de card găzduită de Stripe
@@ -374,14 +378,14 @@ export default function ClientPage() {
     }
   }
 
-  const needsAssessment=sqm>AUTOMATIC_MAX_SQM;
+  const needsAssessment=cleaningType==='renovation'||sqm>AUTOMATIC_MAX_SQM;
   const basePrice = useMemo(() => {
     try {
-      return calcGrossPrice(spaceType, sqm);
+      return cleaningType==='renovation'?0:calcGrossPrice(spaceType, sqm,cleaningType);
     } catch {
       return 0;
     }
-  }, [spaceType, sqm]);
+  }, [spaceType, sqm,cleaningType]);
 
   // Express 60 adaugă suplimentul premium la prețul brut (doar pentru „asap").
   const express60Active = express60 && whenType === "asap";
@@ -406,6 +410,7 @@ export default function ClientPage() {
 
   async function postJob() {
     setError(null);
+    if(needsAssessment){setError('Tipul curățeniei necesită evaluare.');return;}
     if(!validBathroomCount(bathroomCount)){setError("Introdu numărul de băi, întreg între 0 și 20.");return;}
     if(featureLoading){setError('Așteaptă încărcarea detaliilor selectate.');return;}
     if(beneficiary&&(!beneficiary.name.trim()||!/^\S+@\S+\.\S+$/.test(beneficiary.email)||!beneficiary.consent)){setError('Completează numele, emailul și acordul beneficiarului.');return;}
@@ -419,7 +424,7 @@ export default function ClientPage() {
         street,
         postalCode,
         city,
-        windowsSqm,bathroomCount,flexibleWindows,
+        windowsSqm,bathroomCount,flexibleWindows,cleaningType,
         pricingVersion:PRICING_VERSION,
         expectedPriceGross:price,
         floor,
@@ -720,7 +725,7 @@ export default function ClientPage() {
                 />
               </Field>
             </div>
-            <Field label="Tip spațiu">
+            <CleaningTypeChoice value={cleaningType} onChange={value=>{if(value==='renovation')router.push(cleaningAssessmentUrl(city,sqm));else setCleaningType(value)}}/><Field label="Tip spațiu">
               <select
                 className={inputClass}
                 value={spaceType}
@@ -914,8 +919,8 @@ export default function ClientPage() {
               )}
             </div>
 
-            {needsAssessment?<section className="design-panel"><h2><UiText text={"Este necesară o evaluare"}/></h2><p><UiText text={"Suprafața depășește limita calculatorului automat."}/></p><Link className="design-button" href={`/client/evaluari?${new URLSearchParams({city,sqm:String(sqm)})}`}><UiText text={"Trimite spre evaluare"}/></Link></section>:confirmedOffer?null:<div className="bg-mist border border-aqua rounded-xl p-3.5 my-4">
-              <p className="text-sm mb-2">{priceExplanation(spaceType,sqm)}<UiText text={". Camerele nu se taxează separat."}/></p><p className="text-sm mb-2"><UiText text={"Curățenie: "}/>{basePrice}<UiText text=" lei · Supliment băi: "/>{bathroomPrice}<UiText text={" lei · Geamuri: "}/>{windowsSqm}<UiTemplate text=" m² × {p0} lei = " values={[WINDOWS_RATE_LEI]}/>{windowsPrice}<UiText text={" lei"}/></p>
+            {needsAssessment?<section className="design-panel"><h2><UiText text={"Este necesară o evaluare"}/></h2><p><UiText text={cleaningType==='renovation'?CLEANING_DESCRIPTION.renovation:'Suprafața depășește limita calculatorului automat.'}/></p><Link className="design-button" href={`/client/evaluari?${new URLSearchParams({category:cleaningType,city,sqm:String(sqm)})}`}><UiText text={"Trimite spre evaluare"}/></Link></section>:confirmedOffer?null:<div className="bg-mist border border-aqua rounded-xl p-3.5 my-4">
+              <p className="text-sm mb-2">{priceExplanation(spaceType,sqm,cleaningType)}<UiText text={". Camerele nu se taxează separat."}/></p><p className="text-sm mb-2"><UiText text={"Curățenie: "}/>{basePrice}<UiText text=" lei · Supliment băi: "/>{bathroomPrice}<UiText text={" lei · Geamuri: "}/>{windowsSqm}<UiTemplate text=" m² × {p0} lei = " values={[WINDOWS_RATE_LEI]}/>{windowsPrice}<UiText text={" lei"}/></p>
               {express60Active && (
                 <div className="flex justify-between items-center text-[11.5px] text-muted mb-1.5 pb-1.5 border-b border-line/60">
                   <span><UiText text={"Curățenie "}/>{basePrice}<UiText text={" lei · 🔥 Express 60 +"}/>{<UiText text={express60Fee}/>}<UiText text={" lei"}/></span>

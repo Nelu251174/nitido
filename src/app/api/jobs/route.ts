@@ -1,3 +1,4 @@
+import {validAutomaticCleaningType,cleaningAssessmentUrl,type AutomaticCleaningType} from '@/lib/cleaningTypes';
 import {attachAlertOrigin} from '@/lib/availabilityAlerts';
 import {attachPreferredFirm,attachRepeatOrigin,RetentionError} from '@/lib/clientRetention';
 import {attachBeneficiary,hasBeneficiary,FamilyError} from '@/lib/familyBooking';
@@ -135,6 +136,7 @@ export async function GET(req: NextRequest) {
       sqm: j.sqm,
       windows_sqm: j.windows_sqm??0,
       space_type: j.space_type,
+      cleaning_type:j.cleaning_type,
       flexible:flexibleContext(db,j.id),
       when_type: j.when_type,
       mode: j.mode,
@@ -267,6 +269,11 @@ export async function POST(req: NextRequest) {
     }catch(e){if(e instanceof ManagedPricingError)return NextResponse.json({error:e.message},{status:e.status});throw e;}
   }
 
+  const requestedCleaningType=body.cleaningType===undefined?'general':body.cleaningType;
+  if(!manual&&!validAutomaticCleaningType(requestedCleaningType))return NextResponse.json({error:'Tipul curățeniei necesită evaluare.',assessmentRequired:requestedCleaningType==='renovation',assessmentUrl:cleaningAssessmentUrl(city,sqm)},{status:requestedCleaningType==='renovation'?422:400});
+  const cleaningType:AutomaticCleaningType=validAutomaticCleaningType(requestedCleaningType)?requestedCleaningType:'general';
+  if(!manual&&cleaningType==='maintenance'&&(body.weekSlot||body.hostEventId||body.approvalId))return NextResponse.json({error:'Acest flux are condiții confirmate pentru curățenie generală. Solicită o evaluare pentru schimbarea serviciului.'},{status:422});
+
   // Card obligatoriu înainte de postare — la acceptare se pune HOLD pe acest
   // card, deci trebuie salvat dinainte. Dacă Stripe nu e activat, se sare peste.
   const card = getClientCardInfo(db, user.id);
@@ -319,7 +326,7 @@ export async function POST(req: NextRequest) {
   if(!validWindowsSqm(windowsSqm))return NextResponse.json({error:"Suprafața geamurilor trebuie să fie între 0 și 200 m², fără zecimale"},{status:400});
   const managedPricing=!manual&&managedBookingEnabled();
   if(!managedPricing&&body.quoteId)return NextResponse.json({error:"Configurarea tarifelor s-a schimbat. Solicită o ofertă nouă."},{status:409});
-  let priceGross = manual?0:calcServicePrice(spaceType, sqm,windowsSqm,bathroomCount) + express60Fee;
+  let priceGross = manual?0:calcServicePrice(spaceType, sqm,windowsSqm,bathroomCount,cleaningType) + express60Fee;
   if(!manual&&!managedPricing&&((body.pricingVersion!==undefined&&body.pricingVersion!==PRICING_VERSION)||(body.expectedPriceGross!==undefined&&body.expectedPriceGross!==priceGross)))return NextResponse.json({error:"Tariful s-a actualizat. Reîncarcă pagina și verifică noul preț înainte de publicare."},{status:409});
   if(!Number.isSafeInteger(priceGross*100))return NextResponse.json({error:"Suprafața depășește limita de calcul"},{status:400});
   let durationMinutes = assisted?0:calcServiceDuration(sqm,windowsSqm);
@@ -385,12 +392,14 @@ export async function POST(req: NextRequest) {
     if (card.stripeConfigured) saveJobCard(db,user.id,id,body.cardId);
     if(manual){linkManualOfferJob(db,user.id,body.manualOfferId,id);if(assisted)db.prepare('INSERT INTO assisted_job_plans VALUES(?,?,?)').run(id,body.manualOfferId,body.assistedRevision);}
     if(acceptedPrice)linkBookingQuote(db,user.id,acceptedPrice.quoteId,id);
-    let executionScope=jobMode;
+    let executionScope:string=jobMode;
     if(manual){const category=db.prepare('SELECT a.payload FROM assessment_offer_jobs l JOIN assessment_offers o ON o.id=l.offer_id JOIN service_assessments a ON a.id=o.assessment_id WHERE l.job_id=?').get(id) as {payload:string};executionScope=JSON.parse(category.payload).category;}
-    freezeExecutionRules(db,id,executionScope);
+    freezeExecutionRules(db,id,executionScope,undefined,!manual&&body.cleaningType!==undefined?cleaningType:undefined);
+    const recordedCleaningType=manual?(executionScope==='renovation'?'renovation':null):cleaningType;
+    db.prepare('UPDATE jobs SET cleaning_type=? WHERE id=?').run(recordedCleaningType,id);
     const operation=jobAssistedOperation(db,id);
-    const frozenTerms=bookingTerms({durationMinutes,bufferMinutes,grossLei:priceGross,creditLei:creditUsed,bathroomCount:manual?undefined:bathroomCount,inclusions:jobExecutionRules(db,id).items,team:operation?{id:operation.teamId,name:operation.teamName}:null});
-    db.prepare("UPDATE jobs SET pricing_snapshot=?, windows_sqm=?, bathroom_count=? WHERE id=?").run(JSON.stringify({...manualSnapshot??acceptedPrice??pricingSnapshot({spaceType,sqm,windowsSqm,bathroomCount,expressFeeLei:express60Fee,creditLei:creditUsed}),bookingTerms:frozenTerms}),windowsSqm,manual?null:bathroomCount,id);
+    const frozenTerms=bookingTerms({durationMinutes,bufferMinutes,grossLei:priceGross,creditLei:creditUsed,cleaningType:recordedCleaningType??undefined,bathroomCount:manual?undefined:bathroomCount,inclusions:jobExecutionRules(db,id).items,team:operation?{id:operation.teamId,name:operation.teamName}:null});
+    db.prepare("UPDATE jobs SET pricing_snapshot=?, windows_sqm=?, bathroom_count=? WHERE id=?").run(JSON.stringify({...manualSnapshot??acceptedPrice??pricingSnapshot({spaceType,sqm,windowsSqm,bathroomCount,cleaningType,expressFeeLei:express60Fee,creditLei:creditUsed}),bookingTerms:frozenTerms,cleaningType:recordedCleaningType}),windowsSqm,manual?null:bathroomCount,id);
     if(body.preferredFirmId)attachPreferredFirm(db,id,user.id,body.preferredFirmId);
     if(body.repeatJobId)attachRepeatOrigin(db,id,user.id,body.repeatJobId);
     if(body.beneficiary)attachBeneficiary(db,id,user.id,body.beneficiary);

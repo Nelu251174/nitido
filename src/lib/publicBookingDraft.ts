@@ -1,6 +1,6 @@
 /** Same-tab session draft. No address, contact, payment or account data. */
 export const BOOKING_DRAFT_KEY = 'nitido.booking-draft.v1';
-export const BOOKING_DRAFT_FIELDS = ['flexibleWindows','propertyId','city','sqm','spaceType','bathroomCount','windowsSqm','scheduled','date','hour','mode'] as const;
+export const BOOKING_DRAFT_FIELDS = ['cleaningType','flexibleWindows','propertyId','city','sqm','spaceType','bathroomCount','windowsSqm','scheduled','date','hour','mode'] as const;
 export function cleanBookingDraft(value: unknown): Record<string,string> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const result: Record<string,string> = {};

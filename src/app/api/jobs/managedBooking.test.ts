@@ -71,3 +71,14 @@ it('requires reconfirmation of an explicit previous tariff version before creati
  expect(stale.status).toBe(409);expect(state.db!.prepare('SELECT COUNT(*) n FROM jobs').get()).toEqual({n:0});
  expect(state.db!.prepare("SELECT credit_balance FROM users WHERE id='c'").get()).toEqual({credit_balance:20});
 });
+
+it('prices maintenance on the LIVE path, freezes the service and rejects a stale general total without charging',async()=>{
+ vi.stubEnv('NITIDO_MANAGED_PRICING_SANDBOX','false');
+ const data={...body,cleaningType:'maintenance',sqm:60,windowsSqm:10,bathroomCount:2,expectedPriceGross:770};
+ const r=await book(req('',data,'maintenance-scope'));expect(r.status).toBe(201);const j=(await r.json()).job;
+ expect(j).toMatchObject({cleaning_type:'maintenance',price_gross:770});expect(JSON.parse(j.pricing_snapshot)).toMatchObject({cleaningType:'maintenance',grossBani:77000,bookingTerms:{cleaningType:'maintenance'}});
+ expect(jobExecutionRules(state.db!,j.id).scope).toBe('maintenance');
+ expect((await book(req('',{...data,expectedPriceGross:1220},'wrong-maintenance-total'))).status).toBe(409);
+ expect((await book(req('',{...data,cleaningType:'renovation'},'needs-evaluation'))).status).toBe(422);
+ expect(state.db!.prepare('SELECT COUNT(*) n FROM payments').get()).toEqual({n:0});expect(state.db!.prepare('SELECT COUNT(*) n FROM jobs').get()).toEqual({n:1});
+});

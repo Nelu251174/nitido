@@ -7,6 +7,7 @@ export type JobStatus =
   | "no_show";
 
 export interface JobRow {
+  cleaning_type?: 'maintenance'|'general'|'renovation'|null;
   for_family?:boolean;
   week_slot?:boolean;
   flexible?:{windows:import("./flexibleShared").FlexibleWindow[];revision:number}|null;
