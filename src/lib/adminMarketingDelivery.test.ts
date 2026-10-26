@@ -21,6 +21,23 @@ function signed(type:string,id='event-001'){const raw=JSON.stringify({type,data:
 beforeEach(()=>{db=new Database(':memory:');db.exec('CREATE TABLE admin_audit_log(id TEXT PRIMARY KEY,action TEXT,target_id TEXT,details TEXT)');vi.stubEnv('NEXT_PUBLIC_SITE_URL','https://sandbox.nitido.ro');vi.stubEnv('NITIDO_MARKETING_DELIVERY_ENABLED','false');vi.stubEnv('RESEND_API_KEY','');vi.stubEnv('NITIDO_MARKETING_WEBHOOK_SECRET','');});
 afterEach(()=>{db.close();vi.unstubAllEnvs();vi.restoreAllMocks();});
 describe('persistent Marketing outbox',()=>{
+ it('queues a whole city beyond 5000 recipients and keeps the daily quota without truncating its queue',async()=>{
+  setup();
+  db.prepare('DELETE FROM marketing_contact_regions').run();db.prepare('DELETE FROM marketing_contacts').run();
+  const insert=db.prepare("INSERT INTO marketing_contacts(id,name,category,email,city,city_key,search_key,source,consent,consent_evidence,status,created_by,created_at,updated_at) VALUES(?,?,'business',?,'București','bucuresti','','Synthetic fixture','granted','Synthetic opt-in','reviewed','owner','2026-10-26','2026-10-26')");
+  db.transaction(()=>{for(let i=0;i<5003;i++)insert.run('city-'+i,'Synthetic '+i,'city-'+i+'@example.test');})();
+  db.prepare("INSERT INTO marketing_contact_regions(contact_id,county_key,county,city_key,city,source) SELECT id,'bucuresti','București','bucuresti','București','Synthetic fixture' FROM marketing_contacts").run();
+  db.prepare("INSERT OR REPLACE INTO marketing_email_checks(email,status,source_status,domain_status) SELECT email,'verified','verified','mx' FROM marketing_contacts").run();
+  saveMarketingSettings(db,{...marketingSettings(db),unitCostRon:0,dailyLimit:1,monthlyBudgetRon:null},actor);
+  const draft=saveMarketingCampaign(db,{name:'București complet',subject:'Synthetic',body:'Synthetic body',category:'business',county:'B',city:'',variant:'',recipientLimit:null,ctaLabel:'',ctaUrl:'',budgetRon:null},actor);
+  const c=setMarketingCampaignState(db,{...draft,state:'ready'},actor);
+  live();queue(c,{mode:'live'});
+  expect(statuses()).toHaveLength(5003);
+  const transport=vi.fn().mockResolvedValue({id:'synthetic-provider'});
+  await processMarketingDelivery(db,transport);
+  expect(transport).toHaveBeenCalledOnce();expect(statuses().filter(s=>s.status==='pending')).toHaveLength(5002);
+  expect(()=>queue(c,{mode:'live',requestId:'synthetic-request-002'})).toThrow('deja destinatari');
+ });
  it('captures the full message and working opt-out internally with absolutely no transport calls',async()=>{const c=setup(),r=queue(c),transport=vi.fn();await processMarketingDelivery(db,transport);expect(transport).not.toHaveBeenCalled();expect(statuses()).toEqual([{status:'captured'}]);const [message]=marketingCapturedMessages(db,r.id) as {html:string}[];expect(message.html).toContain('&lt;script&gt;');expect(message.html).not.toContain('<script>');expect(message.html).toContain('/marketing/dezabonare#');expect(marketingDeliveryReport(db).realEmailsSent).toBe(0);});
  it('rejects real queueing by default even if credentials exist, and on LIVE even if the flag is true',()=>{const c=setup();vi.stubEnv('RESEND_API_KEY','fixture');expect(()=>queue(c,{mode:'live'})).toThrow('oprită');live();vi.stubEnv('NEXT_PUBLIC_SITE_URL','https://nitido.ro');expect(marketingDeliveryReadiness().enabled).toBe(false);expect(()=>queue(c,{mode:'live'})).toThrow('oprită');});
  it('replays identical requests and rejects altered/repeated recipients without inserting twice',()=>{const c=setup(),r=queue(c);expect(queue(c)).toEqual({...r,replayed:true});expect(()=>queue(c,{mode:'live'})).toThrow();expect(()=>queue(c,{requestId:'synthetic-request-002'})).toThrow('deja');expect(statuses()).toHaveLength(1);});

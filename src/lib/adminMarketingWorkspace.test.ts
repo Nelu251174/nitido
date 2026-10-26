@@ -37,13 +37,17 @@ describe('Marketing workspace and eligibility', () => {
     const preview = previewMarketingCampaign(db, campaign.id); expect(preview.selected).toBe(1); expect(preview.blockers).toHaveLength(2);
     expect(() => setMarketingCampaignState(db, { id: campaign.id, version: 1, state: 'ready' }, actor)).toThrow('Completează');
   });
+  it('names only the missing sender fields instead of reporting configured fields as absent', () => {
+    add(); settings({replyTo:''});
+    expect(previewMarketingCampaign(db,draft().id).blockers).toEqual(['Completează în Setări: adresa de răspuns.']);
+  });
   it('does not invent pricing and validates limits and budgets before preparing a campaign', () => {
     add(); settings({ unitCostRon: null }); const campaign = draft({ budgetRon: 1 });
     expect(previewMarketingCampaign(db, campaign.id).estimatedCostRon).toBeNull();
     expect(previewMarketingCampaign(db, campaign.id).blockers.join(' ')).toContain('costul estimat');
     settings({ unitCostRon: 2, monthlyBudgetRon: 1 }); expect(previewMarketingCampaign(db, campaign.id).blockers.join(' ')).toContain('bugetul campaniei');
     expect(previewMarketingCampaign(db, campaign.id).blockers.join(' ')).toContain('bugetul lunar');
-    add({ email: 'two@example.test' }); settings({ dailyLimit: 1 }); expect(previewMarketingCampaign(db, campaign.id).blockers.join(' ')).toContain('limita de contacte');
+    add({ email: 'two@example.test' }); settings({ dailyLimit: 1 }); expect(previewMarketingCampaign(db, draft().id)).toMatchObject({eligible:2,blockers:[]});
   });
   it('escapes HTML in messages and validates action URLs without executing network calls', () => {
     settings(); const campaign = draft({ subject: '<script>alert(1)</script>', body: '<img src=x onerror=alert(1)>', ctaUrl: 'https://nitido.ro/?x=1&y=2' });
