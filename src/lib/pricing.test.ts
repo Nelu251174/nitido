@@ -9,33 +9,33 @@ import {
 } from "./pricing";
 
 describe("calcGrossPrice — trepte apartament (spec secțiunea 6)", () => {
-  it("garsonieră (<=40 mp) = 350 lei", () => {
-    expect(calcGrossPrice("apartament", 35)).toBe(350);
-    expect(calcGrossPrice("apartament", 40)).toBe(350);
+  it("garsonieră (<=40 mp) = 750 lei", () => {
+    expect(calcGrossPrice("apartament", 35)).toBe(750);
+    expect(calcGrossPrice("apartament", 40)).toBe(750);
   });
-  it("2 camere (40-60 mp) = 450 lei", () => {
-    expect(calcGrossPrice("apartament", 60)).toBe(450);
+  it("2 camere (40-60 mp) = 1000 lei", () => {
+    expect(calcGrossPrice("apartament", 60)).toBe(1000);
   });
-  it("3 camere (60-80 mp) = 550 lei", () => {
-    expect(calcGrossPrice("apartament", 75)).toBe(550);
+  it("3 camere (60-80 mp) = 1200 lei", () => {
+    expect(calcGrossPrice("apartament", 75)).toBe(1200);
   });
-  it("4 camere (80-100 mp) = 650 lei", () => {
-    expect(calcGrossPrice("apartament", 100)).toBe(650);
+  it("4 camere (80-100 mp) = 1450 lei", () => {
+    expect(calcGrossPrice("apartament", 100)).toBe(1450);
   });
-  it("peste 100 mp = 650 + 6.5 lei/mp suplimentar", () => {
-    expect(calcGrossPrice("apartament", 120)).toBe(Math.round(650 + 20 * 6.5));
+  it("peste 100 mp = 1450 + 14.5 lei/mp suplimentar", () => {
+    expect(calcGrossPrice("apartament", 120)).toBe(Math.round(1450 + 20 * 14.5));
   });
 });
 
 describe("calcGrossPrice — preț/mp casă, birou, altul", () => {
-  it("casă: 7 lei/mp", () => {
-    expect(calcGrossPrice("casa", 100)).toBe(700);
+  it("casă: 14 lei/mp", () => {
+    expect(calcGrossPrice("casa", 100)).toBe(1400);
   });
-  it("birou: 5 lei/mp", () => {
-    expect(calcGrossPrice("birou", 100)).toBe(500);
+  it("birou: 10 lei/mp", () => {
+    expect(calcGrossPrice("birou", 100)).toBe(1000);
   });
-  it("altul: 6 lei/mp", () => {
-    expect(calcGrossPrice("altul", 100)).toBe(600);
+  it("altul: 12 lei/mp", () => {
+    expect(calcGrossPrice("altul", 100)).toBe(1200);
   });
 });
 

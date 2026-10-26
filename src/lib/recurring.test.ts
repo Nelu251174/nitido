@@ -85,9 +85,9 @@ describe("recurring — Nitido Repeat (Etapa 3)", () => {
     const fresh=createRecurringPlan(db,{...basePlan,sqm:60,bathroomCount:2,startDate:'2026-01-06',requestId:'new-template-000001'});expect(fresh.ok).toBe(true);
     const newer=await generateDueRecurringJobs(db,new Date('2026-01-06T06:00:00Z'));expect(newer.created).toHaveLength(1);
     const row=db.prepare('SELECT price_gross,bathroom_count,pricing_snapshot FROM jobs WHERE id=?').get(newer.created[0]) as {price_gross:number;bathroom_count:number;pricing_snapshot:string};
-    expect(row).toMatchObject({price_gross:500,bathroom_count:2});expect(JSON.parse(row.pricing_snapshot).bookingTerms.bathrooms.count).toBe(2);
+    expect(row).toMatchObject({price_gross:1100,bathroom_count:2});expect(JSON.parse(row.pricing_snapshot).bookingTerms.bathrooms.count).toBe(2);
     expect(db.prepare('SELECT * FROM jobs WHERE id=?').get(legacy.created[0])).toEqual(oldRow);
-    expect(db.prepare('SELECT price_gross,bathroom_count FROM jobs WHERE id=?').get(legacy.created[0])).toEqual({price_gross:450,bathroom_count:null});
+    expect(db.prepare('SELECT price_gross,bathroom_count FROM jobs WHERE id=?').get(legacy.created[0])).toEqual({price_gross:1000,bathroom_count:null});
     expect(db.prepare('SELECT COUNT(*) n FROM payments').get()).toEqual({n:0});
     const retry=createRecurringPlan(db,{...basePlan,sqm:60,startDate:'2026-01-05',requestId:'legacy-template-0001'});expect(retry).toEqual(old);
   });

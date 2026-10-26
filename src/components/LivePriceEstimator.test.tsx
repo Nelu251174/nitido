@@ -14,13 +14,13 @@ function displayedPrice(html:string) {
   return Number(match[1]);
 }
 describe('homepage price estimator rendered behavior',()=>{
-  it('renders 120 m² and the actual 780 lei apartment estimate',()=>{
-    const html=render();expect(displayedPrice(html)).toBe(780);
+  it('renders 120 m² and the actual 1740 lei apartment estimate',()=>{
+    const html=render();expect(displayedPrice(html)).toBe(1740);
     expect(html).toMatch(/<output[^>]*>120/);
     expect(html).toContain('value="120"');
-    expect(html).toContain('120 metri pătrați, estimare 780 lei');
+    expect(html).toContain('120 metri pătrați, estimare 1740 lei');
   });
-  it.each([['casa',840],['birou',600],['altul',720]] as const)('uses configured initial type %s to calculate %d lei',(type,price)=>{
+  it.each([['casa',1680],['birou',1200],['altul',1440]] as const)('uses configured initial type %s to calculate %d lei',(type,price)=>{
     expect(displayedPrice(render(type))).toBe(price);
   });
   it('renders native keyboard/touch range bounds and explicit exclusions',()=>{
@@ -28,7 +28,7 @@ describe('homepage price estimator rendered behavior',()=>{
     expect(html).toContain('aria-label="Suprafața estimată în metri pătrați"');
     expect(html).toContain('o baie și o bucătărie incluse');expect(html).toContain('geamurile se adaugă separat');
   });
-  it.each([[40,350],[41,450],[60,450],[61,550],[80,550],[81,650],[100,650],[101,657],[120,780]])('keeps authoritative threshold %d m² = %d lei',(sqm,price)=>{
+  it.each([[40,750],[41,1000],[60,1000],[61,1200],[80,1200],[81,1450],[100,1450],[101,1465],[120,1740]])('keeps authoritative threshold %d m² = %d lei',(sqm,price)=>{
     expect(calcGrossPrice('apartament',sqm)).toBe(price);
   });
   it('rejects an intentionally wrong rendered expectation',()=>{
