@@ -8,4 +8,6 @@ Preview, readiness and queue processing use the campaign policy; the worker rech
 
 The interface identifies public B2B campaigns explicitly. It does not label a public address as consented. Saving/preparing a campaign does not enqueue mail or activate the server delivery flag. The final manual confirmation, provider readiness, quotas, budgets, unsubscribe links and provider suppression handling remain in effect.
 
+Public inventory preparation continues when manual delivery is enabled in the parent application. Its subprocess still receives delivery disabled and no application credentials; this isolation is verified with a mocked subprocess.
+
 No database migration, authentication change or other module change is included. The intended data operation selects only the four existing full-audience drafts for CT/B business/cleaning and must leave contact records and outbox unchanged. Sandbox verification precedes any LIVE change. This implementation does not establish recipient permission or certify compliance with provider terms or applicable law.
