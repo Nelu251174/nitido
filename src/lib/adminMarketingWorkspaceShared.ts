@@ -8,6 +8,12 @@ export interface MarketingCampaign {
   id: string; version: number; name: string; subject: string; body: string; category: MarketingCategory | '';
   county?: string; variant?: ''|'A'|'B'; recipientLimit?: number | null; city: string; ctaLabel: string; ctaUrl: string; budgetRon: number | null;
   state: keyof typeof CAMPAIGN_STATES; updatedAt: string;
+  audienceMode?: 'consent' | 'public_business';
+}
+
+/** Explicit campaign scope; it never changes the contact's recorded consent. */
+export function publicBusinessCampaign(campaign: MarketingCampaign): boolean {
+  return campaign.audienceMode === 'public_business' && ['CT','B'].includes(campaign.county ?? '') && ['business','cleaning'].includes(campaign.category);
 }
 export interface MarketingAudience {
   selected: number; eligible: number; excluded: number; deferred: number;

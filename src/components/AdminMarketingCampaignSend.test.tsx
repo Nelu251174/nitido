@@ -42,6 +42,13 @@ it('keeps bulk sending discoverable for a blocked draft and shows actionable rea
 it('uses the bulk button to check a draft without implicitly saving, preparing, queueing or enabling delivery', async () => {
   await render(); await click('Trimite emailuri în masă'); expect(writes().map(x => x.action)).toEqual(['preview']); expect(host.textContent).toContain('Confirmări livrare: neconfigurate');
 });
+it('identifies the explicit public business scope without claiming recorded consent or queuing on inspection',async()=>{
+ campaign.audienceMode='public_business';blockers=[];eligible=500;delivery=true;campaign.state='ready';
+ await render();expect(host.textContent).toContain('Campanie B2B către adrese publice de firme');
+ await click('Trimite emailuri în masă');expect(host.textContent).toContain('500 emailuri eligibile');
+ expect(writes().some(x=>x.action==='queue')).toBe(false);
+ expect([...host.querySelectorAll('button')].find(b=>b.textContent==='Confirmă și trimite emailurile')!.disabled).toBe(true);
+});
 it('explicitly removes A/B and the 50-recipient cap while retaining București and category, then queues only a manual test', async () => {
   blockers = []; eligible = 6003; await render();
   await act(() => (host.querySelector('input[type="checkbox"]') as HTMLInputElement).click());

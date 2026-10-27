@@ -5,6 +5,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { initializeMarketing, marketingEnabled, marketingKey, MarketingError } from './adminMarketing';
 import { MARKETING_CATEGORIES, type MarketingContact } from './adminMarketingShared';
 import { CAMPAIGN_STATES, type MarketingAudience, type MarketingCampaign, type MarketingCollectionRun, type MarketingSettings, type MarketingSimulation, type MarketingWorkspace } from './adminMarketingWorkspaceShared';
+import { publicBusinessCampaign } from './adminMarketingWorkspaceShared';
 
 export const MARKETING_WORKSPACE_SCHEMA = `
 CREATE TABLE IF NOT EXISTS marketing_settings(id INTEGER PRIMARY KEY CHECK(id=1),version INTEGER NOT NULL,payload TEXT NOT NULL);
@@ -58,10 +59,13 @@ export function saveMarketingCampaign(db: Database, value: unknown, actor: strin
   const category = string(b.category, 'Categorie', 20); if (category && !Object.hasOwn(MARKETING_CATEGORIES, category)) throw new MarketingError('Categorie invalidă.');
   const variant=b.variant??'';if(typeof variant!=='string'||!['','A','B'].includes(variant))throw new MarketingError('Variantă invalidă.');
   const region=b.county?marketingRegion(b.county):null;if(b.county&&!region)throw new MarketingError('Județ invalid.');
+  const audienceMode=b.audienceMode??'consent';
+  if(!['consent','public_business'].includes(String(audienceMode)) || (audienceMode==='public_business' && (!['CT','B'].includes(region?.code??'') || !['business','cleaning'].includes(category))))throw new MarketingError('Campaniile B2B publice sunt disponibile numai pentru firme din Constanța și București.');
   const recipientLimit=b.recipientLimit===undefined||b.recipientLimit===null||b.recipientLimit===''?null:Number(b.recipientLimit);
   if(recipientLimit!==null&&(!Number.isInteger(recipientLimit)||recipientLimit<1||recipientLimit>5000))throw new MarketingError('Lotul de expediere trebuie să fie între 1 și 5.000 de destinatari.');
   const campaign: MarketingCampaign = { county:region?.code??'',variant:variant as ''|'A'|'B',recipientLimit,id, version: 1, state: 'draft', name: string(b.name, 'Nume campanie', 180, true), subject: string(b.subject, 'Subiect', 200), body: string(b.body, 'Mesaj', 10000), category: category as MarketingCampaign['category'], city: string(b.city, 'Localitate', 100), ctaLabel: string(b.ctaLabel, 'Text buton', 100), ctaUrl: string(b.ctaUrl, 'Adresă buton', 1000), budgetRon: money(b.budgetRon, 'Buget campanie'), updatedAt: new Date().toISOString() };
   if (campaign.ctaUrl) { try { const url = new URL(campaign.ctaUrl); if (url.protocol !== 'https:' || url.username || url.password) throw Error(); campaign.ctaUrl = url.href; } catch { throw new MarketingError('Butonul necesită o adresă HTTPS validă.'); } }
+  campaign.audienceMode=audienceMode as MarketingCampaign['audienceMode'];
   initializeMarketingWorkspace(db);
   return db.transaction(() => {
     const previous = b.id ? getMarketingCampaign(db, id) : null;
@@ -69,7 +73,7 @@ export function saveMarketingCampaign(db: Database, value: unknown, actor: strin
     if (previous?.state === 'archived') throw new MarketingError('Campania este arhivată.', 409);
     campaign.version = (previous?.version ?? 0) + 1;
     db.prepare('INSERT INTO marketing_campaigns VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version,state=excluded.state,payload=excluded.payload,updated_at=excluded.updated_at').run(id, campaign.version, campaign.state, JSON.stringify(campaign), campaign.updatedAt, actor);
-    audit(db, 'marketing.campaign.saved', id, actor, { version: campaign.version }); return campaign;
+    audit(db, 'marketing.campaign.saved', id, actor, { version: campaign.version, audienceMode:campaign.audienceMode }); return campaign;
   }).immediate();
 }
 const escape = (value: string) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!);
@@ -82,8 +86,9 @@ export function selectAudience(db: Database, campaign: MarketingCampaign) {
   initializeMarketingWorkspace(db);
   const region=campaign.county?marketingRegion(campaign.county):null;if(campaign.county&&!region)throw new MarketingError('Județ invalid.');
   const city=marketingKey(campaign.city),county=region?.key??'';
-  const contacts=db.prepare(`SELECT c.id,c.name,c.category,c.email,c.consent,c.consent_evidence,c.status,e.status AS email_verification FROM marketing_contacts c LEFT JOIN marketing_email_checks e ON e.email=c.email WHERE (?='' OR c.category=?) AND
-   ((?='' AND (?='' OR c.city_key=?)) OR (?<>'' AND EXISTS(SELECT 1 FROM marketing_contact_regions r WHERE r.contact_id=c.id AND r.county_key=? AND (?='' OR r.city_key=?)))) ORDER BY c.created_at,c.id`).iterate(campaign.category,campaign.category,county,city,city,county,county,city,city) as Iterable<MarketingContact & {consent_evidence:string;email_verification:string|null}>;
+  const publicBusiness=publicBusinessCampaign(campaign);
+  const contacts=db.prepare(`SELECT c.id,c.name,c.category,c.email,c.consent,c.consent_evidence,c.status,e.status AS email_verification,e.source_status FROM marketing_contacts c LEFT JOIN marketing_email_checks e ON e.email=c.email WHERE (?='' OR c.category=?) AND
+   ((?='' AND (?='' OR c.city_key=?)) OR (?<>'' AND EXISTS(SELECT 1 FROM marketing_contact_regions r WHERE r.contact_id=c.id AND r.county_key=? AND (?='' OR r.city_key=?)))) ORDER BY c.created_at,c.id`).iterate(campaign.category,campaign.category,county,city,city,county,county,city,city) as Iterable<MarketingContact & {consent_evidence:string;email_verification:string|null;source_status:string|null}>;
   const suppressed = new Set((db.prepare("SELECT DISTINCT email FROM marketing_contacts WHERE email<>'' AND (status='do_not_contact' OR consent='withdrawn')").all() as { email: string }[]).map(row => row.email));
   const suppressedHashes=new Set((db.prepare('SELECT email_hash FROM marketing_suppressions').all() as {email_hash:string}[]).map(r=>r.email_hash));
   const seen = new Set<string>(), eligible: string[] = [], reasons = { suppressed: 0, noEmail: 0, noConsent: 0, notReviewed: 0, duplicate: 0, unverifiedEmail:0 };
@@ -92,8 +97,9 @@ export function selectAudience(db: Database, campaign: MarketingCampaign) {
     selected++;
     if (row.status === 'do_not_contact' || row.consent === 'withdrawn' || suppressed.has(row.email) || suppressedHashes.has(emailHash(row.email))) reasons.suppressed++;
     else if (!row.email) reasons.noEmail++;
-    else if (row.consent !== 'granted' || !row.consent_evidence.trim()) reasons.noConsent++;
-    else if (row.status !== 'reviewed') reasons.notReviewed++;
+    else if (!publicBusiness && (row.consent !== 'granted' || !row.consent_evidence.trim())) reasons.noConsent++;
+    else if (!publicBusiness && row.status !== 'reviewed') reasons.notReviewed++;
+    else if(publicBusiness && (!['business','cleaning'].includes(row.category) || row.source_status!=='verified'))reasons.unverifiedEmail++;
     else if(row.email_verification!=='verified')reasons.unverifiedEmail++;
     else if (seen.has(row.email)) reasons.duplicate++;
     else { seen.add(row.email); if(marketingCampaignVariantMatches(campaign,row.email)&&eligible.length<(campaign.recipientLimit??Infinity))eligible.push(row.id);else deferred++; }
@@ -107,7 +113,7 @@ export function previewMarketingCampaign(db: Database, id: string): MarketingAud
   if (Boolean(campaign.ctaLabel) !== Boolean(campaign.ctaUrl)) blockers.push('Completează atât textul, cât și adresa butonului, sau lasă ambele câmpuri goale.');
   const missingSender = [!settings.senderEmail && 'emailul expeditorului', !settings.replyTo && 'adresa de răspuns', !settings.postalAddress && 'adresa poștală'].filter(Boolean);
   if (missingSender.length) blockers.push(`Completează în Setări: ${missingSender.join(', ')}.`);
-  if (!audience.eligible.length) blockers.push('Nu există contacte eligibile. Verifică acordul, emailul și starea Verificat.');
+  if (!audience.eligible.length) blockers.push(publicBusinessCampaign(campaign)?'Nu există emailuri publice de firme cu sursă și domeniu verificate în această selecție.':'Nu există contacte eligibile. Verifică acordul, emailul și starea Verificat.');
   const estimated = settings.unitCostRon === null ? null : Math.round(audience.eligible.length * settings.unitCostRon * 1000000) / 1000000;
   if ((campaign.budgetRon !== null || settings.monthlyBudgetRon !== null) && estimated === null) blockers.push('Configurează costul estimat per email pentru verificarea bugetului.');
   if (estimated !== null && campaign.budgetRon !== null && estimated > campaign.budgetRon) blockers.push('Costul estimat depășește bugetul campaniei.');
