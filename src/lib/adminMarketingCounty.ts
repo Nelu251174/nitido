@@ -102,10 +102,10 @@ export function countyCandidate(e:CountySourceItem,code:string){
 }
 export async function prepareMarketingCountySource(code:string,active:()=>boolean,heartbeat:()=>void){
  const r=marketingRegion(code);if(!r)throw Error('COUNTY_INVALID');
- if(process.env.NITIDO_MARKETING_DELIVERY_ENABLED==='true')throw new MarketingError('Trimiterea emailurilor trebuie să rămână oprită.');
  const site=process.env.NEXT_PUBLIC_SITE_URL;
  if(!['https://sandbox.nitido.ro','https://nitido.ro'].includes(site??''))throw Error('COUNTY_SOURCE_ORIGIN_GUARD');
  const args=['--max-old-space-size=384',join(process.cwd(),'scripts','marketing-osm-snapshot.cjs'),'--county='+r.code];if(site==='https://nitido.ro')args.push('--live');
+ // Source preparation always has delivery disabled, even when manual campaigns are enabled.
  // Do not pass application credentials to the public extract preparation process.
  const env:NodeJS.ProcessEnv={NODE_ENV:'production',NEXT_PUBLIC_SITE_URL:site,NITIDO_MARKETING_DELIVERY_ENABLED:'false'};
  for(const k of ['PATH','TMPDIR','HOME','HTTPS_PROXY','HTTP_PROXY','NO_PROXY','NODE_EXTRA_CA_CERTS','SSL_CERT_FILE'])if(process.env[k])env[k]=process.env[k];
