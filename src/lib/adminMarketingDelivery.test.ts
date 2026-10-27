@@ -67,3 +67,28 @@ describe('county scope is rechecked before dispatch',()=>{it('suppresses a queue
 });});
 
 describe('technical email status is rechecked before dispatch',()=>{it('suppresses a queued recipient if the email verification becomes invalid',async()=>{const c=setup(),r=queue(c);db.prepare("UPDATE marketing_email_checks SET status='invalid'").run();await processMarketingDelivery(db);expect(statuses()[0].status).toBe('suppressed');expect(marketingCapturedMessages(db,r.id)).toHaveLength(0);});});
+
+describe('public business manual delivery',()=>{
+ function publicReady(){
+  const c=setup();db.prepare("UPDATE marketing_contacts SET consent='not_recorded',consent_evidence='',status='new'").run();
+  const next=saveMarketingCampaign(db,{...c,county:'CT',audienceMode:'public_business'},actor);
+  return setMarketingCampaignState(db,{...next,state:'ready'},actor);
+ }
+ it('captures a public business campaign without transport or false consent',async()=>{
+  const c=publicReady(),run=queue(c),transport=vi.fn();await processMarketingDelivery(db,transport);
+  expect(transport).not.toHaveBeenCalled();expect(marketingCapturedMessages(db,run.id)).toHaveLength(1);
+  expect(db.prepare('SELECT consent,consent_evidence,status FROM marketing_contacts').get()).toEqual({consent:'not_recorded',consent_evidence:'',status:'new'});
+ });
+ it.each(['source','withdrawn','county'])('rechecks %s before a mocked provider dispatch',async changed=>{
+  const c=publicReady();live();queue(c,{mode:'live'});
+  if(changed==='source')db.prepare("UPDATE marketing_email_checks SET source_status='pending'").run();
+  if(changed==='withdrawn')db.prepare("UPDATE marketing_contacts SET consent='withdrawn'").run();
+  if(changed==='county')db.prepare('DELETE FROM marketing_contact_regions').run();
+  const transport=vi.fn();await processMarketingDelivery(db,transport);expect(transport).not.toHaveBeenCalled();expect(statuses()).toEqual([{status:'suppressed'}]);
+ });
+ it('cancels a queued public campaign if its audience policy changes',async()=>{
+  const c=publicReady();queue(c);db.prepare("UPDATE marketing_contacts SET consent='granted',consent_evidence='Synthetic actual opt-in',status='reviewed'").run();
+  const changed=saveMarketingCampaign(db,{...c,audienceMode:'consent'},actor);setMarketingCampaignState(db,{...changed,state:'ready'},actor);
+  const transport=vi.fn();await processMarketingDelivery(db,transport);expect(transport).not.toHaveBeenCalled();expect(statuses()).toEqual([{status:'canceled'}]);
+ });
+});
