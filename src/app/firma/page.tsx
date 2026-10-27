@@ -35,6 +35,9 @@ const ACTION_BTN =
 
 export default function FirmaPage() {
   const router = useRouter();
+  const [loggingOut,setLoggingOut]=useState(false);
+  const [logoutError,setLogoutError]=useState<string|null>(null);
+  const logoutRunning=useRef(false);
   const { user, firm, loading } = useCurrentUser();
   const [waitingJobs, setWaitingJobs] = useState<JobRow[]>([]);
   const [myJobs, setMyJobs] = useState<JobRow[]>([]);
@@ -201,8 +204,11 @@ export default function FirmaPage() {
   }
 
   async function logout() {
-    try { await logoutWithNativePush(); router.push("/login"); }
-    catch (error) { setMessage(error instanceof Error ? error.message : "Ieșirea din cont nu a reușit."); }
+    if(logoutRunning.current)return;
+    logoutRunning.current=true;setLoggingOut(true);setLogoutError(null);
+    try { await logoutWithNativePush(); window.location.replace("/login"); }
+    catch (error) { setLogoutError(error instanceof Error ? error.message : "Ieșirea din cont nu a reușit."); }
+    finally {logoutRunning.current=false;setLoggingOut(false);}
   }
 
   if (loading || !user || user.role !== "firma") {
@@ -227,7 +233,7 @@ export default function FirmaPage() {
     <div className="board-page board-firm"><BoardSidebar role="firma"/>
       <header className="glass sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-3 max-[760px]:px-4">
-          <Logo href="/firma" />
+          <Logo />
           <div className="flex flex-wrap items-center gap-2 max-[760px]:w-full">
             <span className="flex items-center gap-2.5">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-aqua-deep text-sm font-display font-extrabold text-white" aria-hidden="true">{user.name.trim().slice(0,1).toUpperCase()}</span>
@@ -239,7 +245,7 @@ export default function FirmaPage() {
             <button type="button" onClick={openProfileEditor} className={ACTION_BTN}><UiText text={"Editează profilul"}/></button>
             <Link href="/" prefetch={false} className={ACTION_BTN}><UiText text={"Vezi site-ul public →"}/></Link>
             <Link href="/incredere" className={ACTION_BTN}><UiText text={"Încredere &amp; Siguranță"}/></Link>
-            <button onClick={logout} className="inline-flex items-center rounded-full border border-line px-3.5 py-1.5 text-sm font-display font-bold text-muted transition-colors duration-150 hover:border-coral hover:text-coral hover:bg-coral/5"><UiText text={"Ieși din cont"}/></button>
+            <button type="button" onClick={logout} disabled={loggingOut} aria-busy={loggingOut} className="inline-flex items-center rounded-full border border-line px-3.5 py-1.5 text-sm font-display font-bold text-muted transition-colors duration-150 hover:border-coral hover:text-coral hover:bg-coral/5"><UiText text={loggingOut?"Se verifică…":"Ieși din cont"}/></button>{logoutError&&<p role="alert" className="mt-2 text-sm text-coral"><UiText text={logoutError}/></p>}
           </div>
         </div>
       </header>

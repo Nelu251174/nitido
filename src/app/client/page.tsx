@@ -113,6 +113,9 @@ export default function ClientPage() {
  const locale=useLocale();
 
   const router = useRouter();
+  const [loggingOut,setLoggingOut]=useState(false);
+  const [logoutError,setLogoutError]=useState<string|null>(null);
+  const logoutRunning=useRef(false);
   const { user, loading } = useCurrentUser();
 
   const [beneficiary,setBeneficiary]=useState<BeneficiaryInput|null>(null);
@@ -613,8 +616,11 @@ export default function ClientPage() {
   }
 
   async function logout() {
-    try { await logoutWithNativePush(); router.push("/login"); }
-    catch (error) { setError(error instanceof Error ? error.message : "Ieșirea din cont nu a reușit."); }
+    if(logoutRunning.current)return;
+    logoutRunning.current=true;setLoggingOut(true);setLogoutError(null);
+    try { await logoutWithNativePush(); window.location.replace("/login"); }
+    catch (error) { setLogoutError(error instanceof Error ? error.message : "Ieșirea din cont nu a reușit."); }
+    finally {logoutRunning.current=false;setLoggingOut(false);}
   }
 
   if (loading || !user || user.role !== "client") {
@@ -627,10 +633,10 @@ export default function ClientPage() {
     <div className="approved-client min-h-screen bg-[#f7f9fc] flex max-[760px]:block">
       <aside className="w-[236px] shrink-0 bg-white border-r border-[#e2e8f0] p-5 flex flex-col sticky top-0 h-screen max-[760px]:w-full max-[760px]:h-auto max-[760px]:relative max-[760px]:border-r-0 max-[760px]:border-b max-[760px]:p-4">
         <div className="flex items-center justify-between">
-          <Logo href="/client" onClick={()=>{setJob(null);setShowBooking(false);window.scrollTo(0,0)}} />
+          <Logo />
         </div>
         <WorkspaceNav role="client" onNavigate={href=>{if(href==='/client'||href.startsWith('/client#')){setJob(null);setShowBooking(false)}}}/>
-        <div className="mt-auto max-[760px]:hidden"><div className="text-sm font-semibold">{user.name}</div><div className="text-xs text-[#6b756f] mt-1">{user.email}</div><button onClick={logout} className="text-xs text-[#64748b] mt-4"><UiText text={"Ieși din cont"}/></button></div>
+        <div className="mt-auto max-[760px]:hidden"><div className="text-sm font-semibold">{user.name}</div><div className="text-xs text-[#6b756f] mt-1">{user.email}</div><button type="button" onClick={logout} disabled={loggingOut} aria-busy={loggingOut} className="text-xs text-[#64748b] mt-4"><UiText text={loggingOut?"Se verifică…":"Ieși din cont"}/></button>{logoutError&&<p role="alert" className="mt-2 text-sm text-coral"><UiText text={logoutError}/></p>}</div>
       </aside>
       <main className="flex-1 min-w-0 px-8 py-8 max-[760px]:px-[22px] max-[760px]:pb-28">
         <div className="board-topbar"><span><UiText text={"Spațiul tău NITIDO"}/></span><div><UiElement as={Link} href="/client/mesaje" aria-label="Mesaje"><DesignIcon name="bell"/></UiElement><UiElement as="button" type="button" className="account-profile-link" onClick={openProfileEditor} aria-label="Deschide profilul meu"><span className="board-avatar">{user.name.slice(0,1)}</span><b>{user.name}</b></UiElement></div></div>
@@ -664,7 +670,7 @@ export default function ClientPage() {
               <div className="mt-3 grid gap-3 sm:grid-cols-2 text-sm">
                 <div><div className="text-[10.5px] uppercase tracking-wide text-[#6b756f] font-semibold"><UiText text={"Nume"}/></div><div className="text-ink mt-0.5">{user.name}</div></div>
                 <div><div className="text-[10.5px] uppercase tracking-wide text-[#6b756f] font-semibold"><UiText text={"Email"}/></div><div className="text-ink mt-0.5 break-all">{user.email}</div></div>
-                <div className="sm:col-span-2"><button onClick={logout} className="inline-flex items-center rounded-full border border-[#d8d7d0] px-3.5 py-1.5 text-sm font-semibold text-[#c0392b] transition-colors duration-150 hover:border-[#c0392b] hover:bg-[#fbeaea]"><UiText text={"Ieși din cont"}/></button></div>
+                <div className="sm:col-span-2"><button type="button" onClick={logout} disabled={loggingOut} aria-busy={loggingOut} className="inline-flex items-center rounded-full border border-[#d8d7d0] px-3.5 py-1.5 text-sm font-semibold text-[#c0392b] transition-colors duration-150 hover:border-[#c0392b] hover:bg-[#fbeaea]"><UiText text={loggingOut?"Se verifică…":"Ieși din cont"}/></button>{logoutError&&<p role="alert" className="mt-2 text-sm text-coral"><UiText text={logoutError}/></p>}</div>
               </div>
             ) : (
               <div className="mt-3 space-y-3">

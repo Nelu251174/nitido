@@ -12,10 +12,11 @@ const storage = new Map<string, string>();
 beforeEach(() => {
   vi.clearAllMocks(); storage.clear(); mock.native = true; mock.listeners.clear();
   mock.permission.mockResolvedValue({ receive: 'granted' });
+  mock.unregister.mockResolvedValue(undefined); mock.clear.mockResolvedValue(undefined);
   vi.stubGlobal('localStorage', { getItem: (k: string) => storage.get(k) ?? null, setItem: (k: string, v: string) => storage.set(k, v), removeItem: (k: string) => storage.delete(k) });
 });
-afterEach(() => vi.unstubAllGlobals());
-describe('existing TestFlight app notification integration', () => {
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+describe('native app notification integration', () => {
   it('opens the assigned appointment without accepting a payload-supplied destination', () => {
     expect(nativeNotificationHref('firma', {event_type:'APPOINTMENT_REMINDER',job_id:'a/b?x=1',path:'https://example.invalid'})).toBe('/firma/programari?jobId=a%2Fb%3Fx%3D1');
   });
@@ -49,6 +50,51 @@ describe('existing TestFlight app notification integration', () => {
     storage.set('nitido.native-push.v1', 'old-token'); const request = vi.fn().mockResolvedValue(new Response('{}', { status: 503 })); vi.stubGlobal('fetch', request);
     await expect(logoutWithNativePush()).rejects.toThrow('Reîncearcă');
     expect(request).toHaveBeenCalledTimes(1); expect(storage.get('nitido.native-push.v1')).toBe('old-token');
+  });
+  it('logs out after server revocation even when the native unregister method rejects', async () => {
+    storage.set('nitido.native-push.v1','old-token');
+    mock.unregister.mockRejectedValueOnce(new Error('native method unavailable'));
+    const request=vi.fn().mockResolvedValue(new Response('{}'));vi.stubGlobal('fetch',request);
+    await expect(logoutWithNativePush()).resolves.toBeUndefined();
+    expect(request.mock.calls.map(call=>call[0])).toEqual(['/api/push/unregister','/api/auth/logout']);
+    expect(storage.size).toBe(0);expect(mock.clear).toHaveBeenCalledOnce();
+  });
+  it('does not keep the account logged in when clearing delivered notifications rejects', async () => {
+    storage.set('nitido.native-push.v1','old-token');mock.clear.mockRejectedValueOnce(new Error('OS error'));
+    vi.stubGlobal('fetch',vi.fn().mockResolvedValue(new Response('{}')));
+    await expect(logoutWithNativePush()).resolves.toBeUndefined();expect(storage.size).toBe(0);
+  });
+  it('bounds native cleanup after the server has already confirmed logout', async () => {
+    vi.useFakeTimers();storage.set('nitido.native-push.v1','old-token');
+    mock.unregister.mockImplementationOnce(()=>new Promise(()=>{}));
+    const request=vi.fn().mockResolvedValue(new Response('{}'));vi.stubGlobal('fetch',request);
+    const pending=logoutWithNativePush();await vi.advanceTimersByTimeAsync(1500);await pending;
+    expect(request).toHaveBeenCalledTimes(2);expect(storage.size).toBe(0);
+  });
+  it('keeps the token for retry and avoids local cleanup when session deletion is not confirmed', async () => {
+    storage.set('nitido.native-push.v1','old-token');
+    vi.stubGlobal('fetch',vi.fn().mockResolvedValueOnce(new Response('{}')).mockResolvedValueOnce(new Response('{}',{status:503})));
+    await expect(logoutWithNativePush()).rejects.toThrow('Reîncearcă');
+    expect(storage.get('nitido.native-push.v1')).toBe('old-token');expect(mock.unregister).not.toHaveBeenCalled();
+  });
+  it('deduplicates rapid clicks into one server logout', async () => {
+    mock.native=false;let resolve!: (value:Response)=>void;
+    const request=vi.fn().mockImplementation(()=>new Promise<Response>(r=>{resolve=r}));vi.stubGlobal('fetch',request);
+    const first=logoutWithNativePush(),second=logoutWithNativePush();expect(first).toBe(second);
+    resolve(new Response('{}'));await Promise.all([first,second]);expect(request).toHaveBeenCalledOnce();
+  });
+  it('aborts a stalled server request and lets the user retry instead of waiting indefinitely', async () => {
+    vi.useFakeTimers();mock.native=false;
+    vi.stubGlobal('fetch',vi.fn().mockImplementation((_url,init)=>new Promise((_resolve,reject)=>{init.signal.addEventListener('abort',()=>reject(new Error('aborted')))})));
+    const pending=expect(logoutWithNativePush()).rejects.toThrow('Reîncearcă');
+    await vi.advanceTimersByTimeAsync(10000);await pending;
+    vi.stubGlobal('fetch',vi.fn().mockResolvedValue(new Response('{}')));await expect(logoutWithNativePush()).resolves.toBeUndefined();
+  });
+  it('still logs out when an in-flight push registration fails', async () => {
+    mock.permission.mockRejectedValueOnce(new Error('permission interrupted'));
+    const registration=registerNativePush().catch(()=>undefined);
+    const request=vi.fn().mockResolvedValue(new Response('{}'));vi.stubGlobal('fetch',request);
+    await logoutWithNativePush();await registration;expect(request.mock.calls.map(call=>call[0])).toEqual(['/api/auth/logout']);
   });
   it('leaves normal browser logout on its existing endpoint', async () => {
     mock.native = false; const request = vi.fn().mockResolvedValue(new Response('{}')); vi.stubGlobal('fetch', request);

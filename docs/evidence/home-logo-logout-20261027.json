@@ -1,0 +1,462 @@
+{
+  "deployedCommit": "5d31a1bec7f1b1b4f318cac7739741e1eeb70e22",
+  "baseline": "c6bd093b8e04d2b426b78ee06f4a205f8970da07",
+  "regression": {
+    "passed": 2629,
+    "skipped": 1,
+    "failed": 0,
+    "filesPassed": 259,
+    "filesSkipped": 1,
+    "logSha256": "618a71053a3da1310b7fb03347159bbba99d850fe691275c9a5c56ba4ffc1fcd"
+  },
+  "focusedTests": {
+    "passed": 26,
+    "files": 4
+  },
+  "lint": {
+    "errors": 0,
+    "inheritedWarnings": 1,
+    "details": "Pre-existing client page useEffect missing router dependency"
+  },
+  "operationsLint": "passed",
+  "productionBuild": "passed; localization source/rendering validation passed",
+  "browser": {
+    "startedAt": "2026-10-27T08:48:09.063Z",
+    "scope": "Actual standalone production build; offline; synthetic client and firm",
+    "checks": [
+      {
+        "name": "synthetic client login 1",
+        "passed": true
+      },
+      {
+        "name": "client 390 logo has homepage destination",
+        "passed": true
+      },
+      {
+        "name": "client 390 homepage opens after logo click",
+        "passed": true
+      },
+      {
+        "name": "client 390 logo preserves signed-in account",
+        "passed": true
+      },
+      {
+        "name": "client 390 server session revoked",
+        "passed": true
+      },
+      {
+        "name": "client 390 target sessions removed",
+        "passed": true
+      },
+      {
+        "name": "client 390 other user remains signed in",
+        "passed": true
+      },
+      {
+        "name": "client 390 protected account cannot reopen after logout",
+        "passed": true
+      },
+      {
+        "name": "synthetic client login 2",
+        "passed": true
+      },
+      {
+        "name": "client 1366 logo has homepage destination",
+        "passed": true
+      },
+      {
+        "name": "client 1366 homepage opens after logo click",
+        "passed": true
+      },
+      {
+        "name": "client 1366 logo preserves signed-in account",
+        "passed": true
+      },
+      {
+        "name": "client 1366 server session revoked",
+        "passed": true
+      },
+      {
+        "name": "client 1366 target sessions removed",
+        "passed": true
+      },
+      {
+        "name": "client 1366 other user remains signed in",
+        "passed": true
+      },
+      {
+        "name": "client 1366 protected account cannot reopen after logout",
+        "passed": true
+      },
+      {
+        "name": "synthetic firma login 3",
+        "passed": true
+      },
+      {
+        "name": "firma 390 logo has homepage destination",
+        "passed": true
+      },
+      {
+        "name": "firma 390 homepage opens after logo click",
+        "passed": true
+      },
+      {
+        "name": "firma 390 logo preserves signed-in account",
+        "passed": true
+      },
+      {
+        "name": "firma 390 server session revoked",
+        "passed": true
+      },
+      {
+        "name": "firma 390 target sessions removed",
+        "passed": true
+      },
+      {
+        "name": "firma 390 other user remains signed in",
+        "passed": true
+      },
+      {
+        "name": "firma 390 protected account cannot reopen after logout",
+        "passed": true
+      },
+      {
+        "name": "synthetic firma login 4",
+        "passed": true
+      },
+      {
+        "name": "firma 1366 logo has homepage destination",
+        "passed": true
+      },
+      {
+        "name": "firma 1366 homepage opens after logo click",
+        "passed": true
+      },
+      {
+        "name": "firma 1366 logo preserves signed-in account",
+        "passed": true
+      },
+      {
+        "name": "firma 1366 server session revoked",
+        "passed": true
+      },
+      {
+        "name": "firma 1366 target sessions removed",
+        "passed": true
+      },
+      {
+        "name": "firma 1366 other user remains signed in",
+        "passed": true
+      },
+      {
+        "name": "firma 1366 protected account cannot reopen after logout",
+        "passed": true
+      },
+      {
+        "name": "synthetic client login 5",
+        "passed": true
+      },
+      {
+        "name": "logout button shows progress",
+        "passed": true
+      },
+      {
+        "name": "failed logout explains retry beside the account button",
+        "passed": true
+      },
+      {
+        "name": "rapid second click does not send another logout",
+        "passed": true
+      },
+      {
+        "name": "unconfirmed logout retains the authenticated session",
+        "passed": true
+      },
+      {
+        "name": "mobile logout error fits the viewport",
+        "passed": true
+      },
+      {
+        "name": "successful retry server session revoked",
+        "passed": true
+      },
+      {
+        "name": "successful retry target sessions removed",
+        "passed": true
+      },
+      {
+        "name": "successful retry other user remains signed in",
+        "passed": true
+      },
+      {
+        "name": "synthetic client login 6",
+        "passed": true
+      },
+      {
+        "name": "native-methods-unavailable server session revoked",
+        "passed": true
+      },
+      {
+        "name": "native-methods-unavailable target sessions removed",
+        "passed": true
+      },
+      {
+        "name": "native-methods-unavailable other user remains signed in",
+        "passed": true
+      },
+      {
+        "name": "native-methods-unavailable server push is revoked before logout completes",
+        "passed": true
+      },
+      {
+        "name": "native-methods-unavailable cookie and token cleanup completed",
+        "passed": true
+      },
+      {
+        "name": "native-methods-unavailable retry token cleared only after confirmed logout",
+        "passed": true
+      },
+      {
+        "name": "no browser runtime exceptions",
+        "passed": true
+      },
+      {
+        "name": "SQLite integrity and foreign keys preserved",
+        "passed": true
+      },
+      {
+        "name": "all fixture sessions cleaned",
+        "passed": true
+      }
+    ],
+    "pageErrors": [],
+    "realUsersChanged": 0,
+    "realEmailsSent": 0,
+    "status": "passed",
+    "finishedAt": "2026-10-27T08:48:23.119Z",
+    "passed": 51
+  },
+  "postDeployment": {
+    "checkedAt": "2026-10-27T08:55:02.275515+00:00",
+    "scope": "LIVE public pages and assets; anonymous read only",
+    "checks": [
+      {
+        "path": "/api/health",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "path": "/",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "public homepage rendered",
+        "passed": true
+      },
+      {
+        "path": "/login",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "path": "/client",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "client account scripts are referenced",
+        "passed": true
+      },
+      {
+        "path": "/_next/static/chunks/1-nqmp1rl8kqt.js",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "path": "/_next/static/chunks/2fz--trs3-ycg.js",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "path": "/_next/static/chunks/34goyxc2anvlg.js",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "path": "/_next/static/chunks/turbopack-2c3mg3r-05n1w.js",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "path": "/_next/static/chunks/0umf92h1sb77c.js",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "path": "/_next/static/chunks/3zizao5ybw8ai.js",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "path": "/_next/static/chunks/0a0d03yjtx2hr.js",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "path": "/_next/static/chunks/0mkfn59pspx75.js",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "path": "/_next/static/chunks/3ix_kn4sdhd7x.js",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "path": "/_next/static/chunks/1op3fkt7dj99p.js",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "path": "/_next/static/chunks/30unx-5tz1gzc.js",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "path": "/_next/static/chunks/2kc_jodpv1c10.js",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "path": "/_next/static/chunks/3rvkliz200vpb.js",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "path": "/_next/static/chunks/0cz1d0mv5g_q7.js",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "path": "/_next/static/chunks/1kexj4s7oxhs2.js",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "client deployed scripts use fresh logout navigation",
+        "passed": true
+      },
+      {
+        "path": "/firma",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "firma account scripts are referenced",
+        "passed": true
+      },
+      {
+        "path": "/_next/static/chunks/1w_-f0w17d0p_.js",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "path": "/_next/static/chunks/44fgspx_3fl8z.js",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "path": "/_next/static/chunks/37km0sbrhaudh.js",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "firma deployed scripts use fresh logout navigation",
+        "passed": true
+      },
+      {
+        "path": "/api/auth/me",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "anonymous request has no user session",
+        "passed": true
+      },
+      {
+        "path": "/api/jobs",
+        "status": 401,
+        "expected": 401,
+        "passed": true
+      },
+      {
+        "path": "/api/workspace",
+        "status": 401,
+        "expected": 401,
+        "passed": true
+      },
+      {
+        "path": "/api/uploads/synthetic-home-logout-probe",
+        "status": 401,
+        "expected": 401,
+        "passed": true
+      },
+      {
+        "path": "/api/admin/auth/me",
+        "status": 401,
+        "expected": 401,
+        "passed": true
+      }
+    ],
+    "passed": true,
+    "realUsersLoggedOut": 0,
+    "emailsSent": 0,
+    "notificationsSent": 0
+  },
+  "backup": {
+    "uuid": "sp1x6hd8zh6pqqdhej16gtvk",
+    "status": "success",
+    "started_at": "2026-10-27T08:49:57.000000Z",
+    "finished_at": "2026-10-27T08:50:02.000000Z",
+    "temporaryTaskRemoved": true
+  },
+  "deployment": {
+    "deployment_uuid": "v3mez2sahwwdlcgoji2id5ut",
+    "status": "finished",
+    "commit": "5d31a1bec7f1b1b4f318cac7739741e1eeb70e22",
+    "created_at": "2026-10-27T08:51:18.000000Z",
+    "finished_at": "2026-10-27T08:52:33.000000Z"
+  },
+  "liveStatus": "running:healthy",
+  "sharedSandboxChanged": false,
+  "realAccountsLoggedOut": 0,
+  "realEmailsSent": 0,
+  "realPushNotificationsSent": 0,
+  "physicalDevicesTested": false,
+  "validationLimits": "Native OS rejections/hangs are unit-test simulations; browser exercises the missing native implementation path and real synthetic SQLite sessions. One existing external-network Marketing smoke test remains skipped."
+}
