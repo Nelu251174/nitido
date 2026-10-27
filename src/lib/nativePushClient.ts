@@ -3,6 +3,7 @@ import { PushNotifications } from '@capacitor/push-notifications';
 
 const tokenKey = 'nitido.native-push.v1';
 let registration: Promise<void> | null = null;
+let logout: Promise<void> | null = null;
 export const nativePushAvailable = () => Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('PushNotifications');
 
 export function nativeNotificationHref(role: string, data: Record<string, unknown>): string | null {
@@ -55,18 +56,50 @@ async function register() {
   }
 }
 
-export async function logoutWithNativePush() {
+async function logoutRequest(path: string, init: RequestInit = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    return await fetch(path, { ...init, method: 'POST', signal: controller.signal });
+  } catch {
+    throw new Error('Ieșirea din cont nu a reușit. Reîncearcă.');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export function logoutWithNativePush(): Promise<void> {
+  if (!logout) logout = performLogout().finally(() => { logout = null; });
+  return logout;
+}
+
+async function performLogout() {
+  let token: string | null = null;
   if (nativePushAvailable()) {
-    if (registration) await registration;
-    const token = localStorage.getItem(tokenKey);
+    // A refused/failed registration must not prevent logout of the current session.
+    if (registration) await registration.catch(() => undefined);
+    token = localStorage.getItem(tokenKey);
     if (token) {
-      const response = await fetch('/api/push/unregister', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceToken: token }) });
+      const response = await logoutRequest('/api/push/unregister', { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceToken: token }) });
       if (!response.ok) throw new Error('Nu s-au putut opri notificările. Reîncearcă ieșirea din cont.');
-      await PushNotifications.unregister();
-      await PushNotifications.removeAllDeliveredNotifications();
-      localStorage.removeItem(tokenKey);
     }
   }
-  const response = await fetch('/api/auth/logout', { method: 'POST' });
+  const response = await logoutRequest('/api/auth/logout');
   if (!response.ok) throw new Error('Ieșirea din cont nu a reușit. Reîncearcă.');
+  if (token) {
+    // Server-side push revocation and session deletion are already confirmed.
+    // OS cleanup is best effort: an unavailable native method cannot keep the
+    // account logged in or leave the button waiting indefinitely.
+    try { localStorage.removeItem(tokenKey); } catch { /* Session is revoked. */ }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        Promise.allSettled([
+          Promise.resolve().then(() => PushNotifications.unregister()),
+          Promise.resolve().then(() => PushNotifications.removeAllDeliveredNotifications()),
+        ]),
+        new Promise<void>(resolve => { timer = setTimeout(resolve, 1500); }),
+      ]);
+    } finally { clearTimeout(timer); }
+  }
 }

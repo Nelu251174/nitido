@@ -7,7 +7,7 @@ import { ReactNode } from "react";
 export function Logo({ inverted = false, href = "/", onClick }: { inverted?: boolean; href?: string; onClick?: () => void } = {}) {
   return (
     <Link
-      href={href}
+      href={['/client', '/firma'].includes(href) ? '/' : href}
       onClick={onClick}
       className={`font-display font-extrabold text-lg tracking-tight ${inverted ? "text-white" : "text-ink"}`}
     ><UiText text={"NITIDO"}/><span className="text-[var(--nitido-action-hover)]"><UiText text={".RO"}/></span>

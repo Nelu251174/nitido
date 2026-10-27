@@ -6,7 +6,7 @@ vi.mock('next/navigation',()=>({usePathname:()=>'/firma'}));
 import {BoardSidebar} from './BoardSidebar';
 
 describe('workspace logo destinations',()=>{
-  it.each([['firma','/firma'],['admin','/admin']] as const)('keeps the %s logo in its own dashboard', (role,href)=>{
+  it.each([['firma','/'],['admin','/admin']] as const)('uses the configured logo destination for %s', (role,href)=>{
     const html=renderToStaticMarkup(React.createElement(BoardSidebar,{role}));
     const logo=html.match(/<a\b[^>]*class="design-wordmark"[^>]*>/)?.[0];
     expect(logo).toContain(`href="${href}"`);
