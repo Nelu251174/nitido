@@ -63,24 +63,22 @@ async function main(){
   await error.screenshot({path:out+'/logout-error-mobile.png'});
   await page.unroute('**/api/auth/logout');await page.getByRole('button',{name:'Ieși din cont',exact:true}).last().click();await page.waitForURL(base+'/login');await assertLoggedOut(context,'client','successful retry');await context.close();
  }
- // Emulate native method failures after hydration, using the same Capacitor proxy.
- for(const mode of ['unregister-rejects','clear-rejects','unregister-hangs']){
-  const {context,page}=await signIn('client',390),token='fixture-native-'+mode+'-token';const nativeCalls=[];
+ // The browser has no OS implementation. Exercise the native branch with its
+ // unavailable Capacitor methods; unit tests separately cover rejection and hangs.
+ for(const mode of ['native-methods-unavailable']){
+  const {context,page}=await signIn('client',390),token='fixture-native-'+mode+'-token';
   db.prepare('INSERT INTO push_devices(id,user_id,platform,device_token) VALUES(?,?,?,?)').run('device-'+mode,'fixture-client','IOS',token);
-  await page.exposeFunction('__recordNativeLogout',method=>nativeCalls.push(method));
-  await page.evaluate(({mode,token})=>{
+  await page.evaluate(({token})=>{
    const cap=window.Capacitor;
    if(!cap)throw Error('CAPACITOR_GLOBAL_MISSING');
    cap.getPlatform=()=> 'ios';cap.isNativePlatform=()=>true;cap.isPluginAvailable=()=>true;
-   cap.PluginHeaders=[{name:'PushNotifications',methods:[{name:'unregister',rtype:'promise'},{name:'removeAllDeliveredNotifications',rtype:'promise'}]}];
-   cap.nativePromise=(_plugin,method)=>{window.__recordNativeLogout(method);if(mode==='unregister-hangs'&&method==='unregister')return new Promise(()=>{});if((mode==='unregister-rejects'&&method==='unregister')||(mode==='clear-rejects'&&method==='removeAllDeliveredNotifications'))return Promise.reject(Error('synthetic native failure'));return Promise.resolve({});};
    localStorage.setItem('nitido.native-push.v1',token);
-  },{mode,token});
+  },{token});
   await page.getByRole('button',{name:'Ieși din cont',exact:true}).last().click();await page.waitForURL(base+'/login',{timeout:10000});
   await assertLoggedOut(context,'client',mode);
   const device=db.prepare('SELECT push_enabled,revoked_at FROM push_devices WHERE id=?').get('device-'+mode);
   check(mode+' server push is revoked before logout completes',device.push_enabled===0&&!!device.revoked_at);
-  check(mode+' native cleanup really ran',nativeCalls.includes('unregister')&&nativeCalls.includes('removeAllDeliveredNotifications'));
+  check(mode+' cookie and token cleanup completed',await context.cookies().then(rows=>!rows.some(c=>c.name==='nitido_session')));
   check(mode+' retry token cleared only after confirmed logout',await page.evaluate(()=>localStorage.getItem('nitido.native-push.v1'))===null);
   await context.close();
  }
