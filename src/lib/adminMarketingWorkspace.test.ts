@@ -143,3 +143,25 @@ describe('stable subject variants',()=>{it('keeps A and B disjoint for shared em
 });});
 
 describe('technical email readiness',()=>{it('excludes an unverified email even when consent and manual review are present',()=>{add();db.prepare("UPDATE marketing_email_checks SET status='invalid'").run();expect(previewMarketingCampaign(db,draft().id)).toMatchObject({eligible:0,reasons:{unverifiedEmail:1}});});});
+
+describe('explicit public B2B campaign audience',()=>{
+ it('prepares verified public firms without changing consent, review or the default campaign policy',()=>{
+  const id=add({consent:'not_recorded',consentEvidence:''},false);settings();
+  expect(previewMarketingCampaign(db,draft({county:'CT',category:'business'}).id).eligible).toBe(0);
+  const campaign=draft({county:'CT',category:'business',audienceMode:'public_business'});
+  expect(previewMarketingCampaign(db,campaign.id)).toMatchObject({eligible:1,blockers:[]});
+  expect(setMarketingCampaignState(db,{...campaign,state:'ready'},actor).state).toBe('ready');
+  expect(db.prepare('SELECT consent,consent_evidence,status FROM marketing_contacts WHERE id=?').get(id)).toEqual({consent:'not_recorded',consent_evidence:'',status:'new'});
+ });
+ it.each([{county:'IF',category:'business'},{county:'CT',category:'individual'},{county:'CT',category:''},{county:'',category:'business'}])('rejects public B2B outside its defined scope: %j',patch=>{
+  expect(()=>draft({...patch,audienceMode:'public_business'})).toThrow('B2B');
+ });
+ it('excludes unverified sources, invalid domains, withdrawn contacts and out-of-county firms',()=>{
+  const patch={consent:'not_recorded',consentEvidence:''};
+  add({...patch,email:'source@example.test'},false);db.prepare("UPDATE marketing_email_checks SET source_status='pending'").run();
+  add({...patch,email:'invalid@example.test'},false);db.prepare("UPDATE marketing_email_checks SET status='invalid' WHERE email='invalid@example.test'").run();
+  add({...patch,email:'withdrawn@example.test',consent:'withdrawn'},false);
+  add({...patch,email:'other@example.test',county:'IF',city:'Otopeni'},false);
+  settings();expect(previewMarketingCampaign(db,draft({county:'CT',category:'business',audienceMode:'public_business'}).id)).toMatchObject({selected:3,eligible:0,reasons:{suppressed:1,unverifiedEmail:2}});
+ });
+});
