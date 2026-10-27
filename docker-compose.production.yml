@@ -22,9 +22,9 @@ services:
       NEXT_PUBLIC_SITE_URL: https://nitido.ro
       SITE_PUBLIC_INDEXING: "true"
       NITIDO_SEED_DEMO: "false"
-      # Marketing ADMIN is enabled; external campaign delivery remains forcibly off.
+      # Marketing ADMIN is enabled; manual delivery requires explicit runtime activation.
       NITIDO_MARKETING_ADMIN_ENABLED: "true"
-      NITIDO_MARKETING_DELIVERY_ENABLED: "false"
+      NITIDO_MARKETING_DELIVERY_ENABLED: "${NITIDO_MARKETING_DELIVERY_ENABLED:-false}"
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:?Configure the production Stripe publishable key}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:?Preserve the production Stripe secret key}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:?Preserve the production webhook secret}

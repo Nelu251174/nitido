@@ -11,3 +11,5 @@ The interface identifies public B2B campaigns explicitly. It does not label a pu
 Public inventory preparation continues when manual delivery is enabled in the parent application. Its subprocess still receives delivery disabled and no application credentials; this isolation is verified with a mocked subprocess.
 
 No database migration, authentication change or other module change is included. The intended data operation selects only the four existing full-audience drafts for CT/B business/cleaning and must leave contact records and outbox unchanged. Sandbox verification precedes any LIVE change. This implementation does not establish recipient permission or certify compliance with provider terms or applicable law.
+
+The production Compose service reads `NITIDO_MARKETING_DELIVERY_ENABLED` from its deployment environment, defaulting to false. A hardcoded service-level false previously overrode the configured runtime variable. Only this Marketing environment entry changes; each deployment keeps its own authentication and other service settings.
