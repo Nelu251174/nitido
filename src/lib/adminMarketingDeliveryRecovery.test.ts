@@ -18,6 +18,13 @@ afterEach(()=>{db.close();vi.useRealTimers();vi.unstubAllEnvs();vi.restoreAllMoc
 async function tick(transport:Parameters<typeof processMarketingDelivery>[1]){const result=processMarketingDelivery(db,transport);await vi.advanceTimersByTimeAsync(4000);return result;}
 function counts(){return db.prepare('SELECT status,COUNT(*) n FROM marketing_outbox GROUP BY status ORDER BY status').all();}
 describe('Marketing provider failure containment',()=>{
+ it.each(['pause','disable'])('preserves every unstarted message when %s occurs during a provider call',async action=>{
+  const transport=vi.fn().mockImplementation(async()=>{
+   if(action==='pause')db.prepare("UPDATE marketing_campaigns SET state='paused'").run();else vi.stubEnv('NITIDO_MARKETING_DELIVERY_ENABLED','false');
+   return {id:'provider-confirmed'};
+  });
+  await tick(transport);expect(transport).toHaveBeenCalledOnce();expect(counts()).toEqual([{status:'accepted',n:1},{status:'pending',n:2}]);
+ });
  it('holds a 429 in pending, stops the batch, and retries with the exact saved payload and idempotency key',async()=>{
   const transport=vi.fn().mockRejectedValueOnce(new DeliveryDeferred('rate_limit_exceeded',new Date(Date.now()+60000).toISOString(),429)).mockImplementation(async()=>({id:'provider-'+transport.mock.calls.length}));
   expect((await tick(transport)).processed).toBe(1);expect(counts()).toEqual([{status:'pending',n:3}]);expect(marketingProviderHold(db)?.code).toBe('rate_limit_exceeded');
