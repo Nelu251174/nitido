@@ -131,6 +131,7 @@ export async function processMarketingDelivery(db: Database, transport: Marketin
       if(current.state!=='ready')continue;
       const jobs=db.prepare("SELECT * FROM marketing_outbox WHERE run_id=? AND status='pending' ORDER BY id LIMIT ?").all(run.id,5-processed) as Job[];
       for(const job of jobs) {
+        if(getMarketingCampaign(db,run.campaign_id).state!=='ready'||(run.mode==='live'&&!marketingDeliveryReadiness().enabled))break;
         const claimed=db.transaction(()=>{
           if(!eligible(db,job,snapshot.campaign)){db.prepare("UPDATE marketing_outbox SET status='suppressed',updated_at=? WHERE id=? AND status='pending'").run(new Date().toISOString(),job.id);return false;}
           if(!canSpend(db,job,snapshot))return false;
@@ -149,7 +150,8 @@ export async function processMarketingDelivery(db: Database, transport: Marketin
           if(run.mode==='test') db.prepare("UPDATE marketing_outbox SET status='captured',html=?,updated_at=? WHERE id=?").run(message.html,new Date().toISOString(),job.id);
           else {
             // Re-read immediately before external dispatch; no implicit retry after ambiguous outcomes.
-            if(!eligible(db,job,snapshot.campaign) || getMarketingCampaign(db,run.campaign_id).state!=='ready' || !marketingDeliveryReadiness().enabled) {db.prepare("UPDATE marketing_outbox SET status='suppressed',updated_at=? WHERE id=?").run(new Date().toISOString(),job.id);continue;}
+            if(!eligible(db,job,snapshot.campaign)){db.prepare("UPDATE marketing_outbox SET status='suppressed',updated_at=? WHERE id=?").run(new Date().toISOString(),job.id);continue;}
+            if(getMarketingCampaign(db,run.campaign_id).state!=='ready'||!marketingDeliveryReadiness().enabled){db.prepare("UPDATE marketing_outbox SET status='pending',updated_at=? WHERE id=?").run(new Date().toISOString(),job.id);break;}
             const lease=db.prepare('UPDATE marketing_worker SET until_ms=? WHERE id=1 AND owner=?').run(Date.now()+120000,owner);
             if(!lease.changes)throw new DeliveryUnconfirmed('WORKER_INTERRUPTED');
             const result=await transport(message,'nitido-marketing-'+job.id);
