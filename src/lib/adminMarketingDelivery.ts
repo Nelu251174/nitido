@@ -6,6 +6,7 @@ import { emailHash, marketingEmailSuppressed, suppressMarketingEmail } from './a
 import { marketingCampaignMatchesContact, getMarketingCampaign, initializeMarketingWorkspace, marketingCampaignHtml, marketingSettings, previewMarketingCampaign, selectAudience } from './adminMarketingWorkspace';
 import type { MarketingCampaign, MarketingSettings } from './adminMarketingWorkspaceShared';
 import { publicBusinessCampaign } from './adminMarketingWorkspaceShared';
+import { marketingDeliveryReason, type MarketingProviderHold } from './adminMarketingDeliveryStatus';
 
 export const DELIVERY_SCHEMA = `
 CREATE TABLE IF NOT EXISTS marketing_delivery_runs(id TEXT PRIMARY KEY,campaign_id TEXT NOT NULL,request_id TEXT NOT NULL,request_hash TEXT NOT NULL,mode TEXT NOT NULL CHECK(mode IN ('test','live')),scheduled_at TEXT NOT NULL,payload TEXT NOT NULL,created_at TEXT NOT NULL,created_by TEXT NOT NULL,UNIQUE(campaign_id,request_id));
@@ -14,6 +15,10 @@ CREATE INDEX IF NOT EXISTS marketing_outbox_run ON marketing_outbox(run_id,statu
 CREATE TABLE IF NOT EXISTS marketing_unsubscribe(token_hash TEXT PRIMARY KEY,email TEXT NOT NULL,created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS marketing_provider_events(id TEXT PRIMARY KEY,received_at TEXT NOT NULL,event_type TEXT NOT NULL,provider_id TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS marketing_worker(id INTEGER PRIMARY KEY CHECK(id=1),owner TEXT NOT NULL,until_ms INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS marketing_dispatch_payload(job_id TEXT PRIMARY KEY REFERENCES marketing_outbox(id),payload TEXT NOT NULL,created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS marketing_delivery_failures(job_id TEXT PRIMARY KEY REFERENCES marketing_outbox(id),code TEXT NOT NULL,http_status INTEGER,attempts INTEGER NOT NULL,last_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS marketing_provider_hold(id INTEGER PRIMARY KEY CHECK(id=1),code TEXT NOT NULL,retry_at TEXT,failures INTEGER NOT NULL,updated_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS marketing_outbox_pending ON marketing_outbox(run_id,status,id);
 `;
 export function initializeMarketingDelivery(db: Database) { initializeMarketingWorkspace(db); db.exec(DELIVERY_SCHEMA); }
 export function marketingDeliveryReadiness() {
@@ -61,12 +66,42 @@ export function queueMarketingCampaign(db: Database, value: unknown, actor: stri
 }
 export type MarketingMessage = { to:string; from:string; reply_to:string; subject:string; html:string; text:string; headers:Record<string,string> };
 export type MarketingTransport = (message: MarketingMessage, idempotencyKey:string) => Promise<{id:string}>;
-export class DeliveryRejected extends Error {}
+export class DeliveryRejected extends Error { constructor(public code='DEFINITIVE_REJECTION',public httpStatus:number|null=null){super(code);} }
+export class DeliveryDeferred extends Error { constructor(public code:string,public retryAt:string|null,public httpStatus:number|null=null){super(code);} }
+export class DeliveryUnconfirmed extends Error { constructor(public code='TRANSPORT_UNCONFIRMED',public httpStatus:number|null=null){super(code);} }
+export function marketingProviderHold(db:Database):MarketingProviderHold|null {
+ const row=db.prepare('SELECT code,retry_at,failures FROM marketing_provider_hold WHERE id=1').get() as {code:string;retry_at:string|null;failures:number}|undefined;
+ return row&&(!row.retry_at||row.retry_at>new Date().toISOString())?{code:row.code,message:marketingDeliveryReason(row.code),retryAt:row.retry_at,failures:row.failures}:null;
+}
+export function resumeMarketingProvider(db:Database,actor:string){
+ initializeMarketingDelivery(db);
+ db.transaction(()=>{db.prepare('DELETE FROM marketing_provider_hold WHERE id=1').run();audit(db,'marketing.provider.resumed','marketing',actor);}).immediate();
+ return {resumed:true};
+}
+function retryAfter(response:Response,fallback=60000){
+ const header=response.headers.get('retry-after');const seconds=header&&/^\d+(\.\d+)?$/.test(header)?Number(header)*1000:header?Date.parse(header)-Date.now():fallback;
+ return new Date(Date.now()+Math.min(86400000,Math.max(5000,Number.isFinite(seconds)?seconds:fallback))).toISOString();
+}
 /** Only called for explicitly enabled live jobs. Test mode never invokes this adapter. */
 export const sendMarketingResend: MarketingTransport = async (message,idempotencyKey) => {
-  const response = await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`,'Content-Type':'application/json','Idempotency-Key':idempotencyKey},body:JSON.stringify(message),signal:AbortSignal.timeout(10000),redirect:'error'});
-  if (!response.ok) { if (response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 409 && response.status !== 429) throw new DeliveryRejected('PROVIDER_REJECTED'); throw Error('PROVIDER_UNCONFIRMED'); }
-  const data=await response.json(); if (typeof data.id !== 'string' || !data.id || data.id.length>200) throw Error('PROVIDER_UNCONFIRMED'); return {id:data.id};
+  let response:Response;
+  try{response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`,'Content-Type':'application/json','Idempotency-Key':idempotencyKey},body:JSON.stringify(message),signal:AbortSignal.timeout(10000),redirect:'error'});}
+  catch(error){throw new DeliveryUnconfirmed(error instanceof Error&&['TimeoutError','AbortError'].includes(error.name)?'NETWORK_TIMEOUT':'NETWORK_ERROR');}
+  if (!response.ok) {
+   let name='';try{const data=await response.json();if(typeof data?.name==='string')name=data.name;}catch{}
+   if(response.status===429){
+    const code=['daily_quota_exceeded','monthly_quota_exceeded','rate_limit_exceeded'].includes(name)?name:'provider_limit_unclassified';
+    const tomorrow=new Date();tomorrow.setUTCHours(24,0,5,0);
+    throw new DeliveryDeferred(code,code==='monthly_quota_exceeded'?null:code==='daily_quota_exceeded'?tomorrow.toISOString():retryAfter(response),429);
+   }
+   if(response.status===401||response.status===403)throw new DeliveryDeferred('provider_configuration',null,response.status);
+   if(response.status===409&&name==='concurrent_idempotent_requests')throw new DeliveryDeferred(name,retryAfter(response,10000),409);
+   if(response.status===409)throw new DeliveryUnconfirmed('invalid_idempotent_request',409);
+   if(response.status>=400&&response.status<500&&response.status!==408)throw new DeliveryRejected('PROVIDER_HTTP_'+response.status,response.status);
+   throw new DeliveryUnconfirmed('PROVIDER_HTTP_'+response.status,response.status);
+  }
+  let data;try{data=await response.json();}catch{throw new DeliveryUnconfirmed('UNCONFIRMED_RESPONSE');}
+  if(typeof data?.id!=='string'||!data.id||data.id.length>200)throw new DeliveryUnconfirmed('UNCONFIRMED_RESPONSE');return {id:data.id};
 };
 function bucharest(value: string) { return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Bucharest',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value)); }
 function canSpend(db: Database, job: Job, snapshot: Snapshot) {
@@ -83,13 +118,14 @@ function eligible(db: Database, job: Job,campaign:MarketingCampaign) {
 }
 export async function processMarketingDelivery(db: Database, transport: MarketingTransport=sendMarketingResend) {
   initializeMarketingDelivery(db); const owner=randomUUID(), now=Date.now();
-  const acquired=db.transaction(()=>{ const lock=db.prepare('SELECT until_ms FROM marketing_worker WHERE id=1').get() as {until_ms:number}|undefined; if(lock && lock.until_ms>now)return false; db.prepare('INSERT INTO marketing_worker VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET owner=excluded.owner,until_ms=excluded.until_ms').run(owner,now+120000); db.prepare("UPDATE marketing_outbox SET status='unknown',updated_at=? WHERE status='sending'").run(new Date().toISOString()); return true; }).immediate();
+  const acquired=db.transaction(()=>{ const lock=db.prepare('SELECT until_ms FROM marketing_worker WHERE id=1').get() as {until_ms:number}|undefined; if(lock && lock.until_ms>now)return false; db.prepare('INSERT INTO marketing_worker VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET owner=excluded.owner,until_ms=excluded.until_ms').run(owner,now+120000); db.prepare("INSERT INTO marketing_delivery_failures SELECT id,'WORKER_INTERRUPTED',NULL,1,? FROM marketing_outbox WHERE status='sending' ON CONFLICT(job_id) DO UPDATE SET code=excluded.code,last_at=excluded.last_at").run(new Date().toISOString()); db.prepare("UPDATE marketing_outbox SET status='unknown',updated_at=? WHERE status='sending'").run(new Date().toISOString()); return true; }).immediate();
   if(!acquired) return {processed:0}; let processed=0;
   try {
     const runs=db.prepare('SELECT * FROM marketing_delivery_runs WHERE scheduled_at<=? ORDER BY scheduled_at,id').all(new Date().toISOString()) as Run[];
-    for(const run of runs) {
+    dispatch: for(const run of runs) {
       if(processed>=5)break;
       const readiness=marketingDeliveryReadiness(); if(run.mode==='live' && (!readiness.enabled || !readiness.providerConfigured || !readiness.webhookConfigured))continue;
+      if(run.mode==='live'&&marketingProviderHold(db))continue;
       const snapshot=JSON.parse(run.payload) as Snapshot, current=getMarketingCampaign(db,run.campaign_id);
       if(current.state==='archived' || fingerprint(current)!==snapshot.fingerprint) {db.prepare("UPDATE marketing_outbox SET status='canceled',updated_at=? WHERE run_id=? AND status='pending'").run(new Date().toISOString(),run.id);continue;}
       if(current.state!=='ready')continue;
@@ -100,31 +136,55 @@ export async function processMarketingDelivery(db: Database, transport: Marketin
           if(!canSpend(db,job,snapshot))return false;
           return !!db.prepare("UPDATE marketing_outbox SET status='sending',updated_at=? WHERE id=? AND status='pending'").run(new Date().toISOString(),job.id).changes;
         }).immediate(); if(!claimed)continue;
-        const token=randomBytes(32).toString('base64url'), origin=new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://sandbox.nitido.ro').origin;
-        db.prepare('INSERT INTO marketing_unsubscribe VALUES(?,?,?)').run(hash(token),job.email,new Date().toISOString());
-        const unsubscribe=origin+'/marketing/dezabonare#'+token, html=marketingCampaignHtml(snapshot.campaign,snapshot.settings,unsubscribe);
         try {
-          if(run.mode==='test') db.prepare("UPDATE marketing_outbox SET status='captured',html=?,updated_at=? WHERE id=?").run(html,new Date().toISOString(),job.id);
+          const message=db.transaction(()=>{
+            const saved=db.prepare('SELECT payload FROM marketing_dispatch_payload WHERE job_id=?').get(job.id) as {payload:string}|undefined;
+            if(saved)return JSON.parse(saved.payload) as MarketingMessage;
+            const token=randomBytes(32).toString('base64url'),origin=new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://sandbox.nitido.ro').origin;
+            db.prepare('INSERT INTO marketing_unsubscribe VALUES(?,?,?)').run(hash(token),job.email,new Date().toISOString());
+            const unsubscribe=origin+'/marketing/dezabonare#'+token;
+            const payload:MarketingMessage={to:job.email,from:`${snapshot.settings.senderName.replace(/[<>\r\n"]/g,'')} <${snapshot.settings.senderEmail}>`,reply_to:snapshot.settings.replyTo,subject:snapshot.campaign.subject,html:marketingCampaignHtml(snapshot.campaign,snapshot.settings,unsubscribe),text:snapshot.campaign.body+'\n\n'+snapshot.settings.postalAddress+'\nDezabonare: '+unsubscribe,headers:{'List-Unsubscribe':`<${unsubscribe}>`}};
+            db.prepare('INSERT INTO marketing_dispatch_payload VALUES(?,?,?)').run(job.id,JSON.stringify(payload),new Date().toISOString());return payload;
+          }).immediate();
+          if(run.mode==='test') db.prepare("UPDATE marketing_outbox SET status='captured',html=?,updated_at=? WHERE id=?").run(message.html,new Date().toISOString(),job.id);
           else {
             // Re-read immediately before external dispatch; no implicit retry after ambiguous outcomes.
             if(!eligible(db,job,snapshot.campaign) || getMarketingCampaign(db,run.campaign_id).state!=='ready' || !marketingDeliveryReadiness().enabled) {db.prepare("UPDATE marketing_outbox SET status='suppressed',updated_at=? WHERE id=?").run(new Date().toISOString(),job.id);continue;}
-            const result=await transport({to:job.email,from:`${snapshot.settings.senderName.replace(/[<>\r\n"]/g,'')} <${snapshot.settings.senderEmail}>`,reply_to:snapshot.settings.replyTo,subject:snapshot.campaign.subject,html,text:snapshot.campaign.body+'\n\n'+snapshot.settings.postalAddress+'\nDezabonare: '+unsubscribe,headers:{'List-Unsubscribe':`<${unsubscribe}>`}},'nitido-marketing-'+job.id);
-            db.prepare("UPDATE marketing_outbox SET status=CASE WHEN status='sending' THEN 'accepted' ELSE status END,provider_id=?,updated_at=? WHERE id=?").run(result.id,new Date().toISOString(),job.id);
+            const lease=db.prepare('UPDATE marketing_worker SET until_ms=? WHERE id=1 AND owner=?').run(Date.now()+120000,owner);
+            if(!lease.changes)throw new DeliveryUnconfirmed('WORKER_INTERRUPTED');
+            const result=await transport(message,'nitido-marketing-'+job.id);
+            db.prepare("UPDATE marketing_outbox SET status=CASE WHEN status IN ('sending','unknown') THEN 'accepted' ELSE status END,provider_id=?,updated_at=? WHERE id=?").run(result.id,new Date().toISOString(),job.id);
             applyMarketingProviderEvents(db,{...job,provider_id:result.id,status:'accepted'});
-            await new Promise(resolve=>setTimeout(resolve,600));
+            db.prepare('DELETE FROM marketing_provider_hold WHERE id=1').run();
           }
-        } catch(error) {db.prepare("UPDATE marketing_outbox SET status=?,updated_at=? WHERE id=? AND status='sending'").run(error instanceof DeliveryRejected?'failed':'unknown',new Date().toISOString(),job.id);}
+        } catch(error) {
+          const failure=error instanceof DeliveryRejected||error instanceof DeliveryDeferred||error instanceof DeliveryUnconfirmed?error:new DeliveryUnconfirmed();
+          const at=new Date().toISOString();
+          db.transaction(()=>{
+            db.prepare('INSERT INTO marketing_delivery_failures VALUES(?,?,?,?,?) ON CONFLICT(job_id) DO UPDATE SET code=excluded.code,http_status=excluded.http_status,attempts=attempts+1,last_at=excluded.last_at').run(job.id,failure.code,failure.httpStatus,1,at);
+            db.prepare("UPDATE marketing_outbox SET status=?,updated_at=? WHERE id=? AND status='sending'").run(failure instanceof DeliveryDeferred?'pending':failure instanceof DeliveryRejected?'failed':'unknown',at,job.id);
+            if(!(failure instanceof DeliveryRejected)){
+              const previous=db.prepare('SELECT failures FROM marketing_provider_hold WHERE id=1').get() as {failures:number}|undefined;
+              const failures=failure instanceof DeliveryDeferred?0:(previous?.failures??0)+1;
+              const retry=failure instanceof DeliveryDeferred?failure.retryAt:failures>=3?null:new Date(Date.now()+60000*failures).toISOString();
+              db.prepare('INSERT INTO marketing_provider_hold VALUES(1,?,?,?,?) ON CONFLICT(id) DO UPDATE SET code=excluded.code,retry_at=excluded.retry_at,failures=excluded.failures,updated_at=excluded.updated_at').run(failure.code,retry,failures,at);
+            }
+          }).immediate();
+          if(!(failure instanceof DeliveryRejected)){processed++;break dispatch;}
+        } finally {if(run.mode==='live')await new Promise(resolve=>setTimeout(resolve,600));}
         processed++;
       }
     }
-    return {processed};
+    const hold=marketingProviderHold(db);
+    return {processed,nextDelayMs:hold?hold.retryAt?Math.min(900000,Math.max(1000,Date.parse(hold.retryAt)-Date.now())):60000:processed?1000:15000};
   } finally {db.prepare('DELETE FROM marketing_worker WHERE id=1 AND owner=?').run(owner);}
 }
 export function cancelMarketingRun(db: Database, id: string, actor: string) { initializeMarketingDelivery(db); return db.transaction(()=>{ const changed=db.prepare("UPDATE marketing_outbox SET status='canceled',updated_at=? WHERE run_id=? AND status='pending'").run(new Date().toISOString(),id).changes; audit(db,'marketing.delivery.canceled',id,actor);return {canceled:changed}; }).immediate(); }
 export function marketingDeliveryReport(db: Database) {
   initializeMarketingDelivery(db);
   const runs=db.prepare('SELECT id,campaign_id,mode,scheduled_at,created_at,payload FROM marketing_delivery_runs ORDER BY created_at DESC,id LIMIT 100').all() as (Run & {created_at:string})[];
-  return {readiness:marketingDeliveryReadiness(),runs:runs.map(run=>({id:run.id,campaignId:run.campaign_id,campaignName:(JSON.parse(run.payload) as Snapshot).campaign.name,mode:run.mode,scheduledAt:run.scheduled_at,createdAt:run.created_at,holdReason:run.mode==='live'&&!marketingDeliveryReadiness().enabled?'Expedierea reală este oprită.':getMarketingCampaign(db,run.campaign_id).state==='paused'?'Campania este în pauză.':new Date(run.scheduled_at)>new Date()?'Așteaptă data programată.':'Mesajele în așteptare sunt procesate în loturi, în limitele zilnice și de buget.',counts:db.prepare('SELECT status,COUNT(*) count FROM marketing_outbox WHERE run_id=? GROUP BY status').all(run.id)})),realEmailsSent:(db.prepare("SELECT COUNT(*) n FROM marketing_outbox WHERE mode='live' AND provider_id IS NOT NULL").get() as {n:number}).n};
+  const providerHold=marketingProviderHold(db);
+  return {readiness:marketingDeliveryReadiness(),providerHold,runs:runs.map(run=>({id:run.id,campaignId:run.campaign_id,campaignName:(JSON.parse(run.payload) as Snapshot).campaign.name,mode:run.mode,scheduledAt:run.scheduled_at,createdAt:run.created_at,holdReason:run.mode==='live'&&!marketingDeliveryReadiness().enabled?'Expedierea reală este oprită.':getMarketingCampaign(db,run.campaign_id).state==='paused'?'Campania este în pauză.':run.mode==='live'&&providerHold?providerHold.message:new Date(run.scheduled_at)>new Date()?'Așteaptă data programată.':'Mesajele în așteptare sunt procesate în loturi, în limitele zilnice și de buget.',counts:db.prepare('SELECT status,COUNT(*) count FROM marketing_outbox WHERE run_id=? GROUP BY status').all(run.id),failures:db.prepare("SELECT COALESCE(f.code,'legacy_unconfirmed') code,COUNT(*) count FROM marketing_outbox o LEFT JOIN marketing_delivery_failures f ON f.job_id=o.id WHERE o.run_id=? AND o.status IN ('unknown','failed','pending') AND (f.job_id IS NOT NULL OR o.status='unknown') GROUP BY COALESCE(f.code,'legacy_unconfirmed')").all(run.id)})),realEmailsSent:(db.prepare("SELECT COUNT(*) n FROM marketing_outbox WHERE mode='live' AND provider_id IS NOT NULL").get() as {n:number}).n};
 }
 export function marketingCapturedMessages(db: Database, id: string) { initializeMarketingDelivery(db);return db.prepare("SELECT id,email,html FROM marketing_outbox WHERE run_id=? AND mode='test' AND status='captured' ORDER BY id LIMIT 20").all(id); }
 export function unsubscribeMarketing(db: Database, token: unknown) {
