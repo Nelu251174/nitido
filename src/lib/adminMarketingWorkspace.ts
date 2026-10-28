@@ -6,6 +6,7 @@ import { initializeMarketing, marketingEnabled, marketingKey, MarketingError } f
 import { MARKETING_CATEGORIES, type MarketingContact } from './adminMarketingShared';
 import { CAMPAIGN_STATES, type MarketingAudience, type MarketingCampaign, type MarketingCollectionRun, type MarketingSettings, type MarketingSimulation, type MarketingWorkspace } from './adminMarketingWorkspaceShared';
 import { publicBusinessCampaign } from './adminMarketingWorkspaceShared';
+import { legalIdentityStatus } from './legalConfig';
 
 export const MARKETING_WORKSPACE_SCHEMA = `
 CREATE TABLE IF NOT EXISTS marketing_settings(id INTEGER PRIMARY KEY CHECK(id=1),version INTEGER NOT NULL,payload TEXT NOT NULL);
@@ -34,7 +35,14 @@ function audit(db: Database, action: string, target: string, actor: string, deta
 export function marketingSettings(db: Database): MarketingSettings {
   initializeMarketingWorkspace(db);
   const row = db.prepare('SELECT version,payload FROM marketing_settings WHERE id=1').get() as { version: number; payload: string } | undefined;
-  return row ? { ...JSON.parse(row.payload), version: row.version } : { ...defaults };
+  const settings: MarketingSettings = row ? { ...JSON.parse(row.payload), version: row.version } : { ...defaults };
+  if (!settings.postalAddress?.trim()) {
+    const legal = legalIdentityStatus();
+    const address = legal.values.LEGAL_ENTITY_ADDRESS;
+    // Reuse the operator address already published on the legal pages. Explicit Marketing overrides win.
+    if (legal.productionReady && address && address.length <= 500 && !/[\x00-\x1f\x7f]/.test(address)) settings.postalAddress = address;
+  }
+  return settings;
 }
 export function saveMarketingSettings(db: Database, value: unknown, actor: string): MarketingSettings {
   const b = record(value);
