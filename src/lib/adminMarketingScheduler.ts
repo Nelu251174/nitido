@@ -2,7 +2,7 @@ import type { Database } from 'better-sqlite3';
 import { marketingEnabled } from './adminMarketing';
 import { processMarketingCollections } from './adminMarketingCity';
 import { processMarketingDelivery } from './adminMarketingDelivery';
-const state=globalThis as typeof globalThis & {marketingTimer?:ReturnType<typeof setTimeout>;marketingTick?:boolean};
+const state=globalThis as typeof globalThis & {marketingTimer?:ReturnType<typeof setTimeout>;marketingTick?:boolean;marketingDeliveryTimer?:ReturnType<typeof setTimeout>;marketingDeliveryTick?:boolean;marketingDeliveryWake?:()=>void};
 const FAST_MS=1000,IDLE_MS=15000;
 
 /** Read eligibility only; source readers continue to enforce their persisted host deadlines. */
@@ -26,16 +26,16 @@ function hasEligibleWork(db:Database){
   return exists('marketing_discovery')&&!!db.prepare("SELECT 1 FROM marketing_discovery WHERE status='pending' LIMIT 1").get();
 }
 export function startMarketingScheduler(db:Database) {
-  if(!marketingEnabled() || state.marketingTimer)return;
+  if(!marketingEnabled())return;
+  startMarketingDeliveryScheduler(db);
+  if(state.marketingTimer)return;
   let loggedAt:number|undefined;
   const schedule=(delay:number)=>{state.marketingTimer=setTimeout(()=>void tick(),delay);state.marketingTimer.unref();};
   const tick=async()=>{
     if(state.marketingTick){schedule(IDLE_MS);return;}
     state.marketingTick=true;const started=Date.now();let nextDelayMs=IDLE_MS;
     try{
-      // Keep the guard until both workers settle, including when one rejects before the other finishes.
-      const results=await Promise.allSettled([processMarketingCollections(db),processMarketingDelivery(db)]);
-      if(results.some(result=>result.status==='rejected'))throw Error('MARKETING_TICK_FAILED');
+      await processMarketingCollections(db);
       if(hasEligibleWork(db))nextDelayMs=FAST_MS;
     }catch{console.error('[marketing] worker_failed');}
     finally{
@@ -45,4 +45,29 @@ export function startMarketingScheduler(db:Database) {
     }
   };
   schedule(0);
+}
+
+function startMarketingDeliveryScheduler(db:Database){
+ if(state.marketingDeliveryWake)return;
+ let requested=false;
+ const schedule=(delay:number)=>{state.marketingDeliveryTimer=setTimeout(()=>void tick(),delay);state.marketingDeliveryTimer.unref();};
+ const tick=async()=>{
+  if(state.marketingDeliveryTick)return;
+  state.marketingDeliveryTick=true;let delay=IDLE_MS;
+  try{const result=await processMarketingDelivery(db);delay=result.nextDelayMs??(result.processed?FAST_MS:IDLE_MS);}
+  catch{console.error('[marketing] delivery_worker_failed');}
+  finally{state.marketingDeliveryTick=false;const next=requested?0:delay;requested=false;schedule(next);}
+ };
+ state.marketingDeliveryWake=()=>{
+  if(state.marketingDeliveryTick){requested=true;return;}
+  if(state.marketingDeliveryTimer)clearTimeout(state.marketingDeliveryTimer);
+  schedule(0);
+ };
+ schedule(0);
+}
+
+/** Wake the existing serial worker; HTTP requests never wait for provider network calls. */
+export function requestMarketingDeliveryProcessing(db:Database){
+ if(!marketingEnabled())return {scheduled:false};
+ startMarketingDeliveryScheduler(db);state.marketingDeliveryWake?.();return {scheduled:true};
 }
