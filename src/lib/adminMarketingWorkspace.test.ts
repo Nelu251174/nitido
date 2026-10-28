@@ -16,8 +16,12 @@ function add(patch: Record<string, unknown> = {}, reviewed = true) {
 function settings(patch = {}) { return saveMarketingSettings(db, { ...marketingSettings(db), senderEmail: 'marketing@example.test', replyTo: 'reply@example.test', postalAddress: 'Adresă sintetică', unitCostRon: 0.01, ...patch }, actor); }
 function draft(patch = {}) { return saveMarketingCampaign(db, { name: 'Campanie test', subject: 'Bun venit', body: 'Mesaj sintetic', category: '', city: '', ctaLabel: 'Descoperă', ctaUrl: 'https://nitido.ro', budgetRon: null, ...patch }, actor); }
 function ready() { add(); settings(); const campaign = draft(); return setMarketingCampaignState(db, { id: campaign.id, version: campaign.version, state: 'ready' }, actor); }
-beforeEach(() => { db = new Database(':memory:'); db.pragma('foreign_keys=ON'); db.exec('CREATE TABLE admin_audit_log(id TEXT PRIMARY KEY,action TEXT,target_id TEXT,details TEXT); CREATE TABLE jobs(id TEXT); INSERT INTO jobs VALUES(\'existing\')'); initializeMarketingWorkspace(db); });
-afterEach(() => { db.close(); vi.restoreAllMocks(); });
+beforeEach(() => { vi.stubEnv('LEGAL_ENTITY_ADDRESS',''); db = new Database(':memory:'); db.pragma('foreign_keys=ON'); db.exec('CREATE TABLE admin_audit_log(id TEXT PRIMARY KEY,action TEXT,target_id TEXT,details TEXT); CREATE TABLE jobs(id TEXT); INSERT INTO jobs VALUES(\'existing\')'); initializeMarketingWorkspace(db); });
+afterEach(() => { db.close(); vi.restoreAllMocks(); vi.unstubAllEnvs(); });
+function operatorAddress(address = 'Strada Exemplu 10, Localitate, România') {
+  vi.stubEnv('LEGAL_ENTITY_NAME','Operator sintetic'); vi.stubEnv('LEGAL_ENTITY_REGISTRATION','TEST-123');
+  vi.stubEnv('LEGAL_CONTACT_EMAIL','support@example.test'); vi.stubEnv('LEGAL_ENTITY_ADDRESS',address);
+}
 describe('Marketing workspace and eligibility', () => {
   it('starts with honest empty results and leaves other application data intact', () => {
     expect(getMarketingWorkspace(db)).toMatchObject({ deliveryEnabled: false, totals: { contacts: 0, campaigns: 0, simulations: 0, realEmailsSent: 0 } });
@@ -40,6 +44,29 @@ describe('Marketing workspace and eligibility', () => {
   it('names only the missing sender fields instead of reporting configured fields as absent', () => {
     add(); settings({replyTo:''});
     expect(previewMarketingCampaign(db,draft().id).blockers).toEqual(['Completează în Setări: adresa de răspuns.']);
+  });
+  it('uses the configured operator address for existing empty Marketing settings, preview and preparation without dispatch', () => {
+    const network = vi.spyOn(globalThis,'fetch').mockRejectedValue(Error('No dispatch expected'));
+    add(); const saved=settings({postalAddress:''}); const campaign=draft(); operatorAddress();
+    expect(marketingSettings(db)).toMatchObject({postalAddress:'Strada Exemplu 10, Localitate, România',version:saved.version});
+    const preview=previewMarketingCampaign(db,campaign.id); expect(preview.blockers).toEqual([]);
+    expect(preview.html).toContain('Strada Exemplu 10, Localitate, România');
+    expect(setMarketingCampaignState(db,{id:campaign.id,version:campaign.version,state:'ready'},actor).state).toBe('ready');
+    expect(getMarketingWorkspace(db).totals.realEmailsSent).toBe(0); expect(network).not.toHaveBeenCalled();
+    expect(JSON.parse((db.prepare('SELECT payload FROM marketing_settings WHERE id=1').get() as {payload:string}).payload).postalAddress).toBe('');
+  });
+  it('shows the operator address in new settings and preserves an explicit Marketing address', () => {
+    operatorAddress(); expect(marketingSettings(db)).toMatchObject({version:0,postalAddress:'Strada Exemplu 10, Localitate, România'});
+    settings({postalAddress:'Adresă Marketing aleasă de administrator'});
+    expect(marketingSettings(db).postalAddress).toBe('Adresă Marketing aleasă de administrator');
+  });
+  it.each(['','x'.repeat(501),'Strada exemplu\nDate suplimentare'])('keeps the postal blocker when the operator address is absent or invalid',address=>{
+    add();settings({postalAddress:''});operatorAddress(address);
+    expect(previewMarketingCampaign(db,draft().id).blockers).toEqual(['Completează în Setări: adresa poștală.']);
+  });
+  it('keeps the postal blocker when the legal identity is incomplete',()=>{
+    add();settings({postalAddress:''});operatorAddress();vi.stubEnv('LEGAL_ENTITY_NAME','');
+    expect(previewMarketingCampaign(db,draft().id).blockers).toEqual(['Completează în Setări: adresa poștală.']);
   });
   it('does not invent pricing and validates limits and budgets before preparing a campaign', () => {
     add(); settings({ unitCostRon: null }); const campaign = draft({ budgetRon: 1 });
