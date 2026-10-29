@@ -12,6 +12,7 @@ import { WebAlerts } from "@/components/WebAlerts";
 import { PwaProvider } from "@/components/PwaProvider";
 import {NextIntlClientProvider} from 'next-intl';
 import {getLocale, getMessages} from 'next-intl/server';
+import {CurrencyNotice} from '@/components/CurrencyNotice';
 import {LanguageSelector} from '@/components/LanguageSelector';
 import {catalogsReady} from '@/i18n/catalogs';
 
@@ -107,6 +108,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider locale={locale} messages={messages} timeZone="Europe/Bucharest">
         {catalogsReady() && <div className="nitido-language-bar"><LanguageSelector/></div>}
+        <CurrencyNotice/>
         <GoogleAdsConsent conversionLabel={process.env.GOOGLE_ADS_COMPANY_SIGNUP_LABEL} />
         {children}
         <PwaProvider />

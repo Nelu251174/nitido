@@ -1,11 +1,11 @@
 "use client";
+import {useDisplayMoney} from '@/components/UiMoney';
 import {UiText,UiElement} from '@/components/UiText';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {TeamExecutionCard} from './TeamExecutionCard';
 import {useCurrentUser} from '@/lib/useCurrentUser';
 import {WorkspaceNav} from './WorkspaceNav';
-import {money} from '@/lib/workspaceShared';
 import {Logo,inputClass} from './ui';
 interface Resource {id:string;kind:string;name:string;role:string}
 interface Property extends Resource {organization?:{name:string;approval_threshold_bani:number;separate_approver:number}|null;budget_bani:number;budget_enforced:number;sqm:number;city:string;street:string}
@@ -15,6 +15,7 @@ interface Job {id:string;street:string;city:string;sqm:number;status:string;sche
 interface Snapshot {resources:Resource[];members:Member[];invites:Member[];properties:Property[];approvals:Approval[];jobs:Job[]}
 const empty:Snapshot={resources:[],members:[],invites:[],properties:[],approvals:[],jobs:[]};
 export function CollaborationWorkspace({mode}:{mode:'team'|'business'|'invite'}){
+ const {money}=useDisplayMoney();
  const {user,loading}=useCurrentUser();const [data,setData]=useState(empty),[busy,setBusy]=useState(false),[pending,setPending]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState(''),[resource,setResource]=useState(''),[email,setEmail]=useState(''),[role,setRole]=useState('manager'),[link,setLink]=useState(''),[date,setDate]=useState(''),[note,setNote]=useState(''),[token,setToken]=useState(''),[decisionNotes,setDecisionNotes]=useState<Record<string,string>>({});
  const refresh=useCallback(async()=>{try{const r=await fetch('/api/collaboration');const d=await r.json();if(!r.ok)throw Error(d.error);setData(d)}catch(e){setError(e instanceof Error?e.message:'Conexiune indisponibilă')}finally{setPending(false)}},[]);
  // eslint-disable-next-line react-hooks/set-state-in-effect -- authenticated initial request and invitation URL

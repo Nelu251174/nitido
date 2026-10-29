@@ -1,4 +1,5 @@
 'use client';
+import {useDisplayMoney} from '@/components/UiMoney';
 import {UiDate} from '@/components/UiDate';
 
 import {UiText,UiElement} from '@/components/UiText';
@@ -9,13 +10,13 @@ import {ORGANIZATION_MODULES,type OrganizationModules} from '@/lib/organizationM
 import {Logo,inputClass} from './ui';
 import {WorkspaceNav} from './WorkspaceNav';
 import {useCurrentUser} from '@/lib/useCurrentUser';
-import {money} from '@/lib/workspaceShared';
 type Member={id:string;name?:string;email:string;role:string};
 type Organization={modules:OrganizationModules;id:string;name:string;role:string;revision:number;approval_threshold_bani:number;separate_approver:number;properties:{id:string;name:string;city:string;cost_center:string;kind:string}[];members:Member[];invites:Member[];history:{action:string;actor:string;created_at:string;details:string;resource_id:string}[]};
 type Data={organizations:Organization[];availableProperties:{id:string;name:string;kind:string}[]};
 const roles:Record<string,string>={owner:'Titular',manager:'Solicitant',approver:'Aprobator',viewer:'Vizualizare'};
 const actions:Record<string,string>={'modules.save':'Module actualizate','policy.save':'Politică salvată','property.attach':'Locație adăugată','property.detach':'Locație eliminată','member.invite':'Invitație creată','member.accept':'Invitație acceptată','member.revoke':'Acces revocat','invite.revoke':'Invitație revocată','approval.request':'Solicitare creată','approval.approve':'Solicitare aprobată','approval.reject':'Solicitare respinsă'};
 export function OrganizationManagement(){
+ const {money}=useDisplayMoney();
  const {user,loading}=useCurrentUser();
  const [data,setData]=useState<Data>({organizations:[],availableProperties:[]}),[pending,setPending]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[selected,setSelected]=useState(''),[link,setLink]=useState('');
  const lock=useRef(false);
@@ -60,6 +61,7 @@ export function OrganizationManagement(){
  </main></div>;
 }
 function HistoryDetail({action,details}:{action:string;details:string}){
+ const {money}=useDisplayMoney();
  let d:Record<string,unknown>;try{d=JSON.parse(details)}catch{return null}
  if(action==='modules.save'&&d.after&&typeof d.after==='object'){const state=d.after as Record<string,unknown>;return <p className="text-sm">{ORGANIZATION_MODULES.map(m=>`${m.label}: ${state[m.key]?'activ':'dezactivat'}`).join(' · ')}</p>;}
  if(action==='policy.save')return <p className="text-sm"><UiText text={"Prag: "}/>{money(Number(d.thresholdBani)/100)}<UiText text={" · Aprobator separat: "}/>{d.separateApprover?<UiText text={'Da'}/>:<UiText text={'Nu'}/>}</p>;

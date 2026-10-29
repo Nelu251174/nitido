@@ -1,4 +1,5 @@
 "use client";
+import {useDisplayMoney} from '@/components/UiMoney';
 import {UiDate} from '@/components/UiDate';
 
 import {UiText,UiElement} from '@/components/UiText';
@@ -27,7 +28,7 @@ import {useRouter} from "next/navigation";
 import {useCurrentUser} from "@/lib/useCurrentUser";
 import {authSwitchHref} from "@/lib/authRedirect";
 import {JobRow} from "@/lib/types";
-import {CHECKLIST,JOB_STATUS,money} from "@/lib/workspaceShared";
+import {CHECKLIST,JOB_STATUS} from "@/lib/workspaceShared";
 import {WorkspaceNav} from "@/components/WorkspaceNav";
 import {useMessageInbox} from "@/components/useMessageInbox";
 import {JobMessages} from "@/components/JobMessages";
@@ -38,6 +39,7 @@ interface WorkspaceData {executionRules?:Record<string,{key:string;label:string}
 const EMPTY:WorkspaceData={dailyActions:[],firms:[],inventoryHistory:[],inventory:[],blocks:[],properties:[],teams:[],assignments:[],checklist:[],events:[],hostChecks:[],propertyJobs:[]};
 const TITLES:Record<string,[string,string]>={proprietati:["Locuințele mele","Adresele și preferințele, pregătite pentru următoarea rezervare."],business:["Toate locațiile","Urmărește lucrările finalizate și bugetele lunare pe centre de cost."],host:["Curățenie între rezervări","Programează curățenia după plecarea oaspeților, înaintea următoarei sosiri."],calendar:["Calendarul echipelor","Programări, echipe și intervale disponibile."],echipe:["Echipa ta, bine organizată","Creează echipe și alocă lucrările confirmate."],executie:["Lucrările de azi","Verificări, dovezi foto și progresul lucrării."],mesaje:["Conversațiile tale","Discută detaliile direct în contextul fiecărei lucrări."]};
 export function OperationsWorkspace({screen,role}:{screen:string;role:"client"|"firma"}){
+ const {money}=useDisplayMoney();
  const {user,loading}=useCurrentUser(),router=useRouter();
  const [data,setData]=useState<WorkspaceData>(EMPTY),[jobs,setJobs]=useState<JobRow[]>([]),[error,setError]=useState<string|null>(null),[notice,setNotice]=useState<string|null>(null),[pending,setPending]=useState(true),[busy,setBusy]=useState(false),[query,setQuery]=useState(""),[selected,setSelected]=useState(""),[teamName,setTeamName]=useState(""),[form,setForm]=useState<Partial<Property>|null>(null),[source,setSource]=useState("Calendar principal"),[propertyId,setPropertyId]=useState("");
  const [organizationId,setOrganizationId]=useState('');

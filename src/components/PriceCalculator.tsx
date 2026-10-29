@@ -1,4 +1,5 @@
 "use client";
+import {UiMoney} from '@/components/UiMoney';
 
 import {UiText} from '@/components/UiText';
 import { useMemo, useState } from "react";
@@ -59,7 +60,7 @@ export function PriceCalculator() {
 
       <div className="flex items-center justify-between bg-mist rounded-xl p-5">
         <span className="text-sm text-muted"><UiText text={"Preț estimat"}/></span>
-        <span className="font-display font-extrabold text-3xl text-aqua-deep">{price}<UiText text={" lei"}/></span>
+        <span className="font-display font-extrabold text-3xl text-aqua-deep"><UiMoney ron={price}/></span>
       </div>
 
       <Link

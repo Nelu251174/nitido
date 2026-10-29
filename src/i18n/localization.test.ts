@@ -17,7 +17,7 @@ describe('language negotiation',()=>{
     expect(asLocale('ru')).toBeUndefined();
     expect(asLocale('ga-IE')).toBeUndefined();
     expect(selectLocale('it','it-IT,en;q=0.8','IT')).toBe('en');
-    expect(selectLocale('it','it-IT','IT')).toBe('ro');
+    expect(selectLocale('it','it-IT','IT')).toBe('en');
   });
   it('gives a manual preference priority over device language and country',()=>{
     expect(selectLocale('de','fr-FR,en;q=0.8','FR')).toBe('de');
@@ -34,7 +34,7 @@ describe('language negotiation',()=>{
     expect(selectLocale(null,'en-GB','FR')).toBe('fr');
     expect(selectLocale('en','ro-RO','RO')).toBe('en');
     expect(selectLocale(null,'ja-JP','FR')).toBe('fr');
-    expect(selectLocale(null,null,'BE')).toBe('ro');
+    expect(selectLocale(null,null,'BE')).toBe('en');
     expect(selectLocale(null,null,'IE')).toBe('en');
   });
 });

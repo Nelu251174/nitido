@@ -2,7 +2,7 @@
 import React,{act} from 'react';
 import {createRoot,type Root} from 'react-dom/client';
 import {beforeEach,afterEach,expect,it,vi} from 'vitest';
-vi.mock('next-intl',()=>({useLocale:()=> 'ro'}));
+vi.mock('next-intl',()=>({useLocale:()=> 'ro',useMessages:()=>({ui:{}})}));
 vi.mock('./UiText',()=>({UiText:({text}:{text:string})=><>{text}</>,UiTemplate:({text,values}:{text:string;values:React.ReactNode[]})=><>{text}{values}</>}));
 vi.mock('@/components/UiDate',()=>({UiDate:()=> <span>Synthetic date</span>}));
 import {ManualOfferReservation,type BookableManualOffer} from './ManualOfferReservation';

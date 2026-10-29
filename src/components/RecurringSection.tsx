@@ -1,4 +1,5 @@
 "use client";
+import {UiMoney} from '@/components/UiMoney';
 import {UiElement,UiText,UiSpaceType,UiTemplate} from '@/components/UiText';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {useLocale} from 'next-intl';
@@ -296,7 +297,7 @@ export function RecurringSection({ defaults }: { defaults: { street: string; pos
             <Field label="Tip spațiu"><select className={inputClass} value={address.spaceType} onChange={event=>setAddress({...address,spaceType:event.target.value as SpaceType})}><option value="apartament"><UiText text={"Apartament"}/></option><option value="casa"><UiText text={"Casă"}/></option><option value="birou"><UiText text={"Birou"}/></option><option value="altul"><UiText text={"Alt spațiu"}/></option></select></Field>
           </div>
           <CleaningTypeChoice value={seriesCleaningType} automaticOnly onChange={value=>{if(value!=='renovation')setSeriesCleaningType(value)}}/><BathroomExtra value={seriesBathrooms} onChange={setSeriesBathrooms}/>
-          {Number.isSafeInteger(address.sqm)&&address.sqm>0&&validBathroomCount(seriesBathrooms)&&<p className="text-sm font-bold mb-3"><UiText text="Preț pe vizită, înainte de credit: "/>{calcServicePrice(address.spaceType,address.sqm,0,seriesBathrooms,seriesCleaningType)}<UiText text=" lei. Geamurile nu sunt incluse. Plata și firma se confirmă separat pentru fiecare vizită."/></p>}
+          {Number.isSafeInteger(address.sqm)&&address.sqm>0&&validBathroomCount(seriesBathrooms)&&<p className="text-sm font-bold mb-3"><UiText text="Preț pe vizită, înainte de credit: "/><UiMoney ron={calcServicePrice(address.spaceType,address.sqm,0,seriesBathrooms,seriesCleaningType)}/><UiText text=". Geamurile nu sunt incluse. Plata și firma se confirmă separat pentru fiecare vizită."/></p>}
           <Field label="Preferințe pentru vizite"><UiElement as="textarea" className={inputClass} maxLength={500} rows={3} value={visitDetails} onChange={event=>setVisitDetails(event.target.value)} placeholder="Materiale sensibile, animale de companie, preferințe de curățenie…"/></Field>
           <span className="block text-[10.5px] uppercase tracking-wide text-muted font-semibold mb-1"><UiText text={"Frecvență"}/></span>
           <div className="grid grid-cols-3 gap-2 mb-3">

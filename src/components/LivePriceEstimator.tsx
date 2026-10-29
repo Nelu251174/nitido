@@ -1,4 +1,5 @@
 "use client";
+import {UiMoney} from '@/components/UiMoney';
 
 import {UiText,UiElement,useUiText} from '@/components/UiText';
 import {useState} from "react";
@@ -25,7 +26,7 @@ export function LivePriceEstimator({options,inline=false}:{options?:EstimatorOpt
     <UiElement as="div" className="mt-2 flex flex-wrap gap-1" role="group" aria-label="Tip spațiu">
       {opts.map(option=><button key={option.key} type="button" onClick={()=>setSpaceType(option.key)} aria-pressed={spaceType===option.key} className={`whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold transition ${spaceType===option.key?"estimator-option-active text-white":"bg-[#263647] text-[#c2ccd7] hover:text-white"}`}>{<UiText text={option.label}/>}</button>)}
     </UiElement>
-    <div className="mt-3 flex items-end justify-between gap-4"><span className="text-sm text-[#c2ccd7]">{<UiText text={activeLabel}/>} · <span className="booking-muted"><UiText text="Curățenie generală"/></span><output htmlFor="hero-sqm" className="font-semibold text-white">{sqm}<UiText text={" m²"}/></output></span><b className="shrink-0 text-3xl tabular-nums" aria-live="polite">{price}<UiText text={" lei"}/></b></div>
+    <div className="mt-3 flex items-end justify-between gap-4"><span className="text-sm text-[#c2ccd7]">{<UiText text={activeLabel}/>} · <span className="booking-muted"><UiText text="Curățenie generală"/></span><output htmlFor="hero-sqm" className="font-semibold text-white">{sqm}<UiText text={" m²"}/></output></span><b className="shrink-0 text-3xl tabular-nums" aria-live="polite"><UiMoney ron={price}/></b></div>
     <UiElement as="input" id="hero-sqm" type="range" min={ESTIMATOR_MIN_SQM} max={ESTIMATOR_MAX_SQM} step={ESTIMATOR_STEP_SQM} value={sqm} onChange={event=>setSqm(Number(event.target.value))} aria-label="Suprafața estimată în metri pătrați" aria-valuetext={t('{p0} metri pătrați, estimare {p1} lei',[sqm,price])} className="nitido-price-range mt-3 w-full touch-none" style={{background:`linear-gradient(to right,var(--nitido-action-color) 0%,var(--nitido-action-color) ${progress}%,#263647 ${progress}%,#263647 100%)`}}/>
     <div className="flex justify-between text-[11px] text-[#b8c5d2]"><span>{<UiText text={ESTIMATOR_MIN_SQM}/>}<UiText text={" m²"}/></span><span>{<UiText text={ESTIMATOR_MAX_SQM}/>}<UiText text={" m²"}/></span></div>
     <p className="mt-3 text-[10px] leading-4 text-[#b8c5d2]"><UiText text={"Curățenie cu o baie și o bucătărie incluse. Băile suplimentare și geamurile se adaugă separat la rezervare. Prețul final se confirmă înainte de publicare."}/></p>

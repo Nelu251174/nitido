@@ -4,7 +4,7 @@ import {createRoot,type Root} from 'react-dom/client';
 import {beforeEach,afterEach,it,expect,vi} from 'vitest';
 const m=vi.hoisted(()=>({user:{id:'f',role:'firma'} as {id:string;role:string}|null,push:vi.fn()}));
 vi.mock('next/navigation',()=>({useRouter:()=>({push:m.push})}));
-vi.mock('next-intl',()=>({useLocale:()=> 'ro-RO',useNow:()=>new Date()}));
+vi.mock('next-intl',()=>({useMessages:()=>({ui:{}}),useLocale:()=> 'ro-RO',useNow:()=>new Date()}));
 vi.mock('@/lib/useCurrentUser',()=>({useCurrentUser:()=>({user:m.user,loading:false})}));
 vi.mock('./UiText',()=>({UiText:({text}:{text:string})=><>{text}</>,UiSpaceType:({value}:{value:string})=><>{value}</>,UiTemplate:({text}:{text:string})=><>{text}</>,UiElement:({as:Tag='div',children,...props}:React.PropsWithChildren<Record<string,unknown>>)=>React.createElement(Tag as string,props,children)}));
 vi.mock('./OwnedHomePicker',()=>({OwnedHomePicker:()=>null}));
