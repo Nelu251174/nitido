@@ -1,11 +1,12 @@
 'use client';
+import {useDisplayMoney} from '@/components/UiMoney';
 import {UiText,UiElement} from '@/components/UiText';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {DesignIcon} from './DesignIcon';
-import {money} from '@/lib/workspaceShared';
 type Approval={can_decide?:boolean;can_approve?:boolean;id:string;property_id:string;date:string;note:string;price_bani:number;status:string;requester_name:string};
 export function BusinessApprovals({properties}:{properties:{id:string;name:string}[]}){
+ const {money}=useDisplayMoney();
  const [approvals,setApprovals]=useState<Approval[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState('');
  const lock=useRef(false);
  const refresh=useCallback(async()=>{const r=await fetch('/api/collaboration');if(!r.ok)throw Error('Aprobările nu au putut fi încărcate.');const d=await r.json();setApprovals(d.approvals??[])},[]);

@@ -1,4 +1,5 @@
 'use client';
+import {UiMoney,ChargeAmount} from '@/components/UiMoney';
 import {useLocale} from 'next-intl';
 import {UiText} from '@/components/UiText';
 import {useCallback,useEffect,useRef,useState} from 'react';
@@ -50,7 +51,7 @@ export default function ConfirmRescheduleCard(){
   <Link href="/client"><Logo/></Link><Card className="mt-6">
    <h1 className="text-2xl font-display font-bold"><UiText text={"Confirmă cardul pentru noua dată"}/></h1>
    {loading?<p className="mt-4"><UiText text={"Se verifică sesiunea…"}/></p>:user?.role!=='client'?<p className="mt-4"><UiText text={"Folosește contul clientului care a creat rezervarea."}/></p>:<>
-    {data&&<p className="my-5 text-3xl font-bold">{new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON'}).format(data.amountMinor/100)}</p>}
+    {data&&<p className="my-5 text-3xl font-bold"><UiMoney ron={data.amountMinor/100}/><ChargeAmount ron={data.amountMinor/100}/></p>}
     {data?.scheduledAt&&<p className="text-sm"><UiText text={"Interval propus: "}/>{dateLabel(data.scheduledAt)}</p>}
     {data?.status==='authorized'?<div role="status" className="mt-5 space-y-3"><p className="font-bold text-aqua-deep"><UiText text={"Noua dată și autorizarea sunt confirmate."}/></p>{data.cleanupPending?<p className="text-sm"><UiText text={"Eliberarea autorizării vechi este în curs și va fi reluată automat dacă procesatorul nu răspunde."}/></p>:<p className="text-sm"><UiText text={"Eliberarea autorizării vechi a fost confirmată de procesator. Banca poate avea nevoie de timp pentru actualizarea soldului disponibil."}/></p>}</div>:<>
      <p className="mt-4 text-sm text-muted"><UiText text={"Autorizarea veche nu acoperă noul interval. Autorizezi aceeași sumă pe cardul ales pentru această rezervare. Încasarea se face la finalizarea lucrării."}/></p>

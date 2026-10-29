@@ -18,7 +18,7 @@ describe('IP-first automatic language through the request proxy',()=>{
   expect(forwardedCountry('86.120.0.1, 172.18.0.1')).toBe('RO');
  });
  it('keeps a deliberate manual language selection above country detection',()=>{
-  expect(forwardedCountry('86.120.0.1','nitido-language=en')).toBeNull();
+  expect(forwardedCountry('86.120.0.1','nitido-language=en')).toBe('RO');
   expect(selectLocale('en','ro-RO','RO')).toBe('en');
  });
  it('falls back to browser language when IP location is unavailable',()=>{

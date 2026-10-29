@@ -1,4 +1,5 @@
 'use client';
+import {useDisplayMoney} from '@/components/UiMoney';
 import {UiDate} from '@/components/UiDate';
 
 import {UiText,UiTemplate} from '@/components/UiText';
@@ -6,12 +7,11 @@ import {AdminJobCosts} from './AdminJobCosts';
 import {AdminAssistedOperation} from './AdminAssistedOperation';
 import {AdminOfferSchedule} from './AdminOfferSchedule';
 import {useCallback,useEffect,useState} from 'react';
-import {useLocale} from 'next-intl';
 import type {MarginPolicy} from '@/lib/marginPolicy';
 import {ManualOfferReservation,type BookableManualOffer} from './ManualOfferReservation';
 const statuses:Record<string,string>={offered:'Disponibilă pentru decizie',expired:'Expirată — este necesară o ofertă nouă',accepted:'Acceptată',rejected:'Refuzată',withdrawn:'Retrasă de NITIDO',superseded:'Înlocuită cu o revizie nouă'};
 export function ManualOfferPanel({id,admin=false,revision,dirty=false}:{id:string;admin?:boolean;revision?:number;dirty?:boolean}){
- const locale=useLocale(),money=(n:number)=>new Intl.NumberFormat(locale,{style:'currency',currency:'RON'}).format(n/100);
+ const {money:formatMoney}=useDisplayMoney(),money=(n:number)=>formatMoney(n/100);
  const [supplement,setSupplement]=useState<{originalJobId:string}|null>(null);
  const [offers,setOffers]=useState<BookableManualOffer[]>([]),[enabled,setEnabled]=useState(false),[error,setError]=useState(''),[busy,setBusy]=useState(false),[scope,setScope]=useState(''),[expires,setExpires]=useState(''),[reason,setReason]=useState(''),[confirmed,setConfirmed]=useState<string|null>(null);
  const [review,setReview]=useState<{policy:MarginPolicy|null;estimateRevision:number|null;result:{status:string;margin:{marginBani:number|null}}|null}|null>(null),[exceptionReason,setExceptionReason]=useState('');

@@ -1,4 +1,5 @@
 "use client";
+import {UiMoney,useDisplayMoney,ChargeAmount} from '@/components/UiMoney';
 import {CleaningTypeChoice} from '@/components/CleaningTypeChoice';
 import {CLEANING_DESCRIPTION,cleaningAssessmentUrl,validCleaningType,type CleaningType} from '@/lib/cleaningTypes';
 import {RecurringSection} from '@/components/RecurringSection';
@@ -110,6 +111,7 @@ interface ReportRow {
 }
 
 export default function ClientPage() {
+ const {text:currencyText}=useDisplayMoney();
  const locale=useLocale();
 
   const router = useRouter();
@@ -254,7 +256,7 @@ export default function ClientPage() {
     const hostEvent=params.get('hostEventId'),hostVersion=params.get('hostRevision');
     if(hostEvent&&hostVersion&&/^[a-f0-9]{64}$/.test(hostVersion)){setHostEventId(hostEvent);setHostRevision(hostVersion);setMode('standard');setExpress60(false);}
     const id=params.get("propertyId");if(id){void fetch(hostEvent||approval?"/api/workspace":"/api/workspace?view=homes").then(r=>{if(!r.ok)throw new Error();return r.json()}).then(d=>{const p=d.properties.find((p:{id:string})=>p.id===id);if(!p){setError("Proprietatea nu este disponibilă.");return}const v=homeBookingValues(p,Object.fromEntries(params));setPropertyId(p.id);setStreet(v.street);setPostalCode(v.postalCode);setFloor(v.floor);setCity(v.city);setSqm(v.sqm);setSpaceType(v.spaceType);setBathroomCount(v.bathroomCount);setDetails(v.details);setTimeout(()=>document.getElementById("sec-form")?.scrollIntoView({behavior:"smooth",block:"start"}),60)}).catch(()=>setError("Proprietatea nu a putut fi încărcată."))}
-  },[user?.id,user?.role]);
+  },[user?.id,user?.role,router]);
 
   const refreshMyJobs = useCallback(async () => {
     const response = await fetch("/api/jobs");
@@ -651,7 +653,7 @@ export default function ClientPage() {
         <div className={`client-content-grid ${showBooking&&!job?"with-detail":""}`}>
         <div className="min-w-0">
         {myJobs.filter(j=>j.status==="waiting"&&["requires_action","requires_confirmation"].includes(j.authorizationStatus??"")).map(j=><section key={j.id} className="v2-card p-5 mb-4"><h2 className="font-bold"><UiText text={"Confirmarea cardului este necesară"}/></h2><p className="text-sm text-muted mt-2">{j.city} · {j.sqm}<UiText text={" m². Banca solicită confirmarea autorizării pentru această lucrare."}/></p><Link href={`/client/plata/${encodeURIComponent(j.id)}`} className="inline-block mt-3 font-bold text-aqua-deep underline"><UiText text={"Confirmă prin bancă"}/></Link></section>)}
-        {!job&&!showBooking&&<section id="sec-lucrari" className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold"><UiText text={"Rezervările tale recente"}/></h2><span className="text-xs text-[#6b756f]">{myJobs.length}<UiText text={" total"}/></span></div>{myJobs.length===0?<div className="mt-4"><p className="text-sm text-muted"><UiText text={"Nu ai rezervări încă."}/></p><button type="button" className="v2-btn v2-btn-primary mt-4" onClick={goToForm}><UiText text={"Configurează o rezervare"}/></button></div>:<><UiElement as="input" aria-label="Caută rezervări" className={`${inputClass} mt-3`} value={historyFilter} onChange={e=>setHistoryFilter(e.target.value)} placeholder="Caută rezervare sau status…"/><div className="mt-3 divide-y divide-[#e2e8f0]">{myJobs.filter(item=>`${item.city} ${item.street} ${JOB_STATUS[item.status]}`.toLowerCase().includes(historyFilter.toLowerCase())).map(item=><div key={item.id}><button onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[var(--nitido-brand-soft)] flex items-center justify-center text-[var(--nitido-brand-dark)] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate"><UiSpaceType value={item.space_type}/> · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm}<UiText text={" m² · "}/>{<UiText text={JOB_STATUS[item.status]}/>}</span></span><b className="text-sm">{item.price_gross}<UiText text={" lei"}/></b></button>{item.status==="completed"&&<a className="inline-flex items-center gap-2 underline font-semibold min-h-11" href={"/client?repeatJobId="+encodeURIComponent(item.id)+"#sec-form"}><UiText text={"Rezervă din nou "}/><NewBadge/></a>}</div>)}</div></>}</section>}
+        {!job&&!showBooking&&<section id="sec-lucrari" className="v2-card p-5 mb-5"><div className="flex justify-between"><h2 className="font-bold"><UiText text={"Rezervările tale recente"}/></h2><span className="text-xs text-[#6b756f]">{myJobs.length}<UiText text={" total"}/></span></div>{myJobs.length===0?<div className="mt-4"><p className="text-sm text-muted"><UiText text={"Nu ai rezervări încă."}/></p><button type="button" className="v2-btn v2-btn-primary mt-4" onClick={goToForm}><UiText text={"Configurează o rezervare"}/></button></div>:<><UiElement as="input" aria-label="Caută rezervări" className={`${inputClass} mt-3`} value={historyFilter} onChange={e=>setHistoryFilter(e.target.value)} placeholder="Caută rezervare sau status…"/><div className="mt-3 divide-y divide-[#e2e8f0]">{myJobs.filter(item=>`${item.city} ${item.street} ${JOB_STATUS[item.status]}`.toLowerCase().includes(historyFilter.toLowerCase())).map(item=><div key={item.id}><button onClick={()=>setJob(item)} className="w-full py-3 flex items-center gap-3 text-left"><span className="w-10 h-10 rounded-lg bg-[var(--nitido-brand-soft)] flex items-center justify-center text-[var(--nitido-brand-dark)] font-bold">{item.space_type.slice(0,1).toUpperCase()}</span><span className="min-w-0 flex-1"><b className="text-sm block truncate"><UiSpaceType value={item.space_type}/> · {item.city}</b><span className="text-xs text-[#6b756f]">{item.sqm}<UiText text={" m² · "}/>{<UiText text={JOB_STATUS[item.status]}/>}</span></span><b className="text-sm"><UiMoney ron={item.price_gross}/></b></button>{item.status==="completed"&&<a className="inline-flex items-center gap-2 underline font-semibold min-h-11" href={"/client?repeatJobId="+encodeURIComponent(item.id)+"#sec-form"}><UiText text={"Rezervă din nou "}/><NewBadge/></a>}</div>)}</div></>}</section>}
         {!job && !showBooking && <RecurringSection defaults={{ street, postalCode, city, floor, sqm, spaceType }} />}
         {!job && !showBooking && <BusinessSection />}
         {!job && !showBooking && user?.referral_code && (
@@ -790,7 +792,7 @@ export default function ClientPage() {
               <span className="flex-1">
                 <span className="flex items-center justify-between gap-2">
                   <span className="font-display font-bold text-xs text-ink"><UiText text={"🔥 Express 60 · preluare în 60 min"}/></span>
-                  <span className="font-display font-bold text-xs text-coral shrink-0">+{<UiText text={EXPRESS_60_FEE_LEI}/>}<UiText text={" lei"}/></span>
+                  <span className="font-display font-bold text-xs text-coral shrink-0">+<UiMoney ron={EXPRESS_60_FEE_LEI}/></span>
                 </span>
                 <span className="block text-[11px] text-muted mt-0.5 leading-tight"><UiText text={"Garantat: o firmă preia în 60 de minute, prioritate maximă. Dacă nu, nu plătești suplimentul."}/></span>
               </span>
@@ -926,10 +928,10 @@ export default function ClientPage() {
             </div>
 
             {needsAssessment?<section className="design-panel"><h2><UiText text={"Este necesară o evaluare"}/></h2><p><UiText text={cleaningType==='renovation'?CLEANING_DESCRIPTION.renovation:'Suprafața depășește limita calculatorului automat.'}/></p><Link className="design-button" href={`/client/evaluari?${new URLSearchParams({category:cleaningType,city,sqm:String(sqm)})}`}><UiText text={"Trimite spre evaluare"}/></Link></section>:confirmedOffer?null:<div className="bg-mist border border-aqua rounded-xl p-3.5 my-4">
-              <p className="text-sm mb-2">{priceExplanation(spaceType,sqm,cleaningType)}<UiText text={". Camerele nu se taxează separat."}/></p><p className="text-sm mb-2"><UiText text={"Curățenie: "}/>{basePrice}<UiText text=" lei · Supliment băi: "/>{bathroomPrice}<UiText text={" lei · Geamuri: "}/>{windowsSqm}<UiTemplate text=" m² × {p0} lei = " values={[WINDOWS_RATE_LEI]}/>{windowsPrice}<UiText text={" lei"}/></p>
+              <p className="text-sm mb-2">{currencyText(priceExplanation(spaceType,sqm,cleaningType))}<UiText text={". Camerele nu se taxează separat."}/></p><p className="text-sm mb-2"><UiText text={"Curățenie: "}/><UiMoney ron={basePrice}/><UiText text={' · Supliment băi: '}/><UiMoney ron={bathroomPrice}/><UiText text={' · Geamuri: '}/>{windowsSqm}<UiTemplate text=" m² × {p0} lei = " values={[WINDOWS_RATE_LEI]}/><UiMoney ron={windowsPrice}/></p>
               {express60Active && (
                 <div className="flex justify-between items-center text-[11.5px] text-muted mb-1.5 pb-1.5 border-b border-line/60">
-                  <span><UiText text={"Curățenie "}/>{basePrice}<UiText text={" lei · 🔥 Express 60 +"}/>{<UiText text={express60Fee}/>}<UiText text={" lei"}/></span>
+                  <span><UiText text={"Curățenie "}/><UiMoney ron={basePrice}/><UiText text={' · 🔥 Express 60 +'}/><UiMoney ron={express60Fee}/></span>
                 </div>
               )}
               <div className="flex justify-between items-center">
@@ -938,18 +940,18 @@ export default function ClientPage() {
                 </span>
                 <span className="flex items-baseline gap-2">
                   {creditUsed > 0 && (
-                    <span className="text-xs text-muted line-through">{price}<UiText text={" lei"}/></span>
+                    <span className="text-xs text-muted line-through"><UiMoney ron={price}/></span>
                   )}
                   <span className="font-display font-extrabold text-xl text-aqua-deep">
-                    {finalPrice}<UiText text={" lei"}/></span>
+                    <UiMoney ron={finalPrice}/></span>
                 </span>
               </div>
               {creditUsed > 0 && (
-                <p className="text-[11px] text-aqua-deep font-semibold mt-1"><UiText text={"Ai folosit "}/>{creditUsed}<UiText text={" lei din creditul de recomandare"}/></p>
+                <p className="text-[11px] text-aqua-deep font-semibold mt-1"><UiText text={"Ai folosit "}/><UiMoney ron={creditUsed}/><UiText text={' din creditul de recomandare'}/></p>
               )}
             </div>}
 
-            {confirmedOffer&&<UiElement as="section" className="design-panel" aria-label="Oferta pentru confirmare"><h2><UiText text={"Confirmă prețul rezervării"}/></h2><ul>{confirmedOffer.pricing.lines.filter(line=>line.amountBani!==0).map(line=><li key={line.code}>{<UiText text={{cleaning:'Curățenie',windows:'Geamuri',express60:'Express 60',platform_credit:'Credit aplicat'}[line.code]??line.code}/>}: {(line.amountBani/100).toFixed(2)}<UiText text={" lei"}/></li>)}</ul><p><UiText text={"Servicii și suplimente: "}/>{(confirmedOffer.pricing.grossBani/100).toFixed(2)}<UiText text={" lei. Credit aplicat: "}/>{(confirmedOffer.pricing.creditBani/100).toFixed(2)}<UiText text={" lei."}/></p><p><strong><UiText text={"Total de plată: "}/>{(confirmedOffer.pricing.clientTotalBani/100).toFixed(2)}<UiText text={" lei."}/></strong></p><p><UiText text={"Oferta este valabilă până la "}/>{<UiDate value={new Date(confirmedOffer.expiresAt)} kind="time" options={{timeZone:'Europe/Bucharest'}}/>}<UiText text={", ora României. Dacă modifici datele lucrării sau oferta expiră, vei primi o ofertă nouă pentru confirmare."}/></p></UiElement>}
+            {confirmedOffer&&<UiElement as="section" className="design-panel" aria-label="Oferta pentru confirmare"><h2><UiText text={"Confirmă prețul rezervării"}/></h2><ul>{confirmedOffer.pricing.lines.filter(line=>line.amountBani!==0).map(line=><li key={line.code}>{<UiText text={{cleaning:'Curățenie',windows:'Geamuri',express60:'Express 60',platform_credit:'Credit aplicat'}[line.code]??line.code}/>}: <UiMoney ron={Number((line.amountBani/100).toFixed(2))}/></li>)}</ul><p><UiText text={"Servicii și suplimente: "}/><UiMoney ron={Number((confirmedOffer.pricing.grossBani/100).toFixed(2))}/><UiText text={'. Credit aplicat: '}/><UiMoney ron={Number((confirmedOffer.pricing.creditBani/100).toFixed(2))}/><UiText text={'.'}/></p><p><strong><UiText text={"Total de plată: "}/><UiMoney ron={Number((confirmedOffer.pricing.clientTotalBani/100).toFixed(2))}/><ChargeAmount ron={confirmedOffer.pricing.clientTotalBani/100}/><UiText text={'.'}/></strong></p><p><UiText text={"Oferta este valabilă până la "}/>{<UiDate value={new Date(confirmedOffer.expiresAt)} kind="time" options={{timeZone:'Europe/Bucharest'}}/>}<UiText text={", ora României. Dacă modifici datele lucrării sau oferta expiră, vei primi o ofertă nouă pentru confirmare."}/></p></UiElement>}
             {error && <p role="alert" className="text-coral text-xs mb-3">{<UiText text={error}/>}</p>}
 
             {!needsAssessment && cardConfigured && <div className="mb-4"><ClientCards booking cards={cards} selected={selectedCardId} loading={hasCard===null}
@@ -992,7 +994,7 @@ export default function ClientPage() {
                               {o.ratingAvg != null ? `★ ${o.ratingAvg.toFixed(1)} (${o.ratingCount})` : <UiText text={"firmă nouă"}/>} · {o.completedJobs}<UiText text={" lucrări finalizate"}/></div>
                           </div>
                         </div>
-                        <div className="offer-price"><b>{job.price_gross}<UiText text={" lei"}/></b><span><UiText text={"Preț fix pentru această solicitare"}/></span></div>
+                        <div className="offer-price"><b><UiMoney ron={job.price_gross}/></b><span><UiText text={"Preț fix pentru această solicitare"}/></span></div>
                         {o.flexible&&<p className="my-3 text-sm"><UiText text={"Propunere: "}/>{new Date(o.flexible.starts_at).toLocaleString('ro-RO',{timeZone:'Europe/Bucharest'})}<UiText text={" · ora României. Valabilă până la "}/>{new Date(o.flexible.expires_at).toLocaleTimeString('ro-RO',{timeZone:'Europe/Bucharest'})}<UiText text={". Firma și prețul de mai sus se confirmă numai după acceptarea validă."}/></p>}
                         {o.message && (
                           <p className="text-sm text-muted mt-2 border-t border-line pt-2">{o.message}</p>
@@ -1112,7 +1114,7 @@ function ReferralCard({ code, creditBalance }: { code: string; creditBalance: nu
         </button>
       </div>
       {creditBalance > 0 && (
-        <div className="text-[11.5px] text-aqua-deep font-semibold mt-2"><UiText text={"Ai "}/>{creditBalance}<UiText text={" lei credit disponibil — se aplică automat la următoarea lucrare."}/></div>
+        <div className="text-[11.5px] text-aqua-deep font-semibold mt-2"><UiText text={"Ai "}/><UiMoney ron={creditBalance}/><UiText text={' credit disponibil — se aplică automat la următoarea lucrare.'}/></div>
       )}
     </div>
   );
@@ -1217,7 +1219,7 @@ function BusinessSection() {
           </div>
           <div className="flex gap-3 mb-3">
             <div className="flex-1 bg-mist rounded-lg p-3"><div className="text-lg font-bold">{report.totalJobs}</div><div className="text-[11px] text-muted"><UiText text={"lucrări"}/></div></div>
-            <div className="flex-1 bg-mist rounded-lg p-3"><div className="text-lg font-bold">{report.totalAmount}<UiText text={" lei"}/></div><div className="text-[11px] text-muted"><UiText text={"total"}/></div></div>
+            <div className="flex-1 bg-mist rounded-lg p-3"><div className="text-lg font-bold"><UiMoney ron={report.totalAmount}/></div><div className="text-[11px] text-muted"><UiText text={"total"}/></div></div>
           </div>
           {report.rows.length === 0 ? (
             <p className="text-xs text-muted"><UiText text={"Nicio lucrare finalizată încă."}/></p>
@@ -1229,7 +1231,7 @@ function BusinessSection() {
                     <b className="block truncate">{row.spaceType} · {row.city}</b>
                     <span className="text-[#6b756f]">{row.completedAt ? row.completedAt.slice(0, 10) : ""} · {row.firmName ?? "—"}</span>
                   </span>
-                  <b className="flex-shrink-0">{row.priceGross}<UiText text={" lei"}/></b>
+                  <b className="flex-shrink-0"><UiMoney ron={row.priceGross}/></b>
                 </div>
               ))}
             </div>

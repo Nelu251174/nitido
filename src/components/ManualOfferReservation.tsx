@@ -1,20 +1,20 @@
 'use client';
+import {useDisplayMoney} from '@/components/UiMoney';
 import {UiDate} from '@/components/UiDate';
 
 import {UiText,UiTemplate} from '@/components/UiText';
 import type {AssistedOperation} from '@/lib/assistedOperations';
 import type {PublicOfferSchedule} from '@/lib/manualOfferSchedule';
 import {useState,useRef} from 'react';
-import {useLocale} from 'next-intl';
 import type {PublicManualOffer} from '@/lib/manualOffers';
 export type BookableManualOffer=PublicManualOffer&{booking?:{enabled:boolean;reason?:string;jobId?:string|null;windowsSqm?:number;schedule?:PublicOfferSchedule|null;operation?:AssistedOperation|null;supplement?:{originalJobId:string;proposalId:string;street:string;postalCode:string|null;floor:string|null;spaceType:string}|null}};
 export function ManualOfferReservation({offer}:{offer:BookableManualOffer}){
- const supplement=offer.booking?.supplement,lock=useRef(false),locale=useLocale();
+ const supplement=offer.booking?.supplement,lock=useRef(false);
  const [street,setStreet]=useState(supplement?.street??''),[postalCode,setPostalCode]=useState(supplement?.postalCode??''),[floor,setFloor]=useState(supplement?.floor??''),[spaceType,setSpaceType]=useState(supplement?.spaceType??'apartament'),[confirmed,setConfirmed]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[jobId,setJobId]=useState(offer.booking?.jobId??null);
  const [retry,setRetry]=useState<Record<string,unknown>|null>(null);
  const operation=offer.booking?.operation;
  const schedule=offer.booking?.schedule?.action==='propose'?offer.booking.schedule:null;
- const total=new Intl.NumberFormat(locale,{style:'currency',currency:'RON'}).format(offer.terms.totalBani/100);
+ const {money}=useDisplayMoney(),total=money(offer.terms.totalBani/100);
  async function reserve(){if(lock.current)return;lock.current=true;setBusy(true);setError('');try{const payload=retry??{manualOfferId:offer.id,manualBookingConfirmed:true,confirmedManualTotalBani:offer.terms.totalBani,city:offer.terms.context.city,sqm:offer.terms.context.sqm,windowsSqm:offer.booking?.windowsSqm??0,street,postalCode,floor,spaceType,mode:'express',whenType:operation||schedule?'scheduled':'asap',...(schedule?{manualScheduleRevision:schedule.revision,scheduledDate:schedule.scheduled_date,scheduledHour:schedule.scheduled_hour}:{}),...(operation?{assistedRevision:operation.revision,scheduledDate:operation.scheduledDate,scheduledHour:operation.scheduledHour}:{}),photoIds:[]};setRetry(payload);const r=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),d=await r.json();if(!r.ok){if(r.status<500)setRetry(null);throw Error(d.error||'Rezervarea nu a fost confirmată.');}setJobId(d.job.id);}catch(e){setError(e instanceof Error?e.message:'Rezervare nereușită');}finally{lock.current=false;setBusy(false);}}
  const effectiveJobId=offer.booking?.jobId??jobId;
  if(effectiveJobId)return <p role="status"><UiText text={"Rezervarea "}/>{effectiveJobId}<UiText text={" este creată. Verifică starea și eventuala autorizare a cardului în "}/><a href="/client"><UiText text={"contul clientului"}/></a>.</p>;

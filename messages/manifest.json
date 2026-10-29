@@ -14,8 +14,8 @@
   ],
   "targetLanguages": 24,
   "sourceLanguage": "ro",
-  "sourceMessages": 5354,
-  "sourceHash": "16849914e22d3394b860f8cbd3c793a2fe0527fcc11e4f3150cba174f6b0ba60",
+  "sourceMessages": 5367,
+  "sourceHash": "3c4a106eeb9187bd2eeeb00ad50701a5d1ce2fff0e466bbc8abb145269354cf1",
   "provider": "OpenAI",
   "model": "gpt-5.4-mini",
   "review": "machine translation; specialist legal review pending",
@@ -33,6 +33,10 @@
       "messages": 20,
       "scope": "Service type selection, scope and assessment routing",
       "review": "assistant-prepared translations"
+    },
+    "ipCurrency20261029": {
+      "messages": 13,
+      "scope": "Currency conversion notices and currency-neutral existing fragments; previous translations preserved"
     }
   }
 }

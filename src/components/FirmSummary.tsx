@@ -1,4 +1,5 @@
 'use client';
+import {useDisplayMoney} from '@/components/UiMoney';
 import {UiDate} from '@/components/UiDate';
 
 import {UiText} from '@/components/UiText';
@@ -6,9 +7,9 @@ import {useEffect,useState} from 'react';
 import Link from 'next/link';
 import {DesignIcon} from './DesignIcon';
 import {firmEarnings} from '@/lib/firmEarnings';
-import {money} from '@/lib/workspaceShared';
 import type {JobRow} from '@/lib/types';
 export function FirmSummary({jobs}:{jobs:JobRow[]}){
+ const {money}=useDisplayMoney();
  const [teams,setTeams]=useState<{id:string;name:string}[]>([]),[assignments,setAssignments]=useState<{team_id:string;job_id:string}[]>([]),[error,setError]=useState(false);
  useEffect(()=>{let live=true;fetch('/api/workspace').then(r=>{if(!r.ok)throw Error();return r.json()}).then(d=>{if(live){setTeams(d.teams??[]);setAssignments(d.assignments??[])}}).catch(()=>{if(live)setError(true)});return()=>{live=false}},[]);
  const {days,total,latest}=firmEarnings(jobs);

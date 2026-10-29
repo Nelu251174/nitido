@@ -1,4 +1,5 @@
 'use client';
+import {useDisplayMoney} from '@/components/UiMoney';
 import {CleaningTypeLabel} from './CleaningTypeChoice';
 import {SaveFavoriteButton} from './FavoriteFirms';
 import {NewBadge} from './NewBadge';
@@ -8,13 +9,14 @@ import {useLocale} from 'next-intl';
 import {JobProofGallery} from './JobProofGallery';
 import {SelectionRecovery} from './SelectionRecovery';
 import type {JobRow} from '@/lib/types';
-import {JOB_STATUS,money} from '@/lib/workspaceShared';
+import {JOB_STATUS} from '@/lib/workspaceShared';
 import {ExecutionChecklist} from './ExecutionChecklist';
 import {JobMessages} from './JobMessages';
 import {DesignIcon} from './DesignIcon';
 
 const paymentLabels:Record<string,string>={authorized:'Sumă autorizată',captured:'Plată încasată',refunded:'Plată rambursată',cancelled:'Autorizare anulată',failed:'Plată nereușită',pending:'Plată în așteptare'};
 export function JobExecutionDetail({job,firmName,onBack}:{job:JobRow;firmName:string|null;onBack:()=>void}){
+ const {money}=useDisplayMoney();
  const locale=useLocale();
  const date=(value:string|null)=>value?new Date(value).toLocaleString(locale,{timeZone:'Europe/Bucharest',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'În așteptare';
 

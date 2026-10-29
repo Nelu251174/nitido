@@ -1,4 +1,5 @@
 "use client";
+import {UiMoney} from '@/components/UiMoney';
 import {CleaningTypeLabel} from '@/components/CleaningTypeChoice';
 import {NewBadge} from '@/components/NewBadge';
 import {FlexibleFirmOffer} from "@/components/FlexibleFirmOffer";
@@ -381,7 +382,7 @@ export default function FirmaPage() {
                 )}
                 <div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold mt-1"><UiText text={"Tu încasezi"}/></div>
                 <div className="font-display font-extrabold text-lg text-aqua-deep mb-3">
-                  {job.firm_payout ?? job.financial?.firmPayout ?? "—"}<UiText text={" lei"}/></div>
+                  <UiMoney ron={job.firm_payout ?? job.financial?.firmPayout ?? null}/></div>
                 {job.mode === "standard" ? (
                   job.flexible?<FlexibleFirmOffer jobId={job.id} windows={job.flexible.windows} onSaved={()=>{void refresh();}}/>:offeredJobIds.includes(job.id) ? (
                     <div className="text-center text-sm font-display font-bold text-aqua-deep bg-aqua/10 rounded-lg py-2.5"><UiText text={"✓ Candidatură trimisă — clientul alege"}/></div>
@@ -419,7 +420,7 @@ export default function FirmaPage() {
                 <JobNavigation jobId={job.id} address={`${job.street}, ${job.city}`}/>
                 <div className="text-[11px] text-muted mb-3"><UiText text={"Se deschide în Google Maps — durată și distanță până la locație"}/></div>
                 <div className="text-xs text-muted mb-3">
-                  {job.sqm}<UiText text={" mp"}/>{(job.windows_sqm??0)>0?<UiTemplate text={" + geamuri {p0} m²"} values={[job.windows_sqm]}/>:""} · {job.firm_payout ?? job.financial?.firmPayout ?? "—"}<UiText text={" lei · status: "}/>{job.status}
+                  {job.sqm}<UiText text={" mp"}/>{(job.windows_sqm??0)>0?<UiTemplate text={" + geamuri {p0} m²"} values={[job.windows_sqm]}/>:""} · <UiMoney ron={job.firm_payout ?? job.financial?.firmPayout ?? null}/><UiText text={' · status: '}/>{job.status}
                 </div>
                 <VisitCare jobId={job.id}/>
                 {job.status==='accepted'&&!job.express_60&&<RescheduleVisit jobId={job.id} scheduledAt={job.scheduled_at} status={job.status} role="firma" onChanged={refresh}/>}
@@ -447,12 +448,12 @@ export default function FirmaPage() {
             <div className="bg-white border border-line rounded-2xl p-4">
               <div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold"><UiText text={"Câștiguri luna aceasta"}/></div>
               <div className="font-display font-extrabold text-2xl text-aqua-deep">
-                {earningsThisMonth}<UiText text={" lei"}/></div>
+                <UiMoney ron={earningsThisMonth}/></div>
             </div>
             <div className="bg-white border border-line rounded-2xl p-4">
               <div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold"><UiText text={"Câștiguri totale"}/></div>
               <div className="font-display font-extrabold text-2xl text-ink">
-                {earningsTotal}<UiText text={" lei"}/></div>
+                <UiMoney ron={earningsTotal}/></div>
               <div className="text-[11px] text-muted mt-0.5">{historyJobs.length}<UiText text={" lucrări finalizate"}/></div>
             </div>
           </section>

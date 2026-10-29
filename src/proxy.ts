@@ -1,7 +1,6 @@
 import {NextRequest,NextResponse} from 'next/server';
 import {siteIndexingEnabled} from './lib/siteIndexing';
-import {lookup} from 'geoip-country';
-import {asLocale, LOCALE_COOKIE} from './i18n/locales';
+import {visitorCountry} from './lib/visitorCountry';
 const privatePaths=['/pro','/api','/admin','/client','/firma','/login','/signup','/mobile','/colaborari','/echipa','/invitatie','/remedieri','/reset-password','/verify-email','/reset-parola','/confirma-email','/uploads','/card-finalizat','/cont'];
 export function proxy(req:NextRequest){
  const host=req.headers.get('host')?.toLowerCase();
@@ -11,10 +10,12 @@ export function proxy(req:NextRequest){
  // Never trust a caller-provided country. Resolve locally, without sending IPs
  // to a translation/geolocation service. A manual language choice wins.
  forwarded.delete('x-nitido-country');
+ forwarded.delete('x-nitido-original-currency');
+ if(req.nextUrl.pathname==='/admin'||req.nextUrl.pathname.startsWith('/admin/'))forwarded.set('x-nitido-original-currency','true');
  const pageRequest=!req.nextUrl.pathname.startsWith('/api/') && !/\.[a-z0-9]+$/i.test(req.nextUrl.pathname);
- if(!asLocale(req.cookies.get(LOCALE_COOKIE)?.value) && pageRequest){
-   const ip=req.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-   try {const country=ip?lookup(ip)?.country:null;if(country)forwarded.set('x-nitido-country',country);} catch { /* Country lookup is best effort. */ }
+ if(pageRequest){
+   const country=visitorCountry(req.headers);
+   if(country)forwarded.set('x-nitido-country',country);
  }
  const response=NextResponse.next({request:{headers:forwarded}});
  if(pageRequest){

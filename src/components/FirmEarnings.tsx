@@ -1,11 +1,12 @@
 'use client';
+import {useDisplayMoney} from '@/components/UiMoney';
 import {useLocale} from 'next-intl';
 import {UiText,UiElement,UiTemplate} from '@/components/UiText';
 import {useEffect,useState} from 'react';
 import {bucharestDay,utcDate,type EarningRow} from '@/lib/monthlyFirmEarnings';
-const money=(n:number|null)=>n===null?'—':new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON'}).format(n);
 
 export function FirmEarnings({revision=""}:{revision?:string}){
+ const {money}=useDisplayMoney();
  const locale=useLocale();
  const time=(s:string|null)=>s?utcDate(s).toLocaleTimeString(locale,{timeZone:'Europe/Bucharest',hour:'2-digit',minute:'2-digit'}):'—';
 

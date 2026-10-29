@@ -4,7 +4,7 @@ import {createRoot,type Root} from 'react-dom/client';
 import {beforeEach,afterEach,it,expect,vi} from 'vitest';
 const m=vi.hoisted(()=>({user:{id:'c',role:'client'} as {id:string;role:string}|null}));
 vi.mock('@/lib/useCurrentUser',()=>({useCurrentUser:()=>({user:m.user,loading:false,error:null,retry:vi.fn()})}));
-vi.mock('next-intl',()=>({useLocale:()=> 'ro'}));
+vi.mock('next-intl',()=>({useMessages:()=>({ui:{}}),useLocale:()=> 'ro'}));
 vi.mock('./UiText',()=>({UiText:({text}:{text:string})=><>{text}</>}));
 import {ExtraWorkRequests} from './ExtraWorkRequests';
 let root:Root,el:HTMLDivElement;

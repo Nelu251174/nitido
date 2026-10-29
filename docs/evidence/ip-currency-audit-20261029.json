@@ -1,0 +1,500 @@
+{
+  "date": "2026-10-29",
+  "baseApplicationCommit": "66b512fadf519824edeed1d6a965bce35f775fc6",
+  "baseBranchHead": "6e5c4e48b4675415bf6a822b8febd7b74b72870f",
+  "rule": "Known RO IP: RON. Any other known IP country: EUR presentation. Unknown: RON without guessing. Billing remains RON.",
+  "manualLanguageDisablesCountryDetection": false,
+  "sourceDataChanged": false,
+  "automaticInternationalBookingsEnabled": false,
+  "geoipSendsVisitorToThirdParty": false,
+  "rateSource": "https://curs.bnr.ro/nbrfxrates.xml",
+  "currencySource": "validated public BNR reference; no invented fallback",
+  "availableLocales": [
+    "bg",
+    "hr",
+    "cs",
+    "da",
+    "nl",
+    "en",
+    "fr",
+    "de",
+    "ro"
+  ],
+  "unsupportedLanguages": "Supported browser preference or English fallback; additional complete catalogs remain pending.",
+  "qa": {
+    "baselineTestsPassed": 2675,
+    "fullRegressionTestsPassed": 2732,
+    "externalSmokeSkipped": 1,
+    "finalFormatterTestsPassed": 81,
+    "build": "passed",
+    "lint": "passed without warnings",
+    "browser": {
+      "status": "passed",
+      "checks": [
+        {
+          "name": "Romania detects country without leaking IP",
+          "passed": true
+        },
+        {
+          "name": "Romania chooses correct language",
+          "passed": true
+        },
+        {
+          "name": "Romania chooses correct display currency",
+          "passed": true
+        },
+        {
+          "name": "Romania converts quote value",
+          "passed": true
+        },
+        {
+          "name": "Romania has no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "France detects country without leaking IP",
+          "passed": true
+        },
+        {
+          "name": "France chooses correct language",
+          "passed": true
+        },
+        {
+          "name": "France chooses correct display currency",
+          "passed": true
+        },
+        {
+          "name": "France converts quote value",
+          "passed": true
+        },
+        {
+          "name": "France has no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "pricing table converts 750 RON to 150 EUR",
+          "passed": true
+        },
+        {
+          "name": "pricing table has no old lei prices",
+          "passed": true
+        },
+        {
+          "name": "Germany detects country without leaking IP",
+          "passed": true
+        },
+        {
+          "name": "Germany chooses correct language",
+          "passed": true
+        },
+        {
+          "name": "Germany chooses correct display currency",
+          "passed": true
+        },
+        {
+          "name": "Germany converts quote value",
+          "passed": true
+        },
+        {
+          "name": "Germany has no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "United States detects country without leaking IP",
+          "passed": true
+        },
+        {
+          "name": "United States chooses correct language",
+          "passed": true
+        },
+        {
+          "name": "United States chooses correct display currency",
+          "passed": true
+        },
+        {
+          "name": "United States converts quote value",
+          "passed": true
+        },
+        {
+          "name": "United States has no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "Moldova detects country without leaking IP",
+          "passed": true
+        },
+        {
+          "name": "Moldova chooses correct language",
+          "passed": true
+        },
+        {
+          "name": "Moldova chooses correct display currency",
+          "passed": true
+        },
+        {
+          "name": "Moldova converts quote value",
+          "passed": true
+        },
+        {
+          "name": "Moldova has no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "foreign Romanian language detects country without leaking IP",
+          "passed": true
+        },
+        {
+          "name": "foreign Romanian language chooses correct language",
+          "passed": true
+        },
+        {
+          "name": "foreign Romanian language chooses correct display currency",
+          "passed": true
+        },
+        {
+          "name": "foreign Romanian language converts quote value",
+          "passed": true
+        },
+        {
+          "name": "foreign Romanian language has no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "iPhone sized viewport stays within screen",
+          "passed": true
+        },
+        {
+          "name": "Romania English language detects country without leaking IP",
+          "passed": true
+        },
+        {
+          "name": "Romania English language chooses correct language",
+          "passed": true
+        },
+        {
+          "name": "Romania English language chooses correct display currency",
+          "passed": true
+        },
+        {
+          "name": "Romania English language converts quote value",
+          "passed": true
+        },
+        {
+          "name": "Romania English language has no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "unknown location detects country without leaking IP",
+          "passed": true
+        },
+        {
+          "name": "unknown location chooses correct language",
+          "passed": true
+        },
+        {
+          "name": "unknown location chooses correct display currency",
+          "passed": true
+        },
+        {
+          "name": "unknown location converts quote value",
+          "passed": true
+        },
+        {
+          "name": "unknown location has no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "iPhone authenticated client quote uses converted EUR",
+          "passed": true
+        },
+        {
+          "name": "iPhone authenticated client viewport fits",
+          "passed": true
+        },
+        {
+          "name": "Android authenticated client quote uses converted EUR",
+          "passed": true
+        },
+        {
+          "name": "Android authenticated client viewport fits",
+          "passed": true
+        },
+        {
+          "name": "ADMIN keeps original ledger currency",
+          "passed": true
+        },
+        {
+          "name": "ADMIN API denies anonymous access",
+          "passed": true
+        },
+        {
+          "name": "no browser runtime errors",
+          "passed": true
+        }
+      ],
+      "pageErrors": [],
+      "cases": [
+        {
+          "name": "Romania",
+          "country": "RO",
+          "locale": "ro",
+          "currency": "RON",
+          "total": "1200 lei"
+        },
+        {
+          "name": "France",
+          "country": "FR",
+          "locale": "fr",
+          "currency": "EUR",
+          "total": "240,00 €"
+        },
+        {
+          "name": "Germany",
+          "country": "DE",
+          "locale": "de",
+          "currency": "EUR",
+          "total": "240,00 €"
+        },
+        {
+          "name": "United States",
+          "country": "US",
+          "locale": "en",
+          "currency": "EUR",
+          "total": "€240.00"
+        },
+        {
+          "name": "Moldova",
+          "country": "MD",
+          "locale": "ro",
+          "currency": "EUR",
+          "total": "240,00 €"
+        },
+        {
+          "name": "foreign Romanian language",
+          "country": "FR",
+          "locale": "ro",
+          "currency": "EUR",
+          "total": "240,00 €"
+        },
+        {
+          "name": "Romania English language",
+          "country": "RO",
+          "locale": "en",
+          "currency": "RON",
+          "total": "1200 lei"
+        },
+        {
+          "name": "unknown location",
+          "country": null,
+          "locale": "en",
+          "currency": "RON",
+          "total": "1200 lei"
+        }
+      ],
+      "syntheticOnly": true,
+      "emailsSent": 0,
+      "financialActions": 0
+    },
+    "phoneHardwareVerified": false,
+    "nativeConfig": "Existing Capacitor wrappers load https://nitido.ro; no binary/store publication in this change",
+    "npmProductionAudit": {
+      "critical": 0,
+      "high": 0,
+      "moderate": 1,
+      "remainingDependency": "qs",
+      "advisory": "GHSA-6pq8-jhm2-2vcw"
+    }
+  },
+  "liveHttpAudit": [
+    {
+      "path": "/",
+      "status": 200,
+      "private": "private, no-store",
+      "noindex": null,
+      "bytes": 564458,
+      "hasPasswordInput": false
+    },
+    {
+      "path": "/preturi",
+      "status": 200,
+      "private": "private, no-store",
+      "noindex": null,
+      "bytes": 521944,
+      "hasPasswordInput": false
+    },
+    {
+      "path": "/rezervare",
+      "status": 200,
+      "private": "private, no-store",
+      "noindex": null,
+      "bytes": 489541,
+      "hasPasswordInput": false
+    },
+    {
+      "path": "/login",
+      "status": 200,
+      "private": "private, no-store",
+      "noindex": "noindex, nofollow, noarchive",
+      "bytes": 468466,
+      "hasPasswordInput": true
+    },
+    {
+      "path": "/signup",
+      "status": 200,
+      "private": "private, no-store",
+      "noindex": "noindex, nofollow, noarchive",
+      "bytes": 469597,
+      "hasPasswordInput": true
+    },
+    {
+      "path": "/inscrie-firma",
+      "status": 200,
+      "private": "private, no-store",
+      "noindex": null,
+      "bytes": 499336,
+      "hasPasswordInput": false
+    },
+    {
+      "path": "/client",
+      "status": 200,
+      "private": "private, no-store",
+      "noindex": "noindex, nofollow, noarchive",
+      "bytes": 465565,
+      "hasPasswordInput": false
+    },
+    {
+      "path": "/firma",
+      "status": 200,
+      "private": "private, no-store",
+      "noindex": "noindex, nofollow, noarchive",
+      "bytes": 463967,
+      "hasPasswordInput": false
+    },
+    {
+      "path": "/admin",
+      "status": 200,
+      "private": "private, no-store",
+      "noindex": "noindex, nofollow, noarchive",
+      "bytes": 466269,
+      "hasPasswordInput": true
+    },
+    {
+      "path": "/admin/notificari",
+      "status": 200,
+      "private": "private, no-store",
+      "noindex": "noindex, nofollow, noarchive",
+      "bytes": 466269,
+      "hasPasswordInput": true
+    },
+    {
+      "path": "/admin/reset-parola",
+      "status": 200,
+      "private": "private, no-store",
+      "noindex": "noindex, nofollow, noarchive",
+      "bytes": 464526,
+      "hasPasswordInput": false
+    },
+    {
+      "path": "/client/setari",
+      "status": 200,
+      "private": "private, no-store",
+      "noindex": "noindex, nofollow, noarchive",
+      "bytes": 464573,
+      "hasPasswordInput": false
+    },
+    {
+      "path": "/firma/setari",
+      "status": 200,
+      "private": "private, no-store",
+      "noindex": "noindex, nofollow, noarchive",
+      "bytes": 463822,
+      "hasPasswordInput": false
+    },
+    {
+      "path": "/nitido-pro",
+      "status": 200,
+      "private": "private, no-store",
+      "noindex": null,
+      "bytes": 514515,
+      "hasPasswordInput": false
+    },
+    {
+      "path": "/termeni",
+      "status": 200,
+      "private": "private, no-store",
+      "noindex": null,
+      "bytes": 553654,
+      "hasPasswordInput": false
+    },
+    {
+      "path": "/confidentialitate",
+      "status": 200,
+      "private": "private, no-store",
+      "noindex": null,
+      "bytes": 571521,
+      "hasPasswordInput": false
+    },
+    {
+      "path": "/api/health",
+      "status": 200,
+      "private": "no-store",
+      "noindex": "noindex, nofollow, noarchive",
+      "bytes": 15,
+      "hasPasswordInput": false
+    },
+    {
+      "path": "/api/admin/customers",
+      "status": 401
+    },
+    {
+      "path": "/api/admin/notifications",
+      "status": 401
+    },
+    {
+      "path": "/api/jobs",
+      "status": 401
+    },
+    {
+      "path": "/api/workspace",
+      "status": 401
+    },
+    {
+      "path": "/manifest.webmanifest",
+      "status": 200,
+      "private": "public, max-age=0, must-revalidate",
+      "noindex": null,
+      "bytes": 841,
+      "hasPasswordInput": false
+    },
+    {
+      "path": "/sw.js",
+      "status": 200,
+      "private": "public, max-age=0",
+      "noindex": null,
+      "bytes": 2224,
+      "hasPasswordInput": false
+    },
+    {
+      "path": "/robots.txt",
+      "status": 200,
+      "private": "public, max-age=0, must-revalidate",
+      "noindex": null,
+      "bytes": 418,
+      "hasPasswordInput": false
+    },
+    {
+      "path": "/sitemap.xml",
+      "status": 200,
+      "private": "public, max-age=0, must-revalidate",
+      "noindex": null,
+      "bytes": 1565,
+      "hasPasswordInput": false
+    }
+  ],
+  "runtimeTasksCreated": 0,
+  "liveEmailsSent": 0,
+  "paymentsExecuted": 0,
+  "existingFinancialRecordsChanged": false,
+  "campaignsChanged": false,
+  "published": false
+}

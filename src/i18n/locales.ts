@@ -27,7 +27,7 @@ const COUNTRY_LANGUAGES: Record<string, Locale> = {
   BG: 'bg', HR: 'hr', CZ: 'cs', DK: 'da', NL: 'nl', GB: 'en', IE: 'en',
   EE: 'et', FI: 'fi', FR: 'fr', DE: 'de', AT: 'de', GR: 'el', CY: 'el',
   HU: 'hu', IT: 'it', LV: 'lv', LT: 'lt', MT: 'mt', PL: 'pl', PT: 'pt',
-  RO: 'ro', MD: 'ro', SK: 'sk', SI: 'sl', ES: 'es', SE: 'sv',
+  US:'en', AU:'en', NZ:'en', CA:'en', RO: 'ro', MD: 'ro', SK: 'sk', SI: 'sl', ES: 'es', SE: 'sv',
 };
 /** Never infer one language for multilingual countries such as Belgium. */
 export function selectLocale(manual?: string | null, acceptLanguage?: string | null, country?: string | null): Locale {
@@ -43,7 +43,7 @@ export function selectLocale(manual?: string | null, acceptLanguage?: string | n
     return {locale: asLocale(tag), quality, index};
   }).filter(p => p.locale && Number.isFinite(p.quality) && p.quality > 0 && p.quality <= 1)
     .sort((a, b) => b.quality - a.quality || a.index - b.index);
-  return preferences[0]?.locale ?? DEFAULT_LOCALE;
+  return preferences[0]?.locale ?? (country&&country!=='RO'?'en':DEFAULT_LOCALE);
 }
 export function hasSupportedLanguage(header?: string | null): boolean {
   return (header ?? '').split(',').some(part => {
