@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-29",
+  "base": "3edfe4e048e667640bed329e2ef4902e9d665dc7",
+  "unitAndIntegration": {
+    "passed": 2744,
+    "skipped": 1,
+    "failed": 0,
+    "note": "One external Marketing smoke test intentionally skipped. Final test-only TypeScript annotation adjustment followed by 11 targeted passing tests and production build."
+  },
+  "productionBuild": "passed",
+  "i18n": {
+    "publishedLocales": 9,
+    "messagesPerLocale": 5367,
+    "sourceCoverage": "complete"
+  },
+  "lint": "passed",
+  "browserHttp": {
+    "passed": 79,
+    "failed": 0,
+    "productionBuild": true,
+    "isolatedSyntheticData": true,
+    "networkDisabled": true,
+    "physicalDevices": false
+  },
+  "liveBaseline": {
+    "checked": 101,
+    "http200": 95,
+    "http401": 6,
+    "http404": 0,
+    "http5xx": 0
+  },
+  "realEmailsSent": 0,
+  "realPaymentsExecuted": 0,
+  "customerDataModified": false,
+  "existingBuildWarnings": [
+    "Broad dynamic filesystem tracing in existing Marketing county snapshot module."
+  ],
+  "notCertified": [
+    "Physical iOS/Android delivery or installed store binary",
+    "Current automatic push activation and real Gmail receipt",
+    "Real Stripe transaction and bank settlement",
+    "Fulfilled deletion: existing implementation is request intake/review only",
+    "Fresh restore of the LIVE database",
+    "Independent commercial verification of listed firms",
+    "All languages/countries: nine released locales; EUR presentation, actual settlement in RON"
+  ]
+}
