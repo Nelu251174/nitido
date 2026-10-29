@@ -43,10 +43,12 @@ export function ownerEventMail(db:Database,row:EventRow,to:string):OwnerEmail|nu
    html+='</ul>';
   }
  }else{
-  const user=row.user_id?db.prepare('SELECT role,name,email,created_at FROM users WHERE id=?').get(row.user_id) as {role:string;name:string;email:string;created_at:string}|undefined:undefined;
+  const user=row.user_id?db.prepare('SELECT role,name,email,phone,is_business,company_name FROM users WHERE id=?').get(row.user_id) as {role:string;name:string;email:string;phone:string|null;is_business:number;company_name:string|null}|undefined:undefined;
   if(!user||user.role!==(row.event_type==='FIRM_REGISTERED'?'firma':'client'))return null;
-  subject='NITIDO — '+(user.role==='firma'?'firmă de curățenie nouă':'client nou');
-  html=`<h2>${user.role==='firma'?'Înregistrare firmă de curățenie':'Înregistrare client'}</h2><p>Nume: ${escape(user.name)}</p><p>Email: ${escape(user.email)}</p><p>Înregistrare: ${escape(new Date(row.created_ms).toISOString())}</p><p>Țara conexiunii, estimată din IP: ${escape(payload.connectionCountry??'nedeterminată')}</p>`;
+  const accountType=user.role==='firma'?'Firmă de curățenie':user.is_business?'Client firmă':'Client — persoană fizică / firmă';
+  subject='Înscriere nouă pe NÍTIDO: '+user.name.replace(/[\r\n\u0000-\u001f\u007f]+/g,' ').trim().slice(0,150);
+  const registeredAt=new Date(row.created_ms).toLocaleString('ro-RO',{timeZone:'Europe/Bucharest'});
+  html=`<h2>Cont nou pe NÍTIDO</h2><p><strong>Nume:</strong> ${escape(user.name)}</p><p><strong>Email:</strong> ${escape(user.email)}</p><p><strong>Tip cont:</strong> ${accountType}</p><p><strong>Telefon:</strong> ${escape(user.phone??'necompletat')}</p>${user.is_business&&user.company_name?`<p><strong>Firmă client:</strong> ${escape(user.company_name)}</p>`:''}<p><strong>Înregistrare:</strong> ${escape(registeredAt)} (ora României)</p><p>Țara conexiunii, estimată din IP: ${escape(payload.connectionCountry??'nedeterminată')}</p>`;
   if(user.role==='firma')html+='<p>Cont creat. Verificarea și aprobarea firmei sunt etape distincte.</p>';
  }
  html+=`<p><a href="${adminLink()}">Deschide alertele din administrare</a></p>`;

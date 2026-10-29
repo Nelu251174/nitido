@@ -17,6 +17,26 @@ it('queues one event atomically per real account, any origin, without raw IP',()
 it('rolls back the account if its outbox cannot be saved',()=>{db.exec("CREATE TRIGGER fail_alert BEFORE INSERT ON admin_owner_events BEGIN SELECT RAISE(ABORT,'failure');END");expect(()=>signup()).toThrow();expect(db.prepare("SELECT id FROM users WHERE id='u'").get()).toBeUndefined();});
 it('does not queue anything when firm persistence fails',()=>{db.exec("CREATE TRIGGER fail_firm BEFORE INSERT ON firms BEGIN SELECT RAISE(ABORT,'failure');END");expect(()=>signup('firma')).toThrow();expect(ownerInbox(db,'a').events).toHaveLength(0);});
 it('sends escaped account data once and marks provider acceptance accurately',async()=>{const id=signup();const sender=vi.fn<import('./adminOwnerEvents').OwnerSender>().mockResolvedValue({id:'provider-id'});const result=await processOwnerEmails(db,{sender,now:Date.now()});expect(result.accepted).toBe(1);expect(sender.mock.calls[0][0].html).toContain('&lt;script&gt;');expect(sender.mock.calls[0][0].to).toBe('owner@example.test');await processOwnerEmails(db,{sender});expect(sender).toHaveBeenCalledTimes(1);expect(row(id).email_status).toBe('sent');});
+it.each([
+ ['client',false,'Client — persoană fizică / firmă'],
+ ['client',true,'Client firmă'],
+ ['firma',false,'Firmă de curățenie'],
+] as const)('notifies the selected owner once for %s with business=%s',async(role,business,type)=>{
+ const id=signup(role);vi.stubEnv('NITIDO_OWNER_NOTIFICATION_EMAIL','nelutofan@gmail.com');
+ db.prepare('UPDATE users SET name=?,is_business=?,company_name=? WHERE id=?').run('Test Înregistrare',business?1:0,business?'Birou <Test>':null,'u');
+ db.prepare('UPDATE admin_owner_events SET created_ms=? WHERE id=?').run(now,id);
+ const sender=vi.fn<import('./adminOwnerEvents').OwnerSender>().mockResolvedValue({id:'accepted'});
+ expect((await processOwnerEmails(db,{sender})).accepted).toBe(1);
+ const mail=sender.mock.calls[0][0];expect(mail.to).toBe('nelutofan@gmail.com');expect(mail.subject).toBe('Înscriere nouă pe NÍTIDO: Test Înregistrare');
+ expect(mail.html).toContain(type);expect(mail.html).toContain('u@example.test');expect(mail.html).toContain('+40722111222');expect(mail.html).toContain('11:00:00');
+ if(business)expect(mail.html).toContain('Birou &lt;Test&gt;');
+ await processOwnerEmails(db,{sender});expect(sender).toHaveBeenCalledTimes(1);
+});
+it('keeps account names out of email header control sequences',async()=>{
+ signup();db.prepare('UPDATE users SET name=? WHERE id=?').run('Test\r\nBcc: other@example.test','u');
+ const sender=vi.fn<import('./adminOwnerEvents').OwnerSender>().mockResolvedValue({id:'accepted'});await processOwnerEmails(db,{sender});
+ expect(sender.mock.calls[0][0].subject).not.toMatch(/[\r\n]/);expect(sender.mock.calls[0][0].to).toBe('owner@example.test');
+});
 it('retains alerts while email configuration is missing',async()=>{const id=signup();vi.stubEnv('NITIDO_OWNER_NOTIFICATION_EMAIL','');expect((await processOwnerEmails(db)).status).toBe('disabled');expect(row(id).attempt_count).toBe(0);});
 it('retries unknown delivery with the same idempotency key and backoff',async()=>{const id=signup(),time=Date.now();const sender=vi.fn().mockResolvedValueOnce({error:'EMAIL_RESPONSE_UNKNOWN',retryable:true}).mockResolvedValueOnce({id:'accepted'});await processOwnerEmails(db,{sender,now:time});await processOwnerEmails(db,{sender,now:time+1000});expect(sender).toHaveBeenCalledTimes(1);await processOwnerEmails(db,{sender,now:time+60000});expect(sender.mock.calls[0][0]).toEqual(sender.mock.calls[1][0]);expect(row(id).email_status).toBe('sent');});
 it('prevents concurrent requests from sending the same alert',async()=>{signup();let release!:()=>void;const pending=new Promise<void>(r=>{release=r;});const sender=vi.fn(async()=>{await pending;return {id:'accepted'};});const first=processOwnerEmails(db,{sender});await processOwnerEmails(db,{sender});release();await first;expect(sender).toHaveBeenCalledTimes(1);});
