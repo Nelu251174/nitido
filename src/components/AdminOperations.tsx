@@ -1,12 +1,13 @@
 'use client';
 import {useEffect,useState} from 'react';
+import {isAdminDocumentReload} from './useAdminReloadScroll';
 import type {JobRow} from '@/lib/types';
 import {JOB_STATUS,money} from '@/lib/workspaceShared';
 import {DesignIcon} from './DesignIcon';
 type Payment={job_id:string;status:string;transfer_status:string;payout_status:string};
 export function AdminOperations({jobs,payments}:{jobs:JobRow[];payments:Payment[]}){
  const [query,setQuery]=useState(''),[status,setStatus]=useState('all'),[selected,setSelected]=useState('');
- useEffect(()=>{const id=new URLSearchParams(window.location.search).get('focusJob');if(!id)return;const frame=requestAnimationFrame(()=>{setQuery(id);setSelected(id);document.getElementById('operatiuni')?.scrollIntoView({block:'start'})});return()=>cancelAnimationFrame(frame)},[]);
+ useEffect(()=>{const id=new URLSearchParams(window.location.search).get('focusJob');if(!id)return;const frame=requestAnimationFrame(()=>{setQuery(id);setSelected(id);if(!isAdminDocumentReload())document.getElementById('operatiuni')?.scrollIntoView({block:'start'})});return()=>cancelAnimationFrame(frame)},[]);
  const visible=jobs.filter(j=>(status==='all'||j.status===status)&&`${j.id} ${j.city} ${j.street}`.toLocaleLowerCase('ro').includes(query.toLocaleLowerCase('ro')));
  const job=visible.find(j=>j.id===selected)??visible[0];
  const payment=payments.find(p=>p.job_id===job?.id);
