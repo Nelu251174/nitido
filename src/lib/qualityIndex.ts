@@ -1,3 +1,4 @@
+import {verifiedFirmRating} from './verifiedFirmRating';
 import type { Database } from "better-sqlite3";
 
 /**
@@ -34,21 +35,20 @@ export function computeQualityScore(i: QualityInputs): QualityScore {
 
 /** Datele + scorul de calitate pentru o firmă. */
 export function getFirmQuality(db: Database, firmId: string): QualityScore & QualityInputs {
+  const rating=verifiedFirmRating(db,firmId);
   const agg = db
     .prepare(
       `SELECT
-         (SELECT AVG(stars) FROM ratings r WHERE r.firm_id = ? AND r.status = 'active') AS avgStars,
-         (SELECT COUNT(*)   FROM ratings r WHERE r.firm_id = ? AND r.status = 'active') AS ratingCount,
          (SELECT COUNT(*)   FROM jobs j   WHERE j.accepted_firm_id = ? AND j.status = 'completed') AS completedJobs`
     )
-    .get(firmId, firmId, firmId) as { avgStars: number | null; ratingCount: number; completedJobs: number };
+    .get(firmId) as { completedJobs: number };
   const firm = db.prepare("SELECT strikes_90d, verified FROM firms WHERE id = ?").get(firmId) as
     | { strikes_90d: number; verified: number }
     | undefined;
 
   const inputs: QualityInputs = {
-    avgStars: agg.avgStars != null ? Number(agg.avgStars) : null,
-    ratingCount: agg.ratingCount ?? 0,
+    avgStars: rating.average,
+    ratingCount: rating.count,
     completedJobs: agg.completedJobs ?? 0,
     strikes90d: firm?.strikes_90d ?? 0,
     verified: Boolean(firm?.verified),

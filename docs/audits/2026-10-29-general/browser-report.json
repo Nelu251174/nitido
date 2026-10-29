@@ -1,0 +1,342 @@
+{
+  "status": "passed",
+  "checks": [
+    {
+      "name": "actual synthetic login owner",
+      "passed": true
+    },
+    {
+      "name": "session cookie is HTTP-only and SameSite",
+      "passed": true
+    },
+    {
+      "name": "actual synthetic login other",
+      "passed": true
+    },
+    {
+      "name": "session cookie is HTTP-only and SameSite",
+      "passed": true
+    },
+    {
+      "name": "actual synthetic login firm",
+      "passed": true
+    },
+    {
+      "name": "session cookie is HTTP-only and SameSite",
+      "passed": true
+    },
+    {
+      "name": "actual synthetic login unverified",
+      "passed": true
+    },
+    {
+      "name": "session cookie is HTTP-only and SameSite",
+      "passed": true
+    },
+    {
+      "name": "anonymous job access blocked",
+      "passed": true
+    },
+    {
+      "name": "forged price does not create a booking",
+      "passed": true
+    },
+    {
+      "name": "foreign-origin booking blocked",
+      "passed": true
+    },
+    {
+      "name": "server calculates the actual 1420 RON tariff",
+      "passed": true
+    },
+    {
+      "name": "repeat submission keeps one booking",
+      "passed": true
+    },
+    {
+      "name": "another client cannot see the owner booking",
+      "passed": true
+    },
+    {
+      "name": "eligible firm sees the job without the exact private street",
+      "passed": true
+    },
+    {
+      "name": "unverified firm cannot claim eligibility",
+      "passed": true
+    },
+    {
+      "name": "real candidature is stored once",
+      "passed": true
+    },
+    {
+      "name": "other client cannot read the booking offers",
+      "passed": true
+    },
+    {
+      "name": "production without Stripe cannot invent an authorization",
+      "passed": true
+    },
+    {
+      "name": "unconfigured card provider gives an explicit unavailable result",
+      "passed": true
+    },
+    {
+      "name": "unconfigured webhook does not create a payment",
+      "passed": true
+    },
+    {
+      "name": "push status reflects the disabled transport",
+      "passed": true
+    },
+    {
+      "name": "unfinished job cannot receive a verified review",
+      "passed": true
+    },
+    {
+      "name": "completed proof-backed job accepts an authentic negative review",
+      "passed": true
+    },
+    {
+      "name": "public trust derives real totals and retains the negative star",
+      "passed": true
+    },
+    {
+      "name": "public review redacts email, phone and exact address",
+      "passed": true
+    },
+    {
+      "name": "hidden review disappears consistently from all decision surfaces",
+      "passed": true
+    },
+    {
+      "name": "deletion request explicitly reports intake, not completed erasure",
+      "passed": true
+    },
+    {
+      "name": "deletion submission is idempotent",
+      "passed": true
+    },
+    {
+      "name": "/ layout 390",
+      "passed": true
+    },
+    {
+      "name": "/ layout 768",
+      "passed": true
+    },
+    {
+      "name": "/ layout 1440",
+      "passed": true
+    },
+    {
+      "name": "/preturi layout 390",
+      "passed": true
+    },
+    {
+      "name": "/preturi layout 768",
+      "passed": true
+    },
+    {
+      "name": "/preturi layout 1440",
+      "passed": true
+    },
+    {
+      "name": "/rezervare layout 390",
+      "passed": true
+    },
+    {
+      "name": "/rezervare layout 768",
+      "passed": true
+    },
+    {
+      "name": "/rezervare layout 1440",
+      "passed": true
+    },
+    {
+      "name": "/login layout 390",
+      "passed": true
+    },
+    {
+      "name": "/login layout 768",
+      "passed": true
+    },
+    {
+      "name": "/login layout 1440",
+      "passed": true
+    },
+    {
+      "name": "/signup layout 390",
+      "passed": true
+    },
+    {
+      "name": "/signup layout 768",
+      "passed": true
+    },
+    {
+      "name": "/signup layout 1440",
+      "passed": true
+    },
+    {
+      "name": "/inscrie-firma layout 390",
+      "passed": true
+    },
+    {
+      "name": "/inscrie-firma layout 768",
+      "passed": true
+    },
+    {
+      "name": "/inscrie-firma layout 1440",
+      "passed": true
+    },
+    {
+      "name": "/contact layout 390",
+      "passed": true
+    },
+    {
+      "name": "/contact layout 768",
+      "passed": true
+    },
+    {
+      "name": "/contact layout 1440",
+      "passed": true
+    },
+    {
+      "name": "/incredere layout 390",
+      "passed": true
+    },
+    {
+      "name": "/incredere layout 768",
+      "passed": true
+    },
+    {
+      "name": "/incredere layout 1440",
+      "passed": true
+    },
+    {
+      "name": "/urmarire-live layout 390",
+      "passed": true
+    },
+    {
+      "name": "/urmarire-live layout 768",
+      "passed": true
+    },
+    {
+      "name": "/urmarire-live layout 1440",
+      "passed": true
+    },
+    {
+      "name": "/nitido-pro layout 390",
+      "passed": true
+    },
+    {
+      "name": "/nitido-pro layout 768",
+      "passed": true
+    },
+    {
+      "name": "/nitido-pro layout 1440",
+      "passed": true
+    },
+    {
+      "name": "/termeni layout 390",
+      "passed": true
+    },
+    {
+      "name": "/termeni layout 768",
+      "passed": true
+    },
+    {
+      "name": "/termeni layout 1440",
+      "passed": true
+    },
+    {
+      "name": "/confidentialitate layout 390",
+      "passed": true
+    },
+    {
+      "name": "/confidentialitate layout 768",
+      "passed": true
+    },
+    {
+      "name": "/confidentialitate layout 1440",
+      "passed": true
+    },
+    {
+      "name": "design client-home always carries a demo warning",
+      "passed": true
+    },
+    {
+      "name": "design post-job always carries a demo warning",
+      "passed": true
+    },
+    {
+      "name": "design firm-feed always carries a demo warning",
+      "passed": true
+    },
+    {
+      "name": "design live-tracking always carries a demo warning",
+      "passed": true
+    },
+    {
+      "name": "design messages always carries a demo warning",
+      "passed": true
+    },
+    {
+      "name": "design payment-review always carries a demo warning",
+      "passed": true
+    },
+    {
+      "name": "design firm-push always carries a demo warning",
+      "passed": true
+    },
+    {
+      "name": "design client-allocation always carries a demo warning",
+      "passed": true
+    },
+    {
+      "name": "design firm-location always carries a demo warning",
+      "passed": true
+    },
+    {
+      "name": "security headers reach the actual production response",
+      "passed": true
+    },
+    {
+      "name": "client logo returns to real homepage",
+      "passed": true
+    },
+    {
+      "name": "logout revokes the real fixture session",
+      "passed": true
+    },
+    {
+      "name": "SQLite integrity and foreign keys stay valid",
+      "passed": true
+    },
+    {
+      "name": "no browser runtime errors",
+      "passed": true
+    }
+  ],
+  "pages": [
+    "/",
+    "/preturi",
+    "/rezervare",
+    "/login",
+    "/signup",
+    "/inscrie-firma",
+    "/contact",
+    "/incredere",
+    "/urmarire-live",
+    "/nitido-pro",
+    "/termeni",
+    "/confidentialitate"
+  ],
+  "pageErrors": [],
+  "accessibility": [],
+  "syntheticOnly": true,
+  "liveWrites": 0,
+  "realEmails": 0,
+  "realPayments": 0,
+  "physicalDevices": false
+}

@@ -20,10 +20,16 @@ const nextConfig: NextConfig = {
   // Account/session responses must not survive logout in an HTTP cache.
   // Apply to errors as well as successful cookie and bearer responses.
   headers() {
-    return ["auth", "account", "jobs", "workspace", "recurring", "admin", "payments", "push", "reports", "uploads", "assessments", "firm", "marketing"].map((area) => ({
+    return [{source:'/:path*',headers:[
+      {key:'X-Content-Type-Options',value:'nosniff'},
+      {key:'Referrer-Policy',value:'strict-origin-when-cross-origin'},
+      {key:'X-Frame-Options',value:'SAMEORIGIN'},
+      // Targeted protections; script/style/connect rules remain unchanged for Next, Stripe and maps.
+      {key:'Content-Security-Policy',value:"base-uri 'self'; object-src 'none'; frame-ancestors 'self'"},
+    ]},...["auth", "account", "jobs", "workspace", "recurring", "admin", "payments", "push", "reports", "uploads", "assessments", "firm", "marketing"].map((area) => ({
       source: `/api/${area}/:path*`,
       headers: [{ key: "Cache-Control", value: "private, no-store" }],
-    }));
+    }))];
   },
 
   // Reduce consumul de RAM la `next build` (serverul de producție e mic, iar

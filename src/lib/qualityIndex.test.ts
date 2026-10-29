@@ -38,6 +38,10 @@ describe("qualityIndex — Nitido Quality Index", () => {
       db.prepare("INSERT INTO jobs (id, client_id, street, city, sqm, space_type, when_type, price_gross, duration_minutes, status, accepted_firm_id) VALUES (?, 'c','S','Constanța',75,'apartament','asap',550,150,'completed','firm_1')").run(id);
       db.prepare("INSERT INTO ratings (id, job_id, client_id, firm_id, stars, status) VALUES (?, ?, 'c','firm_1',5,'active')").run(`r_${id}`, id);
     }
+    for(const id of ['j1','j2']){
+      db.prepare("INSERT INTO payments(id,job_id,amount_gross,commission_amount,amount_net,status) VALUES(?,?,550,99,451,'captured')").run('pay-'+id,id);
+      for(const type of ['ARRIVAL','COMPLETION'])db.prepare("INSERT INTO job_photos(id,job_id,owner_user_id,uploaded_by_firm_id,proof_type,filename,mime_type,file_size,status,validated_at) VALUES(?,?,'fu','firm_1',?,'fixture.png','image/png',1,'VALID',datetime('now'))").run(id+'-'+type,id,type);
+    }
     const q = getFirmQuality(db, "firm_1");
     expect(q.avgStars).toBe(5);
     expect(q.ratingCount).toBe(2);

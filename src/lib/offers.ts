@@ -1,3 +1,4 @@
+import {verifiedFirmRating} from './verifiedFirmRating';
 import {validateOpeningConfirmation,AvailabilityError} from './weeklyAvailability';
 import {flexiblePreference,prepareFlexibleProposal,storeFlexibleProposal,FlexibleError,type FlexibleProposal} from "./flexibleScheduling";
 import {invitationEvent} from './providerInvitations';
@@ -153,28 +154,27 @@ export function listOffersForJob(db: Database, jobId: string): OfferSummary[] {
     .prepare(
       `SELECT o.id AS offerId, o.firm_id AS firmId, o.message AS message, o.status AS status,
               o.created_at AS createdAt, u.name AS firmName, f.strikes_90d AS strikes90d,
-              (SELECT ROUND(AVG(stars),2) FROM ratings r WHERE r.firm_id = o.firm_id AND r.status='active') AS ratingAvg,
-              (SELECT COUNT(*)           FROM ratings r WHERE r.firm_id = o.firm_id AND r.status='active') AS ratingCount,
               (SELECT COUNT(*)           FROM jobs j   WHERE j.accepted_firm_id = o.firm_id AND j.status='completed') AS completedJobs
        FROM offers o
        JOIN firms f ON f.id = o.firm_id
        JOIN users u ON u.id = f.user_id
        WHERE o.job_id = ? AND o.status IN ('pending','accepted')`
     )
-    .all(jobId) as (Omit<OfferSummary, "qualityScore"> & { strikes90d: number })[];
+    .all(jobId) as (Omit<OfferSummary, "qualityScore" | "ratingAvg" | "ratingCount"> & { strikes90d: number })[];
 
   return rows
-    .map(({ strikes90d, ...r }) => ({
-      ...r,
+    .map(({ strikes90d, ...r }) => {
+      const rating=verifiedFirmRating(db,r.firmId),ratingAvg=rating.average===null?null:Math.round(rating.average*100)/100;
+      return { ...r,ratingAvg,ratingCount:rating.count,
       ...(flexiblePreference(db,jobId)?{flexible:db.prepare('SELECT * FROM flexible_offer_details WHERE offer_id=?').get(r.offerId) as FlexibleProposal|undefined}:{}),
       qualityScore: computeQualityScore({
-        avgStars: r.ratingAvg,
-        ratingCount: r.ratingCount,
+        avgStars: ratingAvg,
+        ratingCount: rating.count,
         completedJobs: r.completedJobs,
         strikes90d: strikes90d ?? 0,
         verified: true,
       }).score,
-    }))
+    };})
     .sort((a, b) => b.qualityScore - a.qualityScore || b.completedJobs - a.completedJobs || a.createdAt.localeCompare(b.createdAt));
 }
 
