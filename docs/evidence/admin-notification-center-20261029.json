@@ -1,0 +1,246 @@
+{
+  "date": "2026-10-29",
+  "applicationCommit": "416f8619d427d3e5ba17421f76bf21d938f7738f",
+  "baseLiveCommit": "ee049734b5e2e7ce56de50da31f41bd96b06c366",
+  "pr": 163,
+  "features": [
+    "Top navigation bell in ADMIN, Marketing and daily attention",
+    "Unread counts, categories, direct destinations and paginated notification center",
+    "Independent administrator read states; registration inbox synchronization",
+    "Compact single-line registration columns with internal scrolling on narrow screens"
+  ],
+  "schema": "Additive admin_notification_reads table only; isolated restore schema check passed",
+  "validation": {
+    "regressionTestsPassed": 2669,
+    "preExistingNetworkSmokeSkipped": 1,
+    "lint": "passed without warnings",
+    "productionBuild": "passed",
+    "cityActivationUnitTests": 4,
+    "responsiveBrowser": {
+      "status": "passed",
+      "results": [
+        {
+          "viewport": 1920,
+          "pageWidth": 1920,
+          "rows": [
+            53,
+            53,
+            53,
+            53
+          ],
+          "nowrap": true
+        },
+        {
+          "viewport": 1366,
+          "pageWidth": 1366,
+          "rows": [
+            53,
+            53,
+            53,
+            53
+          ],
+          "nowrap": true
+        },
+        {
+          "viewport": 390,
+          "pageWidth": 390,
+          "rows": [
+            53,
+            53,
+            53,
+            53
+          ],
+          "nowrap": true
+        }
+      ],
+      "errors": []
+    },
+    "actualStandaloneBrowser": {
+      "status": "passed",
+      "checks": [
+        {
+          "name": "notification API denies anonymous access",
+          "passed": true
+        },
+        {
+          "name": "synthetic super-admin login",
+          "passed": true
+        },
+        {
+          "name": "production notification API succeeds",
+          "passed": true
+        },
+        {
+          "name": "feed aggregates all fixture categories",
+          "passed": true
+        },
+        {
+          "name": "feed response is private",
+          "passed": true
+        },
+        {
+          "name": "foreign-origin read mutation is rejected",
+          "passed": true
+        },
+        {
+          "name": "real ADMIN rows remain compact with production global CSS",
+          "passed": true
+        },
+        {
+          "name": "all three account types visible",
+          "passed": true
+        },
+        {
+          "name": "marking one notification succeeds",
+          "passed": true
+        },
+        {
+          "name": "only selected unread count decreases",
+          "passed": true
+        },
+        {
+          "name": "registration table shares read state",
+          "passed": true
+        },
+        {
+          "name": "Escape closes the bell",
+          "passed": true
+        },
+        {
+          "name": "category opens payment destination",
+          "passed": true
+        },
+        {
+          "name": "registration panel fits mobile viewport",
+          "passed": true
+        },
+        {
+          "name": "mobile popup stays in viewport",
+          "passed": true
+        },
+        {
+          "name": "no browser runtime exceptions",
+          "passed": true
+        },
+        {
+          "name": "SQLite integrity preserved",
+          "passed": true
+        }
+      ],
+      "pageErrors": [],
+      "realEmailsSent": 0,
+      "realAccountsChanged": 0
+    }
+  },
+  "deployment": {
+    "status": "finished",
+    "commit": "416f8619d427d3e5ba17421f76bf21d938f7738f",
+    "created_at": "2026-10-29T11:20:00.000000Z",
+    "updated_at": "2026-10-29T11:21:17.000000Z",
+    "finished_at": "2026-10-29T11:21:17.000000Z"
+  },
+  "postLive": {
+    "status": "passed",
+    "commit": "416f8619d427d3e5ba17421f76bf21d938f7738f",
+    "healthy": true,
+    "httpChecks": [
+      {
+        "path": "/api/health",
+        "status": 200
+      },
+      {
+        "path": "/",
+        "status": 200
+      },
+      {
+        "path": "/signup",
+        "status": 200
+      },
+      {
+        "path": "/admin",
+        "status": 200
+      },
+      {
+        "path": "/api/admin/owner-notifications",
+        "status": 401
+      },
+      {
+        "path": "/api/admin/customers",
+        "status": 401
+      },
+      {
+        "path": "/api/admin/notifications",
+        "status": 401
+      },
+      {
+        "path": "/admin/notificari",
+        "status": 200
+      }
+    ],
+    "publicScriptCount": 13,
+    "deployedAccountLabels": {
+      "Toate notificările": true,
+      "Marchează afișatele ca citite": true,
+      "Stare email": true,
+      "/api/admin/notifications": true
+    },
+    "realCustomerSessionChanged": false,
+    "testEmailsSent": 0,
+    "inboxDeliveryVerified": false
+  },
+  "cityCorrection": {
+    "authorizedAreas": [
+      "CT",
+      "CJ",
+      "IS",
+      "B"
+    ],
+    "execution": {
+      "uuid": "ohpmwwvgjoe3gvf8tldp1zcp",
+      "duration": 5.82,
+      "error_details": null,
+      "finished_at": "2026-10-29T10:51:32.000000Z",
+      "retry_count": 0,
+      "started_at": "2026-10-29T10:51:26.000000Z",
+      "status": "success",
+      "created_at": "2026-10-29T10:51:26.000000Z",
+      "updated_at": "2026-10-29T10:51:32.000000Z"
+    },
+    "priorPauseSuperseded": true,
+    "progressAndSourceDeadlinesPreserved": true,
+    "newMailRunsCreatedByHelper": 0,
+    "temporaryTaskRemoved": true
+  },
+  "backup": {
+    "execution": {
+      "uuid": "bsoh8pahqe1ioesgdc848mkx",
+      "duration": 9.28,
+      "error_details": null,
+      "finished_at": "2026-10-29T11:14:46.000000Z",
+      "retry_count": 0,
+      "started_at": "2026-10-29T11:14:37.000000Z",
+      "status": "success",
+      "created_at": "2026-10-29T11:14:37.000000Z",
+      "updated_at": "2026-10-29T11:14:46.000000Z"
+    },
+    "snapshotPath": "/app/data/release-checkpoints/20261029-before-admin-notification-center-live",
+    "onlineSQLiteBackup": true,
+    "isolatedRestoreAndAdditiveReadSchemaValidated": true,
+    "uploadHashesVerified": true,
+    "temporaryTaskRemoved": true,
+    "storageLimit": "Persistent application volume; existing separate offsite backup was not modified"
+  },
+  "limits": [
+    "Feed combines recent stored source records/current states and does not invent a complete transition history.",
+    "No customer session, real registration, email, payment, refund or outbound campaign was created by the UI verification.",
+    "Production authenticated interactions were tested in the isolated compiled build with synthetic data. LIVE validation used only public health/assets and anonymous authorization checks.",
+    "The Codex PR attachment endpoint closed its connection; the created PR remains available at https://github.com/Nelu251174/nitido/pull/163."
+  ],
+  "logHashes": {
+    "full-tests.log": "67935a40e10c4ee77c55d999bd05c41ef397ec90d3035d829c21eee55f640ca2",
+    "lint-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build-final.log": "505f228ca4ee19d83ae4df2d21bf9a0f22086c3be2bde4bd77a166de4420af88",
+    "city-activation-tests.log": "7b21230c9aacfbd5dbcca365bcbed9b297660793d7826f10a6fa22179473e942",
+    "production-browser.log": "e382b9863f115e666f1e5facbca0c8e4403955a91d9f328bdb345909715fa597"
+  }
+}
