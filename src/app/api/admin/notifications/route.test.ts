@@ -1,0 +1,10 @@
+import {beforeEach,it,expect,vi} from 'vitest';
+import {NextRequest} from 'next/server';
+const state=vi.hoisted(()=>({actor:vi.fn(),origin:vi.fn(),feed:vi.fn(),read:vi.fn(),audit:vi.fn(),transaction:vi.fn()}));
+vi.mock('@/lib/adminAuth',()=>({getAdminActorId:state.actor,auditAdminAction:state.audit}));vi.mock('@/lib/security',()=>({hasTrustedMutationOrigin:state.origin}));vi.mock('@/lib/db',()=>({db:{transaction:state.transaction}}));vi.mock('@/lib/adminNotificationCenter',()=>({adminNotificationFeed:state.feed,markAdminNotificationsRead:state.read}));
+import {GET,POST} from './route';
+const req=(body:unknown)=>new NextRequest('https://nitido.ro/api/admin/notifications',{method:'POST',body:JSON.stringify(body)});
+beforeEach(()=>{vi.clearAllMocks();state.actor.mockResolvedValue(null);state.origin.mockReturnValue(false);state.feed.mockReturnValue({items:[],unread:0});state.read.mockReturnValue({changed:1});state.transaction.mockImplementation(fn=>({immediate:fn}));});
+it('requires super-admin access before any database read or mutation',async()=>{expect((await GET(new NextRequest('https://nitido.ro/api/admin/notifications'))).status).toBe(401);expect((await POST(req({items:[]}))).status).toBe(401);expect(state.feed).not.toHaveBeenCalled();expect(state.read).not.toHaveBeenCalled();expect(state.actor.mock.calls.every(c=>c.length===0)).toBe(true);});
+it('rejects foreign origins and caller-controlled destinations',async()=>{state.actor.mockResolvedValue('admin');expect((await POST(req({items:[]}))).status).toBe(403);state.origin.mockReturnValue(true);expect((await POST(req({items:[],to:'foreign@example.test'}))).status).toBe(400);expect(state.read).not.toHaveBeenCalled();});
+it('never caches the notification feed and binds reads to the authenticated actor',async()=>{state.actor.mockResolvedValue('admin');state.origin.mockReturnValue(true);const r=await GET(new NextRequest('https://nitido.ro/api/admin/notifications'));expect(r.headers.get('cache-control')).toBe('private, no-store');expect((await POST(req({items:[]}))).status).toBe(200);expect(state.read).toHaveBeenCalledWith(expect.anything(),'admin',[]);});

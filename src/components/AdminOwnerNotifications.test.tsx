@@ -12,5 +12,5 @@ it('shows all three account categories beside each registration and separates em
  await act(()=>root.render(<AdminOwnerNotifications/>));await act(()=>vi.advanceTimersByTimeAsync(0));
  expect(container.textContent).toContain('Email: nelutofan@gmail.com');expect([...container.querySelectorAll('th')].map(e=>e.textContent)).toContain('Tip cont');
  const displayed=[...container.querySelectorAll('tbody tr')];expect(displayed).toHaveLength(3);
- for(const [i,row] of displayed.entries()){expect(row.children[2].textContent).toBe(rows[i][1]);expect(row.textContent).toContain('Acceptat de serviciul de email');expect(row.querySelector('a')?.getAttribute('href')).toBe(i===2?'/admin#firme':'/admin#clienti');}
+ for(const [i,row] of displayed.entries()){expect(row.children[3].textContent).toBe(rows[i][1]);expect(row.textContent).toContain('Acceptat');expect(row.querySelector('[title]')?.getAttribute('title')).toContain('primirea în căsuța destinatarului nu este confirmată');expect(row.querySelector('a[aria-label]')?.getAttribute('href')).toBe(i===2?'/admin#firme':'/admin#clienti');}
 });
