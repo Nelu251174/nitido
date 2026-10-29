@@ -1,0 +1,110 @@
+{
+  "date": "2026-10-29",
+  "applicationCommit": "ee049734b5e2e7ce56de50da31f41bd96b06c366",
+  "baseCommit": "f554677a6f676dbcab6c52c16de1bd22035838c1",
+  "recipient": "nelutofan@gmail.com",
+  "ownerNotificationEnableFlagWritten": true,
+  "runtimeConfigurationAppliedByDeployment": "itlkxhs5hhkowqhond0teyap",
+  "schemaChanged": false,
+  "validation": {
+    "relevantUnitAndRouteTestsPassed": 35,
+    "adminInboxBrowserSimulationTestsPassed": 1,
+    "lint": "passed",
+    "productionBuild": "passed",
+    "cityPauseFixture": "passed; Constanta and unrelated regions preserved; rerun idempotent"
+  },
+  "deployment": {
+    "status": "finished",
+    "commit": "ee049734b5e2e7ce56de50da31f41bd96b06c366",
+    "updated_at": "2026-10-29T10:17:23.000000Z",
+    "finished_at": "2026-10-29T10:17:22.000000Z"
+  },
+  "postLive": {
+    "status": "passed",
+    "commit": "ee049734b5e2e7ce56de50da31f41bd96b06c366",
+    "healthy": true,
+    "httpChecks": [
+      {
+        "path": "/api/health",
+        "status": 200
+      },
+      {
+        "path": "/",
+        "status": 200
+      },
+      {
+        "path": "/signup",
+        "status": 200
+      },
+      {
+        "path": "/admin",
+        "status": 200
+      },
+      {
+        "path": "/api/admin/owner-notifications",
+        "status": 401
+      },
+      {
+        "path": "/api/admin/customers",
+        "status": 401
+      }
+    ],
+    "publicScriptCount": 13,
+    "deployedAccountLabels": {
+      "Tip cont": true,
+      "Trimitere email": true,
+      "Înregistrare nouă": true,
+      "accountType": true
+    },
+    "realCustomerSessionChanged": false,
+    "testEmailsSent": 0,
+    "inboxDeliveryVerified": false
+  },
+  "backupExecution": {
+    "uuid": "ma9bigbsp3jfigt7uelz6tvk",
+    "duration": 19.58,
+    "error_details": null,
+    "finished_at": "2026-10-29T10:13:50.000000Z",
+    "retry_count": 0,
+    "started_at": "2026-10-29T10:13:31.000000Z",
+    "status": "success",
+    "created_at": "2026-10-29T10:13:31.000000Z",
+    "updated_at": "2026-10-29T10:13:50.000000Z"
+  },
+  "cityCorrection": {
+    "execution": {
+      "uuid": "6rryvoelt15uykqp2tosenkm",
+      "duration": 10.44,
+      "error_details": null,
+      "finished_at": "2026-10-29T10:07:18.000000Z",
+      "retry_count": 0,
+      "started_at": "2026-10-29T10:07:08.000000Z",
+      "status": "success",
+      "created_at": "2026-10-29T10:07:08.000000Z",
+      "updated_at": "2026-10-29T10:07:18.000000Z"
+    },
+    "targetCounties": [
+      "CJ",
+      "IS"
+    ],
+    "readyTargetCampaignsPaused": true,
+    "unfinishedTargetCollectionPaused": true,
+    "noContactDeletion": true,
+    "noMessagesDispatchedByCorrection": true,
+    "beforeStateAndHistoricalDispatchCountsNotRetrieved": true
+  },
+  "limitations": [
+    "No real registration or test email was created during verification; receipt in Gmail is not confirmed.",
+    "The existing screenshot identifies a client registration; the exact private/commercial flag for that account was not independently retrieved. The deployed ADMIN now derives the type from the current account record.",
+    "Automatic review rejected three additional temporary read-only tasks as unnecessary LIVE mutations. Application log access returned HTTP 403; no private logs were exported.",
+    "Codex PR attachment tool failed with a connection-closed response on three attempts; PR remains available by its GitHub URL."
+  ],
+  "temporaryTasksRemoved": true,
+  "logHashes": {
+    "tests-final.log": "3b1abdfbaf918e977397dbbf887dae044ef743df09fbdaa802a16fae3b1ad8ed",
+    "ui-test.log": "2c116030076e5b18f927c24989947588f5630c83236cb985e291ed75b95d098a",
+    "lint-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build-final.log": "73280013c85247863cc659eb82742bb7a41a27b62dbd70a0dfe1c73cd35cb766",
+    "city-test.log": "8f5ceab60eef5a0098f5a1e897f3a49226abcee09494e7522d192d12a84200e2"
+  }
+}

@@ -1,7 +1,7 @@
 'use client';
 import {useCallback,useEffect,useState} from 'react';
 type Report={source:string;reportDate:string;status:string;metric:string;countries:{country:string;installs:number;redownloads?:number}[];reason?:string};
-type Event={id:string;event_type:string;created_ms:number;email_status:string;read_ms:number|null;name:string|null;email:string|null;last_error:string|null;payload:{connectionCountry?:string;digestDate?:string}};
+type Event={id:string;event_type:string;created_ms:number;email_status:string;read_ms:number|null;name:string|null;email:string|null;accountType:string|null;last_error:string|null;payload:{connectionCountry?:string;digestDate?:string}};
 type Inbox={events:Event[];unread:number;config:{enabled:boolean;recipient:string|null;emailConfigured:boolean};reports:Report[]};
 const delivery:Record<string,string>={pending:'În așteptare',sending:'Se trimite',sent:'Acceptat de serviciul de email',failed:'Trimitere nereușită',uncertain:'Necesită verificare',suppressed:'Cont indisponibil'};
 export function AdminOwnerNotifications(){
@@ -16,8 +16,8 @@ export function AdminOwnerNotifications(){
   {data&&<>
    <p className="my-2 text-sm">Email: {data.config.enabled&&data.config.emailConfigured&&data.config.recipient?data.config.recipient:'neactivat / configurare incompletă'}</p>
    <button type="button" className="my-2 rounded border px-3 py-2" onClick={()=>void markRead()}>Marchează alertele afișate ca citite</button>
-   <div className="max-h-96 overflow-auto"><table className="w-full text-left text-sm"><thead><tr><th>Data</th><th>Eveniment</th><th>Țara conexiunii</th><th>Email</th></tr></thead><tbody>
-    {data.events.map(e=><tr key={e.id} className={e.read_ms?'border-t':'border-t font-semibold'}><td className="py-3">{new Date(e.created_ms).toLocaleString('ro-RO')}</td><td>{e.event_type==='CLIENT_REGISTERED'?'Client nou':e.event_type==='FIRM_REGISTERED'?'Firmă nouă (cont creat)':e.event_type==='DAILY_DOWNLOAD_REPORT'?'Raport descărcări '+e.payload.digestDate:'Verificare alerte'}<div>{e.name} {e.email}</div></td><td>{e.payload.connectionCountry??'—'}</td><td>{delivery[e.email_status]??e.email_status}{e.last_error&&<div>{e.last_error}</div>}</td></tr>)}
+   <div className="max-h-96 overflow-auto"><table className="w-full text-left text-sm"><thead><tr><th>Data</th><th>Înregistrare / eveniment</th><th>Tip cont</th><th>Țara conexiunii</th><th>Trimitere email</th></tr></thead><tbody>
+    {data.events.map(e=><tr key={e.id} className={e.read_ms?'border-t':'border-t font-semibold'}><td className="py-3">{new Date(e.created_ms).toLocaleString('ro-RO')}</td><td>{e.event_type==='CLIENT_REGISTERED'||e.event_type==='FIRM_REGISTERED'?'Înregistrare nouă':e.event_type==='DAILY_DOWNLOAD_REPORT'?'Raport descărcări '+e.payload.digestDate:'Verificare alerte'}<div>{e.name}</div><div>{e.email}</div>{e.accountType&&<a className="text-blue-700 underline" href={e.event_type==='FIRM_REGISTERED'?'/admin#firme':'/admin#clienti'}>{e.event_type==='FIRM_REGISTERED'?'Vezi firmele':'Vezi clienții'}</a>}</td><td className="px-3">{e.accountType??(['CLIENT_REGISTERED','FIRM_REGISTERED'].includes(e.event_type)?'Cont indisponibil':'—')}</td><td>{e.payload.connectionCountry??'—'}</td><td>{delivery[e.email_status]??e.email_status}{e.last_error&&<div>{e.last_error}</div>}</td></tr>)}
    </tbody></table>{!data.events.length&&<p className="py-3">Nicio alertă nouă de la activarea acestei funcții.</p>}</div>
    <h3 className="mt-5 font-semibold">Rapoarte oficiale pe țări</h3>
    <p className="text-sm">Datele magazinelor pot întârzia. Datele lipsă nu sunt zero descărcări. Apple raportează unități de aplicație; Google raportează instalări, fără a identifica persoanele.</p>

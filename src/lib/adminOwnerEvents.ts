@@ -26,6 +26,7 @@ export function queueOwnerRegistration(db:Database,userId:string,role:'client'|'
 const escape=(value:unknown)=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 function adminLink(){return process.env.NEXT_PUBLIC_SITE_URL==='https://sandbox.nitido.ro'?'https://sandbox.nitido.ro/admin#inscrieri':'https://nitido.ro/admin#inscrieri';}
 type EventRow={id:string;event_type:string;user_id:string|null;payload_json:string;created_ms:number;first_dispatch_ms:number|null;attempt_count:number};
+function accountLabel(role:string|null,business:number){return role==='firma'?'Firmă de curățenie':role==='client'?(business?'Client comercial (firmă)':'Client privat'):null;}
 export function ownerEventMail(db:Database,row:EventRow,to:string):OwnerEmail|null{
  const payload=JSON.parse(row.payload_json);
  let subject:string,html:string;
@@ -43,10 +44,12 @@ export function ownerEventMail(db:Database,row:EventRow,to:string):OwnerEmail|nu
    html+='</ul>';
   }
  }else{
-  const user=row.user_id?db.prepare('SELECT role,name,email,created_at FROM users WHERE id=?').get(row.user_id) as {role:string;name:string;email:string;created_at:string}|undefined:undefined;
+  const user=row.user_id?db.prepare('SELECT role,name,email,phone,is_business,company_name FROM users WHERE id=?').get(row.user_id) as {role:string;name:string;email:string;phone:string|null;is_business:number;company_name:string|null}|undefined:undefined;
   if(!user||user.role!==(row.event_type==='FIRM_REGISTERED'?'firma':'client'))return null;
-  subject='NITIDO — '+(user.role==='firma'?'firmă de curățenie nouă':'client nou');
-  html=`<h2>${user.role==='firma'?'Înregistrare firmă de curățenie':'Înregistrare client'}</h2><p>Nume: ${escape(user.name)}</p><p>Email: ${escape(user.email)}</p><p>Înregistrare: ${escape(new Date(row.created_ms).toISOString())}</p><p>Țara conexiunii, estimată din IP: ${escape(payload.connectionCountry??'nedeterminată')}</p>`;
+  const accountType=accountLabel(user.role,user.is_business);
+  subject='Înscriere nouă pe NÍTIDO: '+user.name.replace(/[\r\n\u0000-\u001f\u007f]+/g,' ').trim().slice(0,150);
+  const registeredAt=new Date(row.created_ms).toLocaleString('ro-RO',{timeZone:'Europe/Bucharest'});
+  html=`<h2>Cont nou pe NÍTIDO</h2><p><strong>Nume:</strong> ${escape(user.name)}</p><p><strong>Email:</strong> ${escape(user.email)}</p><p><strong>Tip cont:</strong> ${accountType}</p><p><strong>Telefon:</strong> ${escape(user.phone??'necompletat')}</p>${user.is_business&&user.company_name?`<p><strong>Firmă client:</strong> ${escape(user.company_name)}</p>`:''}<p><strong>Înregistrare:</strong> ${escape(registeredAt)} (ora României)</p><p>Țara conexiunii, estimată din IP: ${escape(payload.connectionCountry??'nedeterminată')}</p>`;
   if(user.role==='firma')html+='<p>Cont creat. Verificarea și aprobarea firmei sunt etape distincte.</p>';
  }
  html+=`<p><a href="${adminLink()}">Deschide alertele din administrare</a></p>`;
@@ -99,9 +102,9 @@ export async function processOwnerEmails(db:Database,options:{ids?:string[];send
  return {status:'completed' as const,...result};
 }
 export function ownerInbox(db:Database,actor:string){
- const events=db.prepare(`SELECT e.id,e.event_type,e.payload_json,e.created_ms,e.email_status,e.attempt_count,e.last_error,e.sent_ms,u.role,u.name,u.email,r.read_ms FROM admin_owner_events e LEFT JOIN users u ON u.id=e.user_id LEFT JOIN admin_owner_reads r ON r.event_id=e.id AND r.admin_id=? ORDER BY e.created_ms DESC,e.id DESC LIMIT 100`).all(actor) as (EventRow&{read_ms:number|null;name:string|null;email:string|null})[];
+ const events=db.prepare(`SELECT e.id,e.event_type,e.payload_json,e.created_ms,e.email_status,e.attempt_count,e.last_error,e.sent_ms,u.role,u.name,u.email,u.is_business,r.read_ms FROM admin_owner_events e LEFT JOIN users u ON u.id=e.user_id LEFT JOIN admin_owner_reads r ON r.event_id=e.id AND r.admin_id=? ORDER BY e.created_ms DESC,e.id DESC LIMIT 100`).all(actor) as (EventRow&{read_ms:number|null;name:string|null;email:string|null;role:string|null;is_business:number|null})[];
  const unread=db.prepare('SELECT COUNT(*) n FROM admin_owner_events e WHERE NOT EXISTS(SELECT 1 FROM admin_owner_reads r WHERE r.event_id=e.id AND r.admin_id=?)').get(actor) as {n:number};
- return {events:events.map(({payload_json,...row})=>({...row,payload:JSON.parse(payload_json)})),unread:unread.n,config:ownerNotificationConfig()};
+ return {events:events.map(({payload_json,is_business,...row})=>({...row,accountType:['CLIENT_REGISTERED','FIRM_REGISTERED'].includes(row.event_type)?accountLabel(row.role,is_business??0):null,payload:JSON.parse(payload_json)})),unread:unread.n,config:ownerNotificationConfig()};
 }
 export function markOwnerEventsRead(db:Database,ids:string[],actor:string,now=Date.now()){
  if(!Array.isArray(ids)||ids.length>100||ids.some(id=>typeof id!=='string'||!/^owner_[a-f0-9]{32}$/.test(id)))throw Error('INVALID_EVENT_IDS');
