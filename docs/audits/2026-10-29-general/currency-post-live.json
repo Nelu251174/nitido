@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "applicationCommit": "8b30545da1ba8b27978b302fe4add6963522b89a",
+  "healthy": true,
+  "visitorContext": {
+    "country": "US",
+    "detection": "ip",
+    "locale": "en",
+    "currency": "EUR",
+    "displayCurrency": "EUR",
+    "chargeCurrency": "RON",
+    "referenceRate": {
+      "eurRon": 5.3449,
+      "date": "2026-10-29"
+    }
+  },
+  "manualRomanianPreferenceKeepsCountryAndCurrency": true,
+  "callerCountryIgnored": true,
+  "liveQuoteFor1200Ron": [
+    "224,51 €"
+  ],
+  "expectedConvertedNumericValue": "224,51",
+  "adminKeepsOriginalLedgerCurrency": true,
+  "privateNoStoreContext": true,
+  "noRawIpExposed": true,
+  "testEmailsSent": 0,
+  "financialTransactionsExecuted": 0,
+  "realAccountsChanged": 0
+}

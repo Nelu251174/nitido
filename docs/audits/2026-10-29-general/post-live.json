@@ -1,0 +1,185 @@
+{
+  "status": "passed",
+  "applicationCommit": "8b30545da1ba8b27978b302fe4add6963522b89a",
+  "healthy": true,
+  "deployment": "wex2btf7jcl8kwrtl7lhns0h",
+  "deploymentFinished": "2026-10-29T14:59:19.000000Z",
+  "checkedAt": "2026-10-29T14:59:43.264657+00:00",
+  "checks": [
+    {
+      "path": "/",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": false
+    },
+    {
+      "path": "/preturi",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": false
+    },
+    {
+      "path": "/rezervare",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": false
+    },
+    {
+      "path": "/login",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": false
+    },
+    {
+      "path": "/signup",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": false
+    },
+    {
+      "path": "/inscrie-firma",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": false
+    },
+    {
+      "path": "/contact",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": false
+    },
+    {
+      "path": "/incredere",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": false
+    },
+    {
+      "path": "/urmarire-live",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": false
+    },
+    {
+      "path": "/nitido-pro",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": false
+    },
+    {
+      "path": "/termeni",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": false
+    },
+    {
+      "path": "/confidentialitate",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": false
+    },
+    {
+      "path": "/api/health",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": false
+    },
+    {
+      "path": "/api/trust",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": false
+    },
+    {
+      "path": "/api/visitor-context",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": false
+    },
+    {
+      "path": "/api/jobs",
+      "status": 401,
+      "securityHeaders": true,
+      "demoNotice": false
+    },
+    {
+      "path": "/api/admin/notifications",
+      "status": 401,
+      "securityHeaders": true,
+      "demoNotice": false
+    },
+    {
+      "path": "/api/workspace",
+      "status": 401,
+      "securityHeaders": true,
+      "demoNotice": false
+    },
+    {
+      "path": "/mobile",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": true
+    },
+    {
+      "path": "/mobile/client-home",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": true
+    },
+    {
+      "path": "/mobile/post-job",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": true
+    },
+    {
+      "path": "/mobile/firm-feed",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": true
+    },
+    {
+      "path": "/mobile/live-tracking",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": true
+    },
+    {
+      "path": "/mobile/messages",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": true
+    },
+    {
+      "path": "/mobile/payment-review",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": true
+    },
+    {
+      "path": "/mobile/firm-push",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": true
+    },
+    {
+      "path": "/mobile/client-allocation",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": true
+    },
+    {
+      "path": "/mobile/firm-location",
+      "status": 200,
+      "securityHeaders": true,
+      "demoNotice": true
+    }
+  ],
+  "reviewSummary": {
+    "count": 0,
+    "average": null
+  },
+  "realEmailsSent": 0,
+  "realPaymentsExecuted": 0,
+  "customerDataModified": false
+}
