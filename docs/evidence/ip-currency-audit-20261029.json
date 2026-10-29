@@ -311,7 +311,7 @@
       "status": 200,
       "private": "private, no-store",
       "noindex": null,
-      "bytes": 564458,
+      "bytes": 555292,
       "hasPasswordInput": false
     },
     {
@@ -319,7 +319,7 @@
       "status": 200,
       "private": "private, no-store",
       "noindex": null,
-      "bytes": 521944,
+      "bytes": 512732,
       "hasPasswordInput": false
     },
     {
@@ -327,7 +327,7 @@
       "status": 200,
       "private": "private, no-store",
       "noindex": null,
-      "bytes": 489541,
+      "bytes": 480555,
       "hasPasswordInput": false
     },
     {
@@ -335,7 +335,7 @@
       "status": 200,
       "private": "private, no-store",
       "noindex": "noindex, nofollow, noarchive",
-      "bytes": 468466,
+      "bytes": 459759,
       "hasPasswordInput": true
     },
     {
@@ -343,7 +343,7 @@
       "status": 200,
       "private": "private, no-store",
       "noindex": "noindex, nofollow, noarchive",
-      "bytes": 469597,
+      "bytes": 460887,
       "hasPasswordInput": true
     },
     {
@@ -351,7 +351,7 @@
       "status": 200,
       "private": "private, no-store",
       "noindex": null,
-      "bytes": 499336,
+      "bytes": 490479,
       "hasPasswordInput": false
     },
     {
@@ -359,7 +359,7 @@
       "status": 200,
       "private": "private, no-store",
       "noindex": "noindex, nofollow, noarchive",
-      "bytes": 465565,
+      "bytes": 456826,
       "hasPasswordInput": false
     },
     {
@@ -367,7 +367,7 @@
       "status": 200,
       "private": "private, no-store",
       "noindex": "noindex, nofollow, noarchive",
-      "bytes": 463967,
+      "bytes": 455224,
       "hasPasswordInput": false
     },
     {
@@ -375,7 +375,7 @@
       "status": 200,
       "private": "private, no-store",
       "noindex": "noindex, nofollow, noarchive",
-      "bytes": 466269,
+      "bytes": 457046,
       "hasPasswordInput": true
     },
     {
@@ -383,7 +383,7 @@
       "status": 200,
       "private": "private, no-store",
       "noindex": "noindex, nofollow, noarchive",
-      "bytes": 466269,
+      "bytes": 457046,
       "hasPasswordInput": true
     },
     {
@@ -391,7 +391,7 @@
       "status": 200,
       "private": "private, no-store",
       "noindex": "noindex, nofollow, noarchive",
-      "bytes": 464526,
+      "bytes": 455311,
       "hasPasswordInput": false
     },
     {
@@ -399,7 +399,7 @@
       "status": 200,
       "private": "private, no-store",
       "noindex": "noindex, nofollow, noarchive",
-      "bytes": 464573,
+      "bytes": 455834,
       "hasPasswordInput": false
     },
     {
@@ -407,7 +407,7 @@
       "status": 200,
       "private": "private, no-store",
       "noindex": "noindex, nofollow, noarchive",
-      "bytes": 463822,
+      "bytes": 455079,
       "hasPasswordInput": false
     },
     {
@@ -415,7 +415,7 @@
       "status": 200,
       "private": "private, no-store",
       "noindex": null,
-      "bytes": 514515,
+      "bytes": 504187,
       "hasPasswordInput": false
     },
     {
@@ -423,7 +423,7 @@
       "status": 200,
       "private": "private, no-store",
       "noindex": null,
-      "bytes": 553654,
+      "bytes": 543578,
       "hasPasswordInput": false
     },
     {
@@ -431,7 +431,7 @@
       "status": 200,
       "private": "private, no-store",
       "noindex": null,
-      "bytes": 571521,
+      "bytes": 561549,
       "hasPasswordInput": false
     },
     {
@@ -496,5 +496,50 @@
   "paymentsExecuted": 0,
   "existingFinancialRecordsChanged": false,
   "campaignsChanged": false,
-  "published": false
+  "published": true,
+  "applicationCommit": "78421cbd9b006d61f531a6d218d8c66feca315bf",
+  "deploymentUuid": "w5tygqos9esvu36twwmfq51i",
+  "deploymentFinished": "2026-10-29T13:42:42.000000Z",
+  "postLive": {
+    "status": "passed",
+    "applicationCommit": "78421cbd9b006d61f531a6d218d8c66feca315bf",
+    "healthy": true,
+    "visitorContext": {
+      "country": "US",
+      "detection": "ip",
+      "locale": "en",
+      "currency": "EUR",
+      "displayCurrency": "EUR",
+      "chargeCurrency": "RON",
+      "referenceRate": {
+        "eurRon": 5.3449,
+        "date": "2026-10-29"
+      }
+    },
+    "manualRomanianPreferenceKeepsCountryAndCurrency": true,
+    "callerCountryIgnored": true,
+    "liveQuoteFor1200Ron": [
+      "224,51 €"
+    ],
+    "expectedConvertedNumericValue": "224,51",
+    "adminKeepsOriginalLedgerCurrency": true,
+    "privateNoStoreContext": true,
+    "noRawIpExposed": true,
+    "testEmailsSent": 0,
+    "financialTransactionsExecuted": 0,
+    "realAccountsChanged": 0
+  },
+  "publicLegalIdentityNotices": [
+    {
+      "path": "/termeni",
+      "visibleIncompleteLegalIdentity": false,
+      "hasSupportContact": true
+    },
+    {
+      "path": "/confidentialitate",
+      "visibleIncompleteLegalIdentity": false,
+      "hasSupportContact": true
+    }
+  ],
+  "pullRequest": "https://github.com/Nelu251174/nitido/pull/165"
 }
