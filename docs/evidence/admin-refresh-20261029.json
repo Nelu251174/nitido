@@ -1,0 +1,206 @@
+{
+  "date": "2026-10-29",
+  "pr": 164,
+  "applicationCommit": "66b512fadf519824edeed1d6a965bce35f775fc6",
+  "previousLiveCommit": "416f8619d427d3e5ba17421f76bf21d938f7738f",
+  "problem": "A stale section fragment plus restored document scroll reopened ADMIN deep in the Performance section on refresh.",
+  "behavior": "Only document reloads clear the stale fragment and start at the top. Query parameters, job selection, deliberate links and normal navigation are preserved. Native restoration mode is restored after authentication layout settles.",
+  "schemaChanged": false,
+  "configurationChanged": false,
+  "realDataChanged": false,
+  "temporaryScheduledTasksCreated": 0,
+  "baseline": {
+    "status": "baseline-reproduced",
+    "checks": [
+      {
+        "name": "notification API denies anonymous access",
+        "passed": true
+      },
+      {
+        "name": "synthetic super-admin login",
+        "passed": true
+      },
+      {
+        "name": "production notification API succeeds",
+        "passed": true
+      },
+      {
+        "name": "feed aggregates all fixture categories",
+        "passed": true
+      },
+      {
+        "name": "feed response is private",
+        "passed": true
+      },
+      {
+        "name": "foreign-origin read mutation is rejected",
+        "passed": true
+      },
+      {
+        "name": "direct section link still opens Performance",
+        "passed": true
+      },
+      {
+        "name": "baseline reproduces reload jump",
+        "passed": true
+      }
+    ],
+    "pageErrors": [],
+    "realEmailsSent": 0,
+    "realAccountsChanged": 0,
+    "reloadHashPosition": {
+      "y": 3127,
+      "hash": "#performanta",
+      "type": "reload"
+    }
+  },
+  "validation": {
+    "targetedTestsPassed": 11,
+    "lint": "passed without warnings",
+    "productionBuild": "passed",
+    "actualCompiledBrowser": {
+      "status": "passed",
+      "checks": [
+        {
+          "name": "notification API denies anonymous access",
+          "passed": true
+        },
+        {
+          "name": "synthetic super-admin login",
+          "passed": true
+        },
+        {
+          "name": "production notification API succeeds",
+          "passed": true
+        },
+        {
+          "name": "feed aggregates all fixture categories",
+          "passed": true
+        },
+        {
+          "name": "feed response is private",
+          "passed": true
+        },
+        {
+          "name": "foreign-origin read mutation is rejected",
+          "passed": true
+        },
+        {
+          "name": "direct section link still opens Performance",
+          "passed": true
+        },
+        {
+          "name": "refresh clears stale anchor and opens top",
+          "passed": true
+        },
+        {
+          "name": "explicit section clicks still work after reload",
+          "passed": true
+        },
+        {
+          "name": "plain refresh does not restore an old deep scroll",
+          "passed": true
+        },
+        {
+          "name": "notification/job link still opens requested section",
+          "passed": true
+        },
+        {
+          "name": "refresh with a job link opens top without losing selection",
+          "passed": true
+        },
+        {
+          "name": "background polling does not push the page down again",
+          "passed": true
+        },
+        {
+          "name": "mobile refresh also opens top",
+          "passed": true
+        },
+        {
+          "name": "no runtime errors",
+          "passed": true
+        }
+      ],
+      "pageErrors": [],
+      "realEmailsSent": 0,
+      "realAccountsChanged": 0,
+      "reloadHashPosition": {
+        "y": 0,
+        "hash": "",
+        "type": "reload"
+      }
+    }
+  },
+  "deployment": {
+    "status": "finished",
+    "commit": "66b512fadf519824edeed1d6a965bce35f775fc6",
+    "created_at": "2026-10-29T12:03:39.000000Z",
+    "updated_at": "2026-10-29T12:04:55.000000Z",
+    "finished_at": "2026-10-29T12:04:55.000000Z"
+  },
+  "postLive": {
+    "status": "passed",
+    "commit": "66b512fadf519824edeed1d6a965bce35f775fc6",
+    "healthy": true,
+    "httpChecks": [
+      {
+        "path": "/api/health",
+        "status": 200
+      },
+      {
+        "path": "/",
+        "status": 200
+      },
+      {
+        "path": "/signup",
+        "status": 200
+      },
+      {
+        "path": "/admin",
+        "status": 200
+      },
+      {
+        "path": "/api/admin/owner-notifications",
+        "status": 401
+      },
+      {
+        "path": "/api/admin/customers",
+        "status": 401
+      },
+      {
+        "path": "/api/admin/notifications",
+        "status": 401
+      },
+      {
+        "path": "/admin/notificari",
+        "status": 200
+      }
+    ],
+    "publicScriptCount": 13,
+    "deployedAccountLabels": {
+      "Toate notificările": true,
+      "Marchează afișatele ca citite": true,
+      "Stare email": true,
+      "/api/admin/notifications": true
+    },
+    "realCustomerSessionChanged": false,
+    "testEmailsSent": 0,
+    "inboxDeliveryVerified": false,
+    "deployedReloadHookAssets": [
+      "/_next/static/chunks/3bucnbqdaawkd.js"
+    ]
+  },
+  "rollback": "Code-only rollback can repin the previous verified LIVE commit; no schema or data rollback is required. Existing backup jobs were not changed.",
+  "limits": [
+    "Authenticated functional checks used an isolated actual production build with synthetic data. LIVE checks were read-only public health/assets and anonymous authorization checks.",
+    "The PR attachment endpoint did not respond; its waiting orchestration was stopped after attempting the required attachment. The PR is available at https://github.com/Nelu251174/nitido/pull/164."
+  ],
+  "logHashes": {
+    "tests.log": "c64a38f24ee48a5eca8efce1c3c24f60ff2152e3168873c293eaa42ac9a9a243",
+    "lint.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build.log": "0cd1f9097fbf89faad82d5cd585c2fd2c1df642dba0bde60d1a00a2fc655f836",
+    "baseline-browser.log": "720f59979485dcb0a0097ac1e3a707c6cfb0aa40bcb60aacbcac5827ff117ecf",
+    "browser.log": "5e1395296517e9288b1dbf2fa97e71d67075e563265acd5fb5b252018dc5b49a"
+  }
+}

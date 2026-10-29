@@ -2,6 +2,7 @@
 
 import {AdminRoleWorkspace} from '@/components/AdminRoleWorkspace';
 import {AdminStaff} from '@/components/AdminStaff';
+import {useAdminReloadScroll} from '@/components/useAdminReloadScroll';
 import {AdminNotificationBell} from '@/components/AdminNotificationBell';
 import {AdminOwnerNotifications} from '@/components/AdminOwnerNotifications';
 import {AdminAccountDeletion} from '@/components/AdminAccountDeletion';
@@ -113,6 +114,7 @@ export default function AdminPage() {
   const adminLoginRunning=useRef(false);
   const [identity,setIdentity]=useState<AdminIdentity|null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  useAdminReloadScroll(authenticated===true);
 
   const refresh = useCallback(async () => {
     const me=await fetch('/api/admin/auth/me',{cache:'no-store'});
