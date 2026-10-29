@@ -14,6 +14,9 @@ CREATE TABLE IF NOT EXISTS admin_owner_reads (
  event_id TEXT NOT NULL REFERENCES admin_owner_events(id) ON DELETE CASCADE,
  admin_id TEXT NOT NULL,read_ms INTEGER NOT NULL,PRIMARY KEY(event_id,admin_id)
 );
+CREATE TABLE IF NOT EXISTS admin_notification_reads (
+ admin_id TEXT NOT NULL,event_key TEXT NOT NULL,revision TEXT NOT NULL,read_ms INTEGER NOT NULL,PRIMARY KEY(admin_id,event_key)
+);
 CREATE TABLE IF NOT EXISTS admin_store_daily_reports (
  source TEXT NOT NULL CHECK(source IN ('apple','google')),report_date TEXT NOT NULL,
  status TEXT NOT NULL CHECK(status IN ('ready','pending','blocked')),

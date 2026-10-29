@@ -2,6 +2,7 @@
 
 import {AdminRoleWorkspace} from '@/components/AdminRoleWorkspace';
 import {AdminStaff} from '@/components/AdminStaff';
+import {AdminNotificationBell} from '@/components/AdminNotificationBell';
 import {AdminOwnerNotifications} from '@/components/AdminOwnerNotifications';
 import {AdminAccountDeletion} from '@/components/AdminAccountDeletion';
 import type {AdminIdentity} from '@/lib/adminRolesShared';
@@ -169,7 +170,7 @@ export default function AdminPage() {
     const scrollToSection = () => {
       cancelAnimationFrame(frame);
       const id = window.location.hash.slice(1);
-      if (!["inscrieri", "firme", "lucrari", "calitate", "plati", "catalog", "evaluari", "incidente", "performanta", "clienti"].includes(id)) return;
+      if (!["inscrieri", "firme", "lucrari", "calitate", "plati", "catalog", "evaluari", "incidente", "performanta", "clienti", "notificari", "operatiuni", "cereri-stergere"].includes(id)) return;
       frame = requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: "start" }));
     };
     scrollToSection();
@@ -292,6 +293,7 @@ export default function AdminPage() {
             >
               {resetting ? "Se șterge..." : "Golește tot istoricul"}
             </button>
+            <AdminNotificationBell/>
           </div>
         </div>
       </header>
