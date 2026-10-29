@@ -18,8 +18,8 @@ it('rolls back the account if its outbox cannot be saved',()=>{db.exec("CREATE T
 it('does not queue anything when firm persistence fails',()=>{db.exec("CREATE TRIGGER fail_firm BEFORE INSERT ON firms BEGIN SELECT RAISE(ABORT,'failure');END");expect(()=>signup('firma')).toThrow();expect(ownerInbox(db,'a').events).toHaveLength(0);});
 it('sends escaped account data once and marks provider acceptance accurately',async()=>{const id=signup();const sender=vi.fn<import('./adminOwnerEvents').OwnerSender>().mockResolvedValue({id:'provider-id'});const result=await processOwnerEmails(db,{sender,now:Date.now()});expect(result.accepted).toBe(1);expect(sender.mock.calls[0][0].html).toContain('&lt;script&gt;');expect(sender.mock.calls[0][0].to).toBe('owner@example.test');await processOwnerEmails(db,{sender});expect(sender).toHaveBeenCalledTimes(1);expect(row(id).email_status).toBe('sent');});
 it.each([
- ['client',false,'Client — persoană fizică / firmă'],
- ['client',true,'Client firmă'],
+ ['client',false,'Client privat'],
+ ['client',true,'Client comercial (firmă)'],
  ['firma',false,'Firmă de curățenie'],
 ] as const)('notifies the selected owner once for %s with business=%s',async(role,business,type)=>{
  const id=signup(role);vi.stubEnv('NITIDO_OWNER_NOTIFICATION_EMAIL','nelutofan@gmail.com');
@@ -28,6 +28,7 @@ it.each([
  const sender=vi.fn<import('./adminOwnerEvents').OwnerSender>().mockResolvedValue({id:'accepted'});
  expect((await processOwnerEmails(db,{sender})).accepted).toBe(1);
  const mail=sender.mock.calls[0][0];expect(mail.to).toBe('nelutofan@gmail.com');expect(mail.subject).toBe('Înscriere nouă pe NÍTIDO: Test Înregistrare');
+ expect(ownerInbox(db,'admin').events[0].accountType).toBe(type);
  expect(mail.html).toContain(type);expect(mail.html).toContain('u@example.test');expect(mail.html).toContain('+40722111222');expect(mail.html).toContain('11:00:00');
  if(business)expect(mail.html).toContain('Birou &lt;Test&gt;');
  await processOwnerEmails(db,{sender});expect(sender).toHaveBeenCalledTimes(1);
