@@ -1,10 +1,11 @@
 import {beforeEach,afterEach,it,expect,vi} from 'vitest';
 import Database from 'better-sqlite3';
 import {SCHEMA_SQL} from './db';
+import {WORKSPACE_SCHEMA} from './workspace';
 import {persistSignup} from './signupPersistence';
 import {markOwnerEventsRead,ownerInbox,processOwnerEmails,queueOwnerRegistration,OWNER_EMAIL_RETRY_WINDOW_MS} from './adminOwnerEvents';
 let db:Database.Database;const now=Date.parse('2026-10-15T08:00:00Z');
-beforeEach(()=>{db=new Database(':memory:');db.pragma('foreign_keys=ON');db.exec(SCHEMA_SQL);vi.stubEnv('NITIDO_OWNER_NOTIFICATIONS_ENABLED','true');vi.stubEnv('NITIDO_OWNER_NOTIFICATION_EMAIL','owner@example.test');vi.stubEnv('RESEND_API_KEY','fixture');vi.stubEnv('RESEND_FROM','NITIDO <sender@example.test>');});
+beforeEach(()=>{db=new Database(':memory:');db.pragma('foreign_keys=ON');db.exec(SCHEMA_SQL);db.exec(WORKSPACE_SCHEMA);vi.stubEnv('NITIDO_OWNER_NOTIFICATIONS_ENABLED','true');vi.stubEnv('NITIDO_OWNER_NOTIFICATION_EMAIL','owner@example.test');vi.stubEnv('RESEND_API_KEY','fixture');vi.stubEnv('RESEND_FROM','NITIDO <sender@example.test>');});
 afterEach(()=>{db.close();vi.unstubAllEnvs();});
 function signup(role:'client'|'firma'='client',country:string|null='RO',id='u'){
  return persistSignup(db,{userId:id,role,name:'<script>Test</script>',email:id+'@example.test',phone:'+40722111222',passwordHash:'hash',referralCode:'REF'+id,bonus:0,referrer:null,connectionCountry:country,...(role==='firma'?{firm:{id:'f'+id,cui:'123',city:'București',citiesExtra:null,verified:false}}:{})});
@@ -45,3 +46,36 @@ it('quarantines changes in recipient or account content after an uncertain attem
 it('does not retry outside the provider idempotency window',async()=>{const id=signup(),time=Date.now();const sender=vi.fn(async()=>({error:'EMAIL_RESPONSE_UNKNOWN',retryable:true}));await processOwnerEmails(db,{sender,now:time});await processOwnerEmails(db,{sender,now:time+OWNER_EMAIL_RETRY_WINDOW_MS});expect(sender).toHaveBeenCalledTimes(1);expect(row(id).email_status).toBe('uncertain');});
 it('retains independent read state for each administrator',()=>{const id=signup();expect(markOwnerEventsRead(db,[id,id],'a',now).changed).toBe(1);expect(ownerInbox(db,'a').unread).toBe(0);expect(ownerInbox(db,'b').unread).toBe(1);expect(()=>markOwnerEventsRead(db,['injected'],'a')).toThrow();});
 it('suppresses email if the account has been deleted',async()=>{const id=signup();db.prepare('DELETE FROM users WHERE id=?').run('u');const sender=vi.fn();await processOwnerEmails(db,{sender});expect(sender).not.toHaveBeenCalled();expect(row(id).email_status).toBe('suppressed');});
+
+function property(id:string,owner:string,city:string,archived=0){
+ db.prepare('INSERT INTO workspace_properties(id,owner_id,name,city,street,sqm,space_type,created_at,archived) VALUES(?,?,?,?,?,40,?,?,?)').run(id,owner,'Proprietate test',city,'Adresă sintetică','apartament',new Date(now).toISOString(),archived);
+}
+function booking(id:string,client:string,city:string){
+ db.prepare("INSERT INTO jobs(id,client_id,street,city,sqm,space_type,when_type,price_gross,duration_minutes) VALUES(?,?,?,?,40,'apartament','asap',10000,60)").run(id,client,'Adresă sintetică',city);
+}
+it('enriches historical registrations for all three account types with owned locations and explicit sources',()=>{
+ const privateId=signup('client','FR','private'),businessId=signup('client','RO','business'),firmId=signup('firma','RO','firm');
+ db.prepare('UPDATE users SET is_business=1 WHERE id=?').run('business');
+ property('home','private',' Constanța ');property('office','business','Cluj-Napoca');
+ const events=ownerInbox(db,'admin').events;
+ expect(events.find(e=>e.id===privateId)).toMatchObject({accountType:'Client privat',city:'Constanța',citySource:'saved_properties',payload:{connectionCountry:'FR'}});
+ expect(events.find(e=>e.id===businessId)).toMatchObject({accountType:'Client comercial (firmă)',city:'Cluj-Napoca',citySource:'saved_properties'});
+ expect(events.find(e=>e.id===firmId)).toMatchObject({accountType:'Firmă de curățenie',city:'București',citySource:'firm_coverage'});
+ expect(events.every(e=>e.read_ms===null&&e.email_status==='pending')).toBe(true);
+});
+it('deduplicates active property cities, falls back to owned bookings and never borrows another account location',()=>{
+ const a=signup('client','RO','a'),b=signup('client','RO','b'),c=signup('client','FR','c');
+ property('a1','a','Iași');property('a2','a',' Iași ');property('a3','a','Oradea');property('a4','a','Constanța',1);
+ property('b1','b','',0);booking('b-job','b','Timișoara');booking('a-job','a','București');
+ const events=ownerInbox(db,'admin').events;
+ expect(events.find(e=>e.id===a)).toMatchObject({city:'Iași, Oradea',citySource:'saved_properties'});
+ expect(events.find(e=>e.id===b)).toMatchObject({city:'Timișoara',citySource:'bookings'});
+ expect(events.find(e=>e.id===c)).toMatchObject({city:null,citySource:null,payload:{connectionCountry:'FR'}});
+});
+it('does not infer city from a name, free-text business address, IP country or a system event',()=>{
+ const id=signup('client','FR');db.prepare('UPDATE users SET name=?,is_business=1,company_address=? WHERE id=?').run('Client Iași','Strada București 10','u');
+ db.prepare('INSERT INTO admin_owner_events(id,event_key,event_type,user_id,payload_json,created_ms) VALUES(?,?,?,?,?,?)').run('system-city','system-city','SYSTEM_TEST','u','{}',now);
+ const events=ownerInbox(db,'admin').events;
+ expect(events.find(e=>e.id===id)).toMatchObject({city:null,citySource:null});
+ expect(events.find(e=>e.id==='system-city')).toMatchObject({accountType:null,city:null,citySource:null});
+});
