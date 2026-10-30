@@ -1,0 +1,21 @@
+import {beforeEach,describe,it,expect,vi,afterEach} from 'vitest';
+import {NextRequest} from 'next/server';
+const m=vi.hoisted(()=>({user:vi.fn(),verify:vi.fn(),session:vi.fn(),limit:vi.fn()}));
+vi.mock('@/lib/db',()=>({getUserByEmail:m.user}));
+vi.mock('@/lib/auth',()=>({verifyPassword:m.verify,createSession:m.session}));
+vi.mock('@/lib/security',()=>({consumeRateLimit:m.limit,requestIp:()=> 'fixture'}));
+import {POST} from './route';
+const body={email:'client@example.test',password:' test password ',role:'client'};
+const req=(value:unknown)=>new NextRequest('https://nitido.ro/api/auth/login',{method:'POST',body:JSON.stringify(value),headers:{'Content-Type':'application/json'}});
+beforeEach(()=>{vi.resetAllMocks();m.limit.mockReturnValue(true);m.user.mockReturnValue({id:'synthetic',role:'client',password_hash:'synthetic-bcrypt-fixture'});m.verify.mockResolvedValue(true);m.session.mockResolvedValue('synthetic-token');vi.stubEnv('NITIDO_ENABLE_BEARER_AUTH','false');});
+afterEach(()=>{vi.restoreAllMocks();vi.unstubAllEnvs();});
+describe('login API bounded failure responses',()=>{
+ it.each([null,[],{}, {...body,email:7},{...body,password:{}},{...body,role:'admin'}])('rejects malformed bodies with JSON %j',async b=>{const r=await POST(req(b));expect(r.status).toBe(400);expect((await r.json()).error).toBe('Email și parolă necesare');expect(m.session).not.toHaveBeenCalled();});
+ it('preserves rate limiting',async()=>{m.limit.mockReturnValue(false);const r=await POST(req(body));expect(r.status).toBe(429);expect((await r.json()).error).toBeTruthy();expect(m.user).not.toHaveBeenCalled();});
+ it('requires a valid password',async()=>{m.verify.mockResolvedValue(false);const r=await POST(req(body));expect(r.status).toBe(401);expect(m.session).not.toHaveBeenCalled();});
+ it('preserves role checks',async()=>{m.user.mockReturnValue({id:'synthetic',role:'firma',password_hash:'fixture'});const r=await POST(req(body));expect(r.status).toBe(409);expect(m.session).not.toHaveBeenCalled();});
+ it('returns success only after session creation',async()=>{const r=await POST(req({...body,email:' client@example.test '}));expect(m.user).toHaveBeenCalledWith(body.email);expect(m.verify).toHaveBeenCalledWith(body.password,'synthetic-bcrypt-fixture');expect(await r.json()).toEqual({ok:true,role:'client'});expect(r.headers.get('Cache-Control')).toBe('private, no-store');});
+ it.each(['SQLITE_BUSY','SQLITE_LOCKED'])('recovers one temporary write conflict: %s',async code=>{m.session.mockRejectedValueOnce(Object.assign(new Error('fixture'),{code}));const r=await POST(req(body));expect(r.status).toBe(200);expect(m.session).toHaveBeenCalledTimes(2);});
+ it('does not retry a permanent write failure or log credentials',async()=>{const log=vi.spyOn(console,'error').mockImplementation(()=>{});m.session.mockRejectedValue(Object.assign(new Error('PRIVATE_FIXTURE_NOT_FOR_LOGS'),{code:'SQLITE_READONLY'}));const r=await POST(req(body));expect(r.status).toBe(503);expect((await r.json()).code).toBe('AUTH_UNAVAILABLE');expect(m.session).toHaveBeenCalledTimes(1);expect(log).toHaveBeenCalledWith('[auth-login]','SQLITE_READONLY');expect(JSON.stringify(log.mock.calls)).not.toContain('PRIVATE_FIXTURE');});
+ it('returns JSON when the lookup throws',async()=>{vi.spyOn(console,'error').mockImplementation(()=>{});m.user.mockImplementation(()=>{throw new Error('private fixture')});const r=await POST(req(body));expect(r.status).toBe(503);expect((await r.json()).code).toBe('AUTH_UNAVAILABLE');});
+});
