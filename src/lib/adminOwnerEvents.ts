@@ -102,9 +102,18 @@ export async function processOwnerEmails(db:Database,options:{ids?:string[];send
  return {status:'completed' as const,...result};
 }
 export function ownerInbox(db:Database,actor:string){
- const events=db.prepare(`SELECT e.id,e.event_type,e.payload_json,e.created_ms,e.email_status,e.attempt_count,e.last_error,e.sent_ms,u.role,u.name,u.email,u.is_business,r.read_ms FROM admin_owner_events e LEFT JOIN users u ON u.id=e.user_id LEFT JOIN admin_owner_reads r ON r.event_id=e.id AND r.admin_id=? ORDER BY e.created_ms DESC,e.id DESC LIMIT 100`).all(actor) as (EventRow&{read_ms:number|null;name:string|null;email:string|null;role:string|null;is_business:number|null})[];
+ const events=db.prepare(`SELECT e.id,e.event_type,e.payload_json,e.created_ms,e.email_status,e.attempt_count,e.last_error,e.sent_ms,u.role,u.name,u.email,u.is_business,r.read_ms,
+  (SELECT NULLIF(TRIM(f.coverage_city),'') FROM firms f WHERE f.user_id=u.id ORDER BY f.created_at,f.id LIMIT 1) AS firm_city,
+  (SELECT GROUP_CONCAT(city, ', ') FROM (SELECT DISTINCT TRIM(p.city) AS city FROM workspace_properties p WHERE p.owner_id=u.id AND p.archived=0 AND TRIM(p.city)<>'' ORDER BY city)) AS property_cities,
+  (SELECT GROUP_CONCAT(city, ', ') FROM (SELECT DISTINCT TRIM(j.city) AS city FROM jobs j WHERE j.client_id=u.id AND TRIM(j.city)<>'' ORDER BY city)) AS booking_cities
+  FROM admin_owner_events e LEFT JOIN users u ON u.id=e.user_id LEFT JOIN admin_owner_reads r ON r.event_id=e.id AND r.admin_id=? ORDER BY e.created_ms DESC,e.id DESC LIMIT 100`).all(actor) as (EventRow&{read_ms:number|null;name:string|null;email:string|null;email_status:string;role:string|null;is_business:number|null;firm_city:string|null;property_cities:string|null;booking_cities:string|null})[];
  const unread=db.prepare('SELECT COUNT(*) n FROM admin_owner_events e WHERE NOT EXISTS(SELECT 1 FROM admin_owner_reads r WHERE r.event_id=e.id AND r.admin_id=?)').get(actor) as {n:number};
- return {events:events.map(({payload_json,is_business,...row})=>({...row,accountType:['CLIENT_REGISTERED','FIRM_REGISTERED'].includes(row.event_type)?accountLabel(row.role,is_business??0):null,payload:JSON.parse(payload_json)})),unread:unread.n,config:ownerNotificationConfig()};
+ return {events:events.map(({payload_json,is_business,firm_city,property_cities,booking_cities,...row})=>{
+  const registration=['CLIENT_REGISTERED','FIRM_REGISTERED'].includes(row.event_type);
+  const city=registration?(row.role==='firma'?firm_city:row.role==='client'?property_cities??booking_cities:null):null;
+  const citySource=city?(row.role==='firma'?'firm_coverage':property_cities?'saved_properties':'bookings'):null;
+  return {...row,accountType:registration?accountLabel(row.role,is_business??0):null,city,citySource,payload:JSON.parse(payload_json)};
+ }),unread:unread.n,config:ownerNotificationConfig()};
 }
 export function markOwnerEventsRead(db:Database,ids:string[],actor:string,now=Date.now()){
  if(!Array.isArray(ids)||ids.length>100||ids.some(id=>typeof id!=='string'||!/^owner_[a-f0-9]{32}$/.test(id)))throw Error('INVALID_EVENT_IDS');

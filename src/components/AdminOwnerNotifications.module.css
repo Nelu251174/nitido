@@ -14,13 +14,14 @@
 .readButton:disabled { opacity: .45; cursor: default; }
 .tableViewport { max-width: 100%; max-height: 480px; overflow: auto; border: 1px solid #e4eae7; border-radius: 11px; }
 .tableViewport:focus-visible { outline: 2px solid #179b68; outline-offset: 3px; }
-.panel .table { width: 100%; min-width: 1080px; margin: 0; border-collapse: separate; border-spacing: 0; font-size: 13px; line-height: 1.4; }
+.panel .table { width: 100%; min-width: 1200px; margin: 0; border-collapse: separate; border-spacing: 0; font-size: 13px; line-height: 1.4; }
 .panel .table th { position: sticky; top: 0; z-index: 1; padding: 12px 14px; text-align: left; font-size: 11px; font-weight: 600; color: #738079; background: #f5f8f6; border: 0; border-bottom: 1px solid #e1e8e4; white-space: nowrap; }
 .panel .table td { height: 53px; padding: 10px 14px; border: 0; border-bottom: 1px solid #edf1ef; vertical-align: middle; white-space: nowrap; font-weight: 400; }
 .panel .table tr:last-child td { border-bottom: 0; }
 .table tbody tr:hover { background: #fafcfb; }
 .panel .table .date { color: #74817e; font-size: 12px; font-variant-numeric: tabular-nums; }
 .panel .table .name { font-weight: 600; color: #223b31; }
+.panel .table .city { max-width: 220px; overflow: hidden; text-overflow: ellipsis; color: #52635c; }
 .unreadDot { display: inline-block; width: 6px; height: 6px; margin-right: 9px; vertical-align: middle; border-radius: 50%; background: #0d9b69; }
 .panel .email { color: #5f716a; text-decoration: none; font-size: 12px; }
 .email:hover { color: #14805a; text-decoration: underline; }
