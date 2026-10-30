@@ -15,6 +15,7 @@ import {getLocale, getMessages} from 'next-intl/server';
 import {CurrencyNotice} from '@/components/CurrencyNotice';
 import {LanguageSelector} from '@/components/LanguageSelector';
 import {catalogsReady} from '@/i18n/catalogs';
+import {NexusCounter} from '@/components/NexusCounter';
 
 const sora = localFont({
   src: [
@@ -105,6 +106,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const [locale, messages] = await Promise.all([getLocale(), getMessages()]);
   return (
     <html lang={locale} className={`${sora.variable} ${inter.variable} h-full antialiased`}>
+      <head>
+        <NexusCounter/>
+      </head>
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider locale={locale} messages={messages} timeZone="Europe/Bucharest">
         {catalogsReady() && <div className="nitido-language-bar"><LanguageSelector/></div>}
