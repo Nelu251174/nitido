@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Field, inputClass, Button } from "@/components/ui";
 import { AuthLayout } from "@/components/AuthLayout";
 import {postAuthDestination,authSwitchHref} from "@/lib/authRedirect";
+import {requestLogin} from '@/lib/loginRequest';
 
 export default function LoginPage() {return <Suspense fallback={<p role="status"><UiText text={"Se încarcă…"}/></p>}><LoginForm/></Suspense>}
 
@@ -24,13 +25,7 @@ function LoginForm() {
     setError(null);
     setSubmitting(true);
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, role }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Eroare la autentificare");
+      const data = await requestLogin({email,password,role});
       router.push(postAuthDestination(searchParams.get("next"),data.role==="firma"?"firma":"client"));
       router.refresh();
     } catch (e) {
