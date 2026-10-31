@@ -711,7 +711,7 @@ export function ClientWorkspace({section = "home"}: {section?: ClientWorkspaceSe
     <div className="workspace-redesign workspace-redesign-client approved-client min-h-screen bg-[#f7f9fc] flex max-[760px]:block">
       <aside className="client-workspace-sidebar w-[236px] shrink-0 bg-white border-r border-[#e2e8f0] p-5 flex flex-col sticky top-0 h-screen max-[760px]:w-full max-[760px]:h-auto max-[760px]:relative max-[760px]:border-r-0 max-[760px]:border-b max-[760px]:p-4">
         <div className="flex items-center justify-between">
-          <Logo />
+          <Logo href="/client" />
         </div>
         <WorkspaceNav role="client" onNavigate={href=>{if(href==='/client#sec-form'){goToForm();}else if(href==='/client'){setJob(null);setShowBooking(false)}}}/>
         <div className="mt-auto max-[760px]:hidden"><div className="text-sm font-semibold">{user.name}</div><div className="text-xs text-[#6b756f] mt-1">{user.email}</div><button type="button" onClick={logout} disabled={loggingOut} aria-busy={loggingOut} className="text-xs text-[#64748b] mt-4"><UiText text={loggingOut?"Se verifică…":"Ieși din cont"}/></button>{logoutError&&<p role="alert" className="mt-2 text-sm text-coral"><UiText text={logoutError}/></p>}</div>
