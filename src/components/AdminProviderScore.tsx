@@ -22,7 +22,7 @@ export function AdminProviderScore({ canManage = false }: { canManage?: boolean 
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Regula nu a putut fi salvată.'); }
     finally { setBusy(false); }
   }
-  return <section className="workspace-panel space-y-4" style={{ background: '#f7f3ec', border: '1px solid #ddd4c5', borderRadius: 20, padding: 24, minWidth: 0 }}>
+  return <section className="workspace-panel space-y-4" style={{ background: 'var(--admin-surface, #f7f3ec)', border: '1px solid var(--admin-line, #ddd4c5)', borderRadius: 20, padding: 24, minWidth: 0 }}>
     <h2 className="text-xl font-bold">Provider Score — observare</h2>
     <p>Compară calitatea pe baza unei reguli explicite și a unei perioade comune. Datele insuficiente rămân nemăsurabile. Scorul nu schimbă alocarea, eligibilitatea sau suspendarea. Marja comercială rămâne separată.</p>
     <button className="v2-btn v2-btn-secondary" disabled={busy} onClick={() => void load()}>{busy ? 'Se încarcă…' : 'Încarcă regulile și rezultatele'}</button>
@@ -38,7 +38,7 @@ export function AdminProviderScore({ canManage = false }: { canManage?: boolean 
         <label className="sm:col-span-2">Motivul regulii<textarea className={inputClass} name="reason" required maxLength={2000}/></label>
         <button className="v2-btn v2-btn-primary" disabled={busy}>Salvează pentru observare</button>
       </form>}
-      <div className="grid gap-3 md:grid-cols-2">{report.providers.map(provider => <article key={provider.id} className="rounded-xl border p-4 min-w-0" style={{ background: '#fbf7ef', borderColor: '#ddd4c5' }}>
+      <div className="grid gap-3 md:grid-cols-2">{report.providers.map(provider => <article key={provider.id} className="rounded-xl border p-4 min-w-0" style={{ background: 'var(--admin-inset-surface, #fbf7ef)', borderColor: 'var(--admin-line, #ddd4c5)' }}>
         <h3 className="font-bold break-words">{provider.name}</h3><p>{provider.observation.score === null ? 'Scor nemăsurabil' : `Scor de observare: ${provider.observation.score} / 100`} · {provider.completedJobs} lucrări finalizate</p>
         {provider.observation.reasons.map(reason => <p key={reason}>{reason}</p>)}
         <ul>{provider.observation.components.map(component => <li key={component.key}>{component.label}: {component.percent === null ? 'date insuficiente' : component.percent.toFixed(1) + '%'} · {component.samples} măsurători · pondere {component.weight}%</li>)}</ul>

@@ -20,7 +20,7 @@ export function AdminAssessmentQualification({ id }: { id: string }) {
     catch (error) { setError(error instanceof Error ? error.message : 'Verificare neconfirmată.'); }
     finally { setBusy(false); }
   }
-  return <section className="design-panel admin-qualification my-3 space-y-3" style={{ background: '#f7f3ec', minWidth: 0 }}>
+  return <section className="design-panel admin-qualification my-3 space-y-3" style={{ background: 'var(--admin-surface, #f7f3ec)', minWidth: 0 }}>
     <h3 className="font-bold">Pregătire operațională pentru plan</h3><p>{QUALIFICATION_BASIS}</p>
     {error && <p role="alert">{error}</p>}
     <button type="button" className="v2-btn v2-btn-secondary" disabled={busy} onClick={() => void load().then(() => setError('')).catch(error => setError(error.message))}>Actualizează verificarea</button>
@@ -37,7 +37,7 @@ export function AdminQualificationReport() {
   const [from, setFrom] = useState(today.slice(0, 8) + '01'), [to, setTo] = useState(today), [city, setCity] = useState(''), [category, setCategory] = useState(''), [client, setClient] = useState('');
   const [report, setReport] = useState<QualificationReport | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState('');
   async function load() { setBusy(true); setError(''); try { setReport(await request(endpoint + '?' + new URLSearchParams({ from, to, city, category, client }))); } catch (error) { setReport(null); setError(error instanceof Error ? error.message : 'Raport neconfirmat.'); } finally { setBusy(false); } }
-  return <section className="design-panel admin-qualification my-4 space-y-3" style={{ background: '#f7f3ec', minWidth: 0 }}>
+  return <section className="design-panel admin-qualification my-4 space-y-3" style={{ background: 'var(--admin-surface, #f7f3ec)', minWidth: 0 }}>
     <h3 className="font-bold">Cohorta cererilor și pregătirea planurilor</h3><p>{QUALIFICATION_BASIS}</p>
     <form className="grid gap-3 sm:grid-cols-2" onSubmit={event => { event.preventDefault(); void load(); }}><label>De la (România)<input className="w-full rounded-xl border p-3" type="date" required value={from} onChange={event => setFrom(event.target.value)} /></label><label>Până la (România)<input className="w-full rounded-xl border p-3" type="date" required value={to} onChange={event => setTo(event.target.value)} /></label><label>Localitate exactă<input className="w-full rounded-xl border p-3" maxLength={100} value={city} onChange={event => setCity(event.target.value)} /></label><label>Serviciu<select className="w-full rounded-xl border p-3" value={category} onChange={event => setCategory(event.target.value)}><option value="">Toate</option>{CATALOG_CATEGORIES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><label>Identificator client<input className="w-full rounded-xl border p-3" maxLength={100} value={client} onChange={event => setClient(event.target.value)} /></label><button className="v2-btn v2-btn-primary" disabled={busy}>Calculează cohorta completă</button></form>
     {error && <p role="alert">{error}</p>}

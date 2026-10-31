@@ -87,3 +87,41 @@ deployului și probele HTTP; pornirea unui deploy nu înseamnă instalare reuși
 Revenirea se face la ramura/SHA-ul anterior al fiecărui mediu, păstrând volumele
 actuale. Nu se restaurează o bază veche peste date apărute între timp. Deoarece
 schema nu este modificată, revenirea interfeței nu necesită migrare inversă.
+
+## Corecție de navigare și paletă — 31 octombrie 2026
+
+În buildul `610b006`, navigarea prin click între paginile CLIENT remonta
+consumatorul autentificării. Până la răspunsul `/api/auth/me`, acesta înlocuia
+întregul cadru cu mesajul de încărcare. Cu răspunsul întârziat artificial cu
+450 ms, 18 din 39 de tranziții CLIENT/ADMIN au pierdut cadrul CLIENT pentru
+433–465 ms; lățimea rămânea constantă cât timp cadrul era prezent.
+
+Starea contului CLIENT aparține acum layoutului care persistă între pagini.
+Fiecare schimbare de adresă reverifică sesiunea fără să elimine contul pe
+durata cererii. Refuzul autentificării sau eroarea de rețea elimină identitatea;
+cererile depășite sunt anulate și răspunsurile lor sunt ignorate. Starea nu
+supraviețuiește demontării layoutului la deconectare. În afara layoutului CLIENT,
+hookul păstrează verificarea independentă folosită de FIRMA.
+
+Panourile ADMIN mai vechi folosesc aceleași suprafețe neutre și borduri ca
+restul cadrului. Filele Marketing selectate au text alb pe verde închis.
+Stările de eroare, avertizare și succes rămân distincte. Tokenurile sunt
+limitate la ADMIN; componentele folosite separat păstrează valorile anterioare.
+
+`scripts/workspace-navigation-browser.mjs` verifică efectiv clickurile dintre
+pagini și file, inclusiv revenirea repetată la Acasă, la 390/1440/2048 px.
+`NITIDO_QA_ENFORCE_STABILITY=true` impune păstrarea cadrului, lățimii și poziției
+principale la desktop, fără reîncărcarea documentului. Fixture-ul local, MFA,
+blocarea cererilor externe și opțiunile de build sunt aceleași ca la verificarea
+anterioară. Raportul include cadrele animate și culorile calculate în browser.
+
+Rezultatul corecției: 72 de tranziții prin click fără dispariția cadrului,
+reîncărcarea documentului, deplasarea lățimii la desktop sau depășirea
+orizontală a ecranului; fără erori JavaScript. Include 21 de navigări CLIENT,
+toate cele nouă destinații ADMIN și filele din Setări, Rapoarte, Financiar,
+Suport, Marketing și dosarul incidentului. Cele 72 de probe de culoare și
+12 verificări suplimentare ale paletei au trecut. Buildul de producție,
+TypeScript și validarea traducerilor au trecut; ESLint are numai avertismentul
+preexistent menționat mai sus. Suita completă: 2.862 teste trecute și un test
+extern omis, în 283 de fișiere trecute. Revizuirea separată a autentificării
+nu a identificat un regres material.
