@@ -24,3 +24,10 @@ it('requires a valid case, supported outcome and a nonempty reason',async()=>{ex
 it('rejects malformed and oversized bodies',async()=>{expect((await POST(new NextRequest('https://sandbox.nitido.ro',{method:'POST',body:'bad'}))).status).toBe(400);expect((await POST(request(null))).status).toBe(400);expect((await POST(request([]))).status).toBe(400);expect((await POST(request('x'.repeat(12001)))).status).toBe(413);});
 it('bounds and paginates review queue with explicit more state',async()=>{const insert=state.db!.prepare('INSERT INTO visit_cases VALUES(?,?,?,?,?,?,?)');for(let i=0;i<51;i++)insert.run(`c${i}`,'j','quality','Sesizare',null,'open',revision);const first=await (await GET(request())).json(),second=await (await GET(request(undefined,'?offset=50'))).json();expect(first.cases).toHaveLength(50);expect(first.hasMore).toBe(true);expect(second.cases).toHaveLength(2);expect(second.hasMore).toBe(false);expect(new Set([...first.cases,...second.cases].map(c=>c.id)).size).toBe(52);expect((await GET(request(undefined,'?offset=-1'))).status).toBe(400);});
 it('requires an outer transaction for the domain write',()=>{expect(()=>reviewIncident(state.db!,input(),'admin-session')).toThrow(/transaction/);});
+it('opens an exact job or incident without mixing unrelated dossiers',async()=>{
+ state.db!.prepare('INSERT INTO visit_cases VALUES(?,?,?,?,?,?,?)').run('other-case','other-job','quality','Alt dosar',null,'open',revision);
+ const byJob=await(await GET(request(undefined,'?jobId=j'))).json();expect(byJob.cases.map((c:{id:string})=>c.id)).toEqual(['c']);
+ const byCase=await(await GET(request(undefined,'?caseId=other-case'))).json();expect(byCase.cases.map((c:{id:string})=>c.id)).toEqual(['other-case']);
+ expect((await(await GET(request(undefined,'?jobId=j&caseId=other-case'))).json()).cases).toEqual([]);
+ for(const query of ['?jobId=../invalid','?caseId=','?caseId='+encodeURIComponent("' OR 1=1 --")])expect((await GET(request(undefined,query))).status).toBe(400);
+});

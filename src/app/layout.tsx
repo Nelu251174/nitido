@@ -6,6 +6,7 @@ import "./approved-design.css";
 import "./mobile-layout.css";
 import "./pro.css";
 import "./workspace-theme.css";
+import "./workspace-redesign.css";
 import "@fontsource-variable/instrument-sans";
 import { GoogleAdsConsent } from "@/components/GoogleAdsConsent";
 import { WebAlerts } from "@/components/WebAlerts";

@@ -3,21 +3,35 @@ import { db } from "@/lib/db";
 import { auditAdminAction, isAdmin } from "@/lib/adminAuth";
 
 /**
- * Golește tot istoricul de activitate al platformei — lucrări, poze de
- * lucrare, plăți — plus cele 3 firme + clientul demo inserate automat la
- * prima pornire (vezi seed-ul din src/lib/db.ts). NU șterge conturi reale
- * (clienți/firme înregistrate de-adevăratelea) — doar activitatea de test.
- *
- * Acțiune ireversibilă — protejată printr-un cuvânt de confirmare trimis
- * explicit din panoul de admin (nu se poate declanșa accidental).
+ * This removes all operational history, including payments and evidence.
+ * It is available only to explicitly enabled, local automated test fixtures;
+ * production and hosted sandboxes must never expose this destructive action.
  */
+function isolatedTestReset(req: NextRequest): boolean {
+  if (process.env.NODE_ENV !== "test" || process.env.NITIDO_HISTORY_RESET_TEST_MODE !== "true") return false;
+  try {
+    const site = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "");
+    return site.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(site.hostname)
+      && !site.username && !site.password && site.pathname === "/" && !site.search && !site.hash
+      && new URL(req.url).origin === site.origin && req.headers.get("origin") === site.origin;
+  } catch {
+    return false;
+  }
+}
+
+const reply = (body: unknown, status = 200) => NextResponse.json(body, {
+  status,
+  headers: { "Cache-Control": "private, no-store" },
+});
+
 export async function POST(req: NextRequest) {
-  if (!(await isAdmin())) return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
+  if (!(await isAdmin())) return reply({ error: "Neautorizat" }, 401);
+  if (!isolatedTestReset(req)) return reply({ error: "Resetarea globală este disponibilă numai în testele locale izolate." }, 403);
   const body = await req.json().catch(() => ({}));
   if (body?.confirm !== true) {
-    return NextResponse.json(
+    return reply(
       { error: "Confirmarea explicită este obligatorie" },
-      { status: 400 }
+      400
     );
   }
 
@@ -62,5 +76,5 @@ export async function POST(req: NextRequest) {
   })();
 
   auditAdminAction("history.reset", null, result);
-  return NextResponse.json({ ok: true, ...result });
+  return reply({ ok: true, ...result });
 }

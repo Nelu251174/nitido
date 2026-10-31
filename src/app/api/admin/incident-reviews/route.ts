@@ -10,7 +10,13 @@ export async function GET(req:NextRequest){
  try{
  const offset=Number(req.nextUrl.searchParams.get('offset')??0);
  if(!Number.isSafeInteger(offset)||offset<0)throw new WorkspaceError('Pagină invalidă.');
- const cases=db.prepare(`SELECT id,job_id,category,description,photo_id,status,updated_at FROM visit_cases ORDER BY updated_at DESC,id LIMIT 51 OFFSET ?`).all(offset) as {id:string}[];
+ const jobId=req.nextUrl.searchParams.get('jobId'),caseId=req.nextUrl.searchParams.get('caseId');
+ for(const value of [jobId,caseId])if(value!==null&&!/^[A-Za-z0-9_-]{1,100}$/.test(value))throw new WorkspaceError('Identificator invalid.');
+ const filters:string[]=[],args:string[]=[];
+ if(jobId){filters.push('job_id=?');args.push(jobId);}
+ if(caseId){filters.push('id=?');args.push(caseId);}
+ const where=filters.length?' WHERE '+filters.join(' AND '):'';
+ const cases=db.prepare(`SELECT id,job_id,category,description,photo_id,status,updated_at FROM visit_cases${where} ORDER BY updated_at DESC,id LIMIT 51 OFFSET ?`).all(...args,offset) as {id:string}[];
  return response({cases:cases.slice(0,50).map(c=>({...c,reviews:incidentReviews(db,c.id),events:db.prepare('SELECT action,note,created_at FROM visit_case_events WHERE case_id=? ORDER BY created_at,id').all(c.id)})),hasMore:cases.length>50});
  }catch(e){return response({error:e instanceof WorkspaceError?e.message:'Dosarele nu pot fi încărcate.'},e instanceof WorkspaceError?e.status:500);}
 }

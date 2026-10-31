@@ -5,8 +5,8 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  // Runtime operations scripts intentionally run as CommonJS in deployed Node containers.
-  { files: ["scripts/*.cjs"], rules: { "@typescript-eslint/no-require-imports": "off" } },
+  // Runtime scripts and archived browser checks intentionally use CommonJS.
+  { files: ["scripts/*.cjs", "docs/audits/**/*.cjs"], rules: { "@typescript-eslint/no-require-imports": "off" } },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

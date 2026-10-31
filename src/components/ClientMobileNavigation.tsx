@@ -4,7 +4,7 @@ import {UiElement,UiText} from '@/components/UiText';
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
-import { CLIENT_NAVIGATION_EVENT, CLIENT_NAVIGATION_ITEMS } from "@/lib/clientNavigation";
+import { CLIENT_NAVIGATION_EVENT, CLIENT_QUICK_NAVIGATION_ITEMS, clientActiveNavigationHref } from "@/lib/clientNavigation";
 
 function subscribe(listener: () => void) {
   window.addEventListener("hashchange", listener);
@@ -20,34 +20,15 @@ function subscribe(listener: () => void) {
 export function ClientMobileNavigation() {
   const pathname = usePathname();
   const hash = useSyncExternalStore(subscribe, () => window.location.hash, () => "");
+  const activeHref = clientActiveNavigationHref(pathname, hash);
 
   return (
     <UiElement as="nav" className="mobile-workspace-nav client-mobile-navigation" aria-label="Navigare rapidă">
-      {CLIENT_NAVIGATION_ITEMS.map(item => {
-        const active = item.target === null
-          ? pathname === item.href || pathname.startsWith(`${item.href}/`)
-          : pathname === "/client" && hash === (item.target ? `#${item.target}` : "");
-        return (
-          <Link key={item.label} href={item.href} scroll={false} aria-current={active ? "page" : undefined}
-            onClick={event => {
-              if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-              if (pathname !== "/client" || item.target === null) {
-                // Tab navigation starts at the top; hash destinations are restored
-                // by the dashboard after authentication and content have loaded.
-                window.scrollTo({top:0,behavior:"instant"});
-                return;
-              }
-              event.preventDefault();
-              if (window.location.pathname + window.location.search + window.location.hash !== item.href) {
-                window.history.pushState(null, "", item.href);
-              }
-              // The dashboard restores its sections before scrolling, including repeated taps.
-              window.dispatchEvent(new CustomEvent(CLIENT_NAVIGATION_EVENT, { detail: item.target }));
-            }}>
+      {CLIENT_QUICK_NAVIGATION_ITEMS.map(item => (
+          <Link key={item.href} href={item.href} aria-current={activeHref === item.href ? "page" : undefined}>
             <span><UiText text={item.label}/></span>
           </Link>
-        );
-      })}
+      ))}
     </UiElement>
   );
 }

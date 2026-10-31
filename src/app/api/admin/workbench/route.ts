@@ -1,23 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAdminIdentity } from '@/lib/adminAuth';
-import { hasAdminPermission } from '@/lib/adminRolesShared';
+import {hasAdminPermission} from '@/lib/adminRolesShared';
+import {adminWorkbench, AdminQueryError} from '@/lib/adminWorkbench';
 const response = (data: unknown, status = 200) => NextResponse.json(data, { status, headers: { 'Cache-Control': 'private, no-store' } });
 export async function GET(req: NextRequest) {
     const identity = await getAdminIdentity();
     if (!identity)
         return response({ error: 'Neautorizat' }, 401);
-    const offset = Number(req.nextUrl.searchParams.get('offset') ?? 0);
-    if (!Number.isSafeInteger(offset) || offset < 0)
-        return response({ error: 'Pagină invalidă' }, 400);
-    const jobId=req.nextUrl.searchParams.get('jobId');
-    if(jobId&&!/^[A-Za-z0-9_-]{1,100}$/.test(jobId))return response({error:'Identificator invalid'},400);
-    const financial = hasAdminPermission(identity.role, 'finance');
-    return db.transaction(() => {
-        const rows = (jobId?db.prepare('SELECT id,city,status,scheduled_at,accepted_firm_id FROM jobs WHERE id=?').all(jobId):db.prepare('SELECT id,city,status,scheduled_at,accepted_firm_id FROM jobs ORDER BY created_at DESC,id LIMIT 51 OFFSET ?').all(offset)) as {
-            id: string;
-        }[];
-        const jobs = rows.slice(0, 50).map(j => ({ ...j, ...(financial ? { payments: db.prepare('SELECT p.id,p.status,p.amount_gross,p.refund_status,p.stripe_payment_intent_id,r.stripe_refund_id FROM payments p LEFT JOIN payment_refunds r ON r.payment_id=p.id WHERE p.job_id=?').all(j.id) } : {}) }));
-        return response({ jobs, hasMore: rows.length > 50, financial });
-    })();
+    if (!hasAdminPermission(identity.role, 'session')) return response({error: 'Acces interzis.'}, 403);
+    try {
+        return response(adminWorkbench(db, identity.role, req.nextUrl.searchParams));
+    } catch (error) {
+        if (error instanceof AdminQueryError) return response({error: error.message}, 400);
+        return response({error: 'Lista lucrărilor nu a putut fi încărcată.'}, 500);
+    }
 }
