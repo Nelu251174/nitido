@@ -32,6 +32,20 @@
   color-scheme: light;
 }
 
+/* Older ADMIN modules share these tokens; their standalone layouts keep the fallback palette. */
+.workspace-redesign.workspace-redesign-admin {
+  --admin-surface: #fff;
+  --admin-inset-surface: #f7faf8;
+  --admin-line: var(--ws-line);
+  --admin-on-primary: #fff;
+  --nitido-action-color: var(--ws-brand);
+  --nitido-action-hover: #00623c;
+  --nitido-action-background: var(--ws-brand);
+  --nitido-brand: var(--ws-brand);
+  --nitido-brand-soft: var(--ws-brand-soft);
+  --ink: var(--ws-ink);
+}
+
 .workspace-redesign *,
 .workspace-redesign *::before,
 .workspace-redesign *::after { box-sizing: border-box; }
