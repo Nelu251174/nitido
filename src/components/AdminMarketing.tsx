@@ -30,7 +30,7 @@ function CategoryOptions({ all = false }: { all?: boolean }) {
   return <>{all && <option value="">Toate categoriile</option>}{Object.entries(MARKETING_CATEGORIES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</>;
 }
 
-export function AdminMarketing({ testEnvironment = true }: { testEnvironment?: boolean }) {
+export function AdminMarketing({ testEnvironment = true, embedded = false }: { testEnvironment?: boolean; embedded?: boolean }) {
   const [tab, setTab] = useState<'signups' | 'counties' | 'overview' | 'contacts' | 'collect' | 'campaigns' | 'results' | 'settings'>('counties');
   useEffect(()=>{const requested=new URLSearchParams(window.location.search).get('tab');if(!['signups','counties','overview','contacts','collect','campaigns','results','settings'].includes(requested??''))return;const timer=setTimeout(()=>setTab(requested as typeof tab),0);return()=>clearTimeout(timer);},[]);
   const [revision, setRevision] = useState(0);
@@ -86,12 +86,14 @@ export function AdminMarketing({ testEnvironment = true }: { testEnvironment?: b
   function applyFilters(event: FormEvent) { event.preventDefault(); setError(''); changeQuery(new URLSearchParams(filters).toString()); }
   const previewContactRows = preview?.contacts ?? [];
 
-  return <main className="design-container max-w-6xl py-8 space-y-6">
-    <header className="flex flex-wrap items-center justify-between gap-4">
+  const Container = embedded ? 'div' : 'main';
+  return <Container className={embedded ? 'space-y-6' : 'design-container max-w-6xl py-8 space-y-6'}>
+    {!embedded && <header className="flex flex-wrap items-center justify-between gap-4">
       <div><Link href="/admin" className="underline text-sm">← ADMIN</Link><p className="v2-eyebrow mt-4">{testEnvironment ? 'NITIDO · MEDIU DE TEST' : 'NITIDO · ADMIN'}</p><h1 className="text-3xl font-bold">Marketing</h1></div>
       <p className="text-sm text-muted max-w-md">Contacte, colectare firme și campanii, într-un singur loc. Trimiterea reală se confirmă manual în campanie; verificările și coada de test nu expediază emailuri.</p>
       <AdminNotificationBell/>
-    </header>
+    </header>}
+    {embedded && testEnvironment && <p className="workspace-redesign-context">Mediu de test</p>}
     <div className="grid gap-3 sm:grid-cols-3">{Object.entries(MARKETING_CATEGORIES).map(([key, label]) => <Card key={key}><p className="text-muted">{label}</p><b className="text-3xl">{list?.counts[key as MarketingCategory] ?? '—'}</b></Card>)}</div>
     <nav aria-label="Secțiuni Marketing" className="flex flex-wrap gap-3">{([['counties','Județe'],['signups','Înscrieri'],['overview', 'Panou general'], ['contacts', 'Contacte'], ['collect', 'Colectare firme'], ['campaigns', 'Campanii'], ['results', 'Rezultate'], ['settings', 'Setări']] as const).map(([key, label]) => <button key={key} type="button" className={`v2-btn ${tab === key ? 'v2-btn-primary' : 'v2-btn-secondary'}`} aria-current={tab === key ? 'page' : undefined} style={tab === key ? { color: '#052e22' } : undefined} onClick={() => { setError(''); setMessage(''); setTab(key); }}>{label}</button>)}</nav>
     {error && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-red-800">{error}</p>}
@@ -178,5 +180,5 @@ export function AdminMarketing({ testEnvironment = true }: { testEnvironment?: b
       </Card>}
       <AdminMarketingWorkspace section="collections" revision={revision}/>
     </section>}
-  </main>;
+  </Container>;
 }

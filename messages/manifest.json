@@ -14,8 +14,8 @@
   ],
   "targetLanguages": 24,
   "sourceLanguage": "ro",
-  "sourceMessages": 5368,
-  "sourceHash": "4ecd981afbd99a126750aae08aacf31f981a53da665e6b9960b7ccd5e10bed8a",
+  "sourceMessages": 5439,
+  "sourceHash": "e13d98472abc7a469c574b483be0952cd3aab56881f2f51ba792c167a1927972",
   "provider": "OpenAI",
   "model": "gpt-5.4-mini",
   "review": "machine translation; specialist legal review pending",
@@ -37,6 +37,11 @@
     "ipCurrency20261029": {
       "messages": 13,
       "scope": "Currency conversion notices and currency-neutral existing fragments; previous translations preserved"
+    },
+    "workspaceRedesign20261031": {
+      "messages": 71,
+      "scope": "Client dashboard and workspace navigation",
+      "review": "Agent translations; specialist review pending"
     }
   }
 }
