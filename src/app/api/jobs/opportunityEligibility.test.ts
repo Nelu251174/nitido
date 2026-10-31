@@ -8,6 +8,7 @@ import {initializeDatabase} from '@/lib/db';
 import {canPreviewOpportunity} from '@/lib/opportunityEligibility';
 import type {JobRow} from '@/lib/types';
 import {GET} from './[id]/route';
+import {GET as listGET} from './route';
 const job=()=>state.db!.prepare('SELECT * FROM jobs WHERE id=?').get('j') as JobRow;
 const read=()=>GET(new NextRequest('https://sandbox.nitido.ro/api/jobs/j'),{params:Promise.resolve({id:'j'})});
 beforeEach(()=>{
@@ -22,3 +23,13 @@ it.each(["verified=0","coverage_city='Iași'"])('rejects ineligible firm %s',asy
 it.each(["'2099-10-03T08:00:00.000Z'",'NULL'])('rejects occupied or unknown capacity %s',async timing=>{state.db!.exec(`INSERT INTO jobs(id,client_id,street,city,sqm,space_type,when_type,scheduled_at,price_gross,duration_minutes,status,accepted_firm_id) VALUES('occupied','c','Other','Constanța',75,'apartament','scheduled',${timing},550,150,'accepted','f')`);expect((await read()).status).toBe(403);});
 it('does not reserve capacity when previewing',async()=>{await read();expect(job().status).toBe('waiting');expect(job().accepted_firm_id).toBeNull();expect(state.db!.prepare('SELECT * FROM workspace_assignments').all()).toEqual([]);});
 it('preserves allocated history access despite suspension',async()=>{state.db!.exec("UPDATE firms SET suspended_until='2099-12-01';UPDATE jobs SET status='accepted',accepted_firm_id='f'");const res=await read();expect(res.status).toBe(200);expect((await res.json()).job.street).toBe('PRIVATE ADDRESS');});
+
+it('returns the stored travel buffer in the eligible feed without private job or pricing data',async()=>{
+ state.db!.exec("UPDATE jobs SET buffer_minutes=47 WHERE id='j'");
+ const res=await listGET(new NextRequest('https://sandbox.nitido.ro/api/jobs?status=waiting'));
+ expect(res.status).toBe(200);
+ const body=await res.json();
+ expect(body.jobs).toHaveLength(1);
+ expect(body.jobs[0].buffer_minutes).toBe(47);
+ for(const key of ['street','client_id','price_gross','pricing_snapshot'])expect(body.jobs[0][key]).toBeUndefined();
+});
