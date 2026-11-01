@@ -1,3 +1,4 @@
+import {activeAccountSql} from './accountStatus';
 import type {Database} from 'better-sqlite3';
 import {hasAdminPermission, type AdminRole} from './adminRolesShared';
 import {proReportPeriod} from './pro/reportPeriod';
@@ -69,7 +70,7 @@ export function adminFirms(db: Database, params: URLSearchParams) {
   const q = term(params.get('q'), 150), city = term(params.get('city'), 100);
   const verified = term(params.get('verified'), 5);
   if (verified && !['0', '1', 'all'].includes(verified)) throw new AdminQueryError('Filtrul de verificare este invalid.');
-  const conditions: string[] = [], args: unknown[] = [];
+  const conditions: string[] = [activeAccountSql(db,'u.id')], args: unknown[] = [];
   if (q) {
     conditions.push(`(f.id LIKE ? ESCAPE '\\' OR u.name LIKE ? ESCAPE '\\' OR f.cui LIKE ? ESCAPE '\\' OR f.coverage_city LIKE ? ESCAPE '\\')`);
     args.push(...Array(4).fill(like(q)));

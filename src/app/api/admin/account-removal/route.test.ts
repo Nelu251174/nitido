@@ -1,0 +1,19 @@
+import {beforeEach,afterEach,it,expect,vi} from 'vitest';
+import Database from 'better-sqlite3';
+import {NextRequest} from 'next/server';
+import {SCHEMA_SQL} from '@/lib/db';
+const state=vi.hoisted(()=>({db:null as unknown as Database.Database,role:null as string|null,reads:0}));
+vi.mock('@/lib/db',async original=>({...await original<typeof import('@/lib/db')>(),get db(){state.reads++;return state.db;}}));
+vi.mock('@/lib/adminAuth',()=>({getAdminIdentity:async()=>state.role?{id:'real-admin',role:state.role}:null}));
+import {POST} from './route';
+const body={kind:'firm',targetId:'firm',confirmName:'Test Firm',reason:'Cont de test'};
+function request(value:unknown=body,origin:string|undefined='https://sandbox.nitido.ro'){return new NextRequest('https://sandbox.nitido.ro/api/admin/account-removal',{method:'POST',headers:{'Content-Type':'application/json',...(origin?{Origin:origin}:{})},body:JSON.stringify(value)});}
+beforeEach(()=>{state.db=new Database(':memory:');state.db.exec(SCHEMA_SQL);state.db.exec("INSERT INTO users(id,role,name) VALUES('owner','firma','Test Firm');INSERT INTO firms(id,user_id,cui,coverage_city,verified) VALUES('firm','owner','SYNTHETIC','Constanța',1)");state.role='super_admin';state.reads=0;});
+afterEach(()=>state.db.close());
+it('denies anonymous/client/operator/manager/finance before reading account data',async()=>{for(const role of [null,'client','operator','manager','finance']){state.role=role;expect((await POST(request())).status).toBe(role?403:401);}expect(state.reads).toBe(0);});
+it('requires a trusted origin even with a Bearer-looking header',async()=>{for(const origin of [undefined,'https://attacker.invalid']){const req=request(body,origin);if(!origin)req.headers.delete('Origin');req.headers.set('Authorization','Bearer synthetic-unused');expect((await POST(req)).status).toBe(403);}expect(state.reads).toBe(0);});
+it('records the authenticated actor and exact selected target, never a supplied actor',async()=>{const response=await POST(request({...body,actorId:'forged'}));expect(response.status).toBe(200);expect(response.headers.get('Cache-Control')).toBe('private, no-store');expect(await response.json()).toMatchObject({removed:true,kind:'firm',targetId:'firm'});expect(state.db.prepare('SELECT actor_id,target_id FROM admin_removed_accounts').get()).toEqual({actor_id:'real-admin',target_id:'firm'});});
+it('rejects a stale name, unknown target and admin account type without mutation',async()=>{for(const patch of [{confirmName:'Wrong'},{targetId:'other'},{kind:'admin'}])expect((await POST(request({...body,...patch}))).status).toBeGreaterThanOrEqual(400);expect(state.db.prepare('SELECT COUNT(*) n FROM firms WHERE verified=1').get()).toEqual({n:1});});
+it('retries do not duplicate the removal or audit',async()=>{expect((await POST(request())).status).toBe(200);expect((await (await POST(request())).json()).replayed).toBe(true);expect(state.db.prepare('SELECT COUNT(*) n FROM admin_audit_log').get()).toEqual({n:1});});
+it('does not expose internal diagnostics and rolls back on audit failure',async()=>{state.db.exec("CREATE TRIGGER fail_audit BEFORE INSERT ON admin_audit_log BEGIN SELECT RAISE(ABORT,'PRIVATE_SYNTHETIC_ERROR');END;");const response=await POST(request());expect(response.status).toBe(500);expect(JSON.stringify(await response.json())).not.toContain('PRIVATE_SYNTHETIC_ERROR');expect(state.db.prepare('SELECT COUNT(*) n FROM sessions').get()).toEqual({n:0});expect(state.db.prepare("SELECT name FROM sqlite_master WHERE name='admin_removed_accounts'").get()).toBeUndefined();});
+it('rejects oversized and malformed requests',async()=>{expect((await POST(request({reason:'x'.repeat(5000)}))).status).toBe(413);const req=new NextRequest('https://sandbox.nitido.ro/api/admin/account-removal',{method:'POST',headers:{Origin:'https://sandbox.nitido.ro'},body:'{'});expect((await POST(req)).status).toBe(400);});

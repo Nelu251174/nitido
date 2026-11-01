@@ -42,6 +42,7 @@ import {AVAILABILITY_ALERTS_SCHEMA} from './availabilityAlertsSchema';
 import {FLEXIBLE_SCHEMA} from "./flexibleSchema";
 import { WORKSPACE_SCHEMA } from "@/lib/workspace";
 import Database from "better-sqlite3";
+import {activeAccountSql} from "./accountStatus";
 import path from "path";
 import fs from "fs";
 import { newId } from "./ids";
@@ -697,7 +698,7 @@ export function listFirms(): { id: string; name: string; coverage_city: string }
     .prepare(
       `SELECT firms.id as id, users.name as name, firms.coverage_city as coverage_city
        FROM firms JOIN users ON users.id = firms.user_id
-       ORDER BY users.name`
+       WHERE ${activeAccountSql(db,"users.id")} ORDER BY users.name`
     )
     .all() as { id: string; name: string; coverage_city: string }[];
 }
@@ -721,7 +722,7 @@ export function listAlertableFirms(): {
               firms.coverage_cities_extra as coverage_cities_extra, users.phone as phone,
               firms.suspended_until as suspended_until
        FROM firms JOIN users ON users.id = firms.user_id
-       WHERE firms.verified = 1`
+       WHERE firms.verified = 1 AND ${activeAccountSql(db,"firms.user_id")}`
     )
     .all() as {
     id: string;
@@ -746,24 +747,24 @@ export interface UserRow {
 }
 
 export function getUserByEmail(email: string): UserRow | undefined {
-  return db.prepare("SELECT * FROM users WHERE email = ?").get(email) as UserRow | undefined;
+  return db.prepare(`SELECT * FROM users WHERE email = ? AND ${activeAccountSql(db,"users.id")}`).get(email) as UserRow | undefined;
 }
 
 export function getUserByReferralCode(code: string): UserRow | undefined {
-  return db.prepare("SELECT * FROM users WHERE referral_code = ?").get(code) as
+  return db.prepare(`SELECT * FROM users WHERE referral_code = ? AND ${activeAccountSql(db,"users.id")}`).get(code) as
     | UserRow
     | undefined;
 }
 
 export function getUserById(id: string): UserRow | undefined {
-  return db.prepare("SELECT * FROM users WHERE id = ?").get(id) as UserRow | undefined;
+  return db.prepare(`SELECT * FROM users WHERE id = ? AND ${activeAccountSql(db,"users.id")}`).get(id) as UserRow | undefined;
 }
 
 export function getFirmByUserId(
   userId: string
 ): { id: string; coverage_city: string; coverage_cities_extra: string | null; verified:number; stripe_account_status:string; stripe_transfers_capability:string; description:string|null; working_hours:string|null; services:string|null; website:string|null } | undefined {
   return db
-    .prepare("SELECT id, coverage_city, coverage_cities_extra, verified, stripe_account_status, stripe_transfers_capability, description, working_hours, services, website FROM firms WHERE user_id = ?")
+    .prepare(`SELECT id, coverage_city, coverage_cities_extra, verified, stripe_account_status, stripe_transfers_capability, description, working_hours, services, website FROM firms WHERE user_id = ? AND ${activeAccountSql(db,"firms.user_id")}`)
     .get(userId) as
     | { id: string; coverage_city: string; coverage_cities_extra: string | null; verified:number; stripe_account_status:string; stripe_transfers_capability:string; description:string|null; working_hours:string|null; services:string|null; website:string|null }
     | undefined;
@@ -773,7 +774,7 @@ export function getFirmById(
   firmId: string
 ): { id: string; coverage_city: string; coverage_cities_extra: string | null } | undefined {
   return db
-    .prepare("SELECT id, coverage_city, coverage_cities_extra FROM firms WHERE id = ?")
+    .prepare(`SELECT id, coverage_city, coverage_cities_extra FROM firms WHERE id = ? AND ${activeAccountSql(db,"firms.user_id")}`)
     .get(firmId) as
     | { id: string; coverage_city: string; coverage_cities_extra: string | null }
     | undefined;

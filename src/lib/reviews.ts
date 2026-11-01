@@ -1,3 +1,4 @@
+import {activeAccountSql,activeFirmSql} from './accountStatus';
 import type { Database } from "better-sqlite3";
 import { newId } from "@/lib/db";
 import { hasValidWorkProof, auditWorkflow } from "@/lib/proofOfWork";
@@ -41,22 +42,22 @@ export function getPublicTrustSnapshot(db:Database,firmId?:string){
   const where=firmId?"AND r.firm_id=?":""; const params=firmId?[firmId]:[];
   const reviews=db.prepare(`SELECT r.id,r.firm_id,r.stars,r.comment,r.created_at,j.street,u.name reviewer_name,fu.name firm_name
     FROM ratings r JOIN jobs j ON j.id=r.job_id JOIN users u ON u.id=r.client_id JOIN firms f ON f.id=r.firm_id JOIN users fu ON fu.id=f.user_id
-    WHERE r.status='active' AND r.moderation_status='published' AND j.status='completed' AND r.client_id=j.client_id AND r.firm_id=j.accepted_firm_id ${where}
+    WHERE ${activeAccountSql(db,'fu.id')} AND r.status='active' AND r.moderation_status='published' AND j.status='completed' AND r.client_id=j.client_id AND r.firm_id=j.accepted_firm_id ${where}
       AND EXISTS(SELECT 1 FROM payments p WHERE p.job_id=j.id AND p.status='captured')
       AND (SELECT COUNT(*) FROM job_photos p WHERE p.job_id=j.id AND p.uploaded_by_firm_id=r.firm_id AND p.proof_type='ARRIVAL' AND p.status='VALID' AND p.validated_at IS NOT NULL)>=COALESCE((SELECT arrival_min FROM job_photo_rules WHERE job_id=j.id),1)
       AND (SELECT COUNT(*) FROM job_photos p WHERE p.job_id=j.id AND p.uploaded_by_firm_id=r.firm_id AND p.proof_type='COMPLETION' AND p.status='VALID' AND p.validated_at IS NOT NULL)>=COALESCE((SELECT completion_min FROM job_photo_rules WHERE job_id=j.id),1)
     ORDER BY r.created_at DESC LIMIT 12`).all(...params) as {id:string;firm_id:string;stars:number;comment:string|null;created_at:string;street:string;reviewer_name:string;firm_name:string}[];
   const firms=db.prepare(`SELECT f.id,u.name,f.verified,f.coverage_city,
     (SELECT COUNT(*) FROM jobs j WHERE j.accepted_firm_id=f.id AND j.status='completed') completed_jobs
-    FROM firms f JOIN users u ON u.id=f.user_id ${firmId?"WHERE f.id=?":""} ORDER BY u.name`).all(...params) as {id:string;name:string;verified:number;coverage_city:string;completed_jobs:number}[];
+    FROM firms f JOIN users u ON u.id=f.user_id WHERE ${activeAccountSql(db,"u.id")} ${firmId?"AND f.id=?":""} ORDER BY u.name`).all(...params) as {id:string;name:string;verified:number;coverage_city:string;completed_jobs:number}[];
   const aggregates=db.prepare(`SELECT r.firm_id,COUNT(*) review_count,AVG(r.stars) average_rating FROM ratings r JOIN jobs j ON j.id=r.job_id
-    WHERE r.status='active' AND r.moderation_status='published' AND j.status='completed' AND r.client_id=j.client_id AND r.firm_id=j.accepted_firm_id ${firmId?"AND r.firm_id=?":""}
+    WHERE ${activeFirmSql(db,'r.firm_id')} AND r.status='active' AND r.moderation_status='published' AND j.status='completed' AND r.client_id=j.client_id AND r.firm_id=j.accepted_firm_id ${firmId?"AND r.firm_id=?":""}
       AND EXISTS(SELECT 1 FROM payments p WHERE p.job_id=j.id AND p.status='captured')
       AND (SELECT COUNT(*) FROM job_photos p WHERE p.job_id=j.id AND p.uploaded_by_firm_id=r.firm_id AND p.proof_type='ARRIVAL' AND p.status='VALID' AND p.validated_at IS NOT NULL)>=COALESCE((SELECT arrival_min FROM job_photo_rules WHERE job_id=j.id),1)
       AND (SELECT COUNT(*) FROM job_photos p WHERE p.job_id=j.id AND p.uploaded_by_firm_id=r.firm_id AND p.proof_type='COMPLETION' AND p.status='VALID' AND p.validated_at IS NOT NULL)>=COALESCE((SELECT completion_min FROM job_photo_rules WHERE job_id=j.id),1)
     GROUP BY r.firm_id`).all(...params) as {firm_id:string;review_count:number;average_rating:number}[];
   const byFirm=new Map(aggregates.map(a=>[a.firm_id,a]));
-  const summary=db.prepare(`SELECT COUNT(*) count,AVG(r.stars) average FROM ratings r JOIN jobs j ON j.id=r.job_id WHERE r.status='active' AND r.moderation_status='published' AND j.status='completed' AND r.client_id=j.client_id AND r.firm_id=j.accepted_firm_id ${where} AND EXISTS(SELECT 1 FROM payments p WHERE p.job_id=j.id AND p.status='captured') AND (SELECT COUNT(*) FROM job_photos p WHERE p.job_id=j.id AND p.uploaded_by_firm_id=r.firm_id AND p.proof_type='ARRIVAL' AND p.status='VALID' AND p.validated_at IS NOT NULL)>=COALESCE((SELECT arrival_min FROM job_photo_rules WHERE job_id=j.id),1) AND (SELECT COUNT(*) FROM job_photos p WHERE p.job_id=j.id AND p.uploaded_by_firm_id=r.firm_id AND p.proof_type='COMPLETION' AND p.status='VALID' AND p.validated_at IS NOT NULL)>=COALESCE((SELECT completion_min FROM job_photo_rules WHERE job_id=j.id),1)`).get(...params) as {count:number;average:number|null};
+  const summary=db.prepare(`SELECT COUNT(*) count,AVG(r.stars) average FROM ratings r JOIN jobs j ON j.id=r.job_id WHERE ${activeFirmSql(db,'r.firm_id')} AND r.status='active' AND r.moderation_status='published' AND j.status='completed' AND r.client_id=j.client_id AND r.firm_id=j.accepted_firm_id ${where} AND EXISTS(SELECT 1 FROM payments p WHERE p.job_id=j.id AND p.status='captured') AND (SELECT COUNT(*) FROM job_photos p WHERE p.job_id=j.id AND p.uploaded_by_firm_id=r.firm_id AND p.proof_type='ARRIVAL' AND p.status='VALID' AND p.validated_at IS NOT NULL)>=COALESCE((SELECT arrival_min FROM job_photo_rules WHERE job_id=j.id),1) AND (SELECT COUNT(*) FROM job_photos p WHERE p.job_id=j.id AND p.uploaded_by_firm_id=r.firm_id AND p.proof_type='COMPLETION' AND p.status='VALID' AND p.validated_at IS NOT NULL)>=COALESCE((SELECT completion_min FROM job_photo_rules WHERE job_id=j.id),1)`).get(...params) as {count:number;average:number|null};
   return {summary,reviews:reviews.map(r=>({id:r.id,firmId:r.firm_id,firmName:r.firm_name,rating:r.stars,reviewText:redact(r.comment,r.street),reviewer:publicName(r.reviewer_name),badge:"Recenzie verificată",createdAt:r.created_at})),firms:firms.map(f=>({...f,review_count:byFirm.get(f.id)?.review_count??0,average_rating:byFirm.get(f.id)?.average_rating??null}))};
 }
 
