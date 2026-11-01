@@ -1,12 +1,18 @@
+import {activeAccountSql} from './accountStatus';
 import {customerValue} from './customerValue';
 import {customerRestriction} from './customerRestrictions';
 import type {Database} from 'better-sqlite3';
 import {WorkspaceError,requireText} from './workspace';
 import {randomUUID} from 'node:crypto';
 export {CUSTOMER_OPERATIONS_SCHEMA} from './operationsSchema';
-function client(db:Database,id:unknown){const key=requireText(id,'Client',100);const row=db.prepare("SELECT id,name,email,phone,credit_balance,created_at FROM users WHERE id=? AND role='client'").get(key) as {id:string;name:string;email:string|null;phone:string|null;credit_balance:number;created_at:string}|undefined;if(!row)throw new WorkspaceError('Client inexistent.',404);return row;}
+function client(db:Database,id:unknown){const key=requireText(id,'Client',100);const row=db.prepare(`SELECT id,name,email,phone,credit_balance,created_at FROM users WHERE id=? AND role='client' AND ${activeAccountSql(db,'users.id')}`).get(key) as {id:string;name:string;email:string|null;phone:string|null;credit_balance:number;created_at:string}|undefined;if(!row)throw new WorkspaceError('Client inexistent.',404);return row;}
 function page(offset:number){if(!Number.isSafeInteger(offset)||offset<0)throw new WorkspaceError('Pagină invalidă.');return offset;}
-export function customerDirectory(db:Database,query:string,offset=0){if(query.length>150)throw new WorkspaceError('Căutare prea lungă.');page(offset);const needle='%'+query.replace(/[\\%_]/g,'\\$&')+'%';const rows=db.prepare("SELECT id,name,email FROM users WHERE role='client' AND (id=? OR name LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\') ORDER BY name,id LIMIT 51 OFFSET ?").all(query,needle,needle,offset);return {clients:rows.slice(0,50),hasMore:rows.length>50};}
+export function customerDirectory(db:Database,query:string,offset=0){
+ if(query.length>150)throw new WorkspaceError('Căutare prea lungă.');page(offset);
+ const needle='%'+query.replace(/[\\%_]/g,'\\$&')+'%';
+ const rows=db.prepare(`SELECT id,name,email FROM users WHERE role='client' AND ${activeAccountSql(db,'users.id')} AND (id=? OR name LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\') ORDER BY name,id LIMIT 51 OFFSET ?`).all(query,needle,needle,offset);
+ return {clients:rows.slice(0,50),hasMore:rows.length>50};
+}
 export function customerRecord(db:Database,id:unknown,offset=0){page(offset);return db.transaction(()=>{
  const user=client(db,id),key=user.id;
  const classification=db.prepare('SELECT revision,tags_json,reason,actor_id,created_at FROM customer_classifications WHERE client_id=? ORDER BY revision DESC LIMIT 1').get(key) as {revision:number;tags_json:string;reason:string;actor_id:string;created_at:string}|undefined;

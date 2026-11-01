@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import {isAccountRemoved} from "./accountStatus";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
 import { db, getUserById, UserRow } from "@/lib/db";
@@ -28,11 +29,10 @@ export async function createSession(userId: string): Promise<string> {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + SESSION_DAYS);
 
-  db.prepare("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)").run(
-    id,
-    userId,
-    expiresAt.toISOString()
-  );
+  db.transaction(()=>{
+    if(isAccountRemoved(db,userId))throw Error('ACCOUNT_REMOVED');
+    db.prepare("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)").run(id,userId,expiresAt.toISOString());
+  }).immediate();
 
   const jar = await cookies();
   jar.set(SESSION_COOKIE, id, {
