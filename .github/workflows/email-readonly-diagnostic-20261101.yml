@@ -1,0 +1,28 @@
+name: NITIDO read-only email diagnostic
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/email-readonly-diagnostic-20261101.yml'
+      - 'scripts/email-readonly-diagnostic-20261101.mjs'
+permissions:
+  contents: read
+jobs:
+  read-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Read bounded email error categories only
+        env:
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: node scripts/email-readonly-diagnostic-20261101.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nitido-email-readonly-summary
+          path: email-readonly-summary.json
+          retention-days: 1

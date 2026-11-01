@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+const base='https://coolify.nitido.ro/api/v1',app='zxnelxi2cejranyvfpw0scac';
+const report={checkedAt:new Date().toISOString(),scope:'Read-only authorized Coolify connection; fixed technical summaries only',rawLogsExported:false,credentialsExported:false,messagesSent:0};
+async function read(path){try{const r=await fetch(base+path,{redirect:'error',signal:AbortSignal.timeout(20000),headers:{Authorization:'Bearer '+process.env.COOLIFY_TOKEN,Accept:'application/json'}});return {http:r.status,data:r.ok?await r.json():null}}catch{return {http:null,data:null}}}
+if(!process.env.COOLIFY_TOKEN){report.connection={credentialConfigured:false}}else{
+ const a=await read('/applications/'+app);report.application={http:a.http,status:a.data?.status??null,commit:a.data?.git_commit_sha??null};
+ const l=await read('/applications/'+app+'/logs?lines=300');report.runtimeLogs={http:l.http,readable:l.http===200};
+ if(l.http===200){const raw=JSON.stringify(l.data);const matches=[...raw.matchAll(/signup_welcome_email_failed.{0,220}/g)].map(m=>{const b=m[0].match(/configured[^a-z]{1,10}(true|false)/);return b?b[1]:null});report.runtimeLogs.welcomeFailureCount=matches.length;report.runtimeLogs.configuredTrueFailures=matches.filter(x=>x==='true').length;report.runtimeLogs.configuredFalseFailures=matches.filter(x=>x==='false').length;report.runtimeLogs.technicalFlags=Object.fromEntries(['SQLITE_FULL','SQLITE_BUSY','SQLITE_READONLY','SQLITE_CONSTRAINT','signup_persistence_failed'].map(k=>[k,raw.includes(k)]));}
+ const t=await read('/applications/'+app+'/scheduled-tasks/ctgvutifkigsvxejfnhkkpcf/executions');report.ownerRetry={http:t.http,executions:[]};
+ if(t.http===200&&Array.isArray(t.data)){report.ownerRetry.executions=t.data.slice(0,5).map(e=>{const raw=String(e.message??'');const summaries=[];for(const chunk of raw.match(/\{[^{}]+\}/g)||[]){try{const d=JSON.parse(chunk);if(['completed','disabled'].includes(d.status)&&['selected','accepted','failed','suppressed','uncertain'].every(k=>Number.isSafeInteger(d[k])&&d[k]>=0&&d[k]<=5))summaries.push(Object.fromEntries(['status','selected','accepted','failed','suppressed','uncertain'].map(k=>[k,d[k]])))}catch{}}return {status:e.status,startedAt:e.started_at,outputReadable:'message' in e,summaries,notConfigured:raw.includes('OWNER_ALERTS_NOT_CONFIGURED')}})}
+}
+fs.writeFileSync('email-readonly-summary.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));
