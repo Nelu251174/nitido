@@ -21,7 +21,7 @@ export function NotificationSettings({role}:{role:'client'|'firma'}) {
   return <div className={`operations-layout role-${role}`}>
     <aside className="operations-sidebar"><Logo href={`/${role}`}/><WorkspaceNav role={role}/></aside>
     <main className="operations-main">{role==='firma'&&<div className="operations-topbar partner-preview-topbar"><span className="partner-preview-breadcrumb"><UiText text="NITIDO PARTENER"/></span><div className="partner-preview-tools"><div className="partner-preview-language"><LanguageSelector/></div></div></div>}<div className="notification-settings">
-      <h1><UiText text={"Setări"}/></h1>
+      {role==='client'?<div className="client-settings-heading"><h1><UiText text="Setări"/></h1><div className="client-preview-language"><LanguageSelector/></div></div>:<h1><UiText text="Setări"/></h1>}
       <CommunicationPreferences/>
       <section className="v2-card">
         <h2><UiText text={"Notificări și sunet"}/></h2>
