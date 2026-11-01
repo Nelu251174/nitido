@@ -1,4 +1,5 @@
 "use client";
+import {LanguageSelector} from '@/components/LanguageSelector';
 import {UiMoney} from '@/components/UiMoney';
 import {CleaningTypeLabel} from '@/components/CleaningTypeChoice';
 import {DesignIcon} from '@/components/DesignIcon';
@@ -241,8 +242,8 @@ export default function FirmaPage() {
     <div className="board-page board-firm partner-preview-home"><BoardSidebar role="firma"/>
       <div className="partner-preview-shell">
       <header className="partner-preview-topbar">
-        <div className="partner-preview-breadcrumb"><UiText text="NITIDO PARTENER"/><span aria-hidden="true">/</span><strong><UiText text="Oportunități"/></strong></div>
-        <div className="partner-preview-tools">
+        <div className="partner-preview-breadcrumb"><span className="partner-preview-context"><UiText text="NITIDO PARTENER"/></span><span aria-hidden="true">/</span><strong><UiText text="Oportunități"/></strong></div>
+        <div className="partner-preview-tools"><div className="partner-preview-language"><LanguageSelector/></div>
           <UiElement as={Link} className="partner-preview-icon-link" href="/firma/programari" aria-label="Programări și reamintiri" title="Programări și reamintiri"><DesignIcon name="bell" size={19}/></UiElement>
           <details className="partner-preview-account">
             <UiElement as="summary" aria-label="Contul meu"><span className="partner-preview-avatar" aria-hidden="true">{user.name.trim().slice(0,1).toUpperCase()}</span><span><strong>{user.name}</strong><small>{firm?.coverage_city}</small></span><DesignIcon name="menu" size={14}/></UiElement>

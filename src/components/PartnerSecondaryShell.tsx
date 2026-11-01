@@ -1,5 +1,6 @@
 'use client';
 
+import {LanguageSelector} from '@/components/LanguageSelector';
 import type {ReactNode} from 'react';
 import Link from 'next/link';
 import {usePathname} from 'next/navigation';
@@ -27,7 +28,7 @@ export function PartnerSecondaryShell({children}:{children:ReactNode}) {
     <div key="partner-content" className={partner?'operations-main partner-preview-main':undefined}>
       {partner&&<div className="operations-topbar partner-preview-topbar">
         <span className="partner-preview-breadcrumb"><DesignIcon name="building" size={17}/><UiText text="NITIDO PARTENER"/></span>
-        <div className="partner-preview-tools"><UiElement as={Link} href="/firma#profil" className="account-profile-link" aria-label="Deschide profilul meu"><span className="board-avatar" aria-hidden="true">{partner.name.slice(0,1)}</span><b>{partner.name}</b></UiElement></div>
+        <div className="partner-preview-tools"><div className="partner-preview-language"><LanguageSelector/></div><UiElement as={Link} href="/firma#profil" className="account-profile-link" aria-label="Deschide profilul meu"><span className="board-avatar" aria-hidden="true">{partner.name.slice(0,1)}</span><b>{partner.name}</b></UiElement></div>
       </div>}
       {children}
     </div>
