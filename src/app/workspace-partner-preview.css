@@ -1,4 +1,4 @@
-/* FIRMA preview: scoped to its layout; ADMIN, CLIENT and public pages keep their published styles. */
+/* FIRMA workspace styles: scoped to its layout; ADMIN, CLIENT and public pages keep their published styles. */
 .partner-preview { --partner-bg:#f4f6f8; --partner-rail:#102923; --partner-line:#e0e7e4; --partner-muted:#607568; --workspace-cream:#f4f6f8; --workspace-rail:#102923; --muted:#607568; --line:#e0e7e4; --nitido-action-color:#007a4a; --nitido-action-background:#007a4a; color:#192c26; font-size:14px; }
 .partner-preview :is(.partner-preview-home,.operations-layout.role-firma) { display:grid; grid-template-columns:232px minmax(0,1fr); grid-template-rows:1fr; min-height:100dvh; background:var(--partner-bg); }
 .partner-preview :is(.board-page.board-firm,.operations-layout.role-firma) > :is(.board-sidebar,.operations-sidebar) { position:sticky; top:var(--app-safe-top,0px); grid-column:1; grid-row:1; display:flex; flex-direction:column; gap:0; width:232px; min-width:0; height:calc(100dvh - var(--app-safe-top,0px)); max-height:calc(100dvh - var(--app-safe-top,0px)); padding:24px 14px 16px; overflow:hidden; border:0; background:#102923; color:#eaf3ee; }
@@ -192,4 +192,29 @@
 @media (max-width:760px) {
  .partner-preview .operations-topbar .account-profile-link { max-width:min(220px,55vw); }
  .partner-preview .operations-topbar .account-profile-link b { max-width:135px; }
+}
+
+/* Keep language selection in the authenticated partner header, not in a separate row.
+   The root bar still gates catalog readiness and stays visible before the partner shell loads. */
+body:has(.partner-preview .partner-preview-language) .nitido-language-bar { display:none; }
+.partner-preview .partner-preview-language { display:none; flex:none; }
+body:has(.nitido-language-bar) .partner-preview .partner-preview-language { display:flex; align-items:center; }
+.partner-preview .partner-preview-language .nitido-language-selector { gap:6px; }
+.partner-preview .partner-preview-language select { width:132px; max-width:132px; min-height:36px; margin:0; padding:6px 9px; border:1px solid #d4dfd8; border-radius:8px; background:#fff; color:#2c4438; font-size:12px; outline:none; }
+.partner-preview .partner-preview-language select:focus-visible { outline:2px solid #007a4a; outline-offset:2px; }
+.partner-preview .partner-preview-breadcrumb { flex:1 1 auto; overflow:hidden; white-space:nowrap; }
+@media (min-width:761px) and (max-width:1020px) {
+ .partner-preview .partner-preview-account summary > span:not(.partner-preview-avatar) { max-width:110px; }
+ .partner-preview .partner-preview-tools .account-profile-link { max-width:160px; }
+ .partner-preview .partner-preview-tools .account-profile-link b { max-width:120px; }
+}
+@media (max-width:760px) {
+ .partner-preview .partner-preview-breadcrumb { flex:1 1 auto; overflow:hidden; white-space:nowrap; }
+ .partner-preview .partner-preview-language .nitido-language-selector > span { display:none; }
+ .partner-preview .partner-preview-language select { width:116px; max-width:116px; min-height:34px; padding:5px 7px; }
+ .partner-preview .partner-preview-tools .account-profile-link { flex:none; width:33px; max-width:33px; }
+ .partner-preview .partner-preview-tools .account-profile-link b { display:none; }
+}
+@media (max-width:480px) {
+ .partner-preview .partner-preview-breadcrumb > :is(.partner-preview-context,span[aria-hidden]) { display:none; }
 }

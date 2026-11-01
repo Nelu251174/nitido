@@ -1,4 +1,5 @@
 'use client';
+import {LanguageSelector} from '@/components/LanguageSelector';
 import {UiText} from '@/components/UiText';
 import {CommunicationPreferences} from './CommunicationPreferences';
 import {useEffect} from 'react';
@@ -19,7 +20,7 @@ export function NotificationSettings({role}:{role:'client'|'firma'}) {
   if(loading||user?.role!==role)return <p className="p-6" role="status"><UiText text={"Se încarcă setările…"}/></p>;
   return <div className={`operations-layout role-${role}`}>
     <aside className="operations-sidebar"><Logo href={`/${role}`}/><WorkspaceNav role={role}/></aside>
-    <main className="operations-main"><div className="notification-settings">
+    <main className="operations-main">{role==='firma'&&<div className="operations-topbar partner-preview-topbar"><span className="partner-preview-breadcrumb"><UiText text="NITIDO PARTENER"/></span><div className="partner-preview-tools"><div className="partner-preview-language"><LanguageSelector/></div></div></div>}<div className="notification-settings">
       <h1><UiText text={"Setări"}/></h1>
       <CommunicationPreferences/>
       <section className="v2-card">

@@ -5,6 +5,18 @@
 .nitido-language-selector select { min-height:36px; max-width:180px; border:1px solid #cbd5e1; border-radius:8px; padding:4px 8px; background:white; color:#111827; outline:2px solid var(--nitido-brand); outline-offset:4px; }
 .nitido-language-selector select:focus-visible { outline-color:var(--nitido-brand-dark); outline-width:3px; }
 
+/* Auth pages keep the selector inside their layout without a full-width strip. */
+body:has(.auth-layout .auth-language) .nitido-language-bar { display:none; }
+.auth-layout .auth-language { display:none; position:absolute; top:14px; right:max(16px,env(safe-area-inset-right)); z-index:20; }
+body:has(.nitido-language-bar) .auth-layout .auth-language { display:block; }
+.auth-layout .auth-language select { width:132px; max-width:132px; margin:0; outline:none; }
+.auth-layout .auth-language select:focus-visible { outline:2px solid var(--nitido-brand-dark); outline-offset:2px; }
+@media (max-width:767px) {
+ .auth-layout .auth-content > .auth-mobile-brand { min-height:64px; padding-inline-end:156px; }
+ .auth-layout .auth-language .nitido-language-selector > span { display:none; }
+ .auth-layout .auth-language select { width:116px; max-width:116px; font-size:16px; }
+}
+
 /* Design system Nitido — spec secțiunea 9, v2 „aurora" (mesh gradients + glass) */
 :root {
   /* Green brand palette shared by every public and operational screen. */
