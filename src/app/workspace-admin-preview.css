@@ -1,4 +1,4 @@
-/* Preview only. Every rule is scoped to the ADMIN shell; PARTENER and public pages are unaffected. */
+/* ADMIN workspace styles. PARTENER and public pages keep their own layouts. */
 .workspace-redesign-admin.admin-preview {
   --ws-bg: #f4f6f8;
   --ws-surface: #fff;
@@ -261,3 +261,32 @@
 .workspace-redesign-admin.admin-preview :is(.workspace-redesign-table-wrap, #inscrieri [role="region"]) { position: relative; }
 /* Verification actions must wrap within their cell and remain clickable. */
 .workspace-redesign-admin.admin-preview .admin-preview-firms-table td:nth-child(3) > button { display: flex; width: fit-content; min-width: 0; max-width: 100%; margin-top: 7px; white-space: normal; text-align: left; }
+
+/* Place language selection in the existing ADMIN header, without a separate row.
+   The root bar remains the catalog-readiness gate and stays visible on login/public pages. */
+body:has(.workspace-redesign-admin.admin-preview) .nitido-language-bar { display: none; }
+.workspace-redesign-admin.admin-preview .admin-preview-language { display: none; flex: none; }
+body:has(.nitido-language-bar) .workspace-redesign-admin.admin-preview .admin-preview-language { display: flex; align-items: center; }
+.workspace-redesign-admin.admin-preview .admin-preview-language .nitido-language-selector { gap: 6px; }
+.workspace-redesign-admin.admin-preview .admin-preview-language select {
+  width: 132px;
+  max-width: 132px;
+  min-height: 36px;
+  margin: 0;
+  padding: 6px 9px;
+  border: 1px solid #d4dfd8;
+  border-radius: 8px;
+  background: #fff;
+  color: #2c4438;
+  font-size: 12px;
+  outline: none;
+}
+.workspace-redesign-admin.admin-preview .admin-preview-language select:focus-visible { outline: 2px solid #007a4a; outline-offset: 2px; }
+@media (max-width: 760px) {
+  .workspace-redesign-admin.admin-preview .admin-preview-breadcrumb { flex: 1 1 auto; overflow: hidden; }
+  .workspace-redesign-admin.admin-preview .admin-preview-language .nitido-language-selector > span { display: none; }
+  .workspace-redesign-admin.admin-preview .admin-preview-language select { width: 116px; max-width: 116px; min-height: 34px; padding: 5px 7px; }
+}
+@media (max-width: 480px) {
+  .workspace-redesign-admin.admin-preview .admin-preview-breadcrumb > :is(a, span[aria-hidden]) { display: none; }
+}
