@@ -1,3 +1,4 @@
+import {isAccountRemoved} from './accountStatus';
 import {openInvitationCampaign,trackInvitationDelivery} from './providerInvitations';
 import {claimNotification,startNotificationDispatch,finishNotification,recoverNotificationClaims,retryableNotificationSql} from "./notificationClaims";
 import type {Database} from "better-sqlite3";
@@ -17,6 +18,7 @@ const preferenceColumn:Record<PushEventType,string>={JOB_CREATED_FIRM_PUSH:"new_
 export const PUSH_RETRYABLE_SQL=retryableNotificationSql(3);
 type DeliveryRecipient={event_type:PushEventType;job_id:string;recipient_user_id:string;data_json?:string};
 function deliveryBlock(db:Database,row:DeliveryRecipient):string|null{
+  if(isAccountRemoved(db,row.recipient_user_id))return "SUPPRESSED_ACCOUNT_REMOVED";
   const preference=db.prepare(`SELECT ${preferenceColumn[row.event_type]} enabled FROM notification_preferences WHERE user_id=?`).get(row.recipient_user_id) as {enabled:number}|undefined;
   if(preference?.enabled===0)return "SUPPRESSED_PREFERENCE";
   const job=db.prepare("SELECT client_id,city,status,accepted_firm_id FROM jobs WHERE id=?").get(row.job_id) as {client_id:string;city:string;status:string;accepted_firm_id:string|null}|undefined;
@@ -37,6 +39,7 @@ function deliveryBlock(db:Database,row:DeliveryRecipient):string|null{
 }
 
 function enqueueUser(db:Database,eventType:PushEventType,jobId:string,userId:string,title:string,body:string,path:string,messageId?:string):string[]{
+ if(isAccountRemoved(db,userId))return [];
   const preference=db.prepare(`SELECT ${preferenceColumn[eventType]} enabled FROM notification_preferences WHERE user_id=?`).get(userId) as {enabled:number}|undefined;if(preference?.enabled===0)return [];
   const devices=db.prepare("SELECT id FROM push_devices WHERE user_id=? AND push_enabled=1 AND revoked_at IS NULL").all(userId) as {id:string}[];
   const targets=devices.length?devices:[{id:"none"}];const ids:string[]=[];

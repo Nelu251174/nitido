@@ -32,12 +32,14 @@ function SignupForm() {
   const [coverageCitiesExtra, setCoverageCitiesExtra] = useState("");
   const [referralCode, setReferralCode] = useState(searchParams.get("ref") ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [emailConflict,setEmailConflict]=useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [created, setCreated] = useState<{ email: string; emailAccepted: boolean; role: "client" | "firma"; destination: string } | null>(null);
 
   async function submit(e?: FormEvent) {
     e?.preventDefault();
     setError(null);
+    setEmailConflict(false);
     if (!phone.trim()) {
       setError("Numărul de telefon este obligatoriu");
       return;
@@ -64,7 +66,7 @@ function SignupForm() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Eroare la înregistrare");
+      if (!res.ok) { setEmailConflict(res.status===409); throw new Error(data.error ?? "Eroare la înregistrare"); }
       setCreated({
         email: email.trim(),
         emailAccepted: data.welcomeEmailStatus === "accepted",
@@ -201,7 +203,7 @@ function SignupForm() {
             <p className="text-[11px] text-muted mt-1"><UiText text={"Ai un cod de la un prieten? Primiți amândoi 20 lei credit."}/></p>
           </Field>
 
-          {error && <p className="text-coral text-xs mb-3">{<UiText text={error}/>}</p>}
+          {error && <div role="alert" className="text-coral text-xs mb-3"><p><UiText text={error}/></p>{emailConflict&&<div className="flex flex-wrap gap-3 mt-2"><Link href={authSwitchHref("login",searchParams.get("next"),role)} className="text-aqua-deep underline"><UiText text="Autentifică-te"/></Link><Link href="/reset-parola" className="text-aqua-deep underline"><UiText text="Am uitat parola"/></Link><Link href="/contact" className="text-aqua-deep underline"><UiText text="Contact"/></Link></div>}</div>}
 
           <Button type="submit" className="w-full" disabled={submitting}>
             {submitting ? <UiText text={"Se creează contul..."}/> : <UiText text={"Creează cont"}/>}

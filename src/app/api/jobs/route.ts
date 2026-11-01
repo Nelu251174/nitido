@@ -145,6 +145,7 @@ export async function GET(req: NextRequest) {
       price_gross: j.price_gross,
       firm_payout: calcNetForFirm(j.price_gross),
       duration_minutes: j.duration_minutes,
+      buffer_minutes: j.buffer_minutes,
       assisted_team:jobAssistedOperation(db,j.id)?.teamName??null,
       status: j.status,
       created_at: j.created_at,

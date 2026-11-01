@@ -1,3 +1,4 @@
+import {activeAccountSql} from '@/lib/accountStatus';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { JobRow } from "@/lib/types";
@@ -13,7 +14,7 @@ export async function GET(_req: NextRequest) {
     .prepare(
       `SELECT firms.id, users.name, firms.coverage_city, firms.cui, firms.rating_sum, firms.rating_count,
               firms.strikes_30d, firms.strikes_90d, firms.suspended_until, firms.verified
-       FROM firms JOIN users ON users.id = firms.user_id`
+       FROM firms JOIN users ON users.id = firms.user_id WHERE ${activeAccountSql(db,"users.id")}`
     )
     .all() as { id: string; name: string; verified: number }[];
   const payments = db.prepare("SELECT id,job_id,amount_gross,commission_amount,amount_net,status,stripe_fee_amount,transfer_status,payout_status,refund_status,dispute_status,created_at FROM payments ORDER BY created_at DESC").all();

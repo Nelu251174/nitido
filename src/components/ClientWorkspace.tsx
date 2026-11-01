@@ -1,4 +1,5 @@
 "use client";
+import {LanguageSelector} from '@/components/LanguageSelector';
 import {UiMoney,useDisplayMoney,ChargeAmount} from '@/components/UiMoney';
 import {CleaningTypeChoice} from '@/components/CleaningTypeChoice';
 import {CLEANING_DESCRIPTION,cleaningAssessmentUrl,validCleaningType,type CleaningType} from '@/lib/cleaningTypes';
@@ -32,8 +33,8 @@ import {saveBookingDraft,takeBookingDraft,clearBookingDraft} from "@/lib/booking
 import {ClientCards,type ClientCardView} from "@/components/ClientCards";
 import {EmailVerificationNotice} from "@/components/EmailVerificationNotice";
 
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, useCallback, useRef, type ReactNode } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {PublishedPriceBreakdown} from "@/components/PublishedPriceBreakdown";
 import {NewFeatures} from '@/components/NewFeatures';
@@ -110,6 +111,32 @@ interface ReportRow {
 }
 
 export type ClientWorkspaceSection = "home" | "bookings" | "payments" | "account";
+
+const secondaryClientRoutes = new Set([
+  '/client/planul-casei', '/client/rutina', '/client/beneficiar', '/client/firme-preferate',
+  '/client/descrie-prin-poze', '/client/alerte-disponibilitate', '/client/pregatire-oaspeti',
+  '/client/evaluari-lucrari',
+]);
+
+/** Adds the client frame only to existing child pages that have no workspace shell. */
+export function ClientPreviewSecondaryShell({children}:{children:ReactNode}) {
+  const pathname=usePathname();
+  const {user}=useCurrentUser();
+  if(!secondaryClientRoutes.has(pathname))return children;
+  const clientUser=user?.role==='client'?user:null;
+  return <div className={clientUser?'workspace-redesign workspace-redesign-client client-secondary-shell':undefined}>
+    {clientUser&&<aside className="client-workspace-sidebar" key="client-secondary-sidebar">
+      <div className="client-sidebar-brand"><Logo href="/client"/><span className="client-sidebar-brand-mark" aria-hidden="true"><DesignIcon name="leaf" size={19}/></span></div>
+      <p className="client-workspace-role"><UiText text="SPAȚIUL CLIENT"/></p>
+      <WorkspaceNav role="client"/>
+      <div className="client-sidebar-account"><Link href="/client/cont" className="client-sidebar-person"><span className="client-sidebar-avatar" aria-hidden="true">{clientUser.name.trim().slice(0,1)}</span><span><UiElement as="strong" title={clientUser.name}>{clientUser.name}</UiElement><UiElement as="small" title={clientUser.email??undefined}>{clientUser.email}</UiElement></span></Link><Link href="/client/cont" className="client-sidebar-account-link"><UiText text="Gestionează contul ↗"/></Link></div>
+    </aside>}
+    <div key="client-secondary-content" className={clientUser?"client-workspace-main":undefined} data-client-view="secondary">
+      {clientUser&&<div className="board-topbar"><span className="client-topbar-context"><DesignIcon name="home" size={16}/><UiText text="Spațiul tău NITIDO"/></span><div className="client-topbar-tools"><div className="client-preview-language"><LanguageSelector/></div><UiElement as={Link} href="/client/mesaje" aria-label="Mesaje"><DesignIcon name="bell"/></UiElement><UiElement as={Link} href="/client/cont" className="account-profile-link" aria-label="Deschide profilul meu"><span className="board-avatar">{clientUser.name.slice(0,1)}</span><b>{clientUser.name}</b></UiElement></div></div>}
+      {children}
+    </div>
+  </div>;
+}
 
 export function ClientWorkspace({section = "home"}: {section?: ClientWorkspaceSection}) {
  const {text:currencyText}=useDisplayMoney();
@@ -710,17 +737,16 @@ export function ClientWorkspace({section = "home"}: {section?: ClientWorkspaceSe
   return (
     <div className="workspace-redesign workspace-redesign-client approved-client min-h-screen bg-[#f7f9fc] flex max-[760px]:block">
       <aside className="client-workspace-sidebar w-[236px] shrink-0 bg-white border-r border-[#e2e8f0] p-5 flex flex-col sticky top-0 h-screen max-[760px]:w-full max-[760px]:h-auto max-[760px]:relative max-[760px]:border-r-0 max-[760px]:border-b max-[760px]:p-4">
-        <div className="flex items-center justify-between">
-          <Logo />
-        </div>
+        <div className="client-sidebar-brand"><Logo href="/client" /><span className="client-sidebar-brand-mark" aria-hidden="true"><DesignIcon name="leaf" size={19}/></span></div>
+        <p className="client-workspace-role"><UiText text="SPAȚIUL CLIENT"/></p>
         <WorkspaceNav role="client" onNavigate={href=>{if(href==='/client#sec-form'){goToForm();}else if(href==='/client'){setJob(null);setShowBooking(false)}}}/>
-        <div className="mt-auto max-[760px]:hidden"><div className="text-sm font-semibold">{user.name}</div><div className="text-xs text-[#6b756f] mt-1">{user.email}</div><button type="button" onClick={logout} disabled={loggingOut} aria-busy={loggingOut} className="text-xs text-[#64748b] mt-4"><UiText text={loggingOut?"Se verifică…":"Ieși din cont"}/></button>{logoutError&&<p role="alert" className="mt-2 text-sm text-coral"><UiText text={logoutError}/></p>}</div>
+        <div className="client-sidebar-account"><Link href="/client/cont" className="client-sidebar-person"><span className="client-sidebar-avatar" aria-hidden="true">{user.name.trim().slice(0,1)}</span><span><UiElement as="strong" title={user.name}>{user.name}</UiElement><UiElement as="small" title={user.email??undefined}>{user.email}</UiElement></span></Link><button type="button" onClick={logout} disabled={loggingOut} aria-busy={loggingOut}><UiText text={loggingOut?"Se verifică…":"Ieși din cont"}/><DesignIcon name="arrow" size={15}/></button>{logoutError&&<p role="alert" className="text-coral"><UiText text={logoutError}/></p>}</div>
       </aside>
-      <main className="client-workspace-main flex-1 min-w-0 px-8 py-8 max-[760px]:px-[22px] max-[760px]:pb-28">
-        <div className="board-topbar"><span><UiText text={"Spațiul tău NITIDO"}/></span><div><UiElement as={Link} href="/client/mesaje" aria-label="Mesaje"><DesignIcon name="bell"/></UiElement><UiElement as={Link} href="/client/cont" className="account-profile-link" aria-label="Deschide profilul meu"><span className="board-avatar">{user.name.slice(0,1)}</span><b>{user.name}</b></UiElement></div></div>
+      <main className="client-workspace-main flex-1 min-w-0 px-8 py-8 max-[760px]:px-[22px] max-[760px]:pb-28" data-client-view={job?"detail":showBooking?"booking":section}>
+        <div className="board-topbar"><span className="client-topbar-context"><DesignIcon name="home" size={16}/><UiText text={"Spațiul tău NITIDO"}/></span><div className="client-topbar-tools"><div className="client-preview-language"><LanguageSelector/></div><UiElement as={Link} href="/client/mesaje" aria-label="Mesaje"><DesignIcon name="bell"/></UiElement><UiElement as={Link} href="/client/cont" className="account-profile-link" aria-label="Deschide profilul meu"><span className="board-avatar">{user.name.slice(0,1)}</span><b>{user.name}</b></UiElement></div></div>
         {!job&&<header className="client-workspace-header">
-          <div><p className="v2-eyebrow"><UiText text={"SPAȚIUL CLIENT"}/></p><h1><UiText text={showBooking ? "O rezervare nouă" : section === "home" ? "Acasă" : section === "bookings" ? "Rezervările tale" : section === "payments" ? "Plăți și carduri" : "Contul tău"}/></h1><p><UiText text={showBooking ? "Alege detaliile și verifică prețul înainte de publicare." : section === "home" ? "Programul casei tale, la îndemână." : section === "bookings" ? "Urmărește programările, ofertele și lucrările finalizate." : section === "payments" ? "Vezi separat starea plăților și gestionează cardurile salvate." : "Date personale, preferințe și opțiunile contului."}/></p></div>
-          {!showBooking&&<div className="client-workspace-actions"><button type="button" className="design-button" onClick={goToForm}><DesignIcon name="plus" size={18}/><UiText text={"Rezervă o curățenie"}/></button></div>}
+          <div><h1><UiText text={showBooking ? "O rezervare nouă" : section === "home" ? "Acasă" : section === "bookings" ? "Rezervările tale" : section === "payments" ? "Plăți și carduri" : "Contul tău"}/></h1><p><UiText text={showBooking ? "Alege detaliile și verifică prețul înainte de publicare." : section === "home" ? "Programul casei tale, la îndemână." : section === "bookings" ? "Urmărește programările, ofertele și lucrările finalizate." : section === "payments" ? "Vezi separat starea plăților și gestionează cardurile salvate." : "Date personale, preferințe și opțiunile contului."}/></p></div>
+          {!showBooking&&section!=="home"&&<div className="client-workspace-actions"><button type="button" className="design-button" onClick={goToForm}><DesignIcon name="plus" size={18}/><UiText text={"Rezervă o curățenie"}/></button></div>}
         </header>}
         <EmailVerificationNotice/>
         {error && !showBooking && !job && <p role="alert" className="workspace-error"><UiText text={error}/></p>}
@@ -728,14 +754,17 @@ export function ClientWorkspace({section = "home"}: {section?: ClientWorkspaceSe
         {(section === "payments" || showBooking) && cardError && <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{cardError}</p>}
         {!job && !showBooking && section !== "account" && myJobs.filter(j=>j.status==="waiting"&&["requires_action","requires_confirmation"].includes(j.authorizationStatus??"")).map(j=><section key={j.id} className="v2-card p-5 mb-4"><h2 className="font-bold"><UiText text={"Confirmarea cardului este necesară"}/></h2><p className="text-sm text-muted mt-2">{j.city} · {j.sqm}<UiText text={" m². Banca solicită confirmarea autorizării pentru această lucrare."}/></p><Link href={`/client/plata/${encodeURIComponent(j.id)}`} className="inline-block mt-3 font-bold text-aqua-deep underline"><UiText text={"Confirmă prin bancă"}/></Link></section>)}
         {!job&&!showBooking&&section === "home"&&<div className="client-workspace-home">
-          <ClientOverview jobs={myJobs} loading={jobsLoading} error={jobsError} onRetry={()=>void refreshMyJobs()} onSelect={item=>router.push(`/client/rezervari?jobId=${encodeURIComponent(item.id)}`)} onBook={goToForm}/>
           <div className="client-workspace-stats">
-            <Link href="/client/rezervari" className="client-workspace-stat"><span><UiText text="Rezervări active"/></span><strong>{jobsLoading || jobsError ? "—" : myJobs.filter(item=>["waiting","accepted","arrived"].includes(item.status)).length}</strong><small><UiText text="Programări și cereri în curs"/></small></Link>
-            <Link href="/client/plati" className="client-workspace-stat"><span><UiText text="Credit disponibil"/></span><strong><UiMoney ron={creditBalance}/></strong><small><UiText text="Se verifică la rezervarea nouă"/></small></Link>
-            <Link href="/client/mesaje" className="client-workspace-stat"><span><UiText text="Mesaje și ajutor"/></span><strong><DesignIcon name="chat" size={24}/></strong><small><UiText text="Conversațiile despre lucrările tale"/></small></Link>
+            <Link href="/client/rezervari" className="client-workspace-stat"><span className="client-stat-icon"><DesignIcon name="calendar" size={20}/></span><span><small><UiText text="Rezervări active"/></small><strong>{jobsLoading || jobsError ? "—" : myJobs.filter(item=>["waiting","accepted","arrived"].includes(item.status)).length}</strong></span><DesignIcon name="arrow" size={16}/></Link>
+            <Link href="/client/plati" className="client-workspace-stat"><span className="client-stat-icon"><DesignIcon name="card" size={20}/></span><span><small><UiText text="Credit disponibil"/></small><strong><UiMoney ron={creditBalance}/></strong></span><DesignIcon name="arrow" size={16}/></Link>
+            <Link href="/client/mesaje" className="client-workspace-stat client-workspace-utility"><span className="client-stat-icon"><DesignIcon name="chat" size={20}/></span><span><b><UiText text="Mesaje și ajutor"/></b><small><UiText text="Conversațiile despre lucrările tale"/></small></span><DesignIcon name="arrow" size={16}/></Link>
           </div>
-          <div className="client-home-grid"><div className="client-home-main"><ClientReservationList jobs={myJobs} loading={jobsLoading} error={jobsError} onRetry={()=>void refreshMyJobs()} compact onSelect={item=>router.push(`/client/rezervari?jobId=${encodeURIComponent(item.id)}`)} onBook={goToForm}/></div><aside className="client-home-aside"><section className="design-panel client-context-links"><p className="v2-eyebrow"><UiText text="PENTRU CASA TA"/></p><h2><UiText text="Totul are locul lui"/></h2><Link href="/client/proprietati"><DesignIcon name="home" size={19}/><span><b><UiText text="Locuințele mele"/></b><small><UiText text="Adrese și preferințe salvate"/></small></span><DesignIcon name="arrow" size={16}/></Link><Link href="/client/evaluari"><DesignIcon name="briefcase" size={19}/><span><b><UiText text="Cereri și oferte"/></b><small><UiText text="Evaluările și ofertele primite"/></small></span><DesignIcon name="arrow" size={16}/></Link><Link href="/client/rutina"><DesignIcon name="calendar" size={19}/><span><b><UiText text="Vizite recurente"/></b><small><UiText text="Programul care ți se potrivește"/></small></span><DesignIcon name="arrow" size={16}/></Link></section></aside></div>
-          <section id="optiuni" className="client-context-options"><NewFeatures compact/></section>
+          <div className="client-home-focus">
+            <ClientOverview jobs={myJobs} loading={jobsLoading} error={jobsError} onRetry={()=>void refreshMyJobs()} onSelect={item=>router.push(`/client/rezervari?jobId=${encodeURIComponent(item.id)}`)} onBook={goToForm}/>
+            {(jobsLoading||jobsError||myJobs.some(item=>["waiting","accepted","arrived"].includes(item.status)))&&<section className="client-start-booking"><span className="client-start-symbol" aria-hidden="true"><DesignIcon name="sparkles" size={25}/></span><h2><UiText text="Rezervă o curățenie"/></h2><p><UiText text="Completează spațiul, adresa și programul. Verifică prețul înainte de publicare."/></p><button type="button" className="design-button" onClick={goToForm}><DesignIcon name="plus" size={18}/><UiText text="O rezervare nouă"/></button></section>}
+          </div>
+          <div className="client-home-grid"><div className="client-home-main"><ClientReservationList jobs={myJobs} loading={jobsLoading} error={jobsError} onRetry={()=>void refreshMyJobs()} compact onSelect={item=>router.push(`/client/rezervari?jobId=${encodeURIComponent(item.id)}`)} onBook={goToForm}/></div><aside className="client-home-aside"><section className="design-panel client-context-links"><div className="board-card-heading"><h2><UiText text="PENTRU CASA TA"/></h2><DesignIcon name="home" size={19}/></div><Link href="/client/proprietati"><DesignIcon name="home" size={19}/><span><b><UiText text="Locuințele mele"/></b><small><UiText text="Adrese și preferințe salvate"/></small></span><DesignIcon name="arrow" size={16}/></Link><Link href="/client/evaluari"><DesignIcon name="briefcase" size={19}/><span><b><UiText text="Cereri și oferte"/></b><small><UiText text="Evaluările și ofertele primite"/></small></span><DesignIcon name="arrow" size={16}/></Link><Link href="/client/rutina"><DesignIcon name="calendar" size={19}/><span><b><UiText text="Vizite recurente"/></b><small><UiText text="Programul care ți se potrivește"/></small></span><DesignIcon name="arrow" size={16}/></Link></section></aside></div>
+          <details id="optiuni" className="client-context-options client-discover-options"><summary><span><DesignIcon name="sparkles" size={18}/><UiText text="Mai multe opțiuni"/></span><DesignIcon name="plus" size={17}/></summary><NewFeatures compact/></details>
         </div>}
         {job&&<JobExecutionDetail job={job} firmName={firmName} onBack={backToReservations}/>}
         <div className={`client-content-grid ${showBooking&&!job?"with-detail":""}`}>
@@ -780,8 +809,8 @@ export function ClientWorkspace({section = "home"}: {section?: ClientWorkspaceSe
           <ReferralCard code={user.referral_code} creditBalance={creditBalance} />
         )}
         {!job && !showBooking && section === "account" && <div className="mb-5"><AppRatingCard /></div>}
-        {!job && !showBooking && section === "account" && <section id="sec-mesaje" className="v2-card p-5 mb-5"><h2 className="font-bold"><UiText text={"Mesaje &amp; suport"}/></h2><p className="text-sm text-[#64748b] mt-2 leading-6"><UiText text={"Ai o întrebare despre o lucrare sau despre cont? Echipa NITIDO îți răspunde rapid."}/></p><div className="mt-3 flex flex-col gap-1 text-sm"><a href="mailto:support@nitido.ro" className="text-[var(--nitido-brand-dark)] font-semibold"><UiText text={"✉️ support@nitido.ro"}/></a></div><Link href="/contact#asistent-ai" className="v2-btn v2-btn-secondary mt-4 inline-flex"><UiText text={"Deschide asistentul NITIDO"}/></Link></section>}
-        {!job && !showBooking && section === "account" && <section id="sec-incredere" className="v2-card p-5 mb-5"><h2 className="font-bold"><UiText text={"Încredere &amp; Siguranță"}/></h2><ul className="text-sm text-[#64748b] mt-2 leading-6 list-disc pl-5 space-y-1"><li><UiText text={"Firme verificate în platformă, cu CUI validat la ANAF."}/></li><li><UiText text={"Autorizarea cardului și încasarea sunt etape distincte. Starea plății este afișată separat de starea lucrării."}/></li><li><UiText text={"Plata cardului e procesată securizat de Stripe — NITIDO nu îți vede datele cardului."}/></li><li><UiText text={"Urmărești lucrarea în timp real și primești dovezi foto la final."}/></li></ul><Link href="/incredere" className="v2-btn v2-btn-secondary mt-4 inline-flex"><UiText text={"Vezi pagina completă"}/></Link></section>}
+        {!job && !showBooking && section === "account" && <section id="sec-mesaje" className="v2-card p-5 mb-5"><h2 className="font-bold"><UiText text={"Mesaje și ajutor"}/></h2><p className="text-sm text-[#64748b] mt-2 leading-6"><UiText text={"Ai o întrebare despre o lucrare sau despre cont? Echipa NITIDO îți răspunde rapid."}/></p><div className="mt-3 flex flex-col gap-1 text-sm"><a href="mailto:support@nitido.ro" className="text-[var(--nitido-brand-dark)] font-semibold"><UiText text={"✉️ support@nitido.ro"}/></a></div><Link href="/contact#asistent-ai" className="v2-btn v2-btn-secondary mt-4 inline-flex"><UiText text={"Deschide asistentul NITIDO"}/></Link></section>}
+        {!job && !showBooking && section === "account" && <section id="sec-incredere" className="v2-card p-5 mb-5"><h2 className="font-bold"><UiText text={"Încredere & Siguranță"}/></h2><ul className="text-sm text-[#64748b] mt-2 leading-6 list-disc pl-5 space-y-1"><li><UiText text={"Firme verificate în platformă, cu CUI validat la ANAF."}/></li><li><UiText text={"Autorizarea cardului și încasarea sunt etape distincte. Starea plății este afișată separat de starea lucrării."}/></li><li><UiText text={"Plata cardului e procesată securizat de Stripe — NITIDO nu îți vede datele cardului."}/></li><li><UiText text={"Urmărești lucrarea în timp real și primești dovezi foto la final."}/></li></ul><Link href="/incredere" className="v2-btn v2-btn-secondary mt-4 inline-flex"><UiText text={"Vezi pagina completă"}/></Link></section>}
         {!job && !showBooking && section === "payments" && <ClientPaymentHistory jobs={myJobs} loading={jobsLoading} error={jobsError} onRetry={()=>void refreshMyJobs()} onSelect={item=>router.push(`/client/rezervari?jobId=${encodeURIComponent(item.id)}`)}/>}
         {!job && !showBooking && section === "payments" && cardConfigured && (
           <div className="mb-5"><ClientCards cards={cards} selected={selectedCardId} loading={hasCard===null} busy={cardBusy||submitting||uploading}

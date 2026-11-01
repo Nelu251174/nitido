@@ -7,6 +7,7 @@ import {UiElement, UiText} from './UiText';
 import {DesignIcon} from './DesignIcon';
 import {inputClass} from './ui';
 import {JOB_STATUS} from '@/lib/workspaceShared';
+import {AdminRemoveAccount} from './AdminRemoveAccount';
 
 type Entry = {id:string; name:string; email:string|null};
 type Group = 'jobs'|'assessments'|'payments'|'cases'|'ratings'|'notes'|'restrictions';
@@ -20,7 +21,7 @@ const offsetValue = (value:string|null) => {const number=Number(value??0);return
 const page = (record:CustomerRecordView,key:Group):HistoryPage => ({...record[key],offset:record.offset});
 const allPages = (record:CustomerRecordView):Pages => Object.fromEntries(groupKeys.map(key=>[key,page(record,key)]));
 
-export function AdminCustomers({initialClientId,loadDirectory=false}:{initialClientId?:string;loadDirectory?:boolean}={}) {
+export function AdminCustomers({initialClientId,loadDirectory=false,canDelete=false}:{initialClientId?:string;loadDirectory?:boolean;canDelete?:boolean}={}) {
   const [query,setQuery]=useState('');
   const [clients,setClients]=useState<Entry[]>([]);
   const [directoryOffset,setDirectoryOffset]=useState(0);
@@ -130,7 +131,7 @@ export function AdminCustomers({initialClientId,loadDirectory=false}:{initialCli
     {!record?<section className="design-panel admin-customers-directory">
       <div className="board-card-heading"><div><h2><UiText text="Clienți"/></h2><p className="text-sm text-muted"><UiText text="Caută după nume, email sau identificator."/></p></div><DesignIcon name="users" size={24}/></div>
       <form className="workspace-redesign-toolbar" onSubmit={event=>{event.preventDefault();void search();}}><label className="grow"><span className="sr-only"><UiText text="Caută un client"/></span><UiElement as="input" className={inputClass} maxLength={150} value={query} onChange={event=>setQuery(event.target.value)} disabled={busy} placeholder="Nume, email sau identificator"/></label><button className="v2-btn v2-btn-primary" disabled={busy}><DesignIcon name="search" size={18}/><UiText text="Caută clienți"/></button></form>
-      {busy&&!loaded?<p role="status" className="py-6"><UiText text="Se încarcă clienții…"/></p>:<div className="admin-customers-table-wrap"><table className="workspace-table admin-customers-table"><thead><tr><th><UiText text="Client"/></th><th><UiText text="Email"/></th><th><UiText text="Acțiune"/></th></tr></thead><tbody>{clients.map(client=><tr key={client.id} className="customer-directory-row"><td><b>{client.name}</b><small>{client.id}</small></td><td className="break-all">{client.email??<UiText text="Email neînregistrat"/>}</td><td><button className="v2-btn v2-btn-secondary" disabled={busy} onClick={()=>void open(client.id)}><UiText text="Deschide fișa"/><DesignIcon name="arrow" size={16}/></button></td></tr>)}</tbody></table>{loaded&&!clients.length&&<div className="empty-workspace"><DesignIcon name="users" size={26}/><h3><UiText text="Niciun client pentru această căutare"/></h3><p><UiText text="Încearcă un alt nume, email sau identificator."/></p></div>}</div>}
+      {busy&&!loaded?<p role="status" className="py-6"><UiText text="Se încarcă clienții…"/></p>:<div className="admin-customers-table-wrap"><table className="workspace-table admin-customers-table"><thead><tr><th><UiText text="Client"/></th><th><UiText text="Email"/></th><th><UiText text="Acțiune"/></th></tr></thead><tbody>{clients.map(client=><tr key={client.id} className="customer-directory-row"><td><b>{client.name}</b><small>{client.id}</small></td><td className="break-all">{client.email??<UiText text="Email neînregistrat"/>}</td><td><button className="v2-btn v2-btn-secondary" disabled={busy} onClick={()=>void open(client.id)}><UiText text="Deschide fișa"/><DesignIcon name="arrow" size={16}/></button>{canDelete&&<AdminRemoveAccount kind="client" targetId={client.id} name={client.name} disabled={busy} onRemoved={()=>void search(directoryOffset)}/>}</td></tr>)}</tbody></table>{loaded&&!clients.length&&<div className="empty-workspace"><DesignIcon name="users" size={26}/><h3><UiText text="Niciun client pentru această căutare"/></h3><p><UiText text="Încearcă un alt nume, email sau identificator."/></p></div>}</div>}
       <div className="workspace-redesign-toolbar justify-between mt-5"><button className="v2-btn v2-btn-secondary" disabled={busy||directoryOffset===0} onClick={()=>void search(directoryOffset-50)}><UiText text="Clienții anteriori"/></button><span className="text-sm text-muted"><UiText text="Pagina"/> {directoryOffset/50+1}</span><button className="v2-btn v2-btn-secondary" disabled={busy||!directoryMore} onClick={()=>void search(directoryOffset+50)}><UiText text="Clienții următori"/></button></div>
     </section>:<article className="admin-customer-record">
       <button className="workspace-redesign-back mb-4" disabled={busy} onClick={()=>void search(directoryOffset)}><DesignIcon name="arrow" size={17}/><UiText text="Înapoi la clienți"/></button>

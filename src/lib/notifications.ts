@@ -1,3 +1,4 @@
+import {isAccountRemoved} from './accountStatus';
 import {trackInvitationDelivery} from './providerInvitations';
 import {claimNotification,startNotificationDispatch,finishNotification,recoverNotificationClaims,retryableNotificationSql} from "./notificationClaims";
 import type { Database } from "better-sqlite3";
@@ -25,6 +26,7 @@ function enqueue(db: Database, eventType: SmsEventType, jobId: string, recipient
   const users=db.prepare("SELECT id,phone FROM users WHERE phone IS NOT NULL").all() as {id:string;phone:string}[];
   const matches=users.filter(user=>toE164Romania(user.phone)===recipient);
   const recipientUserId=matches.length===1?matches[0].id:null;
+  if(recipientUserId&&isAccountRemoved(db,recipientUserId))return null;
   const id = newId("sms");
   db.prepare(`INSERT OR IGNORE INTO notification_outbox
     (id,idempotency_key,event_type,job_id,recipient,message_body,recipient_user_id) VALUES (?,?,?,?,?,?,?)`)
@@ -61,6 +63,7 @@ export function queueJobArrivedClientSms(db: Database, jobId:string): string[] {
 
 function smsDeliveryBlock(db:Database,row:{job_id:string;event_type:SmsEventType;recipient:string;recipient_user_id:string|null}):string|null{
   if(!row.recipient_user_id)return "SUPPRESSED_RECIPIENT_UNBOUND";
+  if(isAccountRemoved(db,row.recipient_user_id))return "SUPPRESSED_ACCOUNT_REMOVED";
   const user=db.prepare("SELECT phone FROM users WHERE id=?").get(row.recipient_user_id) as {phone:string|null}|undefined;
   if(!user?.phone||toE164Romania(user.phone)!==row.recipient)return "SUPPRESSED_RECIPIENT";
   const field=row.event_type==="JOB_CREATED_FIRM_ALERT"?"new_job_alerts":row.event_type==="JOB_ACCEPTED_CLIENT_CONFIRMATION"?"job_status_notifications":"arrival_notifications";

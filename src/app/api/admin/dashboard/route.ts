@@ -8,6 +8,8 @@ const response = (body: unknown, status = 200) => NextResponse.json(body, {
   status, headers: {'Cache-Control': 'private, no-store'},
 });
 
+export async function GET(): Promise<NextResponse>;
+export async function GET(req: NextRequest): Promise<NextResponse>;
 export async function GET(req?: NextRequest) {
   const identity = await getAdminIdentity();
   if (!identity) return response({error: 'Neautorizat'}, 401);

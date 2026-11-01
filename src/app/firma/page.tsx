@@ -1,7 +1,8 @@
 "use client";
+import {LanguageSelector} from '@/components/LanguageSelector';
 import {UiMoney} from '@/components/UiMoney';
 import {CleaningTypeLabel} from '@/components/CleaningTypeChoice';
-import {NewBadge} from '@/components/NewBadge';
+import {DesignIcon} from '@/components/DesignIcon';
 import {FlexibleFirmOffer} from "@/components/FlexibleFirmOffer";
 import {AUTHORIZATION_NOTICE,confirmationOpensAt} from '@/lib/authorizationPolicy';
 import {UiSpaceType,UiText,UiElement,UiTemplate} from '@/components/UiText';
@@ -21,7 +22,7 @@ import {BoardSidebar} from "@/components/BoardSidebar";
 import {FirmEarnings} from "@/components/FirmEarnings";
 import {bucharestDay} from "@/lib/monthlyFirmEarnings";
 import {FirmSummary} from "@/components/FirmSummary";
-import { Logo, Card, Button, inputClass } from "@/components/ui";
+import { Card, Button, inputClass } from "@/components/ui";
 
 import {JobNavigation} from "@/components/JobNavigation";
 import { JobRow } from "@/lib/types";
@@ -41,6 +42,8 @@ export default function FirmaPage() {
   const logoutRunning=useRef(false);
   const { user, firm, loading } = useCurrentUser();
   const [waitingJobs, setWaitingJobs] = useState<JobRow[]>([]);
+  const [jobsLoaded,setJobsLoaded]=useState(false);
+  const [jobsError,setJobsError]=useState<string|null>(null);
   const [myJobs, setMyJobs] = useState<JobRow[]>([]);
   const [offeredJobIds, setOfferedJobIds] = useState<string[]>([]);
   const [offerMsgs, setOfferMsgs] = useState<Record<string, string>>({});
@@ -100,16 +103,19 @@ export default function FirmaPage() {
 
   const refresh = useCallback(async () => {
     if (!firm) return;
+    try {
     const [waitingRes, allRes, trustRes, qualRes] = await Promise.all([
       fetch(`/api/jobs?status=waiting`),
       fetch(`/api/jobs`),
       fetch(`/api/trust?firmId=${encodeURIComponent(firm.id)}`),
       fetch(`/api/firm/quality`),
     ]);
+    if(!waitingRes.ok||!allRes.ok||!trustRes.ok||!qualRes.ok)throw new Error("Datele nu pot fi încărcate.");
     const waitingData = await waitingRes.json();
     const allData = await allRes.json();
     if(trustRes.ok) setTrustProfile(await trustRes.json());
     if(qualRes.ok) setQuality((await qualRes.json()).quality);
+    if(!Array.isArray(waitingData.jobs)||!Array.isArray(allData.jobs))throw new Error("Datele nu pot fi încărcate.");
     setWaitingJobs(waitingData.jobs);
     setOfferedJobIds(waitingData.offeredJobIds ?? []);
     setMyJobs(
@@ -117,6 +123,8 @@ export default function FirmaPage() {
         (j) => j.accepted_firm_id === firm.id && j.status !== "no_show"
       )
     );
+    setJobsLoaded(true);setJobsError(null);
+    }catch{setJobsError("Datele nu pot fi încărcate.");}
   }, [firm]);
 
   useEffect(() => {
@@ -231,34 +239,39 @@ export default function FirmaPage() {
     .reduce((sum, j) => sum + (j.financial?.firmPayout??0), 0);
 
   return (
-    <div className="board-page board-firm"><BoardSidebar role="firma"/>
-      <header className="glass sticky top-0 z-20">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-3 max-[760px]:px-4">
-          <Logo />
-          <div className="flex flex-wrap items-center gap-2 max-[760px]:w-full">
-            <span className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-aqua-deep text-sm font-display font-extrabold text-white" aria-hidden="true">{user.name.trim().slice(0,1).toUpperCase()}</span>
-              <span className="text-sm leading-tight">
-                <span className="flex items-center gap-1.5"><b className="text-ink">{user.name}</b>{firm?.verified?<span className="inline-flex items-center gap-1 rounded-full bg-aqua/15 px-2 py-0.5 text-[10px] font-bold text-aqua-deep"><UiText text={"✓ Verificată"}/></span>:<span className="inline-flex items-center rounded-full bg-mist px-2 py-0.5 text-[10px] font-bold text-muted"><UiText text={"Verificare în curs"}/></span>}</span>
-                <span className="block text-xs text-muted">{firm?.coverage_city}{firm?.coverage_cities_extra ? ` + ${firm.coverage_cities_extra}` : ""}</span>
-              </span>
-            </span>
-            <button type="button" onClick={openProfileEditor} className={ACTION_BTN}><UiText text={"Editează profilul"}/></button>
-            <Link href="/" prefetch={false} className={ACTION_BTN}><UiText text={"Vezi site-ul public →"}/></Link>
-            <Link href="/incredere" className={ACTION_BTN}><UiText text={"Încredere &amp; Siguranță"}/></Link>
-            <button type="button" onClick={logout} disabled={loggingOut} aria-busy={loggingOut} className="inline-flex items-center rounded-full border border-line px-3.5 py-1.5 text-sm font-display font-bold text-muted transition-colors duration-150 hover:border-coral hover:text-coral hover:bg-coral/5"><UiText text={loggingOut?"Se verifică…":"Ieși din cont"}/></button>{logoutError&&<p role="alert" className="mt-2 text-sm text-coral"><UiText text={logoutError}/></p>}
-          </div>
+    <div className="board-page board-firm partner-preview-home"><BoardSidebar role="firma"/>
+      <div className="partner-preview-shell">
+      <header className="partner-preview-topbar">
+        <div className="partner-preview-breadcrumb"><span className="partner-preview-context"><UiText text="NITIDO PARTENER"/></span><span aria-hidden="true">/</span><strong><UiText text="Oportunități"/></strong></div>
+        <div className="partner-preview-tools"><div className="partner-preview-language"><LanguageSelector/></div>
+          <UiElement as={Link} className="partner-preview-icon-link" href="/firma/programari" aria-label="Programări și reamintiri" title="Programări și reamintiri"><DesignIcon name="bell" size={19}/></UiElement>
+          <details className="partner-preview-account">
+            <UiElement as="summary" aria-label="Contul meu"><span className="partner-preview-avatar" aria-hidden="true">{user.name.trim().slice(0,1).toUpperCase()}</span><span><strong>{user.name}</strong><small>{firm?.coverage_city}</small></span><DesignIcon name="menu" size={14}/></UiElement>
+            <div className="partner-preview-account-menu">
+              <strong>{user.name}</strong><small>{user.email}</small>
+              <span className="partner-preview-verification"><UiText text={firm?.verified?"✓ Verificată":"Verificare în curs"}/></span>
+              <button type="button" onClick={openProfileEditor}><DesignIcon name="user" size={16}/><UiText text="Editează profilul"/></button>
+              <Link href="/" prefetch={false}><DesignIcon name="home" size={16}/><UiText text="Vezi site-ul public →"/></Link>
+              <Link href="/incredere"><DesignIcon name="shield" size={16}/><UiText text="Încredere & Siguranță"/></Link>
+              <button type="button" onClick={logout} disabled={loggingOut} aria-busy={loggingOut}><DesignIcon name="arrow" size={16}/><UiText text={loggingOut?"Se verifică…":"Ieși din cont"}/></button>
+              {logoutError&&<p role="alert"><UiText text={logoutError}/></p>}
+            </div>
+          </details>
         </div>
       </header>
-
-      <main className="max-w-6xl mx-auto px-6 py-8 space-y-8"><Link href="/firma/intervale-libere" className="v2-card p-5 flex flex-wrap items-center gap-3"><NewBadge/><b><UiText text={"Am liber săptămâna aceasta"}/></b><span><UiText text={"Publică intervalele pe care echipa ta le poate acoperi →"}/></span></Link>
-
-        <header className="section-heading"><div><p className="v2-eyebrow"><UiText text={"NITIDO PARTENER"}/></p><h1 className="workspace-title"><UiText text={"Lucrări potrivite pentru echipa ta"}/></h1><p className="text-muted"><UiText text={"Aplică la oportunități și organizează-ți activitatea cu NITIDO.RO."}/></p></div><Link className="v2-btn v2-btn-primary" href="/firma/calendar"><UiText text={"Deschide calendarul ↗"}/></Link></header>
-        <AssistedJourney role="firma"/>
-        <section className="workspace-metrics"><Card><p className="text-sm text-muted"><UiText text={"Oportunități în zonă"}/></p><b className="text-3xl">{waitingJobs.length}</b></Card><Card><p className="text-sm text-muted"><UiText text={"Lucrări active"}/></p><b className="text-3xl">{activeJobs.length}</b></Card><Card><p className="text-sm text-muted"><UiText text={"Lucrări finalizate"}/></p><b className="text-3xl">{historyJobs.length}</b></Card></section>
+      <main className="partner-preview-main">
+        <header className="section-heading partner-preview-page-heading"><div><h1 className="workspace-title"><UiText text="Lucrări potrivite pentru echipa ta"/></h1><p className="text-muted"><UiText text="Aplică la oportunități și organizează-ți activitatea cu NITIDO.RO."/></p></div><Link className="v2-btn v2-btn-primary" href="/firma/calendar"><DesignIcon name="calendar" size={16}/><UiText text="Deschide calendarul ↗"/></Link></header>
+        <section className="partner-preview-metrics">
+          <a href="#oportunitati"><span className="partner-preview-metric-icon"><DesignIcon name="search" size={19}/></span><div><span><UiText text="Oportunități în zonă"/></span><strong>{jobsLoaded&&!jobsError?waitingJobs.length:'—'}</strong></div></a>
+          <a href="#lucrari-active"><span className="partner-preview-metric-icon"><DesignIcon name="briefcase" size={19}/></span><div><span><UiText text="Lucrări active"/></span><strong>{jobsLoaded&&!jobsError?activeJobs.length:'—'}</strong></div></a>
+          <a href="#castiguri"><span className="partner-preview-metric-icon"><DesignIcon name="check" size={19}/></span><div><span><UiText text="Lucrări finalizate"/></span><strong>{jobsLoaded&&!jobsError?historyJobs.length:'—'}</strong></div></a>
+        </section>
+        {!jobsLoaded&&!jobsError&&<p role="status" className="partner-preview-feed-status"><UiText text="Se încarcă…"/></p>}
+        {jobsError&&<p role="alert" className="partner-preview-feed-error"><UiText text={jobsError}/>{' '}<button type="button" onClick={()=>void refresh()}><UiText text="Reîncearcă"/></button></p>}
+        <Link href="/firma/intervale-libere" className="partner-preview-availability"><DesignIcon name="calendar" size={19}/><b><UiText text="Am liber săptămâna aceasta"/></b><span><UiText text="Publică intervalele pe care echipa ta le poate acoperi →"/></span><DesignIcon name="arrow" size={16}/></Link>
         {message && (
           <div className="bg-coral/10 border border-coral text-coral text-sm rounded-lg px-4 py-2.5">
-            {message}
+            <UiText text={message}/>
           </div>
         )}
 
@@ -312,9 +325,9 @@ export default function FirmaPage() {
           </section>
         )}
 
-        <div className="firm-work-grid"><section className="firm-opportunities">
+        <div className="firm-work-grid partner-preview-work-grid"><section id="oportunitati" className="firm-opportunities">
           <h2 className="font-display font-bold text-ink mb-3"><UiText text={"Oportunități noi"}/></h2><div className="workspace-toolbar"><UiElement as="input" aria-label="Caută oportunități" className={inputClass} placeholder="Caută după oraș sau tip de spațiu" value={search} onChange={e=>setSearch(e.target.value)}/><UiElement as="select" aria-label="Mod de alocare" className={inputClass} value={filter} onChange={e=>setFilter(e.target.value)}><option value="all"><UiText text={"Toate lucrările"}/></option><option value="standard"><UiText text={"Standard"}/></option><option value="express"><UiText text={"Express"}/></option></UiElement></div>
-          {waitingJobs.length === 0 && (
+          {jobsLoaded&&!jobsError&&waitingJobs.length === 0 && (
             <Card>
               <p className="text-sm text-muted">
                 {firm?.verified
@@ -343,7 +356,7 @@ export default function FirmaPage() {
                     {job.mode === "standard" ? <UiText text={"✦ STANDARD"}/> : <UiText text={"⚡ EXPRESS"}/>}
                   </span>
                 )}
-                <div className="font-display font-bold text-sm text-ink"><UiText text={"Curățenie "}/><UiSpaceType value={job.space_type}/>, {job.city} · <CleaningTypeLabel value={job.cleaning_type}/>
+                <div className="font-display font-bold text-sm text-ink"><UiText text={"Curățenie "}/><UiSpaceType value={job.space_type}/>, {job.city}{job.cleaning_type&&<> · <CleaningTypeLabel value={job.cleaning_type}/></>}
                 </div>
                 <div className="text-xs text-muted mb-2"><UiText text={"Adresa exactă devine vizibilă după acceptare."}/></div>
                 <div className="flex gap-2 flex-wrap mb-2">
@@ -406,10 +419,9 @@ export default function FirmaPage() {
           </div>
         </section>
 
-        <EmailVerificationNotice/>
-        <FirmSummary jobs={myJobs}/></div><section id="lucrari-active">
+        <aside className="partner-preview-support"><EmailVerificationNotice/>{jobsLoaded&&!jobsError?<FirmSummary jobs={myJobs}/>:<p role="status" className="partner-preview-feed-status"><UiText text={jobsError?"Datele nu pot fi încărcate.":"Se încarcă…"}/></p>}</aside></div><section id="lucrari-active" className="partner-preview-active">
           <h2 className="font-display font-bold text-ink mb-3"><UiText text={"Lucrări active"}/></h2><Link href="/firma/executie" className="v2-btn v2-btn-primary mb-4"><UiText text={"Fotografii la sosire / final și încasare"}/></Link>
-          {activeJobs.length === 0 && (
+          {jobsLoaded&&!jobsError&&activeJobs.length === 0 && (
             <p className="text-sm text-muted"><UiText text={"Nu ai lucrări alocate. Lucrările publicate de clienți apar mai întâi în Oportunități, pentru firmele verificate din zonă."}/></p>
           )}
           <div className="space-y-3">
@@ -444,7 +456,7 @@ export default function FirmaPage() {
         </UiElement>}
 
         {historyJobs.length > 0 && (
-          <section id="castiguri" className="grid grid-cols-2 gap-3">
+          <section className="partner-preview-earnings-totals grid grid-cols-2 gap-3">
             <div className="bg-white border border-line rounded-2xl p-4">
               <div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold"><UiText text={"Câștiguri luna aceasta"}/></div>
               <div className="font-display font-extrabold text-2xl text-aqua-deep">
@@ -471,10 +483,11 @@ export default function FirmaPage() {
           </div>
         </section>
 
-        <FirmEarnings revision={JSON.stringify(historyJobs.map(j=>[j.id,j.financial]))}/>
-        <AppRatingCard />
+        <div id="castiguri"><FirmEarnings revision={JSON.stringify(historyJobs.map(j=>[j.id,j.financial]))}/></div>
+        <details className="partner-preview-help"><summary><DesignIcon name="help" size={17}/><UiText text="Cum preiei o lucrare asistată"/></summary><AssistedJourney role="firma"/></details>
+        <details className="partner-preview-help"><summary><DesignIcon name="star" size={17}/><UiText text="Îți place NITIDO? Lasă-ne o notă ⭐"/></summary><AppRatingCard /></details>
 
-        <section><h2 className="font-display font-bold text-ink mb-3 flex items-center gap-2"><UiText text={"Reputația firmei "}/>{quality && <UiElement as="span" className="text-[11px] font-bold text-aqua-deep bg-aqua/10 rounded-full px-2.5 py-1" title="Rating + experiență + fiabilitate"><UiText text={"Nitido Quality Index: "}/>{quality.score}/100</UiElement>}</h2>{quality && <div className="mb-3 grid grid-cols-3 gap-2">{[["Rating",quality.rating,60],["Experiență",quality.experience,20],["Fiabilitate",quality.reliability,20]].map(([label,val,max])=><div key={label as string} className="bg-white border border-line rounded-xl p-3"><div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold"><UiText text={label}/></div><div className="font-display font-extrabold text-lg text-ink">{val}<span className="text-xs text-muted font-normal">/{max}</span></div></div>)}</div>}<Card>{trustProfile.firms[0]?<><div className="grid grid-cols-3 gap-3 max-sm:grid-cols-1"><div><b className="text-2xl">{trustProfile.firms[0].average_rating?Number(trustProfile.firms[0].average_rating).toFixed(1):"—"} / 5</b><p className="text-xs text-muted">{trustProfile.firms[0].review_count}<UiText text={" recenzii verificate"}/></p></div><div><b className="text-2xl">{trustProfile.firms[0].completed_jobs}</b><p className="text-xs text-muted"><UiText text={"lucrări finalizate"}/></p></div><div><b className="text-sm text-aqua-deep">{trustProfile.firms[0].verified?<UiText text={"Firmă verificată"}/>:<UiText text={"Verificare în curs"}/>}</b></div></div>{trustProfile.reviews.length?<div className="mt-5 space-y-3">{trustProfile.reviews.map(review=><article key={review.id} className="rounded-xl bg-mist p-4"><div className="flex justify-between text-sm"><b>{review.rating} / 5 · {review.reviewer}</b><span className="text-aqua-deep">{review.badge}</span></div>{review.reviewText&&<p className="mt-2 text-sm text-muted">{review.reviewText}</p>}<div className="mt-3 flex gap-2"><UiElement as="select" aria-label="Motiv raportare" className="rounded-lg border border-line bg-white px-2 py-1 text-xs" value={reportReasons[review.id]||"alt_motiv"} onChange={e=>setReportReasons(current=>({...current,[review.id]:e.target.value}))}><option value="limbaj_abuziv"><UiText text={"Limbaj abuziv"}/></option><option value="date_personale"><UiText text={"Date personale"}/></option><option value="spam"><UiText text={"Spam"}/></option><option value="informatii_false"><UiText text={"Informații false"}/></option><option value="alt_motiv"><UiText text={"Alt motiv"}/></option></UiElement><button type="button" className="text-xs font-bold text-coral" onClick={()=>void reportReview(review.id)}><UiText text={"Raportează"}/></button></div></article>)}</div>:<p className="mt-4 text-sm text-muted"><UiText text={"Încă nu există suficiente evaluări."}/></p>}</>:<p className="text-sm text-muted"><UiText text={"Încă nu există suficiente evaluări."}/></p>}</Card></section>
+        <section className="partner-preview-reputation"><h2 className="font-display font-bold text-ink mb-3 flex items-center gap-2"><UiText text={"Reputația firmei "}/>{quality && <UiElement as="span" className="text-[11px] font-bold text-aqua-deep bg-aqua/10 rounded-full px-2.5 py-1" title="Rating + experiență + fiabilitate"><UiText text={"Nitido Quality Index: "}/>{quality.score}/100</UiElement>}</h2>{quality && <div className="mb-3 grid grid-cols-3 gap-2">{[["Rating",quality.rating,60],["Experiență",quality.experience,20],["Fiabilitate",quality.reliability,20]].map(([label,val,max])=><div key={label as string} className="bg-white border border-line rounded-xl p-3"><div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold"><UiText text={label}/></div><div className="font-display font-extrabold text-lg text-ink">{val}<span className="text-xs text-muted font-normal">/{max}</span></div></div>)}</div>}<Card>{!jobsLoaded||jobsError?<p role="status"><UiText text={jobsError?"Datele nu pot fi încărcate.":"Se încarcă…"}/></p>:trustProfile.firms[0]?<><div className="grid grid-cols-3 gap-3 max-sm:grid-cols-1"><div><b className="text-2xl">{trustProfile.firms[0].average_rating?Number(trustProfile.firms[0].average_rating).toFixed(1):"—"} / 5</b><p className="text-xs text-muted">{trustProfile.firms[0].review_count}<UiText text={" recenzii verificate"}/></p></div><div><b className="text-2xl">{trustProfile.firms[0].completed_jobs}</b><p className="text-xs text-muted"><UiText text={"lucrări finalizate"}/></p></div><div><b className="text-sm text-aqua-deep">{trustProfile.firms[0].verified?<UiText text={"Firmă verificată"}/>:<UiText text={"Verificare în curs"}/>}</b></div></div>{trustProfile.reviews.length?<div className="mt-5 space-y-3">{trustProfile.reviews.map(review=><article key={review.id} className="rounded-xl bg-mist p-4"><div className="flex justify-between text-sm"><b>{review.rating} / 5 · {review.reviewer}</b><span className="text-aqua-deep">{review.badge}</span></div>{review.reviewText&&<p className="mt-2 text-sm text-muted">{review.reviewText}</p>}<div className="mt-3 flex gap-2"><UiElement as="select" aria-label="Motiv raportare" className="rounded-lg border border-line bg-white px-2 py-1 text-xs" value={reportReasons[review.id]||"alt_motiv"} onChange={e=>setReportReasons(current=>({...current,[review.id]:e.target.value}))}><option value="limbaj_abuziv"><UiText text={"Limbaj abuziv"}/></option><option value="date_personale"><UiText text={"Date personale"}/></option><option value="spam"><UiText text={"Spam"}/></option><option value="informatii_false"><UiText text={"Informații false"}/></option><option value="alt_motiv"><UiText text={"Alt motiv"}/></option></UiElement><button type="button" className="text-xs font-bold text-coral" onClick={()=>void reportReview(review.id)}><UiText text={"Raportează"}/></button></div></article>)}</div>:<p className="mt-4 text-sm text-muted"><UiText text={"Încă nu există suficiente evaluări."}/></p>}</>:<p className="text-sm text-muted"><UiText text={"Încă nu există suficiente evaluări."}/></p>}</Card></section>
 
         {historyJobs.some(job=>job.financial?.paymentStatus==="authorized"&&!job.guarantee_of) && <UiElement as="section" aria-label="Plăți de confirmat" className="space-y-3">
           <h2 className="font-display font-bold text-ink"><UiText text={"Lucrări finalizate · plăți de confirmat"}/></h2>
@@ -517,6 +530,7 @@ export default function FirmaPage() {
         )}
 
       </main>
+      </div>
     </div>
   );
 }

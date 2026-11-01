@@ -125,3 +125,17 @@ TypeScript și validarea traducerilor au trecut; ESLint are numai avertismentul
 preexistent menționat mai sus. Suita completă: 2.862 teste trecute și un test
 extern omis, în 283 de fișiere trecute. Revizuirea separată a autentificării
 nu a identificat un regres material.
+
+## Corecție siglă PARTENER — 31 octombrie 2026
+
+Sigla din meniul FIRMA trimitea la `/`, iar componenta `Logo` înlocuia explicit
+destinațiile `/firma` și `/client` cu pagina publică. Componenta respectă acum
+destinația primită; siglele din paginile principale și meniurile autentificate
+trimit la `/firma`, `/client` sau `/admin`, după caz.
+
+Verificare în buildul de producție: 20 de scenarii prin click, la 390 și
+1440 px, cu conturi sintetice FIRMA/CLIENT și autentificare ADMIN cu MFA.
+Include pagina principală FIRMA, Calendar, Mesaje și Setări, patru secțiuni
+CLIENT și două ADMIN. Destinația rămâne în contul corespunzător, sesiunea
+este reverificată după click și nu apar erori JavaScript. Cele 13 teste
+existente de navigare și autentificare, buildul și ESLint au trecut.
