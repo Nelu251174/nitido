@@ -8,6 +8,9 @@ const response = (body: unknown, status = 200) => NextResponse.json(body, {
   status, headers: {'Cache-Control': 'private, no-store'},
 });
 
+// Keep no-argument unit callers compatible while exposing Next's required request signature.
+export async function GET(): Promise<NextResponse>;
+export async function GET(req: NextRequest): Promise<NextResponse>;
 export async function GET(req?: NextRequest) {
   const identity = await getAdminIdentity();
   if (!identity) return response({error: 'Neautorizat'}, 401);
