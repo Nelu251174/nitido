@@ -10,6 +10,9 @@ import {getStripeClient} from './payments';
 import {authorizationMustStop} from './paymentCancellation';
 import type {JobRow} from './types';
 import {enforcePropertyBudget,AccessError} from './collaborationAccess';
+import {internationalScheduledAt} from './internationalScheduling';
+import {readInternationalPublishedPrice,providerMarketError} from './publishedPrice';
+import {authorizationMoney,moneyFromPayment} from './paymentMoney';
 
 export type RescheduleRequest={id:string;job_id:string;client_id:string;firm_id:string|null;original_at:string;proposed_at:string;status:string;firm_confirmed_at:string|null;confirmed_snapshot:string|null};
 type RequestRow=RescheduleRequest;
@@ -24,10 +27,31 @@ function access(db:Database,id:string,user:Actor){
 }
 export function rescheduleHistory(db:Database,id:string,user:Actor){access(db,id,user);return db.prepare(`SELECT r.id,r.original_at,r.proposed_at,r.status,r.created_at,r.resolved_at,r.firm_confirmed_at,
  a.state AS authorization_status,a.cleanup_status FROM job_reschedule_requests r LEFT JOIN reschedule_authorizations a ON a.request_id=r.id WHERE r.job_id=? ORDER BY r.created_at DESC LIMIT 20`).all(id)}
-export function rescheduleSnapshot(job:JobRow){return JSON.stringify([job.client_id,job.accepted_firm_id,job.scheduled_at,job.duration_minutes,job.buffer_minutes,job.price_gross,job.credit_applied])}
+export function rescheduleSnapshot(job:JobRow){
+ const state:unknown[]=[job.client_id,job.accepted_firm_id,job.scheduled_at,job.duration_minutes,job.buffer_minutes,job.price_gross,job.credit_applied];
+ // Existing RON consent identities remain byte-for-byte identical.
+ if(job.pricing_snapshot){try{if(JSON.parse(job.pricing_snapshot).currency!=='RON')state.push(job.pricing_snapshot);}catch{state.push(job.pricing_snapshot);}}
+ return JSON.stringify(state);
+}
+/** Existing EUR obligations retain their accepted price; unsupported RON-only add-ons fail before writes. */
+export function validateRescheduleMarket(db:Database,job:JobRow){
+ if(!job.pricing_snapshot)return null;
+ let raw;try{raw=JSON.parse(job.pricing_snapshot);}catch{fail('Oferta publicată nu poate fi verificată.',422);}
+ if(raw?.currency==='RON'){if(raw.countryCode&&raw.countryCode!=='RO')fail('Țara lucrării nu corespunde monedei.',422);return null;}
+ const snapshot=readInternationalPublishedPrice(job.pricing_snapshot);
+ if(!snapshot||job.city!==snapshot.city||job.duration_minutes!==snapshot.durationMinutes||Math.abs(job.price_gross*100-snapshot.grossMinor)>0.0000001||(job.credit_applied??0)!==0||!Number.isSafeInteger(job.buffer_minutes)||job.buffer_minutes<0)fail('Țara, durata sau prețul EUR nu pot fi verificate.',422);
+ if(job.guarantee_of||['workspace_property_jobs','workspace_host_jobs','recurring_occurrences','job_beneficiaries'].some(table=>!!db.prepare(`SELECT 1 FROM ${table} WHERE job_id=?`).get(job.id)))fail('Acest modul asociat rezervării nu acceptă încă reprogramare în EUR.',422);
+ if(job.accepted_firm_id){
+  const firm=db.prepare('SELECT * FROM firms WHERE id=?').get(job.accepted_firm_id);
+  const error=firm?providerMarketError(job,firm,false,db):'Firma lucrării nu este disponibilă.';
+  if(error)fail(error,422);
+ }
+ return snapshot;
+}
 /** Synchronous: callers include these checks and date/payment updates in one transaction. */
 export function applyConfirmedReschedule(db:Database,job:JobRow,request:RequestRow){
  movable(db,job);
+ validateRescheduleMarket(db,job);
  if(job.status!=='accepted'||job.scheduled_at!==request.original_at||job.accepted_firm_id!==request.firm_id||Date.parse(request.proposed_at)<Date.now()+3600000)fail('Rezervarea sau intervalul s-a schimbat. Retrage propunerea și alege o dată nouă.');
  const error=firmAvailabilityError(db,job.accepted_firm_id!,{...job,scheduled_at:request.proposed_at});if(error)fail(error);
  applyDate(db,job,request.proposed_at);
@@ -53,10 +77,11 @@ export function proposeReschedule(db:Database,id:string,user:Actor,input:{date:u
  if(typeof input.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(input.date)||typeof input.hour!=='number'||![8,10,12,14,16,18].includes(input.hour))fail('Alege data și ora.',400);
  const parsed=new Date(`${input.date}T12:00:00Z`);
  if(!Number.isFinite(parsed.getTime())||parsed.toISOString().slice(0,10)!==input.date)fail('Dată invalidă.',400);
- const date=bucharestScheduledAt(input.date,input.hour).toISOString();
- if(Date.parse(date)<Date.now()+3600000||Date.parse(date)>Date.now()+366*86400000)fail('Alege un interval cu minimum o oră înainte, în următoarele 12 luni.',400);
  return db.transaction(()=>{
   const job=access(db,id,user);movable(db,job);
+  const market=validateRescheduleMarket(db,job);
+  let date:string;try{date=(market?internationalScheduledAt(market.countryCode,input.date as string,input.hour as number):bucharestScheduledAt(input.date as string,input.hour as number)).toISOString();}catch{fail('Ora locală a lucrării nu poate fi confirmată.',422);}
+  if(Date.parse(date)<Date.now()+3600000||Date.parse(date)>Date.now()+366*86400000)fail('Alege un interval cu minimum o oră înainte, în următoarele 12 luni.',400);
   if(job.scheduled_at!==input.expectedAt)fail('Programul s-a schimbat. Reîncarcă rezervarea.');
   if(job.scheduled_at===date)fail('Alege un interval diferit.',400);
   validateHostReschedule(db,job,date);
@@ -81,22 +106,23 @@ export async function decideReschedule(db:Database,id:string,user:Actor,requestI
  const status=action==='accept'?'accepted':action==='reject'?'rejected':'withdrawn';
  if(request.status===status)return {status};
  if(request.status!=='pending')fail('Propunerea a fost deja soluționată.');
- if(action==='accept')validateHostReschedule(db,job,request.proposed_at);
+ if(action==='accept'){validateRescheduleMarket(db,job);validateHostReschedule(db,job,request.proposed_at);}
  let paymentId:string|null=null;
- let intentId:string|null=null,needsAuthorization=false;
+ let intentId:string|null=null,needsAuthorization=false,paymentSnapshot:string|null=null;
  if(action==='accept'&&!job.guarantee_of){
   movable(db,job);
-  const payment=db.prepare('SELECT id,status,stripe_payment_intent_id,amount_gross FROM payments WHERE job_id=?').get(id) as {id:string;status:string;stripe_payment_intent_id:string|null;amount_gross:number}|undefined;
+  const payment=db.prepare('SELECT * FROM payments WHERE job_id=?').get(id) as (Record<string,unknown>&{id:string;status:string;stripe_payment_intent_id:string|null})|undefined;
   const paymentCount=(db.prepare('SELECT count(*) AS n FROM payments WHERE job_id=?').get(id) as {n:number}).n;
   if(!payment||!['authorized','cancelled'].includes(payment.status)||!payment.stripe_payment_intent_id||paymentCount!==1)fail('Autorizarea cardului nu este confirmată. Programul rămâne neschimbat.');
+  let money;try{money=moneyFromPayment(payment);const expected=authorizationMoney(db,id,job.price_gross,job.credit_applied??0,false);if(money.currency!==expected.currency||money.clientAmountMinor!==expected.clientAmountMinor||money.firmAmountMinor!==expected.firmAmountMinor)fail('Prețul autorizat nu corespunde rezervării.');}catch{fail('Plata necesită verificarea monedei și sumei.',422);}
   const stripe=getStripeClient();if(!stripe)fail('Procesatorul de plată nu este disponibil.',503);
   const intent=await stripe.paymentIntents.retrieve(payment.stripe_payment_intent_id,{expand:['latest_charge']});
   const charge=typeof intent.latest_charge==='object'?intent.latest_charge:null;
   const expiry=charge?.payment_method_details?.card?.capture_before;
-  if(!['requires_capture','canceled'].includes(intent.status)||intent.capture_method!=='manual'||intent.amount_received!==0||intent.currency!=='ron'||intent.amount!==payment.amount_gross*100||(intent.status==='requires_capture'&&intent.amount_capturable!==payment.amount_gross*100)||intent.metadata.jobId!==id||intent.metadata.paymentId!==payment.id)fail('Plata necesită clarificare. Programul rămâne neschimbat.');
+  if(!['requires_capture','canceled'].includes(intent.status)||intent.capture_method!=='manual'||intent.amount_received!==0||intent.currency!==money.stripeCurrency||intent.amount!==money.clientAmountMinor||(intent.status==='requires_capture'&&intent.amount_capturable!==money.clientAmountMinor)||intent.metadata.jobId!==id||intent.metadata.paymentId!==payment.id)fail('Plata necesită clarificare. Programul rămâne neschimbat.');
   const end=Date.parse(request.proposed_at)+(job.duration_minutes+job.buffer_minutes)*60000;
   needsAuthorization=intent.status==='canceled'||payment.status!=='authorized'||!expiry||expiry*1000<=end||!!db.prepare('SELECT 1 FROM reschedule_authorizations WHERE request_id=?').get(requestId);
-  paymentId=payment.id;
+  paymentId=payment.id;paymentSnapshot=JSON.stringify(money);
   intentId=intent.id;
  }
  return db.transaction(()=>{
@@ -105,10 +131,12 @@ export async function decideReschedule(db:Database,id:string,user:Actor,requestI
   if(latest.status===status)return {status};
   if(latest.status!=='pending')fail('Propunerea a fost modificată între timp.');
   if(action==='accept'){
-   movable(db,current);
+   movable(db,current);validateRescheduleMarket(db,current);
+   if(rescheduleSnapshot(current)!==rescheduleSnapshot(job))fail('Rezervarea s-a schimbat între timp.');
    if(current.guarantee_of!==job.guarantee_of||current.scheduled_at!==request.original_at||current.accepted_firm_id!==request.firm_id||current.status!=='accepted'||current.duration_minutes!==job.duration_minutes||current.buffer_minutes!==job.buffer_minutes||current.price_gross!==job.price_gross||current.credit_applied!==job.credit_applied)fail('Rezervarea s-a schimbat între timp.');
    if(Date.parse(request.proposed_at)<Date.now()+3600000)fail('Noul interval este prea apropiat sau a trecut.');
-   if(!db.prepare("SELECT 1 FROM payments WHERE id=? AND job_id=? AND stripe_payment_intent_id=? AND status IN ('authorized','cancelled')").get(paymentId,id,intentId))fail('Starea plății s-a schimbat.');
+   const currentPayment=db.prepare("SELECT * FROM payments WHERE id=? AND job_id=? AND stripe_payment_intent_id=? AND status IN ('authorized','cancelled')").get(paymentId,id,intentId) as Record<string,unknown>|undefined;
+   if(!currentPayment||JSON.stringify(moneyFromPayment(currentPayment))!==paymentSnapshot)fail('Starea plății s-a schimbat.');
    const error=firmAvailabilityError(db,current.accepted_firm_id!,{...current,scheduled_at:request.proposed_at});if(error)fail(error);
    if(needsAuthorization){
     db.prepare("UPDATE job_reschedule_requests SET firm_confirmed_at=COALESCE(firm_confirmed_at,?),confirmed_snapshot=? WHERE id=? AND status='pending'").run(new Date().toISOString(),rescheduleSnapshot(current),requestId);

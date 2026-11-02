@@ -1,4 +1,5 @@
 "use client";
+import {currencyOfJob} from '@/lib/jobCurrency';
 import {LanguageSelector} from '@/components/LanguageSelector';
 import {UiMoney,useDisplayMoney,ChargeAmount} from '@/components/UiMoney';
 import {CleaningTypeChoice} from '@/components/CleaningTypeChoice';
@@ -1117,7 +1118,7 @@ export function ClientWorkspace({section = "home"}: {section?: ClientWorkspaceSe
                               {o.ratingAvg != null ? `★ ${o.ratingAvg.toFixed(1)} (${o.ratingCount})` : <UiText text={"firmă nouă"}/>} · {o.completedJobs}<UiText text={" lucrări finalizate"}/></div>
                           </div>
                         </div>
-                        <div className="offer-price"><b><UiMoney ron={job.price_gross}/></b><span><UiText text={"Preț fix pentru această solicitare"}/></span></div>
+                        <div className="offer-price"><b><UiMoney ron={job.price_gross} currency={currencyOfJob(job)}/></b><span><UiText text={"Preț fix pentru această solicitare"}/></span></div>
                         {o.flexible&&<p className="my-3 text-sm"><UiText text={"Propunere: "}/>{new Date(o.flexible.starts_at).toLocaleString('ro-RO',{timeZone:'Europe/Bucharest'})}<UiText text={" · ora României. Valabilă până la "}/>{new Date(o.flexible.expires_at).toLocaleTimeString('ro-RO',{timeZone:'Europe/Bucharest'})}<UiText text={". Firma și prețul de mai sus se confirmă numai după acceptarea validă."}/></p>}
                         {o.message && (
                           <p className="text-sm text-muted mt-2 border-t border-line pt-2">{o.message}</p>

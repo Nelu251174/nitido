@@ -1,4 +1,11 @@
 import {AUTHORIZATION_COVERAGE_SCHEMA} from './authorizationCoverage';
+import {ensurePaymentMoneySchema} from './paymentMoney';
+import {INTERNATIONAL_TARIFF_SCHEMA} from './internationalTariffs';
+import {INTERNATIONAL_BOOKING_QUOTES_SCHEMA} from './internationalBooking';
+import {EMAIL_DELIVERY_DIAGNOSTIC_SCHEMA} from './emailDeliveryDiagnostics';
+import {INTERNATIONAL_JOB_SCHEMA} from './internationalJobSchema';
+import {INTERNATIONAL_CREW_CAPACITY_SCHEMA} from './internationalCrewCapacity';
+import {ensureSelectionMoneySchema} from './selectionRecovery';
 import {ADMIN_PASSWORD_RECOVERY_SCHEMA} from './adminPasswordCredentials';
 import {ADMIN_OWNER_SCHEMA} from './adminOwnerSchema';
 import {PROVIDER_SCORE_SCHEMA} from './providerScoreSchema';
@@ -84,6 +91,11 @@ ${PAYMENT_RECOVERY_SCHEMA}
 ${AUTHORIZATION_COVERAGE_SCHEMA}
 ${PAYOUT_RECONCILIATION_SCHEMA}
 ${STRIPE_INBOX_SCHEMA}
+${INTERNATIONAL_TARIFF_SCHEMA}
+${INTERNATIONAL_BOOKING_QUOTES_SCHEMA}
+${EMAIL_DELIVERY_DIAGNOSTIC_SCHEMA}
+${INTERNATIONAL_JOB_SCHEMA}
+${INTERNATIONAL_CREW_CAPACITY_SCHEMA}
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   role TEXT NOT NULL CHECK (role IN ('client','firma')),
@@ -609,6 +621,10 @@ db.exec(JOB_ACTUAL_COSTS_SCHEMA);
   ensureColumn("payments", "stripe_transfer_id", "TEXT");
   ensureColumn("payments", "payout_status", "TEXT NOT NULL DEFAULT 'unknown'");
   ensureColumn("payments", "refund_status", "TEXT NOT NULL DEFAULT 'none'");
+  // Additive currency metadata only. Existing RON records/snapshots are not rewritten.
+  // Next build workers can share a DB: serialize the PRAGMA/check/ALTER sequence.
+  db.transaction(() => ensurePaymentMoneySchema(db)).immediate();
+  db.transaction(() => ensureSelectionMoneySchema(db)).immediate();
   ensureColumn("workspace_teams", "minimum_duration_minutes", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn("workspace_teams", "travel_minutes", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn("recurring_plans", "schedule_generation", "INTEGER NOT NULL DEFAULT 0");

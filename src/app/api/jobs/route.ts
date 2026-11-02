@@ -1,3 +1,4 @@
+import {currencyOfJob,firmAmountForJob,serializeJobCurrency} from '@/lib/jobCurrency';
 import {validAutomaticCleaningType,cleaningAssessmentUrl,type AutomaticCleaningType} from '@/lib/cleaningTypes';
 import {attachAlertOrigin} from '@/lib/availabilityAlerts';
 import {attachPreferredFirm,attachRepeatOrigin,RetentionError} from '@/lib/clientRetention';
@@ -101,7 +102,7 @@ export async function GET(req: NextRequest) {
   const scanByJob = new Map<string, {id:string;url:string;room:string|null;roomLabel:string}[]>();
   const proofsByJob = new Map<string, {id:string;type:"ARRIVAL"|"COMPLETION";url:string;createdAt:string}[]>();
   const ownReviewsByJob = new Map<string,{rating:number;reviewText:string|null;badge:"Recenzie verificată"}>();
-  const paymentsByJob = new Map<string,{paymentStatus:string;firmPayout:number;transferStatus:string;payoutStatus:string;refundStatus:string;disputeStatus:string}>();
+  const paymentsByJob = new Map<string,{paymentStatus:string;firmPayout:number|null;transferStatus:string;payoutStatus:string;refundStatus:string;disputeStatus:string}>();
   if (jobs.length > 0) {
     const placeholders = jobs.map(() => "?").join(",");
     const photos = db
@@ -125,11 +126,11 @@ export async function GET(req: NextRequest) {
   }
 
   if(user.role==="client"&&jobs.length){const placeholders=jobs.map(()=>"?").join(",");const reviews=db.prepare(`SELECT job_id,stars,comment FROM ratings r WHERE client_id=? AND status='active' AND moderation_status!='hidden' AND job_id IN (${placeholders}) AND EXISTS(SELECT 1 FROM payments p WHERE p.job_id=r.job_id AND p.status='captured') AND EXISTS(SELECT 1 FROM job_photos p WHERE p.job_id=r.job_id AND p.uploaded_by_firm_id=r.firm_id AND p.proof_type='ARRIVAL' AND p.status='VALID' AND p.validated_at IS NOT NULL) AND EXISTS(SELECT 1 FROM job_photos p WHERE p.job_id=r.job_id AND p.uploaded_by_firm_id=r.firm_id AND p.proof_type='COMPLETION' AND p.status='VALID' AND p.validated_at IS NOT NULL)`).all(user.id,...jobs.map(j=>j.id)) as {job_id:string;stars:number;comment:string|null}[];for(const review of reviews)ownReviewsByJob.set(review.job_id,{rating:review.stars,reviewText:review.comment,badge:"Recenzie verificată"});}
-  if(jobs.length){const placeholders=jobs.map(()=>"?").join(",");const rows=db.prepare(`SELECT job_id,status,amount_net,transfer_status,payout_status,refund_status,dispute_status FROM payments WHERE job_id IN (${placeholders})`).all(...jobs.map(job=>job.id)) as {job_id:string;status:string;amount_net:number;transfer_status:string;payout_status:string;refund_status:string;dispute_status:string}[];for(const payment of rows)paymentsByJob.set(payment.job_id,{paymentStatus:payment.status,firmPayout:payment.amount_net,transferStatus:payment.transfer_status,payoutStatus:payment.payout_status,refundStatus:payment.refund_status,disputeStatus:payment.dispute_status});}
+  if(jobs.length){const placeholders=jobs.map(()=>"?").join(",");const rows=db.prepare(`SELECT * FROM payments WHERE job_id IN (${placeholders})`).all(...jobs.map(job=>job.id)) as {job_id:string;status:string;amount_net:number;currency?:string;amount_net_minor?:number|null;transfer_status:string;payout_status:string;refund_status:string;dispute_status:string}[];for(const payment of rows)paymentsByJob.set(payment.job_id,{paymentStatus:payment.status,firmPayout:currencyOfJob(jobs.find(job=>job.id===payment.job_id))==='EUR'?(payment.currency==='EUR'&&Number.isSafeInteger(payment.amount_net_minor)&&Number(payment.amount_net_minor)>=0?Number(payment.amount_net_minor)/100:null):currencyOfJob(jobs.find(job=>job.id===payment.job_id))==='RON'&&(payment.currency===undefined||payment.currency===null||payment.currency==='RON')?payment.amount_net:null,transferStatus:payment.transfer_status,payoutStatus:payment.payout_status,refundStatus:payment.refund_status,disputeStatus:payment.dispute_status});}
 
   const jobsWithPhotos = jobs.map((j) => {
     const canSeePrivate = user.role === "client" || j.accepted_firm_id === firmId;
-    if (canSeePrivate) {const payment=paymentsByJob.get(j.id)??null;return { ...j, ...(user.role==='client'?{for_family:hasBeneficiary(db,j.id),week_slot:!!openingRequest(db,j.id)}:{}), flexible:flexibleContext(db,j.id), photoRules:jobPhotoRules(db,j.id), ...(user.role==="client"?{authorizationStatus:authorizationByJob.get(j.id)??null}:{}), photos: photosByJob.get(j.id) ?? [], scan: scanByJob.get(j.id) ?? [], proofs: proofsByJob.get(j.id) ?? [], ownReview:user.role==="client"?ownReviewsByJob.get(j.id)??null:undefined, financial:payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null,...(user.role==="firma"?{firm_payout:payment?.firmPayout??calcNetForFirm(j.price_gross)}:{}) };}
+    if (canSeePrivate) {const payment=paymentsByJob.get(j.id)??null;return { ...serializeJobCurrency(j), ...(user.role==='client'?{for_family:hasBeneficiary(db,j.id),week_slot:!!openingRequest(db,j.id)}:{}), flexible:flexibleContext(db,j.id), photoRules:jobPhotoRules(db,j.id), ...(user.role==="client"?{authorizationStatus:authorizationByJob.get(j.id)??null}:{}), photos: photosByJob.get(j.id) ?? [], scan: scanByJob.get(j.id) ?? [], proofs: proofsByJob.get(j.id) ?? [], ownReview:user.role==="client"?ownReviewsByJob.get(j.id)??null:undefined, financial:payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null,...(user.role==="firma"?{firm_payout:payment?payment.firmPayout:firmAmountForJob(j)}:{}) };}
     return {
       id: j.id,
       city: j.city,
@@ -143,7 +144,8 @@ export async function GET(req: NextRequest) {
       scheduled_at: j.scheduled_at,
       bathroom_count: j.bathroom_count,
       price_gross: j.price_gross,
-      firm_payout: calcNetForFirm(j.price_gross),
+      firm_payout: firmAmountForJob(j),
+      currency:currencyOfJob(j),
       duration_minutes: j.duration_minutes,
       buffer_minutes: j.buffer_minutes,
       assisted_team:jobAssistedOperation(db,j.id)?.teamName??null,

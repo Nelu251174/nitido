@@ -1,3 +1,5 @@
+import {serializeJobCurrency} from './jobCurrency';
+import {financialReadMoney} from './financialReadMoney';
 import {activeAccountSql} from './accountStatus';
 import {customerValue} from './customerValue';
 import {customerRestriction} from './customerRestrictions';
@@ -17,9 +19,11 @@ export function customerRecord(db:Database,id:unknown,offset=0){page(offset);ret
  const user=client(db,id),key=user.id;
  const classification=db.prepare('SELECT revision,tags_json,reason,actor_id,created_at FROM customer_classifications WHERE client_id=? ORDER BY revision DESC LIMIT 1').get(key) as {revision:number;tags_json:string;reason:string;actor_id:string;created_at:string}|undefined;
  const slice=(rows:unknown[])=>({rows:rows.slice(0,50),hasMore:rows.length>50});
- const jobs=slice(db.prepare('SELECT id,city,status,mode,price_gross,created_at FROM jobs WHERE client_id=? ORDER BY created_at DESC,id DESC LIMIT 51 OFFSET ?').all(key,offset));
+ const jobs=slice((db.prepare('SELECT id,city,status,mode,price_gross,pricing_snapshot,created_at FROM jobs WHERE client_id=? ORDER BY created_at DESC,id DESC LIMIT 51 OFFSET ?').all(key,offset) as {pricing_snapshot:string|null;price_gross:number}[]).map(row=>{const {pricing_snapshot,...safe}=serializeJobCurrency(row);void pricing_snapshot;return safe;}));
  const assessments=slice(db.prepare('SELECT id,status,created_at FROM service_assessments WHERE client_id=? ORDER BY created_at DESC,id DESC LIMIT 51 OFFSET ?').all(key,offset));
- const payments=slice(db.prepare('SELECT p.id,p.job_id,p.amount_gross,p.status,p.stripe_payment_intent_id,p.refund_status,p.created_at FROM payments p JOIN jobs j ON j.id=p.job_id WHERE j.client_id=? ORDER BY p.created_at DESC,p.id DESC LIMIT 51 OFFSET ?').all(key,offset));
+ const paymentColumns=new Set((db.prepare('PRAGMA table_info(payments)').all() as {name:string}[]).map(column=>column.name));
+ const paymentMoneyColumns=['currency','amount_gross_minor'].filter(column=>paymentColumns.has(column)).map(column=>',p.'+column).join('');
+ const payments=slice((db.prepare(`SELECT p.id,p.job_id,p.amount_gross,p.status,p.stripe_payment_intent_id,p.refund_status,p.created_at${paymentMoneyColumns} FROM payments p JOIN jobs j ON j.id=p.job_id WHERE j.client_id=? ORDER BY p.created_at DESC,p.id DESC LIMIT 51 OFFSET ?`).all(key,offset) as {amount_gross:number;currency?:string;amount_gross_minor?:number}[]).map(row=>{const money=financialReadMoney(row),{amount_gross_minor,...safe}=row;void amount_gross_minor;return {...safe,amount_gross:money.amount_gross,currency:money.currency};}));
  const cases=slice(db.prepare('SELECT c.id,c.job_id,c.category,c.status,c.created_at FROM visit_cases c JOIN jobs j ON j.id=c.job_id WHERE j.client_id=? ORDER BY c.created_at DESC,c.id DESC LIMIT 51 OFFSET ?').all(key,offset));
  const ratings=slice(db.prepare('SELECT id,job_id,stars,status,moderation_status,created_at FROM ratings WHERE client_id=? ORDER BY created_at DESC,id DESC LIMIT 51 OFFSET ?').all(key,offset));
  const notes=slice(db.prepare('SELECT id,body,actor_id,created_at FROM customer_internal_notes WHERE client_id=? ORDER BY created_at DESC,id DESC LIMIT 51 OFFSET ?').all(key,offset));

@@ -82,4 +82,12 @@ describe("guarantee — Nitido Guaranteed (re-curățare gratuită)", () => {
     db.prepare("UPDATE jobs SET status='completed', completed_at=? WHERE id=?").run(new Date(NOW.getTime() - 1800 * 1000).toISOString(), r.jobId);
     expect(requestReclean(db, r.jobId, "client_1", NOW)).toMatchObject({ ok: false, status: 409 });
   });
+  it('keeps international recleaning for support review without silently creating a RON contract',()=>{
+    seedCompleted(db,'foreign',new Date(NOW.getTime()-3600000).toISOString());
+    db.prepare("UPDATE jobs SET pricing_snapshot=? WHERE id='foreign'").run(JSON.stringify({currency:'EUR',countryCode:'DE'}));
+    expect(requestReclean(db,'foreign','other',NOW)).toMatchObject({ok:false,status:403});
+    expect(requestReclean(db,'foreign','client_1',NOW)).toMatchObject({ok:false,status:422});
+    expect(db.prepare('SELECT COUNT(*) n FROM jobs').get()).toEqual({n:1});
+  });
+
 });

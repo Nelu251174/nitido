@@ -1,3 +1,5 @@
+import {currencyOfJob,jobGrossTotals,serializeJobCurrency} from '@/lib/jobCurrency';
+import {financialReadMoney} from '@/lib/financialReadMoney';
 import {activeAccountSql} from '@/lib/accountStatus';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -17,7 +19,9 @@ export async function GET(_req: NextRequest) {
        FROM firms JOIN users ON users.id = firms.user_id WHERE ${activeAccountSql(db,"users.id")}`
     )
     .all() as { id: string; name: string; verified: number }[];
-  const payments = db.prepare("SELECT id,job_id,amount_gross,commission_amount,amount_net,status,stripe_fee_amount,transfer_status,payout_status,refund_status,dispute_status,created_at FROM payments ORDER BY created_at DESC").all();
+  const paymentColumns=new Set((db.prepare('PRAGMA table_info(payments)').all() as {name:string}[]).map(c=>c.name));
+  const moneyColumns=['currency','amount_gross_minor','commission_amount_minor','amount_net_minor','stripe_fee_currency'].filter(column=>paymentColumns.has(column));
+  const payments = (db.prepare("SELECT id,job_id,amount_gross,commission_amount,amount_net,status,stripe_fee_amount,transfer_status,payout_status,refund_status,dispute_status,created_at"+(moneyColumns.length?','+moneyColumns.join(','):'')+" FROM payments ORDER BY created_at DESC").all() as Record<string,unknown>[]).map(financialReadMoney);
   const webhookIssues=db.prepare("SELECT event_id,event_type,resource_id,status,attempts,last_error,received_at FROM stripe_webhook_inbox WHERE status IN ('received','failed','needs_review') ORDER BY received_at LIMIT 100").all();
   const authorizationIssues=db.prepare("SELECT job_id,status,created_ms,stripe_payment_intent_id FROM payment_authorization_attempts WHERE status NOT IN ('requires_capture','succeeded') ORDER BY created_ms DESC LIMIT 100").all();
   const coverageIssues=db.prepare("SELECT job_id,state,required_until_ms,capture_before_ms,attempts,next_retry_ms,last_error,updated_ms FROM authorization_coverage WHERE state!='verified' ORDER BY updated_ms DESC LIMIT 100").all();
@@ -58,7 +62,9 @@ export async function GET(_req: NextRequest) {
     ["accepted", "arrived", "completed", "no_show"].includes(j.status)
   );
   const noShowJobs = jobs.filter((j) => j.status === "no_show");
-  const gmv = completedJobs.reduce((sum, j) => sum + j.price_gross, 0);
+  const domesticCompletedJobs=completedJobs.filter(job=>currencyOfJob(job)==='RON');
+  const gmv = domesticCompletedJobs.reduce((sum, j) => sum + j.price_gross, 0);
+  const byCurrency=jobGrossTotals(completedJobs);
 
   const completedCountByFirm = new Map<string, number>();
   for (const j of completedJobs) {
@@ -79,7 +85,11 @@ export async function GET(_req: NextRequest) {
     jobsToday: jobs.filter((j) => j.created_at.slice(0, 10) === today).length,
     completedJobs: completedJobs.length,
     gmv,
-    avgOrderValue: completedJobs.length > 0 ? Math.round(gmv / completedJobs.length) : 0,
+    monetaryCurrency:'RON',
+    gmvByCurrency:{RON:byCurrency.RON.amount,EUR:byCurrency.EUR.amount},
+    monetaryByCurrency:byCurrency,
+    avgOrderValue: domesticCompletedJobs.length > 0 ? Math.round(gmv / domesticCompletedJobs.length) : 0,
+    avgOrderValueByCurrency:{RON:domesticCompletedJobs.length?Math.round(gmv/domesticCompletedJobs.length):0,EUR:byCurrency.EUR.count?Math.round(byCurrency.EUR.amountMinor/byCurrency.EUR.count)/100:0},
     noShowRatePct:
       everAcceptedJobs.length > 0
         ? Math.round((noShowJobs.length / everAcceptedJobs.length) * 1000) / 10
@@ -89,5 +99,5 @@ export async function GET(_req: NextRequest) {
     topFirms,
   };
 
-  return NextResponse.json({ jobs, firms, payments, bankPayouts, authorizationIssues, coverageIssues, webhookIssues, cancellationIssues, recoveryRuns, recoveryParked, notifications:[...pushNotifications,...notifications].sort((a,b)=>String((b as Record<string,unknown>).created_at).localeCompare(String((a as Record<string,unknown>).created_at))).slice(0,100), proofs, reviews, stats });
+  return NextResponse.json({ jobs:jobs.map(serializeJobCurrency), firms, payments, bankPayouts, authorizationIssues, coverageIssues, webhookIssues, cancellationIssues, recoveryRuns, recoveryParked, notifications:[...pushNotifications,...notifications].sort((a,b)=>String((b as Record<string,unknown>).created_at).localeCompare(String((a as Record<string,unknown>).created_at))).slice(0,100), proofs, reviews, stats });
 }

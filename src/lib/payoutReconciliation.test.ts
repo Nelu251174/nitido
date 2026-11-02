@@ -3,6 +3,7 @@ import Sqlite from 'better-sqlite3';
 import type Stripe from 'stripe';
 import {SCHEMA_SQL} from './db';
 import {reconcileSandboxPayout} from './payoutReconciliation';
+import {ensurePaymentMoneySchema} from './paymentMoney';
 let db:Sqlite.Database;
 const payout=vi.fn(),balances=vi.fn(),charge=vi.fn(),transfer=vi.fn();
 const stripe={payouts:{retrieve:payout},balanceTransactions:{list:balances},charges:{retrieve:charge},transfers:{retrieve:transfer}} as unknown as Stripe;
@@ -38,7 +39,7 @@ describe('sandbox payout reconciliation',()=>{
    expect(await run()).toMatchObject({status:'needs_review',differenceMinor:0,issues:['UNRESOLVED_LINES']});
    expect(balances.mock.calls[1][0]).toEqual({payout:'po_one',limit:100,starting_after:'txn_one'});
  });
- it.each([{automatic:false},{reconciliation_status:'in_progress'},{currency:'eur'}])('keeps unsupported or unfinished payouts open %j',async extra=>{payout.mockResolvedValue({...po,...extra});expect(await run()).toMatchObject({status:'needs_review',netMinor:null,differenceMinor:null});expect(balances).not.toHaveBeenCalled();});
+ it.each([{automatic:false},{reconciliation_status:'in_progress'},{currency:'usd'}])('keeps unsupported or unfinished payouts open %j',async extra=>{payout.mockResolvedValue({...po,...extra});expect(await run()).toMatchObject({status:'needs_review',netMinor:null,differenceMinor:null});expect(balances).not.toHaveBeenCalled();});
  it('does not label a pending payout matched even when amounts match',async()=>{payout.mockResolvedValue({...po,status:'pending'});expect(await run()).toMatchObject({status:'needs_review',issues:['PAYOUT_NOT_PAID']});});
  it('rejects live-mode data',async()=>{payout.mockResolvedValue({...po,livemode:true});await expect(run()).rejects.toThrow();expect(balances).not.toHaveBeenCalled();});
  it('rejects an unknown or ambiguous account before contacting Stripe',async()=>{db.exec("UPDATE firms SET stripe_account_id='acct_other'");await expect(run()).rejects.toThrow();expect(payout).not.toHaveBeenCalled();});
@@ -50,4 +51,20 @@ describe('sandbox payout reconciliation',()=>{
  it('leaves no successful report after provider failure',async()=>{charge.mockRejectedValue(Error('private provider detail'));await expect(run()).rejects.toThrow();expect(db.prepare('SELECT * FROM payout_reconciliation_runs').all()).toHaveLength(0);});
  it('detects local changes during provider reads',async()=>{payout.mockImplementation(async()=>{if(payout.mock.calls.length===2)db.exec("UPDATE payments SET refund_status='pending'");return po;});expect(await run()).toMatchObject({status:'needs_review',issues:['LOCAL_STATE_CHANGED']});});
  it('records report and audit atomically',async()=>{db.exec("CREATE TRIGGER reject_audit BEFORE INSERT ON admin_audit_log BEGIN SELECT RAISE(ABORT,'fixture'); END");await expect(run()).rejects.toThrow();expect(db.prepare('SELECT * FROM payout_reconciliation_runs').all()).toHaveLength(0);});
+});
+
+describe('EUR native amounts and independent settlement currency',()=>{
+ function euro(){
+  ensurePaymentMoneySchema(db);
+  db.exec("UPDATE payments SET currency='EUR',amount_gross=100.03,amount_net=82.02,commission_amount=18.01,amount_gross_minor=10003,amount_net_minor=8202,commission_amount_minor=1801");
+  payout.mockResolvedValue({...po,amount:8202,currency:'eur'});
+  balances.mockResolvedValue({data:[{...tx,amount:8202,net:8202,currency:'eur'}],has_more:false});
+  charge.mockResolvedValue({id:'py_one',balance_transaction:'txn_one',source_transfer:'tr_one',amount:8202,currency:'eur',livemode:false});
+  transfer.mockResolvedValue({id:'tr_one',destination:'acct_one',destination_payment:'py_one',source_transaction:'ch_one',amount:8202,currency:'eur',livemode:false,reversed:false,amount_reversed:0});
+ }
+ it('traces native EUR cents without RON conversion or historical mutation',async()=>{euro();const before=db.prepare('SELECT * FROM payments').all();expect(await run()).toMatchObject({status:'matched',currency:'eur',payoutAmountMinor:8202,lines:[{transferCurrency:'eur',transferAmountMinor:8202,settlementCurrency:'eur',issue:null}]});expect(db.prepare('SELECT * FROM payments').all()).toEqual(before);});
+ it('refuses a provider currency mismatch even when numeric amounts match',async()=>{euro();db.exec("UPDATE payments SET currency='RON'");expect(await run()).toMatchObject({status:'needs_review',lines:[{issue:'LOCAL_PAYMENT_MISMATCH'}]});});
+ it('keeps RON transfer and EUR settlement distinct without inventing an exchange rate',async()=>{payout.mockResolvedValue({...po,currency:'eur',amount:8200});balances.mockResolvedValue({data:[{...tx,currency:'eur',amount:8200,net:8200}],has_more:false});expect(await run()).toMatchObject({status:'needs_review',currency:'eur',differenceMinor:0,lines:[{jobId:'j',transferCurrency:'ron',transferAmountMinor:41000,settlementCurrency:'eur',amountMinor:8200,issue:'FX_RECONCILIATION_REQUIRED'}]});expect(db.prepare("SELECT amount_net,status FROM payments WHERE id='p'").get()).toEqual({amount_net:410,status:'captured'});});
+ it('rejects corruption in authoritative EUR cents',async()=>{euro();db.exec('UPDATE payments SET amount_net_minor=8201');expect(await run()).toMatchObject({status:'needs_review',lines:[{issue:'LOCAL_PAYMENT_MISMATCH'}]});});
+ it('rechecks currency and minor amounts after provider reads',async()=>{euro();payout.mockImplementation(async()=>{if(payout.mock.calls.length===2)db.exec("UPDATE payments SET currency='RON'");return {...po,amount:8202,currency:'eur'};});expect(await run()).toMatchObject({status:'needs_review',issues:['LOCAL_STATE_CHANGED']});});
 });

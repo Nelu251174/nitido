@@ -1,3 +1,4 @@
+import {currencyOfJob} from './jobCurrency';
 import {bookingTerms} from './bookingTerms';
 import {jobExecutionRules,freezeExecutionRules} from '@/lib/executionTemplates';
 import type { Database } from "better-sqlite3";
@@ -18,6 +19,7 @@ export type RecleanResult =
   | { ok: false; error: string; status: number };
 
 interface OrigJob {
+  pricing_snapshot?: string|null;
   id: string;
   client_id: string;
   accepted_firm_id: string | null;
@@ -54,6 +56,7 @@ export function requestReclean(
   const job = db.prepare("SELECT * FROM jobs WHERE id = ?").get(jobId) as OrigJob | undefined;
   if (!job) return { ok: false, error: "Lucrare inexistentă", status: 404 };
   if (job.client_id !== clientId) return { ok: false, error: "Lucrarea nu îți aparține", status: 403 };
+  if(currencyOfJob(job)!=='RON') return {ok:false,error:'Garanția internațională necesită evaluarea echipei de suport; nu se generează o lucrare RON.',status:422};
   if (job.guarantee_of) return { ok: false, error: "O re-curățare nu poate fi ea însăși re-curățată", status: 409 };
   if (job.status !== "completed") return { ok: false, error: "Doar lucrările finalizate au garanție", status: 409 };
   if (!isWithinGuaranteeWindow(job.completed_at, now)) {

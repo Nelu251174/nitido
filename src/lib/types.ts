@@ -7,6 +7,8 @@ export type JobStatus =
   | "no_show";
 
 export interface JobRow {
+  /** Derived from immutable pricing_snapshot; null means the amount must not be labeled. */
+  currency?: 'RON'|'EUR'|null;
   cleaning_type?: 'maintenance'|'general'|'renovation'|null;
   for_family?:boolean;
   week_slot?:boolean;
@@ -47,7 +49,7 @@ export interface JobRow {
   arrived_confirmed_at: string | null;
   completed_at: string | null;
   created_at: string;
-  financial?: {paymentStatus:string;transferStatus:string;payoutStatus:string;refundStatus:string;disputeStatus:string;firmPayout?:number}|null;
+  financial?: {paymentStatus:string;transferStatus:string;payoutStatus:string;refundStatus:string;disputeStatus:string;firmPayout?:number|null}|null;
   firm_payout?:number|null;
   photos?: string[];
   // Nitido Scan (Pachet C): pozele de context ale clientului, etichetate pe

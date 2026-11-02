@@ -4,11 +4,11 @@ import {createHash,randomUUID} from 'node:crypto';
 import type {JobRow} from './types';
 import {authorizationMustStop} from './paymentCancellation';
 import {authorizationCard} from './savedCards';
-import {calculatePaymentSplit} from './payments';
+import {authorizationMoney,moneyFromPayment,moneyFromAuthorizationRequest} from './paymentMoney';
 import {WorkspaceError} from './workspace';
-import {applyConfirmedReschedule,rescheduleSnapshot,type RescheduleRequest} from './rescheduling';
+import {applyConfirmedReschedule,rescheduleSnapshot,validateRescheduleMarket,type RescheduleRequest} from './rescheduling';
 
-type Payment={id:string;job_id:string;status:string;amount_gross:number;amount_net:number;commission_amount:number;stripe_payment_intent_id:string;stripe_charge_id:string|null;stripe_transfer_id:string|null;transfer_status:string;refund_status:string;dispute_status:string};
+type Payment=Record<string,unknown>&{id:string;job_id:string;status:string;amount_gross:number;amount_net:number;commission_amount:number;stripe_payment_intent_id:string;stripe_charge_id:string|null;stripe_transfer_id:string|null;transfer_status:string;refund_status:string;dispute_status:string};
 type Attempt={job_id:string;request_json:string;provider_key_hash:string;created_ms:number;stripe_payment_intent_id:string|null;status:string};
 type Replacement={request_id:string;job_id:string;payment_id:string;old_intent_id:string;new_intent_id:string|null;old_payment_json:string;old_attempt_json:string;params_json:string;provider_key_hash:string;created_ms:number;expires_ms:number;state:'open'|'applied'|'aborting'|'aborted';cleanup_status:'pending'|'done';cleanup_attempts:number};
 function fail(message:string,status=409):never{throw new WorkspaceError(message,status)}
@@ -23,20 +23,26 @@ function owner(db:Database,userId:string,jobId:string,requestId:string){
  return {job,request};
 }
 function eligible(db:Database,job:JobRow,request:RescheduleRequest){
+ validateRescheduleMarket(db,job);
  if(job.status!=='accepted'||job.express_60||authorizationMustStop(db,job.id)||request.status!=='pending'||!request.firm_confirmed_at||request.confirmed_snapshot!==rescheduleSnapshot(job)||job.scheduled_at!==request.original_at||job.accepted_firm_id!==request.firm_id)fail('Rezervarea s-a schimbat sau firma nu a confirmat propunerea. Revino la lucrare.');
  if(Date.parse(request.proposed_at)<Date.now()+3600000)fail('Intervalul propus este prea apropiat. Retrage propunerea și alege altă dată.');
 }
 function currentPayment(db:Database,job:JobRow){
  const rows=db.prepare('SELECT * FROM payments WHERE job_id=?').all(job.id) as Payment[];
- const p=rows[0],split=calculatePaymentSplit(job.price_gross,job.credit_applied??0);
- if(rows.length!==1||!p||!['authorized','cancelled'].includes(p.status)||!p.stripe_payment_intent_id||p.amount_gross!==split.clientAmount||p.amount_net!==split.firmAmount||p.commission_amount!==split.platformAmount||p.stripe_transfer_id||p.transfer_status!=='not_started'||p.refund_status!=='none'||p.dispute_status!=='none')fail('Plata rezervării necesită verificare înainte de reautorizare.');
+ const p=rows[0],split=authorizationMoney(db,job.id,job.price_gross,job.credit_applied??0,false);
+ let money;try{money=p&&moneyFromPayment(p);}catch{fail('Plata rezervării necesită verificare înainte de reautorizare.');}
+ if(rows.length!==1||!p||!['authorized','cancelled'].includes(p.status)||!p.stripe_payment_intent_id||money?.currency!==split.currency||money.clientAmountMinor!==split.clientAmountMinor||money.firmAmountMinor!==split.firmAmountMinor||money.platformAmountMinor!==split.platformAmountMinor||p.stripe_transfer_id||p.transfer_status!=='not_started'||p.refund_status!=='none'||p.dispute_status!=='none')fail('Plata rezervării necesită verificare înainte de reautorizare.');
  const a=db.prepare('SELECT * FROM payment_authorization_attempts WHERE job_id=?').get(job.id) as Attempt|undefined;
  if(!a||a.stripe_payment_intent_id!==p.stripe_payment_intent_id||a.provider_key_hash!==keyHash())fail('Autorizarea anterioară necesită reconciliere.');
- return {payment:p,attempt:a};
+ let original;try{original=moneyFromAuthorizationRequest(JSON.parse(a.request_json));}catch{fail('Autorizarea anterioară necesită reconciliere.');}
+ if(original.currency!==money.currency||original.amountMinor!==money.clientAmountMinor)fail('Moneda autorizării anterioare necesită reconciliere.');
+ return {payment:p,attempt:a,money};
 }
 function matches(row:Replacement,intent:Stripe.PaymentIntent,which:'old'|'new'){
- const params=paramsOf(row),intentId=which==='old'?row.old_intent_id:row.new_intent_id;
- if(row.provider_key_hash!==keyHash()||intent.id!==intentId||intent.currency!=='ron'||intent.capture_method!=='manual'||intent.amount!==params.amount||intent.metadata.jobId!==row.job_id||intent.metadata.paymentId!==row.payment_id)fail('Identitatea autorizării nu corespunde rezervării.');
+ const params=paramsOf(row),money=moneyFromAuthorizationRequest(params),intentId=which==='old'?row.old_intent_id:row.new_intent_id;
+ const original=moneyFromPayment(JSON.parse(row.old_payment_json));
+ if(original.currency!==money.currency||original.clientAmountMinor!==money.amountMinor)fail('Sumele autorizării nu corespund plății originale.');
+ if(row.provider_key_hash!==keyHash()||intent.id!==intentId||intent.currency!==money.stripeCurrency||intent.capture_method!=='manual'||intent.amount!==params.amount||intent.metadata.jobId!==row.job_id||intent.metadata.paymentId!==row.payment_id)fail('Identitatea autorizării nu corespunde rezervării.');
  if(which==='old'&&intent.amount_received!==0)fail('Autorizarea veche conține o încasare și necesită reconciliere.');
  const retryWithoutMethod=intent.status==='requires_payment_method'&&!intent.payment_method;
  if(which==='new'&&(intent.metadata.rescheduleRequestId!==row.request_id||idOf(intent.customer)!==params.customer||(!retryWithoutMethod&&idOf(intent.payment_method)!==params.payment_method)))fail('Cardul autorizării nu corespunde rezervării.');
@@ -47,8 +53,9 @@ function clientState(row:Replacement,intent:Stripe.PaymentIntent){
  const publishableKey=process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY??'';
  const mode=/^(sk|rk)_live_/.test(process.env.STRIPE_SECRET_KEY??'')?'live':'test';
  if(!publishableKey.startsWith(`pk_${mode}_`)||!intent.client_secret)fail('Confirmarea cardului nu este configurată.',503);
- return {status:'requires_action' as const,amountMinor:paramsOf(row).amount,clientSecret:intent.client_secret,paymentMethodId:paramsOf(row).payment_method as string,publishableKey};
+ return {...currencyField(row),status:'requires_action' as const,amountMinor:paramsOf(row).amount,clientSecret:intent.client_secret,paymentMethodId:paramsOf(row).payment_method as string,publishableKey};
 }
+function currencyField(row:Replacement){const money=moneyFromAuthorizationRequest(paramsOf(row));return money.currency==='EUR'?{currency:'EUR' as const}:{};}
 function audit(db:Database,row:Replacement,event:string){
  db.prepare('INSERT INTO workflow_audit_log(id,event_type,job_id,details) VALUES(?,?,?,?)').run(`workflow_${randomUUID()}`,event,row.job_id,JSON.stringify({requestId:row.request_id,oldIntentId:row.old_intent_id,newIntentId:row.new_intent_id}));
 }
@@ -57,17 +64,17 @@ function audit(db:Database,row:Replacement,event:string){
 export async function rescheduleAuthorization(db:Database,stripe:Stripe,userId:string,jobId:string,requestId:string,action:'start'|'begin'|'verify'){
  const {job,request}=owner(db,userId,jobId,requestId);
  let row=read(db,requestId);
- if(row?.state==='applied')return {status:'authorized' as const,amountMinor:paramsOf(row).amount,scheduledAt:request.proposed_at,cleanupPending:row.cleanup_status!=='done'};
+ if(row?.state==='applied')return {...currencyField(row),status:'authorized' as const,amountMinor:paramsOf(row).amount,scheduledAt:request.proposed_at,cleanupPending:row.cleanup_status!=='done'};
  if(row&&row.state!=='open')fail('Această autorizare a fost închisă. Retrage propunerea și creează una nouă.');
  eligible(db,job,request);
- const {payment,attempt}=currentPayment(db,job);
- if(Date.parse(request.proposed_at)>Date.now()+48*3600000)return {status:'waiting_window' as const,amountMinor:payment.amount_gross*100,availableAt:new Date(Date.parse(request.proposed_at)-48*3600000).toISOString(),scheduledAt:request.proposed_at};
- if(!row&&action!=='begin')return {status:'consent_required' as const,amountMinor:payment.amount_gross*100,scheduledAt:request.proposed_at};
+ const {payment,attempt,money}=currentPayment(db,job);
+ if(Date.parse(request.proposed_at)>Date.now()+48*3600000)return {...(money.currency==='EUR'?{currency:'EUR' as const}:{}),status:'waiting_window' as const,amountMinor:money.clientAmountMinor,availableAt:new Date(Date.parse(request.proposed_at)-48*3600000).toISOString(),scheduledAt:request.proposed_at};
+ if(!row&&action!=='begin')return {...(money.currency==='EUR'?{currency:'EUR' as const}:{}),status:'consent_required' as const,amountMinor:money.clientAmountMinor,scheduledAt:request.proposed_at};
  if(!row){
   if(db.prepare("SELECT 1 FROM reschedule_authorizations WHERE job_id=? AND state='applied' AND cleanup_status='pending'").get(jobId))fail('Eliberarea autorizării precedente este încă în curs. Reîncarcă starea plății peste câteva minute.');
   // Check the processor's old identity before asking the owner to authorize another hold.
   const old=await stripe.paymentIntents.retrieve(payment.stripe_payment_intent_id);
-  if(old.metadata.jobId!==jobId||old.metadata.paymentId!==payment.id||old.amount!==payment.amount_gross*100||old.currency!=='ron'||old.capture_method!=='manual'||old.amount_received!==0||!['requires_capture','canceled'].includes(old.status)||(old.status==='requires_capture'&&old.amount_capturable!==old.amount))fail('Autorizarea existentă necesită verificare.');
+  if(old.metadata.jobId!==jobId||old.metadata.paymentId!==payment.id||old.amount!==money.clientAmountMinor||old.currency!==money.stripeCurrency||old.capture_method!=='manual'||old.amount_received!==0||!['requires_capture','canceled'].includes(old.status)||(old.status==='requires_capture'&&old.amount_capturable!==old.amount))fail('Autorizarea existentă necesită verificare.');
   row=db.transaction(()=>{
    const current=owner(db,userId,jobId,requestId);eligible(db,current.job,current.request);
    const latest=currentPayment(db,current.job);
@@ -76,7 +83,7 @@ export async function rescheduleAuthorization(db:Database,stripe:Stripe,userId:s
    if(db.prepare("SELECT 1 FROM reschedule_authorizations WHERE job_id=? AND state='applied' AND cleanup_status='pending'").get(jobId))fail('Eliberarea autorizării precedente este încă în curs.');
    // Reuse the card chosen for this job. No card number is handled by the application.
    const card=authorizationCard(db,jobId);
-   const params:Stripe.PaymentIntentCreateParams={amount:payment.amount_gross*100,currency:'ron',capture_method:'manual',customer:card.customerId,payment_method:card.paymentMethodId,confirm:false,metadata:{jobId,paymentId:payment.id,rescheduleRequestId:requestId,pricingSource:'server'}};
+   const params:Stripe.PaymentIntentCreateParams={amount:money.clientAmountMinor,currency:money.stripeCurrency,capture_method:'manual',customer:card.customerId,payment_method:card.paymentMethodId,confirm:false,metadata:{jobId,paymentId:payment.id,rescheduleRequestId:requestId,pricingSource:'server'}};
    const now=Date.now();
    db.prepare(`INSERT INTO reschedule_authorizations(request_id,job_id,payment_id,old_intent_id,old_payment_json,old_attempt_json,params_json,provider_key_hash,created_ms,expires_ms) VALUES(?,?,?,?,?,?,?,?,?,?)`).run(requestId,jobId,payment.id,payment.stripe_payment_intent_id,JSON.stringify(payment),JSON.stringify(attempt),JSON.stringify(params),keyHash(),now,now+30*60000);
    const created=read(db,requestId)!;audit(db,created,'RESCHEDULE_AUTHORIZATION_CONSENT');return created;
@@ -88,7 +95,7 @@ export async function rescheduleAuthorization(db:Database,stripe:Stripe,userId:s
   fail('Sesiunea de autorizare a expirat. Retrage propunerea și creează una nouă.');
  }
  if(!row.new_intent_id){
-  if(action!=='begin')return {status:'consent_required' as const,amountMinor:paramsOf(row).amount,scheduledAt:request.proposed_at};
+  if(action!=='begin')return {...currencyField(row),status:'consent_required' as const,amountMinor:paramsOf(row).amount,scheduledAt:request.proposed_at};
   // Never confirm here: an unknown create outcome cannot put a hold on the card.
   // Retrying uses immutable parameters and the same key, within the 30-minute session.
   const intent=await stripe.paymentIntents.create(paramsOf(row),{idempotencyKey:`nitido-reschedule-${requestId}`});
@@ -100,13 +107,13 @@ export async function rescheduleAuthorization(db:Database,stripe:Stripe,userId:s
  const intent=await stripe.paymentIntents.retrieve(row.new_intent_id!,{expand:['latest_charge']});
  matches(row,intent,'new');
  const state=read(db,requestId)!;
- if(state.state==='applied')return {status:'authorized' as const,amountMinor:paramsOf(row).amount,scheduledAt:request.proposed_at,cleanupPending:state.cleanup_status!=='done'};
+ if(state.state==='applied')return {...currencyField(row),status:'authorized' as const,amountMinor:paramsOf(row).amount,scheduledAt:request.proposed_at,cleanupPending:state.cleanup_status!=='done'};
  const latest=owner(db,userId,jobId,requestId);eligible(db,latest.job,latest.request);
  if(read(db,requestId)?.state!=='open'||Date.now()>=row.expires_ms)fail('Sesiunea a fost închisă. Revino la rezervare.');
  if(intent.status==='requires_capture'){
   await finishRescheduleAuthorization(db,stripe,row,intent);
   const applied=read(db,requestId)!;
-  return {status:'authorized' as const,amountMinor:paramsOf(row).amount,scheduledAt:request.proposed_at,cleanupPending:applied.cleanup_status!=='done'};
+  return {...currencyField(row),status:'authorized' as const,amountMinor:paramsOf(row).amount,scheduledAt:request.proposed_at,cleanupPending:applied.cleanup_status!=='done'};
  }
  return {...clientState(row,intent),scheduledAt:request.proposed_at};
 }
@@ -126,12 +133,12 @@ async function finishRescheduleAuthorization(db:Database,stripe:Stripe,row:Repla
    const fresh=read(db,row.request_id)!;if(fresh.state==='applied')return;
    if(fresh.state!=='open'||fresh.new_intent_id!==intent.id||Date.now()>=fresh.expires_ms)fail('Sesiunea a expirat sau a fost închisă.');
    const {job,request:current}=owner(db,request.client_id,row.job_id,row.request_id);eligible(db,job,current);
-   const {payment,attempt}=currentPayment(db,job);
-   if(payment.id!==row.payment_id||payment.stripe_payment_intent_id!==row.old_intent_id||attempt.stripe_payment_intent_id!==row.old_intent_id||payment.amount_gross*100!==intent.amount)fail('Plata rezervării s-a schimbat.');
+   const {payment,attempt,money}=currentPayment(db,job);
+   if(payment.id!==row.payment_id||payment.stripe_payment_intent_id!==row.old_intent_id||attempt.stripe_payment_intent_id!==row.old_intent_id||money.clientAmountMinor!==intent.amount)fail('Plata rezervării s-a schimbat.');
    const end=Date.parse(current.proposed_at)+(job.duration_minutes+job.buffer_minutes)*60000;
    if(intent.status!=='requires_capture'||intent.amount_capturable!==intent.amount||!expiry||expiry*1000<=end)fail('Noua autorizare nu acoperă durata lucrării. Alege alt interval.');
    applyConfirmedReschedule(db,job,current);
-   db.prepare("UPDATE payments SET stripe_payment_intent_id=?,status='authorized',stripe_charge_id=NULL,stripe_fee_amount=NULL WHERE id=? AND stripe_payment_intent_id=?").run(intent.id,payment.id,row.old_intent_id);
+   db.prepare("UPDATE payments SET stripe_payment_intent_id=?,status='authorized',stripe_charge_id=NULL,stripe_fee_amount=NULL,stripe_fee_currency=NULL WHERE id=? AND stripe_payment_intent_id=?").run(intent.id,payment.id,row.old_intent_id);
    db.prepare("UPDATE payment_authorization_attempts SET request_json=?,provider_key_hash=?,created_ms=?,stripe_payment_intent_id=?,status='requires_capture' WHERE job_id=? AND stripe_payment_intent_id=?").run(row.params_json,row.provider_key_hash,row.created_ms,intent.id,row.job_id,row.old_intent_id);
    db.prepare("UPDATE job_reschedule_requests SET status='accepted',resolved_at=? WHERE id=? AND status='pending'").run(new Date().toISOString(),row.request_id);
    db.prepare("UPDATE reschedule_authorizations SET state='applied',applied_at=?,retry_after_ms=0,last_error=NULL WHERE request_id=? AND state='open'").run(new Date().toISOString(),row.request_id);
@@ -162,15 +169,22 @@ export async function cleanupRescheduleAuthorization(db:Database,stripe:Stripe,r
  // An unknown create outcome was never confirmed. Keep it recorded for support;
  // never recreate it from a background job after its idempotency window.
  if(!intentId)return;
- try{
+ const releaseStillUnused=()=>{
+  const fresh=read(db,requestId);
+  if(!fresh||fresh.state!==row!.state||fresh.old_intent_id!==row!.old_intent_id||fresh.new_intent_id!==row!.new_intent_id||fresh.cleanup_status!=='pending')fail('Eliberarea autorizării a fost modificată între timp.');
   if(db.prepare('SELECT 1 FROM payments WHERE stripe_payment_intent_id=?').get(intentId))fail('Autorizarea este încă folosită de o rezervare.');
+ };
+ try{
+  releaseStillUnused();
   let intent=await stripe.paymentIntents.retrieve(intentId);matches(row,intent,which);
   if(intent.status!=='canceled'){
    if(!['requires_capture','requires_confirmation','requires_action','requires_payment_method'].includes(intent.status))fail('Eliberarea autorizării nu a fost confirmată.');
+   releaseStillUnused();
    intent=await stripe.paymentIntents.cancel(intentId,{}, {idempotencyKey:`nitido-reschedule-release-${requestId}-${which}`});
   }
   matches(row,intent,which);if(intent.status!=='canceled')fail('Eliberarea autorizării nu a fost confirmată.');
   db.transaction(()=>{
+   releaseStillUnused();
    const changed=db.prepare("UPDATE reschedule_authorizations SET cleanup_status='done',state=CASE WHEN state='applied' THEN state ELSE 'aborted' END,last_error=NULL WHERE request_id=? AND cleanup_status='pending'").run(requestId).changes;
    if(changed)audit(db,row!,which==='old'?'RESCHEDULE_OLD_AUTHORIZATION_RELEASED':'RESCHEDULE_UNUSED_AUTHORIZATION_RELEASED');
   }).immediate();

@@ -9,7 +9,7 @@ import { JobRow } from "@/lib/types";
 import { getCurrentUser } from "@/lib/auth";
 import { clientCanReadJob, firmCanReadFullJob } from "@/lib/authorization";
 import { canPreviewOpportunity } from "@/lib/opportunityEligibility";
-import { calcNetForFirm } from "@/lib/pricing";
+import {currencyOfJob,firmAmountForJob,serializeJobCurrency} from "@/lib/jobCurrency";
 import { jobExecutionRules, jobPhotoRules } from "@/lib/executionTemplates";
 
 export async function GET(
@@ -29,7 +29,7 @@ export async function GET(
   if (!authorized) {
     const canPreview=Boolean(user.role==="firma"&&firm&&canPreviewOpportunity(db,firm.id,job));
     if(!canPreview) return NextResponse.json({ error: "Acces interzis" }, { status: 403 });
-    return NextResponse.json({job:{id:job.id,city:job.city,sqm:job.sqm,space_type:job.space_type,scheduled_at:job.scheduled_at,firm_payout:calcNetForFirm(job.price_gross),duration_minutes:job.duration_minutes,status:job.status,created_at:job.created_at}});
+    return NextResponse.json({job:{id:job.id,city:job.city,sqm:job.sqm,space_type:job.space_type,scheduled_at:job.scheduled_at,currency:currencyOfJob(job),firm_payout:firmAmountForJob(job),duration_minutes:job.duration_minutes,status:job.status,created_at:job.created_at}});
   }
 
   let firmName: string | null = null;
@@ -47,9 +47,11 @@ export async function GET(
       AND EXISTS(SELECT 1 FROM payments p WHERE p.job_id=ratings.job_id AND p.status='captured')
       AND EXISTS(SELECT 1 FROM job_photos p WHERE p.job_id=ratings.job_id AND p.uploaded_by_firm_id=ratings.firm_id AND p.proof_type='ARRIVAL' AND p.status='VALID' AND p.validated_at IS NOT NULL)
       AND EXISTS(SELECT 1 FROM job_photos p WHERE p.job_id=ratings.job_id AND p.uploaded_by_firm_id=ratings.firm_id AND p.proof_type='COMPLETION' AND p.status='VALID' AND p.validated_at IS NOT NULL)`).get(id,user.id) as {rating:number;reviewText:string|null}|undefined:undefined;
-  const payment=db.prepare("SELECT status paymentStatus,amount_net firmPayout,transfer_status transferStatus,payout_status payoutStatus,refund_status refundStatus,dispute_status disputeStatus FROM payments WHERE job_id=?").get(id) as {paymentStatus:string;firmPayout:number;transferStatus:string;payoutStatus:string;refundStatus:string;disputeStatus:string}|undefined;
+  const payment=db.prepare("SELECT payments.*,status paymentStatus,amount_net firmPayout,transfer_status transferStatus,payout_status payoutStatus,refund_status refundStatus,dispute_status disputeStatus FROM payments WHERE job_id=?").get(id) as {paymentStatus:string;firmPayout:number|null;currency?:string;amount_net_minor?:number|null;transferStatus:string;payoutStatus:string;refundStatus:string;disputeStatus:string}|undefined;
+  if(payment&&currencyOfJob(job)==='EUR')payment.firmPayout=payment.currency==='EUR'&&Number.isSafeInteger(payment.amount_net_minor)&&payment.amount_net_minor!>=0?payment.amount_net_minor!/100:null;
+  if(payment&&currencyOfJob(job)!=='EUR'&&(currencyOfJob(job)!=='RON'||payment.currency&&payment.currency!=='RON'))payment.firmPayout=null;
   const photos=db.prepare("SELECT id FROM job_photos WHERE job_id=? AND status='VALID' AND (proof_type='CLIENT_CONTEXT' OR (uploaded_by_firm_id=? AND validated_at IS NOT NULL))").all(id,job.accepted_firm_id) as {id:string}[];
   const proofs=db.prepare("SELECT id,proof_type type,created_at createdAt FROM job_photos WHERE job_id=? AND uploaded_by_firm_id=? AND proof_type IN ('ARRIVAL','COMPLETION') AND status='VALID' AND validated_at IS NOT NULL").all(id,job.accepted_firm_id) as {id:string;type:"ARRIVAL"|"COMPLETION";createdAt:string}[];
   const safeFinancial=payment?{paymentStatus:payment.paymentStatus,transferStatus:payment.transferStatus,payoutStatus:payment.payoutStatus,refundStatus:payment.refundStatus,disputeStatus:payment.disputeStatus,...(user.role==="firma"?{firmPayout:payment.firmPayout}:{})}:null;
-  return NextResponse.json({ job:{flexible:flexibleContext(db,id),...(user.role==="firma"?firmJobView(job):job),...(user.role==="client"?{for_family:hasBeneficiary(db,id),week_slot:!!openingRequest(db,id),selectionRecovery:selectionRecoveryState(db,id,user.id)}:{}),photoRules:jobPhotoRules(db,id),executionRules:jobExecutionRules(db,id),photos:photos.map(photo=>`/api/uploads/${photo.id}`),proofs:proofs.map(proof=>({...proof,url:`/api/uploads/${proof.id}`})),ownReview:ownReview?{...ownReview,badge:"Recenzie verificată"}:null,financial:safeFinancial,...(user.role==="firma"&&payment?{firm_payout:payment.firmPayout}:{})}, firmName }, {headers:{'Cache-Control':'private, no-store'}});
+  return NextResponse.json({ job:{flexible:flexibleContext(db,id),...(user.role==="firma"?firmJobView(job):serializeJobCurrency(job)),...(user.role==="client"?{for_family:hasBeneficiary(db,id),week_slot:!!openingRequest(db,id),selectionRecovery:selectionRecoveryState(db,id,user.id)}:{}),photoRules:jobPhotoRules(db,id),executionRules:jobExecutionRules(db,id),photos:photos.map(photo=>`/api/uploads/${photo.id}`),proofs:proofs.map(proof=>({...proof,url:`/api/uploads/${proof.id}`})),ownReview:ownReview?{...ownReview,badge:"Recenzie verificată"}:null,financial:safeFinancial,...(user.role==="firma"&&payment?{firm_payout:payment.firmPayout}:user.role==="firma"&&currencyOfJob(job)==="EUR"?{firm_payout:firmAmountForJob(job)}:{})}, firmName }, {headers:{'Cache-Control':'private, no-store'}});
 }

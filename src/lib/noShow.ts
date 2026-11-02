@@ -1,3 +1,4 @@
+import {currencyOfJob} from './jobCurrency';
 import {freezeExecutionRules} from '@/lib/executionTemplates';
 import type { Database } from "better-sqlite3";
 import { newId } from "@/lib/db";
@@ -29,6 +30,8 @@ export async function markNoShow(
       status: 409,
     };
   }
+
+  if(repost && currencyOfJob(job)!=='RON') return {ok:false,error:'Republicarea internațională necesită o ofertă nouă și reconfirmarea intervalului.',status:422};
 
   const firmId = job.accepted_firm_id;
 

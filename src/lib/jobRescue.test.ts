@@ -7,6 +7,7 @@ import { rescueAcceptedJob } from "./jobRescue";
 function makeTestDb(): Database {
   const db = new DatabaseCtor(":memory:");
   db.exec(SCHEMA_SQL);
+  db.exec("ALTER TABLE jobs ADD COLUMN pricing_snapshot TEXT");
   return db;
 }
 
@@ -59,6 +60,22 @@ describe("jobRescue — Job Rescue (repunere automată la renunțare)", () => {
     if (!r.ok) return;
     const nj = db.prepare("SELECT mode FROM jobs WHERE id = ?").get(r.newJobId) as { mode: string };
     expect(nj.mode).toBe("express");
+  });
+
+  it.each([
+    ["EUR", JSON.stringify({currency:"EUR",countryCode:"DE",city:"Berlin",tariffId:"synthetic-test-only",revision:1,recordedAt:"2026-11-02T10:00:00Z",netMinor:55000,vatMinor:0,vatBps:0,grossMinor:55000,clientTotalMinor:55000,creditMinor:0,durationMinutes:180,workers:1,personMinutes:180,lines:[{code:"cleaning",amountMinor:55000},{code:"vat",amountMinor:0}]})],
+    ["invalidă", "{broken"],
+  ])("nu anulează sau clonează o lucrare cu monedă %s", async (_currency, snapshot) => {
+    seedAccepted(db, "job_foreign", "standard");
+    db.prepare("UPDATE jobs SET pricing_snapshot=? WHERE id='job_foreign'").run(snapshot);
+    // Any accidental write fails before touching the original or its authorized hold.
+    db.exec("CREATE TRIGGER forbid_rescue_write BEFORE UPDATE ON jobs BEGIN SELECT RAISE(ABORT,'Unexpected job mutation'); END");
+    db.exec("CREATE TRIGGER forbid_rescue_clone BEFORE INSERT ON jobs BEGIN SELECT RAISE(ABORT,'Unexpected job clone'); END");
+    db.exec("CREATE TRIGGER forbid_rescue_payment BEFORE UPDATE ON payments BEGIN SELECT RAISE(ABORT,'Unexpected payment mutation'); END");
+    expect(await rescueAcceptedJob(db,"job_foreign","firm_1")).toMatchObject({ok:false,status:422});
+    expect(db.prepare("SELECT status FROM jobs WHERE id='job_foreign'").get()).toEqual({status:"accepted"});
+    expect(db.prepare("SELECT status FROM payments WHERE job_id='job_foreign'").get()).toEqual({status:"authorized"});
+    expect(db.prepare("SELECT COUNT(*) AS count FROM jobs").get()).toEqual({count:1});
   });
 
   it("respinge dacă lucrarea nu e a firmei (403)", async () => {

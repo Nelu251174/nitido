@@ -7,15 +7,18 @@ import { firmAvailabilityError } from './firmAvailability';
 import { checkAssistedTeam, jobAssistedOperation } from './assistedOperations';
 import { MarginError } from './operationalMargin';
 import {supplementAcceptanceError} from './supplementBooking';
+import {providerMarketError} from './publishedPrice';
 
 /** Read-only preview gate. Acceptance must still recheck inside its writer transaction. */
 export function canPreviewOpportunity(db: Database, firmId: string, job: JobRow): boolean {
   if (job.status !== 'waiting') return false;
   if (supplementAcceptanceError(db,job.id,firmId))return false;
-  const firm = db.prepare('SELECT verified,suspended_until,coverage_city,coverage_cities_extra FROM firms WHERE id=?').get(firmId) as {
+  const firm = db.prepare('SELECT * FROM firms WHERE id=?').get(firmId) as {
     verified: number; suspended_until: string | null; coverage_city: string; coverage_cities_extra: string | null;
+    stripe_identity_country?:string|null;stripe_default_currency?:string|null;stripe_account_id?:string|null;stripe_account_status?:string;stripe_transfers_capability?:string;
   } | undefined;
   if (!firm?.verified || !firmCoversCity(firm.coverage_city, firm.coverage_cities_extra, job.city)) return false;
+  if(providerMarketError(job,firm,true,db))return false;
   if (firm.suspended_until && (!Number.isFinite(Date.parse(firm.suspended_until)) || Date.parse(firm.suspended_until) > Date.now())) return false;
   try{validateOpeningConfirmation(db,job.id,firmId);}catch(e){if(e instanceof AvailabilityError)return false;throw e;}
   if(flexiblePreference(db,job.id))return hasFlexibleCapacity(db,job.id,firmId);

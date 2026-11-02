@@ -6,10 +6,11 @@ import {rescheduleHistory,proposeReschedule,decideReschedule} from '@/lib/resche
 import {WorkspaceError} from '@/lib/workspace';
 import Stripe from 'stripe';
 import {cleanupRescheduleAuthorization} from '@/lib/rescheduleAuthorization';
+import {jobScheduleContext} from '@/lib/jobCurrency';
 const reply=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{'Cache-Control':'private, no-store'}});
 export async function GET(req:NextRequest,{params}:{params:Promise<{id:string}>}){
  const user=await getCurrentUser(req);if(!user)return reply({error:'Autentificare necesară'},401);
- try{return reply({requests:rescheduleHistory(db,(await params).id,user)})}catch(error){return reply({error:error instanceof WorkspaceError?error.message:'Date indisponibile'},error instanceof WorkspaceError?error.status:503)}
+ try{const id=(await params).id,requests=rescheduleHistory(db,id,user);const job=db.prepare('SELECT pricing_snapshot FROM jobs WHERE id=?').get(id) as {pricing_snapshot:string|null};const schedule=jobScheduleContext(job.pricing_snapshot);if(!schedule)return reply({error:'Fusul orar al lucrării nu poate fi verificat.'},409);return reply({requests,...schedule})}catch(error){return reply({error:error instanceof WorkspaceError?error.message:'Date indisponibile'},error instanceof WorkspaceError?error.status:503)}
 }
 export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>}){
  const user=await getCurrentUser(req);if(!user)return reply({error:'Autentificare necesară'},401);
