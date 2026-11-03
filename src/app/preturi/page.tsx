@@ -1,4 +1,9 @@
 import Link from 'next/link';
+import {headers} from 'next/headers';
+import {internationalPricingEnabled} from '@/lib/internationalRollout';
+import {internationalBookingHref,internationalInitialCountry} from '@/lib/bookingEntry';
+import {visitorCountry} from '@/lib/visitorCountry';
+import {INTERNATIONAL_MARKETS} from '@/lib/internationalTariffs';
 import {CLEANING_SCOPE,CLEANING_DESCRIPTION,CLEANING_EXCLUSIONS,MAINTENANCE_TIERS,MAINTENANCE_RATES,MAINTENANCE_MINIMUMS,MAINTENANCE_OVERFLOW_RATE_LEI} from '@/lib/cleaningTypes';
 import {UiText} from '@/components/UiText';
 import {UiTemplate} from '@/components/UiText';
@@ -7,7 +12,22 @@ import {publicPageMetadata} from '@/lib/publicSeo';
 import {InformationPage} from '@/components/InformationPage';
 import {APARTMENT_TIERS,APARTMENT_OVERFLOW_RATE_LEI,EXTRA_BATHROOM_FEE_LEI,PER_SQM_RATES,MINIMUM_PRICES,WINDOWS_RATE_LEI,calcGrossPrice,calcWindowsPrice} from '@/lib/pricing';
 const sourceMetadata=publicPageMetadata('/preturi');
-export default function Page(){return <InformationPage eyebrow="PREȚURI NITIDO" title="Știi cât plătești înainte să rezervi." intro={<UiTemplate text={"Calculăm curățenia după tipul spațiului și suprafață. Numărul camerelor nu adaugă o taxă separată. O baie și o bucătărie sunt incluse; fiecare baie suplimentară costă {p0} lei. Spălarea geamurilor este opțională și se plătește separat."} values={[EXTRA_BATHROOM_FEE_LEI]}/>} cta={{label:'Configurează curățenia',href:'/rezervare'}} sections={[
+export const dynamic='force-dynamic';
+export default async function Page({searchParams}:{searchParams?:Promise<Record<string,string|string[]|undefined>>}={}){
+ const internationalEnabled=internationalPricingEnabled();
+ if(internationalEnabled){
+  const query=await searchParams??{},country=visitorCountry(await headers());
+  const wantsRomania=typeof query.countryCode==='string'&&query.countryCode.trim().toUpperCase()==='RO';
+  if(!wantsRomania&&(query.countryCode!==undefined||country&&country!=='RO')){
+   const selected=internationalInitialCountry(query.countryCode,country),market=INTERNATIONAL_MARKETS.find(x=>x.countryCode===selected);
+   return <InformationPage eyebrow="PREȚURI NITIDO" title="Un preț local, nu o simplă conversie." intro="Alegi unde se face curățenia. Prețul și moneda sunt stabilite pentru țara lucrării, indiferent de limba site-ului." cta={{label:'Configurează curățenia',href:internationalBookingHref(selected)}} sections={[
+    {title:'Țara lucrării',paragraphs:[market?.name??'Alege țara','Țara conexiunii este doar o sugestie. Confirmă adresa lucrării.']},
+    {title:'Înainte să poți rezerva',items:['Tarif local verificat și aprobat','TVA, produse și deplasare precizate','Echipă și minimum de timp confirmate','Suma și moneda debitate afișate clar'],paragraphs:['Dacă tariful local nu este aprobat sau datele sunt incomplete, nu afișăm un preț și nu permitem rezervarea.']},
+    {title:'Pentru o lucrare în România, folosește oferta existentă.',paragraphs:[<Link key="romania" href="/preturi?countryCode=RO"><UiText text="Prețuri"/></Link>]}
+   ]}/>;
+  }
+ }
+ return <InformationPage eyebrow="PREȚURI NITIDO" title="Știi cât plătești înainte să rezervi." intro={<UiTemplate text={"Calculăm curățenia după tipul spațiului și suprafață. Numărul camerelor nu adaugă o taxă separată. O baie și o bucătărie sunt incluse; fiecare baie suplimentară costă {p0} lei. Spălarea geamurilor este opțională și se plătește separat."} values={[EXTRA_BATHROOM_FEE_LEI]}/>} cta={{label:'Configurează curățenia',href:internationalEnabled?'/rezervare?countryCode=RO':'/rezervare'}} sections={[
  {title:'Tipul curățeniei',paragraphs:[<span key="types"><Link href="/rezervare?cleaningType=maintenance"><UiText text="Întreținere"/></Link> · <Link href="/rezervare?cleaningType=general"><UiText text="Curățenie generală"/></Link> · <Link href="/rezervare?cleaningType=renovation"><UiText text="După constructor / renovare"/></Link></span>]},
  {title:'Întreținere',paragraphs:[CLEANING_DESCRIPTION.maintenance,CLEANING_EXCLUSIONS.maintenance],items:[...MAINTENANCE_TIERS.map((t,i)=><UiTemplate key={t.max} text="{p0}–{p1} m²: {p2} lei" values={[i?MAINTENANCE_TIERS[i-1].max+1:1,t.max,t.price]}/>),<UiTemplate key="overflow" text="Peste 100 m²: {p0} lei + {p1} lei pentru fiecare m² suplimentar." values={[MAINTENANCE_TIERS.at(-1)!.price,MAINTENANCE_OVERFLOW_RATE_LEI.toFixed(2).replace('.',',')]}/>,<UiTemplate key="house" text="Casă / vilă: {p0} lei/m², minimum {p1} lei/intervenție." values={[MAINTENANCE_RATES.casa,MAINTENANCE_MINIMUMS.casa]}/>,<UiTemplate key="office" text="Birou: {p0} lei/m², minimum {p1} lei/intervenție." values={[MAINTENANCE_RATES.birou,MAINTENANCE_MINIMUMS.birou]}/>,<UiTemplate key="other" text="Alte spații obișnuite: {p0} lei/m², minimum {p1} lei/intervenție." values={[MAINTENANCE_RATES.altul,MAINTENANCE_MINIMUMS.altul]}/>,...CLEANING_SCOPE.maintenance.map(item=>item.label)]},
  {title:'După constructor / renovare',paragraphs:[CLEANING_DESCRIPTION.renovation,'Nu se calculează un preț final și nu se autorizează cardul la trimiterea acestei cereri.',<Link key="assessment" href="/rezervare?cleaningType=renovation"><UiText text="Solicită evaluare"/></Link>]},
