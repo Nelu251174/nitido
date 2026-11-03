@@ -1,5 +1,7 @@
 # Confirmation email diagnosis
 
+> Current access and diagnostic execution/cleanup evidence is recorded in `release-resolution-2026-11-03.md`. The historical access observations below predate the authenticated Coolify browser and the successfully executed short diagnostic. No sanitized LIVE result or mailbox-delivery proof was obtained.
+
 The LIVE delivery cause is still unconfirmed. This change provides evidence for a future diagnosis; an isolated passing test is not proof of Gmail reception.
 
 ## Recorded evidence
