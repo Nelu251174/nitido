@@ -1,6 +1,6 @@
 # Payment validation — isolated review, 3 November 2026
 
-The available Stripe connection exposes one NÍTIDO account in **LIVE mode** and no authorized sandbox/test context. No account-specific API operation, provider write, sandbox provisioning, customer access or bank-record access was performed. The real Stripe end-to-end release gate remains open.
+The available Stripe connection now exposes one NÍTIDO **LIVE** context and two authorized **TEST** contexts. Rechecking access on 3 November still did not expose PaymentIntent creation/capture operations, and the documented v2 sandbox-account configuration read returned permission denied. The browser profile shows a Stripe sign-in page, while the isolated CLI has no authenticated TEST credential. These are execution/access gaps, not proof that the platform's payments are broken. No financial operation, sandbox provisioning, customer access or bank-record access was performed. The real Stripe end-to-end release gate remains open.
 
 ## New integrated proof
 
@@ -24,7 +24,7 @@ This is an explicit release-validation gap, **not a demonstrated LIVE outage or 
 
 ## Next authorized sandbox run
 
-Use an existing, explicitly authorized NÍTIDO sandbox context with `livemode=false` and separate sandbox credentials/bindings. Keep email, SMS and push delivery disabled, use only synthetic people/providers/cards, and verify the account country/currency and recipient capabilities. Do not switch to the LIVE context or create a new account to work around missing access.
+Use an existing, explicitly authorized NÍTIDO sandbox context with `livemode=false` and a working, restricted TEST credential/binding or authenticated Dashboard session. Authorization is already given; do not request the same approval again. Keep email, SMS and push delivery disabled, use only synthetic people/providers/cards, and verify the account country/currency and recipient capabilities. Confirm that the test environment belongs to the actual NÍTIDO integration before attributing results to LIVE. Do not switch to the LIVE context or create a new account to work around missing access.
 
 Validate actual request acceptance and 3DS, provider `capture_before` against the work/buffer, replay after uncertain responses, full refund and reversal, and webhook signature/delivery recovery. For the Romanian case, inspect the original charge currency and its balance-transaction currency separately before testing source-linked transfers. Use actual processor conversion evidence when available; do not substitute the website's BNR display rate. Even a sandbox payout marked paid does not establish settlement in the real EUR bank account.
 

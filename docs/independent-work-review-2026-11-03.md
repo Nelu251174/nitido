@@ -1,5 +1,7 @@
 # Independent completion review — 3 November 2026
 
+> Historical review snapshot. Its test totals and account-access observations predate the shared web/mobile integration and GPS work. The current runtime candidate is documented in `international-location-2026-11-03.md`; current Stripe access limitations are documented in `payment-validation-2026-11-03.md`. Two TEST contexts are now authorized, although the required processor operations/configuration read are still unavailable. This snapshot does not approve tariffs or certify a LIVE release.
+
 This extends draft PR 182 without deployment or changes to LIVE. Romanian tariff configuration and existing financial production modules are unchanged in this round.
 
 ## Work completed
