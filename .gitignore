@@ -9,6 +9,7 @@ data/
 src/data/*
 !src/data/internationalResearchReview.json
 !src/data/internationalMarketScope.json
+!src/data/internationalLocationAliases.json
 public/uploads/
 *.log
 .env

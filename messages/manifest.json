@@ -14,8 +14,8 @@
   ],
   "targetLanguages": 24,
   "sourceLanguage": "ro",
-  "sourceMessages": 5765,
-  "sourceHash": "3f42ae0854079574d455ddf50170bcc2592bf12daab793441a0dc4c638ca5d9e",
+  "sourceMessages": 5766,
+  "sourceHash": "89c03083487b7669ba956d7d1cdd7f02af7aef39f878f015d45af254cb0124d1",
   "provider": "OpenAI",
   "model": "gpt-5.4-mini",
   "review": "machine translation; specialist legal review pending",
@@ -47,6 +47,11 @@
       "messages": 326,
       "scope": "International tariff review and booking controls; honest email confirmation status; existing released-language list preserved",
       "review": "Offline agent-prepared translations; specialist review pending"
+    },
+    "internationalLocation20261103": {
+      "messages": 1,
+      "scope": "Confirmation of a user-selected GPS location; existing translations preserved",
+      "review": "assistant-prepared translations"
     }
   }
 }
