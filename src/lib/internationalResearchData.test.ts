@@ -87,6 +87,8 @@ describe('international public research evidence', () => {
     expect(serialized).not.toMatch(/COOLIFY_TOKEN|RESEND_API_KEY|STRIPE_SECRET_KEY/);
   });
   it('keeps all displayed counts consistent and excludes unrelated numeric services',()=>{
+    expect(manifest.scope.currentSourceRecords).toBe(manifestJson.researchRound.sourceRecords);
+    expect(manifest.scope.currentSourceRecords).toBe(manifestJson.totals.currentRoundSourceRecords);
     const relevant=(source:typeof sources[number])=>source.read&&source.ownPublishedPrice&&source.wholePropertyEvidenceEligible;
     for(const city of cities){expect(city.publishedCount).toBe(city.sources.filter(relevant).length);expect(city.ownPriceSourceCount).toBe(city.publishedCount);}
     expect(manifest.totals.sourceAssignments).toBe(sources.length);

@@ -1,5 +1,7 @@
 # International pricing: isolated release review, 2 November 2026
 
+> Historical snapshot for 2 November. Its counts and test totals are superseded by [the 3 November independent review](independent-work-review-2026-11-03.md) and the final release verification. Do not use this snapshot as current release approval. No commercial tariff was approved by this document.
+
 This branch is a review candidate, not a LIVE release. Production source at the start of this work was `a91fcdcd78321a2560ad30663c8a95ee6c893201` on `codex/workspace-logo-fix-20261031`. The local starting tree was identical. No deployment, LIVE mutation, payment, booking, supplier outreach, email or push delivery was performed.
 
 ## Implemented and tested
