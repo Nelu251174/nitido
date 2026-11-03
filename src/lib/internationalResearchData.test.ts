@@ -74,8 +74,8 @@ describe('international public research evidence', () => {
   it('preserves the 10 worker-hour supplier minimum instead of pretending 2 workers for 3 hours suffice', () => {
     const example = sources.find(source => source.provider === 'C-Maxi Flyteam' && source.provenance.snapshot === 'current');
     expect(example).toBeDefined();
-    expect(example?.minimum).toMatchObject({ workerHours: 10 });
-    expect(example?.prices).toContainEqual(expect.objectContaining({ amount: 47.44, unit: 'hour per worker' }));
+    expect(example?.minimum).toMatchObject({ labourHours: 10, typicalWorkers: 2, typicalOnsiteHours: 5 });
+    expect(example?.prices).toContainEqual(expect.objectContaining({ amount: 47.44, unit: 'person_hour' }));
     expect(2 * 3).toBeLessThan(10);
     expect(example?.commercialReady).toBe(false);
   });
@@ -86,4 +86,14 @@ describe('international public research evidence', () => {
     expect(serialized).not.toMatch(/"(?:identity|rawEvidenceFile|rawFile|VATIdentifier|KvK|RCS|establishmentAuthorization)"\s*:/);
     expect(serialized).not.toMatch(/COOLIFY_TOKEN|RESEND_API_KEY|STRIPE_SECRET_KEY/);
   });
+  it('keeps all displayed counts consistent and excludes unrelated numeric services',()=>{
+    const relevant=(source:typeof sources[number])=>source.read&&source.ownPublishedPrice&&source.wholePropertyEvidenceEligible;
+    for(const city of cities){expect(city.publishedCount).toBe(city.sources.filter(relevant).length);expect(city.ownPriceSourceCount).toBe(city.publishedCount);}
+    expect(manifest.totals.sourceAssignments).toBe(sources.length);
+    expect(manifest.totals.sourceAssignmentsAfterURLDeduplication).toBe(sources.length);
+    expect(manifest.totals.citiesWithTwoOwnPublishedPriceSources).toBe(cities.filter(city=>city.publishedCount>=2).length);
+    expect(manifest.totals.citiesWithoutTwoOwnPublishedPriceSources).toBe(cities.filter(city=>city.publishedCount<2).length);
+    expect(manifest.totals.citiesWithTwoOwnPublishedPriceSources+manifest.totals.citiesWithoutTwoOwnPublishedPriceSources).toBe(78);
+  });
+
 });

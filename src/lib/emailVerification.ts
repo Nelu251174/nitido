@@ -3,7 +3,14 @@ import type {Database} from 'better-sqlite3';
 import {emailConfigured,emailSenderValid,emailFailure,sendEmailResult,type EmailResult} from './email';
 import {recordEmailDiagnostic} from './emailDeliveryDiagnostics';
 import {activeAccountSql} from './accountStatus';
-export const EMAIL_VERIFICATION_SCHEMA=`CREATE TABLE IF NOT EXISTS email_verifications(user_id TEXT PRIMARY KEY REFERENCES users(id),email TEXT NOT NULL,token_hash TEXT UNIQUE,expires_at INTEGER,verified_at INTEGER);`;
+export const EMAIL_VERIFICATION_SCHEMA=`
+CREATE TABLE IF NOT EXISTS email_verifications(user_id TEXT PRIMARY KEY REFERENCES users(id),email TEXT NOT NULL,token_hash TEXT UNIQUE,expires_at INTEGER,verified_at INTEGER);
+CREATE TABLE IF NOT EXISTS email_verification_send_leases(
+ user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+ lease_id TEXT NOT NULL,expires_at INTEGER NOT NULL
+);`;
+/** More than the shared eight-second provider deadline; a crashed sender cannot block forever. */
+export const EMAIL_VERIFICATION_SEND_LEASE_MS=30000;
 const hash=(token:string)=>createHash('sha256').update(token).digest('hex');
 export function emailIsVerified(db:Database,userId:string){return Boolean(db.prepare(`SELECT 1 FROM email_verifications v JOIN users u ON u.id=v.user_id WHERE u.id=? AND u.email=v.email AND v.verified_at IS NOT NULL AND ${activeAccountSql(db,'u.id')}`).get(userId))}
 export function issueEmailVerification(db:Database,userId:string,now=Date.now()){
@@ -26,26 +33,41 @@ export async function sendVerificationEmailResult(db:Database,userId:string):Pro
  if(!emailSenderValid())return finish(emailFailure('invalid_sender','configuration',correlationId));
  let base:URL;try{base=new URL(process.env.NEXT_PUBLIC_SITE_URL??'');if(base.protocol!=='https:'||base.username||base.password)return finish(emailFailure('invalid_site','site',correlationId))}catch{return finish(emailFailure('invalid_site','site',correlationId))}
  type Previous={email:string;token_hash:string|null;expires_at:number|null;verified_at:number|null};
- let previous:Previous|undefined;
- let issued:{token:string;email:string};
+ let prepared:{leaseId:string;previous:Previous|undefined;issued:{token:string;email:string}}|null;
  try{
-   previous=db.prepare('SELECT email,token_hash,expires_at,verified_at FROM email_verifications WHERE user_id=?').get(userId) as Previous|undefined;
-   issued=issueEmailVerification(db,userId);
+   // Claim and issue together. Never hold a writer transaction during provider I/O.
+   prepared=db.transaction(()=>{
+     const now=Date.now(),leaseId=randomUUID();
+     const claimed=db.prepare(`INSERT INTO email_verification_send_leases(user_id,lease_id,expires_at) VALUES(?,?,?)
+       ON CONFLICT(user_id) DO UPDATE SET lease_id=excluded.lease_id,expires_at=excluded.expires_at
+       WHERE email_verification_send_leases.expires_at<=?`).run(userId,leaseId,now+EMAIL_VERIFICATION_SEND_LEASE_MS,now);
+     if(claimed.changes!==1)return null;
+     const previous=db.prepare('SELECT email,token_hash,expires_at,verified_at FROM email_verifications WHERE user_id=?').get(userId) as Previous|undefined;
+     return {leaseId,previous,issued:issueEmailVerification(db,userId,now)};
+   }).immediate();
  }catch{return finish(emailFailure('token_issue_failed','verification',correlationId))}
- const {token,email}=issued;
- const url=new URL('/confirma-email',base.origin);url.hash=token;
- const result=await sendEmailResult({to:email,subject:'NITIDO — confirmă adresa de email',html:`<h1>Bine ai venit la NITIDO</h1><p>Confirmă adresa de email a contului tău. Linkul este valabil 24 de ore și poate fi folosit o singură dată.</p><p><a href="${url.href}">Confirmă adresa de email</a></p><p>Dacă nu ai creat acest cont, ignoră mesajul.</p>`,idempotencyKey:`verify-email/${hash(token)}`},{correlationId,retryTransient:true});
- if(!result.accepted){
-   // Restore only this failed attempt; never overwrite a newer token or confirmation.
-   try{db.transaction(()=>{
-     const current=db.prepare('SELECT token_hash,verified_at FROM email_verifications WHERE user_id=?').get(userId) as {token_hash:string|null;verified_at:number|null}|undefined;
-     if(!current||current.token_hash!==hash(token)||current.verified_at!==null)return;
-     if(previous&&previous.email===email){
-       db.prepare('UPDATE email_verifications SET email=?,token_hash=?,expires_at=?,verified_at=? WHERE user_id=?').run(previous.email,previous.token_hash,previous.expires_at,previous.verified_at,userId);
-     }else db.prepare('DELETE FROM email_verifications WHERE user_id=?').run(userId);
-   })()}catch{/* Diagnostic result still describes the failed send; never expose a database exception. */}
+ if(!prepared)return finish(emailFailure('verification_busy','verification',correlationId));
+ const {leaseId,previous,issued:{token,email}}=prepared;
+ try{
+   const url=new URL('/confirma-email',base.origin);url.hash=token;
+   const result=await sendEmailResult({to:email,subject:'NITIDO — confirmă adresa de email',html:`<h1>Bine ai venit la NITIDO</h1><p>Confirmă adresa de email a contului tău. Linkul este valabil 24 de ore și poate fi folosit o singură dată.</p><p><a href="${url.href}">Confirmă adresa de email</a></p><p>Dacă nu ai creat acest cont, ignoră mesajul.</p>`,idempotencyKey:`verify-email/${hash(token)}`},{correlationId,retryTransient:true});
+   if(!result.accepted){
+     // Restore only the leased attempt, never a newer attempt, confirmation or changed address.
+     try{db.transaction(()=>{
+       const lease=db.prepare('SELECT lease_id FROM email_verification_send_leases WHERE user_id=?').get(userId) as {lease_id:string}|undefined;
+       if(lease?.lease_id!==leaseId)return;
+       const current=db.prepare('SELECT token_hash,verified_at FROM email_verifications WHERE user_id=?').get(userId) as {token_hash:string|null;verified_at:number|null}|undefined;
+       if(!current||current.token_hash!==hash(token)||current.verified_at!==null)return;
+       const sameAccount=db.prepare(`SELECT 1 FROM users u WHERE u.id=? AND u.email=? AND ${activeAccountSql(db,'u.id')}`).get(userId,email);
+       if(previous&&previous.email===email&&sameAccount){
+         db.prepare('UPDATE email_verifications SET email=?,token_hash=?,expires_at=?,verified_at=? WHERE user_id=?').run(previous.email,previous.token_hash,previous.expires_at,previous.verified_at,userId);
+       }else db.prepare('DELETE FROM email_verifications WHERE user_id=?').run(userId);
+     }).immediate()}catch{/* Never expose database exception text or overwrite a later account state. */}
+   }
+   return finish(result);
+ }finally{
+   try{db.prepare('DELETE FROM email_verification_send_leases WHERE user_id=? AND lease_id=?').run(userId,leaseId)}catch{/* A crashed or interrupted send expires after the bounded lease. */}
  }
- return finish(result);
 }
 export async function sendVerificationEmail(db:Database,userId:string):Promise<boolean>{
  return (await sendVerificationEmailResult(db,userId)).accepted;

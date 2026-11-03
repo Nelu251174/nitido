@@ -4,7 +4,7 @@ export type EmailOptions = {to:string;subject:string;html:string;idempotencyKey?
 export type EmailResult = {
   accepted:boolean;
   stage:'configuration'|'site'|'verification'|'provider'|'transport';
-  category:'not_configured'|'invalid_sender'|'invalid_site'|'token_issue_failed'|'provider_accepted'|'provider_unauthorized'|'provider_forbidden'|'provider_rate_limited'|'provider_unavailable'|'provider_rejected'|'transport_timeout'|'transport_error';
+  category:'not_configured'|'invalid_sender'|'invalid_site'|'token_issue_failed'|'verification_busy'|'provider_accepted'|'provider_unauthorized'|'provider_forbidden'|'provider_rate_limited'|'provider_unavailable'|'provider_rejected'|'transport_timeout'|'transport_error';
   correlationId:string;
   httpStatus:number|null;
   messageId:string|null;

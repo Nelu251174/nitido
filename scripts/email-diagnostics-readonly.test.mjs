@@ -32,3 +32,26 @@ test('provider diagnosis issues only bounded GETs and emits whitelisted domain/e
 test('a send-only credential lacking GET permission is not misreported as invalid sending configuration',async()=>{
  const result=await senderDomainReadOnly({RESEND_API_KEY:'fixture',RESEND_FROM:'mail@example.test'},async()=>new Response('PRIVATE_ERROR',{status:403}));assert.deepEqual(result,{available:false,httpStatus:403,reason:'read_permission_unavailable'});
 });
+
+test('malformed fixture rows cannot expose or crash redacted diagnostics',()=>{
+ const data=redactEmailMetadata({records:[null,undefined,'PRIVATE_STRING',[],42,{stage:'verification',category:'verification_busy',attempts:0}]});
+ assert.equal(data.records.length,6);assert.equal(data.records[5].category,'verification_busy');assert.doesNotMatch(JSON.stringify(data),/PRIVATE/);
+});
+test('existing pre-diagnostic schema yields safe account and verification states without reading secret values',async()=>{
+ const dir=mkdtempSync(join(tmpdir(),'nitido-email-state-')),database=join(dir,'synthetic.db');
+ const Database=createRequire(import.meta.url)('better-sqlite3');const db=new Database(database),now=Date.now();
+ try{
+  db.exec('CREATE TABLE users(id TEXT PRIMARY KEY,role TEXT,email TEXT);CREATE TABLE email_verifications(user_id TEXT PRIMARY KEY,email TEXT,token_hash TEXT,expires_at INTEGER,verified_at INTEGER);CREATE TABLE admin_removed_accounts(user_id TEXT PRIMARY KEY);CREATE TABLE email_verification_send_leases(user_id TEXT PRIMARY KEY,lease_id TEXT,expires_at INTEGER)');
+  db.prepare('INSERT INTO users VALUES(?,?,?)').run('opaque-user','client','PRIVATE_RECIPIENT@example.test');
+  const inspect=()=>runEmailDiagnosis(['--database',database,'--user-id','opaque-user'],{env:{},transport:()=>{throw Error('Network forbidden')}});
+  let r=await inspect();assert.equal(r.schemaAvailable,false);assert.equal(r.accountState.linkState,'not_issued');
+  db.prepare('INSERT INTO email_verifications VALUES(?,?,?,?,?)').run('opaque-user','PRIVATE_RECIPIENT@example.test','PRIVATE_HASH',now+60000,null);
+  r=await inspect();assert.equal(r.accountState.linkState,'valid_unexpired');assert.equal(r.accountState.verified,false);
+  db.prepare('UPDATE email_verifications SET expires_at=?').run(now-1);assert.equal((await inspect()).accountState.linkState,'expired');
+  db.exec("UPDATE email_verifications SET token_hash=NULL,expires_at=NULL,verified_at=1");r=await inspect();assert.equal(r.accountState.verified,true);assert.equal(r.accountState.linkState,'confirmed');
+  db.exec("UPDATE users SET email='CHANGED_PRIVATE@example.test'");assert.equal((await inspect()).accountState.linkState,'address_changed');
+  db.exec("INSERT INTO admin_removed_accounts VALUES('opaque-user')");assert.equal((await inspect()).accountState.linkState,'account_inactive');
+  assert.doesNotMatch(JSON.stringify(r),/PRIVATE|opaque-user|token_hash|PRIVATE_HASH/);
+  const before=createHash('sha256').update(readFileSync(database)).digest('hex');await inspect();assert.equal(createHash('sha256').update(readFileSync(database)).digest('hex'),before);
+ }finally{db.close();rmSync(dir,{recursive:true,force:true})}
+});

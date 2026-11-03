@@ -11,7 +11,7 @@ CREATE INDEX IF NOT EXISTS email_delivery_diagnostics_created ON email_delivery_
 CREATE INDEX IF NOT EXISTS email_delivery_diagnostics_user ON email_delivery_diagnostics(user_id,created_at);
 `;
 const stages=new Set(['configuration','site','verification','provider','transport']);
-const categories=new Set(['not_configured','invalid_sender','invalid_site','token_issue_failed','provider_accepted','provider_unauthorized','provider_forbidden','provider_rate_limited','provider_unavailable','provider_rejected','transport_timeout','transport_error']);
+const categories=new Set(['not_configured','invalid_sender','invalid_site','token_issue_failed','verification_busy','provider_accepted','provider_unauthorized','provider_forbidden','provider_rate_limited','provider_unavailable','provider_rejected','transport_timeout','transport_error']);
 const timestamp=(value:number)=>{const date=new Date(value);return Number.isFinite(date.getTime())?date.toISOString():null};
 
 /** No recipient, payload, token/hash, secret or private exception text enters this table. */

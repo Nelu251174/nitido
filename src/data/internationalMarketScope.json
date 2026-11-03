@@ -1,0 +1,262 @@
+[
+  {
+    "countryCode": "AT",
+    "name": "Austria",
+    "currency": "EUR",
+    "cities": [
+      "Wien",
+      "Graz",
+      "Linz"
+    ]
+  },
+  {
+    "countryCode": "BE",
+    "name": "Belgia",
+    "currency": "EUR",
+    "cities": [
+      "Bruxelles",
+      "Antwerpen",
+      "Gent"
+    ]
+  },
+  {
+    "countryCode": "BG",
+    "name": "Bulgaria",
+    "currency": "EUR",
+    "cities": [
+      "София",
+      "Пловдив",
+      "Варна"
+    ]
+  },
+  {
+    "countryCode": "HR",
+    "name": "Croația",
+    "currency": "EUR",
+    "cities": [
+      "Zagreb",
+      "Split",
+      "Rijeka"
+    ]
+  },
+  {
+    "countryCode": "CY",
+    "name": "Cipru",
+    "currency": "EUR",
+    "cities": [
+      "Nicosia",
+      "Limassol",
+      "Larnaca"
+    ]
+  },
+  {
+    "countryCode": "CZ",
+    "name": "Cehia",
+    "currency": "EUR",
+    "cities": [
+      "Praha",
+      "Brno",
+      "Ostrava"
+    ]
+  },
+  {
+    "countryCode": "DK",
+    "name": "Danemarca",
+    "currency": "EUR",
+    "cities": [
+      "København",
+      "Aarhus",
+      "Odense"
+    ]
+  },
+  {
+    "countryCode": "EE",
+    "name": "Estonia",
+    "currency": "EUR",
+    "cities": [
+      "Tallinn",
+      "Tartu",
+      "Pärnu"
+    ]
+  },
+  {
+    "countryCode": "FI",
+    "name": "Finlanda",
+    "currency": "EUR",
+    "cities": [
+      "Helsinki",
+      "Tampere",
+      "Turku"
+    ]
+  },
+  {
+    "countryCode": "FR",
+    "name": "Franța",
+    "currency": "EUR",
+    "cities": [
+      "Paris",
+      "Lyon",
+      "Marseille"
+    ]
+  },
+  {
+    "countryCode": "DE",
+    "name": "Germania",
+    "currency": "EUR",
+    "cities": [
+      "Berlin",
+      "Hamburg",
+      "München"
+    ]
+  },
+  {
+    "countryCode": "GR",
+    "name": "Grecia",
+    "currency": "EUR",
+    "cities": [
+      "Αθήνα",
+      "Θεσσαλονίκη",
+      "Πάτρα"
+    ]
+  },
+  {
+    "countryCode": "HU",
+    "name": "Ungaria",
+    "currency": "EUR",
+    "cities": [
+      "Budapest",
+      "Debrecen",
+      "Szeged"
+    ]
+  },
+  {
+    "countryCode": "IE",
+    "name": "Irlanda",
+    "currency": "EUR",
+    "cities": [
+      "Dublin",
+      "Cork",
+      "Galway"
+    ]
+  },
+  {
+    "countryCode": "IT",
+    "name": "Italia",
+    "currency": "EUR",
+    "cities": [
+      "Roma",
+      "Milano",
+      "Napoli"
+    ]
+  },
+  {
+    "countryCode": "LV",
+    "name": "Letonia",
+    "currency": "EUR",
+    "cities": [
+      "Rīga",
+      "Daugavpils",
+      "Liepāja"
+    ]
+  },
+  {
+    "countryCode": "LT",
+    "name": "Lituania",
+    "currency": "EUR",
+    "cities": [
+      "Vilnius",
+      "Kaunas",
+      "Klaipėda"
+    ]
+  },
+  {
+    "countryCode": "LU",
+    "name": "Luxemburg",
+    "currency": "EUR",
+    "cities": [
+      "Luxembourg",
+      "Esch-sur-Alzette",
+      "Dudelange"
+    ]
+  },
+  {
+    "countryCode": "MT",
+    "name": "Malta",
+    "currency": "EUR",
+    "cities": [
+      "Valletta",
+      "Birkirkara",
+      "Sliema"
+    ]
+  },
+  {
+    "countryCode": "NL",
+    "name": "Țările de Jos",
+    "currency": "EUR",
+    "cities": [
+      "Amsterdam",
+      "Rotterdam",
+      "Den Haag"
+    ]
+  },
+  {
+    "countryCode": "PL",
+    "name": "Polonia",
+    "currency": "EUR",
+    "cities": [
+      "Warszawa",
+      "Kraków",
+      "Wrocław"
+    ]
+  },
+  {
+    "countryCode": "PT",
+    "name": "Portugalia",
+    "currency": "EUR",
+    "cities": [
+      "Lisboa",
+      "Porto",
+      "Braga"
+    ]
+  },
+  {
+    "countryCode": "SK",
+    "name": "Slovacia",
+    "currency": "EUR",
+    "cities": [
+      "Bratislava",
+      "Košice",
+      "Žilina"
+    ]
+  },
+  {
+    "countryCode": "SI",
+    "name": "Slovenia",
+    "currency": "EUR",
+    "cities": [
+      "Ljubljana",
+      "Maribor",
+      "Koper"
+    ]
+  },
+  {
+    "countryCode": "ES",
+    "name": "Spania",
+    "currency": "EUR",
+    "cities": [
+      "Madrid",
+      "Barcelona",
+      "Valencia"
+    ]
+  },
+  {
+    "countryCode": "SE",
+    "name": "Suedia",
+    "currency": "EUR",
+    "cities": [
+      "Stockholm",
+      "Göteborg",
+      "Malmö"
+    ]
+  }
+]

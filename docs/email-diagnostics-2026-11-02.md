@@ -37,3 +37,15 @@ Optional `--provider-events` lists existing email metadata with at most three GE
 - Provider-receipt data, an external delivery event and actual inbox reception require separate current evidence. No real email is sent by the QA suite or this read-only script.
 
 Tests run with synthetic values and Docker `--network=none`. The four Node script tests and the email/auth/UI Vitest set do not verify an installed iPhone/Android package, physical push reception or actual bank settlement.
+
+## Additional isolated hardening — 3 November 2026
+
+A deterministic SQLite test reproduced a resend race: two overlapping failed sends could restore the hash of another failed attempt and lose the earlier usable link. Resends now acquire an atomic per-account lease before reading the previous link and issuing the replacement. The transaction ends before any provider request. A parallel request returns the technical category `verification_busy` and makes no provider call. Different accounts remain independent.
+
+The lease lasts thirty seconds, longer than the shared eight-second send deadline. A crashed sender cannot block a later attempt indefinitely. Rollback and cleanup require the matching lease ID; they cannot overwrite a newer lease/token, a completed confirmation, a changed address or an inactive account. The additional table is installed through the existing `EMAIL_VERIFICATION_SCHEMA` migration and does not rewrite existing links. The public resend UI and provider-acceptance meaning are unchanged.
+
+The read-only CLI also works against the existing pre-diagnostic schema. When present, `users`, `email_verifications`, `admin_removed_accounts` and the send-lease table contribute only whitelisted booleans, the allowed account role, link expiry and a coarse link state. SQL computes address matching and token presence; neither address nor token/hash values are returned. This distinguishes a missing/expired link, changed address, inactive account or confirmed address even when `email_delivery_diagnostics` has not been deployed. A malformed fixture row cannot crash the redactor.
+
+Current authorized LIVE access still permits application metadata but refuses journal access (`HEAD`403, with no response body read). No saved TinyFish profile reports a Coolify sign-in. This update does not diagnose the private LIVE provider rejection or prove Gmail delivery. It prepares a bounded, non-sending inspection for an authorized runtime operator; no new authentication session, task or deployment was created.
+
+Provider metadata semantics were checked against the [official list-sent-email endpoint description](https://resend.com/changelog/list-sent-emails-endpoint). Its listing omits email content. Provider testing addresses described in the [official testing-event guide](https://resend.com/changelog/sending-test-emails) generate simulated outcomes; they are not mailbox-reception evidence. No such messages were sent during this work.

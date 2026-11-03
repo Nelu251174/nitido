@@ -8,6 +8,7 @@ data/
 !src/data/
 src/data/*
 !src/data/internationalResearchReview.json
+!src/data/internationalMarketScope.json
 public/uploads/
 *.log
 .env

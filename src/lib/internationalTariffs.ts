@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
 import {randomUUID} from 'node:crypto';
-import researchManifest from '@/data/internationalResearchReview.json';
+import marketScope from '@/data/internationalMarketScope.json';
 import {serviceCountry,type ServiceCountry} from './serviceMarkets';
 import {internationalReviewEnabled} from './internationalRollout';
 export {internationalReviewEnabled} from './internationalRollout';
@@ -12,9 +12,8 @@ export type InternationalService='maintenance'|'general'|'renovation';
 export type InternationalRateUnit='worker_hour'|'team_hour'|'m2'|'visit';
 export class InternationalTariffError extends Error{constructor(message:string,public status=400){super(message);}}
 const fail=(message:string,status=400):never=>{throw new InternationalTariffError(message,status);};
-type ResearchCountry={code:string;name:string;cities:{id:string;cityKey:string;name:string;gaps:string[];sources:unknown[];publishedCount:number;completeCount:number}[]};
-const research=researchManifest as unknown as {countries:ResearchCountry[]};
-export const INTERNATIONAL_MARKETS=research.countries.map(c=>({countryCode:c.code as InternationalCountry,name:c.name,currency:'EUR' as const,cities:c.cities.map(x=>x.cityKey)}));
+/** Operational scope only; public research documents stay out of the booking/DB dependency graph. */
+export const INTERNATIONAL_MARKETS=marketScope.map(c=>({...c,countryCode:c.countryCode as InternationalCountry,currency:'EUR' as const}));
 export function internationalCountry(value:unknown):InternationalCountry{
  let country:ServiceCountry;try{country=serviceCountry(value);}catch{return fail('Țara lucrării este invalidă.',400);}if(country==='RO')return fail('România păstrează configurația existentă.',400);
  if(!INTERNATIONAL_MARKETS.some(x=>x.countryCode===country))return fail('Piața nu este configurată.',422);
