@@ -2,6 +2,7 @@ import {beforeEach,afterEach,it,expect} from 'vitest';
 import Database from 'better-sqlite3';
 import {initializeDatabase} from './db';
 import {customerRecord} from './customerOperations';
+import {customerRecordView} from './customerAccess';
 import {COST_CODES,emptyManualEstimate} from './operationalMargin';
 let db:Database.Database;
 beforeEach(()=>{db=new Database(':memory:');initializeDatabase(db);db.exec("INSERT INTO users(id,role,name) VALUES('c','client','Client'),('other','client','Other')");});afterEach(()=>db.close());
@@ -19,4 +20,18 @@ it('counts only the latest cost revision, retains unknowns and shows a total onl
 it('keeps empty history and confirmed losses distinct from unknown margins',()=>{
  expect(customerRecord(db,'c').value).toMatchObject({totalJobs:0,completedJobs:0,completedServiceValueBani:0,margin:{totalBani:null}});
  job('loss');cost('loss',1,60000);expect(customerRecord(db,'c').value.margin.totalBani).toBe(-10000);
+});
+
+it('separates foreign value and keeps it behind the existing report permission',()=>{
+ job('ro','c','completed',550);job('eu','c','completed',999);
+ const snapshot={currency:'EUR',countryCode:'DE',city:'Berlin',tariffId:'synthetic',revision:1,recordedAt:'2026-11-02T10:00:00Z',netMinor:10001,vatMinor:0,vatBps:0,grossMinor:10001,clientTotalMinor:10001,creditMinor:0,durationMinutes:180,workers:1,personMinutes:180,lines:[{code:'cleaning',amountMinor:10001},{code:'vat',amountMinor:0}]};
+ db.prepare("UPDATE jobs SET pricing_snapshot=? WHERE id='eu'").run(JSON.stringify(snapshot));
+ db.exec("INSERT INTO payments(id,job_id,amount_gross,commission_amount,amount_net,currency,amount_gross_minor,commission_amount_minor,amount_net_minor) VALUES('p','eu',100,18,80,'EUR',10001,1800,8201)");
+ const record=customerRecord(db,'c');expect(record.value.completedServiceValueBani).toBe(55000);
+ expect(record.jobs.rows).toContainEqual(expect.objectContaining({currency:'EUR',price_gross:100.01}));expect(JSON.stringify(record.jobs.rows)).not.toContain('pricing_snapshot');
+ expect(record.payments.rows).toContainEqual(expect.objectContaining({currency:'EUR',amount_gross:100.01}));
+ expect(record.value.monetaryByCurrency).toMatchObject({RON:{amountMinor:55000,count:1},EUR:{amountMinor:10001,count:1}});
+ expect(record.value.margin).toMatchObject({currency:'RON',excludedOtherCurrencyJobs:1,missingOrIncompleteJobs:1});
+ expect(customerRecordView(record,'operator').value.monetaryByCurrency).toBeNull();
+ expect(customerRecordView(record,'super_admin').value.monetaryByCurrency?.EUR.amountMinor).toBe(10001);
 });

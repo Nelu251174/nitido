@@ -120,4 +120,13 @@ describe("markNoShow — praguri și efecte (spec secțiunea 5b)", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status).toBe(409);
   });
+  it('does not clone a foreign or unrecognized monetary contract into a RON repost', async()=>{
+    seedClientAndFirm(db);seedJob(db,'foreign');
+    db.prepare("UPDATE jobs SET status='accepted',accepted_firm_id='firm_1',pricing_snapshot=? WHERE id='foreign'").run(JSON.stringify({currency:'EUR',countryCode:'DE'}));
+    expect(await markNoShow(db,'foreign',true)).toMatchObject({ok:false,status:422});
+    expect(db.prepare('SELECT COUNT(*) n FROM jobs').get()).toEqual({n:1});
+    expect(db.prepare("SELECT status FROM jobs WHERE id='foreign'").get()).toEqual({status:'accepted'});
+    expect(db.prepare('SELECT COUNT(*) n FROM strikes').get()).toEqual({n:0});
+  });
+
 });

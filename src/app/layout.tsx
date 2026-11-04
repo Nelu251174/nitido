@@ -13,7 +13,7 @@ import { WebAlerts } from "@/components/WebAlerts";
 import { PwaProvider } from "@/components/PwaProvider";
 import {NextIntlClientProvider} from 'next-intl';
 import {getLocale, getMessages} from 'next-intl/server';
-import {CurrencyNotice} from '@/components/CurrencyNotice';
+import {RouteCurrencyNotice as CurrencyNotice} from '@/components/RouteCurrencyNotice';
 import {LanguageSelector} from '@/components/LanguageSelector';
 import {catalogsReady} from '@/i18n/catalogs';
 import {NexusCounter} from '@/components/NexusCounter';

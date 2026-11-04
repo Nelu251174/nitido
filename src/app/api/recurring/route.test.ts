@@ -17,6 +17,16 @@ describe('recurring request boundaries',()=>{
  it('rejects unauthenticated and firm requests',async()=>{for(const user of [null,{id:'f',role:'firma'}]){mocks.user.mockResolvedValue(user);expect((await POST(req())).status).toBe(401);expect((await change(req(),params)).status).toBe(401)}});
  it('rejects invalid and oversized bodies on both mutation routes',async()=>{for(const [body,status] of [['bad',400],['null',400],['[]',400],['x'.repeat(10001),413]] as const){expect((await POST(req(body))).status).toBe(status);expect((await change(req(body),params)).status).toBe(status)}expect(mocks.card).not.toHaveBeenCalled();expect(mocks.change).not.toHaveBeenCalled()});
  it('requires assessment before checking the card for oversized properties',async()=>{expect((await POST(req(JSON.stringify({...input,sqm:1001})))).status).toBe(422);expect(mocks.card).not.toHaveBeenCalled();expect(mocks.create).not.toHaveBeenCalled()});
+ it.each([{countryCode:'PT'},{currency:'EUR'},{countryCode:'RO',currency:'EUR'},{countryCode:'US',currency:'USD'}])('rejects an explicit foreign market before creating or generating visits: %j',async market=>{
+   for(const body of [{...input,...market},{action:'generate',...market}])expect((await POST(req(JSON.stringify(body)))).status).toBe(422);
+   expect(mocks.card).not.toHaveBeenCalled();expect(mocks.create).not.toHaveBeenCalled();expect(mocks.generate).not.toHaveBeenCalled();
+ });
+ it('preserves explicit RO/RON creation and generation',async()=>{
+   expect((await POST(req(JSON.stringify({...input,countryCode:'RO',currency:'RON'})))).status).toBe(201);
+   mocks.generate.mockResolvedValue({created:[],blocked:[]});
+   expect((await POST(req(JSON.stringify({action:'generate',countryCode:'RO',currency:'RON'})))).status).toBe(200);
+   expect(mocks.generate).toHaveBeenCalledWith({},expect.any(Date),'c');
+ });
  it('takes ownership from the session and accepts valid data',async()=>{expect((await POST(req(JSON.stringify({...input,clientId:'foreign'})))).status).toBe(201);expect(mocks.create).toHaveBeenCalledWith({},expect.objectContaining({clientId:'c',sqm:75}))});
  it('limits mutation frequency before card or storage operations',async()=>{mocks.rate.mockReturnValue(false);expect((await POST(req(JSON.stringify(input)))).status).toBe(429);expect((await change(req('{"status":"paused"}'),params)).status).toBe(429);expect(mocks.card).not.toHaveBeenCalled();expect(mocks.change).not.toHaveBeenCalled()});
  it('listing subscriptions never triggers creation or authorization',async()=>{mocks.plans.mockReturnValue([]);mocks.occurrences.mockReturnValue([]);const response=await GET(new NextRequest('https://sandbox.nitido.ro/api/recurring'));expect(response.status).toBe(200);expect(response.headers.get('cache-control')).toBe('private, no-store');expect(mocks.generate).not.toHaveBeenCalled();expect(mocks.create).not.toHaveBeenCalled();expect(mocks.card).not.toHaveBeenCalled()});

@@ -2,7 +2,7 @@ import {NextRequest,NextResponse} from 'next/server';
 import {db} from '@/lib/db';
 import {getCurrentUser} from '@/lib/auth';
 import {consumeRateLimit,hasTrustedMutationOrigin,requestIp} from '@/lib/security';
-import {emailIsVerified,confirmEmailVerification,sendVerificationEmail} from '@/lib/emailVerification';
+import {emailIsVerified,confirmEmailVerification,sendVerificationEmailResult} from '@/lib/emailVerification';
 import {emailConfigured} from '@/lib/email';
 const response=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{'Cache-Control':'private, no-store'}});
 export async function GET(req:NextRequest){const user=await getCurrentUser(req);if(!user)return response({error:'Autentificare necesară'},401);return response({verified:emailIsVerified(db,user.id),configured:emailConfigured()})}
@@ -17,6 +17,7 @@ export async function POST(req:NextRequest){
  const user=await getCurrentUser(req);if(!user)return response({error:'Autentificare necesară'},401);
  if(emailIsVerified(db,user.id))return response({verified:true});
  if(!consumeRateLimit(`verify-email-user:${user.id}`,3,3600000))return response({error:'Ai solicitat deja trei mesaje. Reîncearcă peste o oră.'},429);
- if(!await sendVerificationEmail(db,user.id))return response({error:'Emailul nu a putut fi trimis. Serviciul poate fi neconfigurat sau temporar indisponibil.'},503);
+ const result=await sendVerificationEmailResult(db,user.id);
+ if(!result.accepted)return response({error:'Trimiterea emailului nu a putut fi confirmată. Reîncearcă mai târziu sau contactează suportul.',supportReference:result.correlationId},503);
  return response({accepted:true});
 }

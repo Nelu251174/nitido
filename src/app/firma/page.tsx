@@ -1,4 +1,5 @@
 "use client";
+import {currencyOfJob} from '@/lib/jobCurrency';
 import {LanguageSelector} from '@/components/LanguageSelector';
 import {UiMoney} from '@/components/UiMoney';
 import {CleaningTypeLabel} from '@/components/CleaningTypeChoice';
@@ -231,13 +232,15 @@ export default function FirmaPage() {
 
   const now = new Date();
   const confirmedJobs=historyJobs.filter(j=>j.financial?.paymentStatus==="captured"&&j.financial.refundStatus==="none"&&j.financial.disputeStatus==="none");
-  const earningsTotal = confirmedJobs.reduce((sum,j)=>sum+(j.financial?.firmPayout??0),0);
-  const earningsThisMonth = confirmedJobs
+  const earningsTotal = confirmedJobs.filter(j=>currencyOfJob(j)==='RON').reduce((sum,j)=>sum+(j.financial?.firmPayout??0),0);
+  const earningsTotalEUR = confirmedJobs.filter(j=>currencyOfJob(j)==='EUR').reduce((sum,j)=>sum+Math.round((j.financial?.firmPayout??0)*100),0)/100;
+  const earningsThisMonth = confirmedJobs.filter(j=>currencyOfJob(j)==='RON')
     .filter((j) => {
       return bucharestDay(j.completed_at??j.created_at).slice(0,7)===bucharestDay(now.toISOString()).slice(0,7);
     })
     .reduce((sum, j) => sum + (j.financial?.firmPayout??0), 0);
 
+  const earningsThisMonthEUR = confirmedJobs.filter(j=>currencyOfJob(j)==='EUR'&&bucharestDay(j.completed_at??j.created_at).slice(0,7)===bucharestDay(now.toISOString()).slice(0,7)).reduce((sum,j)=>sum+Math.round((j.financial?.firmPayout??0)*100),0)/100;
   return (
     <div className="board-page board-firm partner-preview-home"><BoardSidebar role="firma"/>
       <div className="partner-preview-shell">
@@ -395,7 +398,7 @@ export default function FirmaPage() {
                 )}
                 <div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold mt-1"><UiText text={"Tu încasezi"}/></div>
                 <div className="font-display font-extrabold text-lg text-aqua-deep mb-3">
-                  <UiMoney ron={job.firm_payout ?? job.financial?.firmPayout ?? null}/></div>
+                  <UiMoney ron={job.firm_payout ?? job.financial?.firmPayout ?? null} currency={currencyOfJob(job)}/></div>
                 {job.mode === "standard" ? (
                   job.flexible?<FlexibleFirmOffer jobId={job.id} windows={job.flexible.windows} onSaved={()=>{void refresh();}}/>:offeredJobIds.includes(job.id) ? (
                     <div className="text-center text-sm font-display font-bold text-aqua-deep bg-aqua/10 rounded-lg py-2.5"><UiText text={"✓ Candidatură trimisă — clientul alege"}/></div>
@@ -432,7 +435,7 @@ export default function FirmaPage() {
                 <JobNavigation jobId={job.id} address={`${job.street}, ${job.city}`}/>
                 <div className="text-[11px] text-muted mb-3"><UiText text={"Se deschide în Google Maps — durată și distanță până la locație"}/></div>
                 <div className="text-xs text-muted mb-3">
-                  {job.sqm}<UiText text={" mp"}/>{(job.windows_sqm??0)>0?<UiTemplate text={" + geamuri {p0} m²"} values={[job.windows_sqm]}/>:""} · <UiMoney ron={job.firm_payout ?? job.financial?.firmPayout ?? null}/><UiText text={' · status: '}/>{job.status}
+                  {job.sqm}<UiText text={" mp"}/>{(job.windows_sqm??0)>0?<UiTemplate text={" + geamuri {p0} m²"} values={[job.windows_sqm]}/>:""} · <UiMoney ron={job.firm_payout ?? job.financial?.firmPayout ?? null} currency={currencyOfJob(job)}/><UiText text={' · status: '}/>{job.status}
                 </div>
                 <VisitCare jobId={job.id}/>
                 {job.status==='accepted'&&!job.express_60&&<RescheduleVisit jobId={job.id} scheduledAt={job.scheduled_at} status={job.status} role="firma" onChanged={refresh}/>}
@@ -460,12 +463,12 @@ export default function FirmaPage() {
             <div className="bg-white border border-line rounded-2xl p-4">
               <div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold"><UiText text={"Câștiguri luna aceasta"}/></div>
               <div className="font-display font-extrabold text-2xl text-aqua-deep">
-                <UiMoney ron={earningsThisMonth}/></div>
+                <UiMoney ron={earningsThisMonth}/>{earningsThisMonthEUR>0&&<> · <UiMoney ron={earningsThisMonthEUR} currency="EUR"/></>}</div>
             </div>
             <div className="bg-white border border-line rounded-2xl p-4">
               <div className="text-[10.5px] uppercase tracking-wide text-muted font-semibold"><UiText text={"Câștiguri totale"}/></div>
               <div className="font-display font-extrabold text-2xl text-ink">
-                <UiMoney ron={earningsTotal}/></div>
+                <UiMoney ron={earningsTotal}/>{earningsTotalEUR>0&&<> · <UiMoney ron={earningsTotalEUR} currency="EUR"/></>}</div>
               <div className="text-[11px] text-muted mt-0.5">{historyJobs.length}<UiText text={" lucrări finalizate"}/></div>
             </div>
           </section>

@@ -12,6 +12,8 @@ import { authorizePayment, connectTransfersEnabled } from '@/lib/payments';
 import { firmCoversCity } from '@/lib/text';
 import { firmAvailabilityError, type JobTiming } from '@/lib/firmAvailability';
 import {supplementAcceptanceError} from './supplementBooking';
+import {providerMarketError,readInternationalPublishedPrice} from './publishedPrice';
+import {reserveInternationalCrew} from './internationalCrewCapacity';
 
 export type AcceptResult = { ok: true } | { ok: false; error: string; status: number; code?: string };
 type Selection = { offerId: string; clientId: string;proposalId?:string };
@@ -19,8 +21,10 @@ type Firm = {
   id: string; suspended_until: string | null; stripe_account_id: string | null;
   stripe_account_status: string; stripe_transfers_capability: string; verified: number;
   coverage_city: string; coverage_cities_extra: string | null;
+  stripe_identity_country?:string|null;stripe_default_currency?:string|null;
 };
-type Job = JobTiming & { client_id: string; mode: string; status: string; accepted_firm_id: string | null; city: string; price_gross: number; credit_applied: number };
+type Job = JobTiming & { client_id: string; mode: string; status: string; accepted_firm_id: string | null; city: string; price_gross: number; credit_applied: number;pricing_snapshot?:string|null };
+class ProviderMarketChangedError extends Error{}
 const fail = (error: string, status = 409, code = 'ACCEPT_FAILED'): AcceptResult & { ok: false } => ({ ok: false, error, status, code });
 
 /** Eligibility, stored schedule and reservation share a SQLite writer transaction, including across processes.
@@ -39,6 +43,7 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
       if (connectTransfersEnabled() && (!firm.stripe_account_id || firm.stripe_account_status !== 'ready' || firm.stripe_transfers_capability !== 'active')) return fail('Contul Stripe al firmei nu este pregătit pentru transferuri');
       const job = db.prepare('SELECT * FROM jobs WHERE id=?').get(jobId) as Job | undefined;
       if (!job) return fail('Lucrare inexistentă', 404);
+      const marketError=providerMarketError(job,firm,true,db);if(marketError)return fail(marketError,403,'SERVICE_MARKET_MISMATCH');
       const supplementError=supplementAcceptanceError(db,jobId,firmId);
       if(supplementError)return fail(supplementError,409,'SUPPLEMENT_REVIEW_REQUIRED');
       if (selection) {
@@ -68,6 +73,7 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
       }
       if(weekly){const fu=db.prepare('SELECT user_id FROM firms WHERE id=?').get(firmId) as {user_id:string};db.prepare('INSERT INTO workspace_assignments(job_id,team_id,assigned_by,created_at) VALUES(?,?,?,?)').run(jobId,weekly.team_id,fu.user_id,new Date().toISOString());}
       reserveAssistedTeam(db,jobId,firmId);
+      const internationalPrice=readInternationalPublishedPrice(job.pricing_snapshot);if(internationalPrice)reserveInternationalCrew(db,job,firmId,internationalPrice.workers);
       db.prepare('INSERT INTO job_acceptance_claims(job_id,token) VALUES(?,?) ON CONFLICT(job_id) DO UPDATE SET token=excluded.token').run(jobId, claim);
       return { ok: true as const, job, firm };
     }).immediate();
@@ -79,17 +85,26 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
   }
   if (!reserved.ok) return reserved;
   try {
+    // Re-read country/payment readiness after claiming, immediately before a provider authorization.
+    const marketError=db.transaction(()=>{
+      const job=db.prepare('SELECT * FROM jobs WHERE id=?').get(jobId) as Job|undefined;
+      const firm=db.prepare('SELECT * FROM firms WHERE id=?').get(firmId) as Firm|undefined;
+      if(!job||!firm||job.accepted_firm_id!==firmId||!db.prepare('SELECT 1 FROM job_acceptance_claims WHERE job_id=? AND token=?').get(jobId,claim))return 'Starea preluării s-a schimbat.';
+      return providerMarketError(job,firm,true,db);
+    }).immediate();
+    if(marketError)throw new ProviderMarketChangedError(marketError);
     await authorizePayment(db, jobId, reserved.job.price_gross, reserved.firm.stripe_account_id, reserved.job.credit_applied ?? 0, selection ? paymentId => recordSelectionConfirmation(db, {jobId,claim,offerId:selection.offerId,clientId:selection.clientId,firmId,priceGross:reserved.job.price_gross,creditApplied:reserved.job.credit_applied}, paymentId) : undefined,{requiredUntil:authorizationRequiredUntil(reserved.job)});
   } catch (error) {
     try {
       db.transaction(()=>{const released=db.prepare(`UPDATE jobs SET status='waiting',accepted_firm_id=NULL,accepted_at=NULL
         WHERE id=? AND status='accepted' AND accepted_firm_id=?
         AND EXISTS(SELECT 1 FROM job_acceptance_claims WHERE job_id=? AND token=?)`).run(jobId, firmId, jobId, claim);
-      if(released.changes){const w=openingRequest(db,jobId);if(w)db.prepare('DELETE FROM workspace_assignments WHERE job_id=? AND team_id=?').run(jobId,w.team_id);if(flexiblePreference(db,jobId))db.prepare('DELETE FROM workspace_assignments WHERE job_id=?').run(jobId);const p=jobAssistedOperation(db,jobId);if(p)db.prepare('DELETE FROM workspace_assignments WHERE job_id=? AND team_id=?').run(jobId,p.teamId);}
+      if(released.changes){if(readInternationalPublishedPrice(reserved.job.pricing_snapshot))db.prepare('DELETE FROM workspace_assignments WHERE job_id=?').run(jobId);const w=openingRequest(db,jobId);if(w)db.prepare('DELETE FROM workspace_assignments WHERE job_id=? AND team_id=?').run(jobId,w.team_id);if(flexiblePreference(db,jobId))db.prepare('DELETE FROM workspace_assignments WHERE job_id=?').run(jobId);const p=jobAssistedOperation(db,jobId);if(p)db.prepare('DELETE FROM workspace_assignments WHERE job_id=? AND team_id=?').run(jobId,p.teamId);}
       }).immediate();
     } catch {
       return fail('Starea preluării necesită verificare. Reîncarcă lucrarea; rezervarea nu a fost eliberată.', 503);
     }
+    if(error instanceof ProviderMarketChangedError)return fail(error.message,409,'SERVICE_MARKET_CHANGED');
     if(error instanceof AuthorizationCoverageError)return fail(error.code==='HOLD_RELEASE_PENDING'?'Autorizarea nu acoperă intervenția. Eliberarea HOLD-ului este în curs; nu iniția o plată nouă.':'Autorizarea cardului nu acoperă intervenția și bufferul. Rezervarea nu a fost confirmată. Nu se va crea automat alt HOLD; reconfigurează cererea sau contactează asistența.',409,error.code);
     return fail('Autorizarea plății nu a putut fi confirmată. Reîncarcă starea lucrării.', 502);
   }
@@ -98,6 +113,8 @@ export async function acceptJobAtomic(db: Database, jobId: string, firmId: strin
       const current = db.prepare(`SELECT 1 FROM jobs j JOIN job_acceptance_claims c ON c.job_id=j.id
         WHERE j.id=? AND j.status='accepted' AND j.accepted_firm_id=? AND c.token=?`).get(jobId, firmId, claim);
       if (!current || authorizationMustStop(db, jobId)) return fail('Starea lucrării s-a schimbat în timpul autorizării. Reîncarcă lucrarea.');
+      const finalJob=db.prepare('SELECT * FROM jobs WHERE id=?').get(jobId) as Job|undefined,finalFirm=db.prepare('SELECT * FROM firms WHERE id=?').get(firmId) as Firm|undefined;
+      if(!finalJob||!finalFirm||providerMarketError(finalJob,finalFirm,false,db))return fail('Identitatea firmei sau moneda necesită reconciliere după autorizare.',409,'SERVICE_MARKET_RECONCILIATION');
       if (selection) {
         if (!db.prepare("SELECT 1 FROM offers WHERE id=? AND job_id=? AND firm_id=? AND status='pending'").get(selection.offerId, jobId, firmId)) return fail('Oferta necesită reconciliere. Reîncarcă lucrarea.');
         db.prepare("UPDATE offers SET status='accepted',updated_at=datetime('now') WHERE id=?").run(selection.offerId);

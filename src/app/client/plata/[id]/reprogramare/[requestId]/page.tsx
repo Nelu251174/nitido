@@ -8,15 +8,16 @@ import Link from 'next/link';
 import Script from 'next/script';
 import {useCurrentUser} from '@/lib/useCurrentUser';
 import {Button,Card,Logo} from '@/components/ui';
-type Confirmation={status:'consent_required'|'waiting_window'|'requires_action'|'authorized';amountMinor:number;scheduledAt?:string;availableAt?:string;cleanupPending?:boolean;clientSecret?:string;paymentMethodId?:string;publishableKey?:string};
+type Confirmation={status:'consent_required'|'waiting_window'|'requires_action'|'authorized';amountMinor:number;currency?:'RON'|'EUR';scheduledAt?:string;availableAt?:string;cleanupPending?:boolean;clientSecret?:string;paymentMethodId?:string;publishableKey?:string};
 type StripeBrowser={confirmCardPayment:(secret:string,data:{payment_method:string})=>Promise<{error?:{message?:string}}>};
 
 export default function ConfirmRescheduleCard(){
  const locale=useLocale();
- const dateLabel=(date:string)=>new Intl.DateTimeFormat(locale,{timeZone:'Europe/Bucharest',dateStyle:'medium',timeStyle:'short'}).format(new Date(date));
+ const dateLabel=(date:string)=>new Intl.DateTimeFormat(locale,{timeZone:timeZone??'Europe/Bucharest',dateStyle:'medium',timeStyle:'short'}).format(new Date(date));
 
  const {id,requestId}=useParams<{id:string;requestId:string}>(),router=useRouter(),{user,loading}=useCurrentUser();
  const [data,setData]=useState<Confirmation|null>(null),[busy,setBusy]=useState(false),[ready,setReady]=useState(false),[consent,setConsent]=useState(false),[error,setError]=useState('');
+ const [timeZone,setTimeZone]=useState<string|null>(null);
  const lock=useRef(false);
  const request=useCallback(async(action:'start'|'begin'|'verify')=>{
   const response=await fetch(`/api/jobs/${encodeURIComponent(id)}/reschedule/authorize-card`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId,action}),cache:'no-store'});
@@ -26,7 +27,9 @@ export default function ConfirmRescheduleCard(){
   if(loading)return;
   if(!user){router.replace(`/login?next=${encodeURIComponent(`/client/plata/${id}/reprogramare/${requestId}`)}`);return}
   if(user.role!=='client')return;
-  let active=true;void request('start').then(result=>{if(active)setData(result)}).catch(e=>{if(active)setError(e.message)});
+  let active=true;
+  void fetch(`/api/jobs/${encodeURIComponent(id)}/reschedule`,{cache:'no-store'}).then(async response=>{const metadata=await response.json();if(!response.ok||typeof metadata.timeZone!=='string')throw Error(metadata.error??'Fusul orar al lucrării nu a putut fi confirmat.');if(active)setTimeZone(metadata.timeZone)}).catch(e=>{if(active)setError(e.message)});
+  void request('start').then(result=>{if(active)setData(result)}).catch(e=>{if(active)setError(e.message)});
   return()=>{active=false};
  },[id,requestId,user,loading,router,request]);
  async function refresh(){
@@ -51,13 +54,13 @@ export default function ConfirmRescheduleCard(){
   <Link href="/client"><Logo/></Link><Card className="mt-6">
    <h1 className="text-2xl font-display font-bold"><UiText text={"Confirmă cardul pentru noua dată"}/></h1>
    {loading?<p className="mt-4"><UiText text={"Se verifică sesiunea…"}/></p>:user?.role!=='client'?<p className="mt-4"><UiText text={"Folosește contul clientului care a creat rezervarea."}/></p>:<>
-    {data&&<p className="my-5 text-3xl font-bold"><UiMoney ron={data.amountMinor/100}/><ChargeAmount ron={data.amountMinor/100}/></p>}
-    {data?.scheduledAt&&<p className="text-sm"><UiText text={"Interval propus: "}/>{dateLabel(data.scheduledAt)}</p>}
+    {data&&<p className="my-5 text-3xl font-bold"><UiMoney ron={data.amountMinor/100} currency={data.currency??'RON'}/><ChargeAmount ron={data.amountMinor/100} currency={data.currency??'RON'}/></p>}
+    {data?.scheduledAt&&timeZone&&<p className="text-sm"><UiText text={"Interval propus: "}/>{dateLabel(data.scheduledAt)}</p>}
     {data?.status==='authorized'?<div role="status" className="mt-5 space-y-3"><p className="font-bold text-aqua-deep"><UiText text={"Noua dată și autorizarea sunt confirmate."}/></p>{data.cleanupPending?<p className="text-sm"><UiText text={"Eliberarea autorizării vechi este în curs și va fi reluată automat dacă procesatorul nu răspunde."}/></p>:<p className="text-sm"><UiText text={"Eliberarea autorizării vechi a fost confirmată de procesator. Banca poate avea nevoie de timp pentru actualizarea soldului disponibil."}/></p>}</div>:<>
      <p className="mt-4 text-sm text-muted"><UiText text={"Autorizarea veche nu acoperă noul interval. Autorizezi aceeași sumă pe cardul ales pentru această rezervare. Încasarea se face la finalizarea lucrării."}/></p>
      <p className="mt-3 text-sm"><UiText text={"Temporar, banca poate afișa ambele sume rezervate. După confirmarea noii autorizări și a disponibilității firmei, eliberăm autorizarea veche. Dacă reprogramarea nu se poate încheia, eliberăm autorizarea nouă nefolosită."}/></p>
      <p className="mt-3 text-sm font-medium"><UiText text={"Data actuală rămâne valabilă până când apare confirmarea reprogramării."}/></p>
-     {data?.status==='waiting_window'?<p role="status" className="mt-4"><UiText text={"Poți confirma cardul începând cu "}/>{data.availableAt?dateLabel(data.availableAt):<UiText text={'48 de ore înaintea vizitei'}/>}.</p>:<label className="mt-5 flex items-start gap-3 text-sm"><input type="checkbox" checked={consent} disabled={busy} onChange={e=>setConsent(e.target.checked)} className="mt-1 h-5 w-5 shrink-0"/><span><UiText text={"Sunt de acord cu noua autorizare și cu rezervarea temporară a ambelor sume."}/></span></label>}
+     {data?.status==='waiting_window'?<p role="status" className="mt-4"><UiText text={"Poți confirma cardul începând cu "}/>{data.availableAt&&timeZone?dateLabel(data.availableAt):<UiText text={'48 de ore înaintea vizitei'}/>}.</p>:<label className="mt-5 flex items-start gap-3 text-sm"><input type="checkbox" checked={consent} disabled={busy} onChange={e=>setConsent(e.target.checked)} className="mt-1 h-5 w-5 shrink-0"/><span><UiText text={"Sunt de acord cu noua autorizare și cu rezervarea temporară a ambelor sume."}/></span></label>}
      <Button className="mt-5 w-full" disabled={busy||!ready||!consent||!data||data.status==='waiting_window'} onClick={()=>void confirm()}>{busy?<UiText text={'Se confirmă…'}/>:<UiText text={'Autorizează și confirmă noua dată'}/>}</Button>
     </>}
     <button className="mt-4 w-full text-sm underline py-2" disabled={busy} onClick={()=>void refresh()}><UiText text={"Reîncarcă starea plății"}/></button>

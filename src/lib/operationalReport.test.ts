@@ -58,3 +58,8 @@ it('requires a documented completed remediation, counts complaint cases once, an
  db.exec("INSERT INTO incident_resolutions VALUES('resolution','a','remediation','completed','Test','remedy','admin','2026-09-21');INSERT INTO incident_resolutions VALUES('proposal','b','remediation','pending','Test',NULL,'admin','2026-09-21');INSERT INTO recurring_plans(id,client_id,frequency,street,city,sqm,space_type,hour,next_run_date) VALUES('plan','c','weekly','Test','București',80,'apartament',12,'2026-09-15');INSERT INTO recurring_occurrences(plan_id,occurrence_date,job_id,scheduled_at,schedule_generation) VALUES('plan','2026-09-15','repeat','2026-09-15T10:00:00Z',0)");
  const r=operationalReport(db,period);expect(r.kpis.brief.remediation).toMatchObject({numerator:1,denominator:3});expect(r.kpis.brief.complaints).toMatchObject({numerator:2,denominator:4});expect(r.kpis.brief.recurrence).toMatchObject({numerator:1,denominator:4});expect(r.kpis.repeatOrders.numerator).toBe(3);
 });
+
+it('refuses to mislabel EUR in the legacy Romanian margin report',()=>{
+ job('foreign');db.prepare("UPDATE jobs SET pricing_snapshot=? WHERE id='foreign'").run(JSON.stringify({currency:'EUR',countryCode:'DE'}));
+ expect(()=>operationalReport(db,period)).toThrow(expect.objectContaining({status:422}));
+});

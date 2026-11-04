@@ -1,5 +1,15 @@
 import {describe,it,expect} from 'vitest';
 import {postAuthDestination,authSwitchHref} from './authRedirect';
+
+it('preserves the international work country through login/signup only for a client',()=>{
+ const next='/international/booking?countryCode=FR';
+ expect(postAuthDestination(next,'client')).toBe(next);
+ const signup=new URL(authSwitchHref('signup',next,'client'),'https://nitido.invalid');
+ const login=new URL(authSwitchHref('login',signup.searchParams.get('next'),'client'),'https://nitido.invalid');
+ expect(login.searchParams.get('next')).toBe(next);
+ expect(postAuthDestination(next,'firma')).toBe('/firma');
+ expect(postAuthDestination('/international/booking/../../admin','client')).toBe('/client');
+});
 describe('booking and invitation continuity across authentication',()=>{
  it.each(['client','firma'] as const)('returns %s to authenticated deletion initiation without redirecting to another workspace',role=>{expect(postAuthDestination('/stergere-cont',role)).toBe('/stergere-cont');expect(postAuthDestination('/stergere-cont/../../admin',role)).toBe(role==='client'?'/client':'/firma')});
  it('preserves the estimator when switching login → signup → login',()=>{const next='/client?spaceType=birou&sqm=100#sec-form';const signup=new URL(authSwitchHref('signup',next,'client'),'https://nitido.invalid');const login=new URL(authSwitchHref('login',signup.searchParams.get('next'),'client'),'https://nitido.invalid');expect(postAuthDestination(login.searchParams.get('next'),'client')).toBe(next)});

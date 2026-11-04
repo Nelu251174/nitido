@@ -1,3 +1,4 @@
+import {ensurePaymentMoneySchema,paymentCurrency,stripePaymentCurrency,type PaymentCurrency} from './paymentMoney';
 import type {Database} from 'better-sqlite3';
 import type Stripe from 'stripe';
 import {createHash,randomUUID} from 'node:crypto';
@@ -10,14 +11,14 @@ CREATE TABLE IF NOT EXISTS authorization_coverage (
  amount_minor INTEGER NOT NULL,provider_key_hash TEXT NOT NULL,required_until_ms INTEGER NOT NULL,capture_before_ms INTEGER,
  state TEXT NOT NULL CHECK(state IN ('verified','release_pending','released','needs_review')),
  attempts INTEGER NOT NULL DEFAULT 0,next_retry_ms INTEGER NOT NULL DEFAULT 0,lease_token TEXT,lease_until_ms INTEGER NOT NULL DEFAULT 0,
- last_error TEXT,created_ms INTEGER NOT NULL,updated_ms INTEGER NOT NULL
+ last_error TEXT,created_ms INTEGER NOT NULL,updated_ms INTEGER NOT NULL,currency TEXT NOT NULL DEFAULT 'RON'
 );
 CREATE INDEX IF NOT EXISTS authorization_coverage_pending ON authorization_coverage(state,next_retry_ms);
 `;
 export class AuthorizationCoverageError extends Error{
  constructor(public code:'HOLD_COVERAGE_UNCONFIRMED'|'HOLD_RELEASE_PENDING'){super(code)}
 }
-type Coverage={intent_id:string;job_id:string;payment_id:string;amount_minor:number;provider_key_hash:string;required_until_ms:number;capture_before_ms:number|null;state:string;attempts:number;next_retry_ms:number;lease_token:string|null;lease_until_ms:number};
+type Coverage={intent_id:string;job_id:string;payment_id:string;amount_minor:number;provider_key_hash:string;required_until_ms:number;capture_before_ms:number|null;state:string;attempts:number;next_retry_ms:number;lease_token:string|null;lease_until_ms:number;currency:PaymentCurrency};
 const keyHash=()=>createHash('sha256').update(process.env.STRIPE_SECRET_KEY??'').digest('hex');
 export function authorizationRequiredUntil(job:JobTiming,now=Date.now()){
  const start=Date.parse(job.scheduled_at??'');
@@ -25,11 +26,12 @@ export function authorizationRequiredUntil(job:JobTiming,now=Date.now()){
  const end=Math.max(Number.isFinite(start)?start:now,now)+(job.duration_minutes+job.buffer_minutes)*60000;
  if(!Number.isSafeInteger(end))throw Error('INVALID_AUTHORIZATION_SCHEDULE');return end;
 }
-function matches(intent:Stripe.PaymentIntent,row:Pick<Coverage,'intent_id'|'job_id'|'payment_id'|'amount_minor'>){
- return intent.id===row.intent_id&&intent.currency==='ron'&&intent.amount===row.amount_minor&&intent.capture_method==='manual'&&intent.amount_received===0&&intent.metadata?.jobId===row.job_id&&intent.metadata?.paymentId===row.payment_id;
+function matches(intent:Stripe.PaymentIntent,row:Pick<Coverage,'intent_id'|'job_id'|'payment_id'|'amount_minor'|'currency'>){
+ return intent.id===row.intent_id&&intent.currency===stripePaymentCurrency(paymentCurrency(row.currency,true))&&intent.amount===row.amount_minor&&intent.capture_method==='manual'&&intent.amount_received===0&&intent.metadata?.jobId===row.job_id&&intent.metadata?.paymentId===row.payment_id;
 }
 /** Releases only a known, unused failed authorization. Never touches a payment used by a booking. */
 export async function releaseUncoveredAuthorization(db:Database,stripe:Stripe,intentId:string,now=Date.now()){
+ ensurePaymentMoneySchema(db);
  const token=randomUUID();
  const row=db.transaction(()=>{
   const value=db.prepare('SELECT * FROM authorization_coverage WHERE intent_id=?').get(intentId) as Coverage|undefined;
@@ -60,6 +62,7 @@ export async function releaseUncoveredAuthorization(db:Database,stripe:Stripe,in
 }
 /** No new intent may replace a blocked/released authorization automatically. */
 export async function assertCoverageAttemptReusable(db:Database,stripe:Stripe,jobId:string){
+ ensurePaymentMoneySchema(db);
  const row=db.prepare("SELECT * FROM authorization_coverage WHERE job_id=? AND state!='verified' ORDER BY created_ms DESC LIMIT 1").get(jobId) as Coverage|undefined;
  if(!row)return;
  if(row.state==='release_pending')await releaseUncoveredAuthorization(db,stripe,row.intent_id);
@@ -67,8 +70,13 @@ export async function assertCoverageAttemptReusable(db:Database,stripe:Stripe,jo
  throw new AuthorizationCoverageError(fresh.state==='release_pending'?'HOLD_RELEASE_PENDING':'HOLD_COVERAGE_UNCONFIRMED');
 }
 /** Existing Stripe integration, manual capture. Only the processor's actual deadline is evidence. */
-export async function ensureAuthorizationCoverage(db:Database,stripe:Stripe,intent:Stripe.PaymentIntent,input:{jobId:string;paymentId:string;amountMinor:number;requiredUntil:number}){
- const identity={intent_id:intent.id,job_id:input.jobId,payment_id:input.paymentId,amount_minor:input.amountMinor};
+export async function ensureAuthorizationCoverage(db:Database,stripe:Stripe,intent:Stripe.PaymentIntent,input:{jobId:string;paymentId:string;amountMinor:number;requiredUntil:number;currency?:PaymentCurrency}){
+ ensurePaymentMoneySchema(db);
+ const currency=paymentCurrency(input.currency,true);
+ if(!Number.isSafeInteger(input.amountMinor)||input.amountMinor<=0)throw Error('PAYMENT_AMOUNT_INVALID');
+ const identity={intent_id:intent.id,job_id:input.jobId,payment_id:input.paymentId,amount_minor:input.amountMinor,currency};
+ const previous=db.prepare('SELECT * FROM authorization_coverage WHERE intent_id=?').get(intent.id) as Coverage|undefined;
+ if(previous&&(paymentCurrency(previous.currency,true)!==currency||previous.job_id!==input.jobId||previous.payment_id!==input.paymentId||previous.amount_minor!==input.amountMinor))throw Error('PAYMENT_DETAILS_MISMATCH');
  const expanded=await stripe.paymentIntents.retrieve(intent.id,{expand:['latest_charge']});
  if(!matches(expanded,identity)||expanded.status!=='requires_capture'||expanded.amount_capturable!==input.amountMinor)throw Error('PAYMENT_AUTHORIZATION_NOT_CONFIRMED');
  const charge=expanded.latest_charge&&typeof expanded.latest_charge==='object'?expanded.latest_charge:null;
@@ -77,8 +85,8 @@ export async function ensureAuthorizationCoverage(db:Database,stripe:Stripe,inte
  const covered=expiry!==null&&expiry>Math.max(input.requiredUntil,Date.now());
  const inUse=!!db.prepare('SELECT 1 FROM payments WHERE stripe_payment_intent_id=? OR job_id=?').get(intent.id,input.jobId);
  const state=covered?'verified':inUse?'needs_review':'release_pending';
- db.prepare(`INSERT INTO authorization_coverage(intent_id,job_id,payment_id,amount_minor,provider_key_hash,required_until_ms,capture_before_ms,state,created_ms,updated_ms)
- VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(intent_id) DO UPDATE SET required_until_ms=excluded.required_until_ms,capture_before_ms=excluded.capture_before_ms,state=CASE WHEN authorization_coverage.state='verified' THEN excluded.state ELSE authorization_coverage.state END,updated_ms=excluded.updated_ms`).run(intent.id,input.jobId,input.paymentId,input.amountMinor,keyHash(),input.requiredUntil,expiry,state,Date.now(),Date.now());
+ db.prepare(`INSERT INTO authorization_coverage(intent_id,job_id,payment_id,amount_minor,provider_key_hash,required_until_ms,capture_before_ms,state,created_ms,updated_ms,currency)
+ VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(intent_id) DO UPDATE SET required_until_ms=excluded.required_until_ms,capture_before_ms=excluded.capture_before_ms,state=CASE WHEN authorization_coverage.state='verified' THEN excluded.state ELSE authorization_coverage.state END,updated_ms=excluded.updated_ms`).run(intent.id,input.jobId,input.paymentId,input.amountMinor,keyHash(),input.requiredUntil,expiry,state,Date.now(),Date.now(),currency);
  const persisted=db.prepare('SELECT state FROM authorization_coverage WHERE intent_id=?').get(intent.id) as {state:string};
  if(covered&&persisted.state==='verified')return;
  db.prepare("UPDATE payment_authorization_attempts SET status='coverage_blocked' WHERE job_id=? AND stripe_payment_intent_id=?").run(input.jobId,intent.id);
@@ -87,6 +95,7 @@ export async function ensureAuthorizationCoverage(db:Database,stripe:Stripe,inte
  throw new AuthorizationCoverageError(fresh.state==='release_pending'?'HOLD_RELEASE_PENDING':'HOLD_COVERAGE_UNCONFIRMED');
 }
 export async function recoverAuthorizationCoverage(db:Database,stripe:Stripe){
+ ensurePaymentMoneySchema(db);
  const rows=db.prepare("SELECT intent_id FROM authorization_coverage WHERE state='release_pending' AND next_retry_ms<=? AND lease_until_ms<=? ORDER BY created_ms LIMIT 5").all(Date.now(),Date.now()) as {intent_id:string}[];
  let released=0;for(const row of rows){await releaseUncoveredAuthorization(db,stripe,row.intent_id);if((db.prepare('SELECT state FROM authorization_coverage WHERE intent_id=?').get(row.intent_id) as {state:string}).state==='released')released++}
  return {attempted:rows.length,released};

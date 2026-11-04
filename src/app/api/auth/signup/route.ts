@@ -9,8 +9,7 @@ import { isPlausibleCui, sanitizeCui, verifyCuiWithAnaf } from "@/lib/cui";
 import { sanitizeCoverageCitiesInput } from "@/lib/text";
 import { generateReferralCode, REFERRAL_BONUS_LEI } from "@/lib/referral";
 import { consumeRateLimit, requestIp } from "@/lib/security";
-import {sendVerificationEmail} from "@/lib/emailVerification";
-import { emailConfigured } from "@/lib/email";
+import {sendVerificationEmailResult} from "@/lib/emailVerification";
 
 // Înregistrare — spec secțiunea 4.1 (client) și secțiunea 4, punct 1 (firmă:
 // "date firmă, zonă de acoperire, tipuri de lucrări acceptate").
@@ -127,8 +126,8 @@ export async function POST(req: NextRequest) {
 
   after(async()=>{try{await processOwnerEmails(db,{ids:[ownerEventId]});}catch{console.error('owner_notification_deferred');}});
 
-  const welcomeEmailSent = await sendVerificationEmail(db, userId);
-  if (!welcomeEmailSent) console.error("signup_welcome_email_failed", { configured: emailConfigured(), userId });
+  const welcomeEmailResult = await sendVerificationEmailResult(db, userId);
+  const welcomeEmailSent = welcomeEmailResult.accepted;
 
   const sessionToken = await createSession(userId);
 

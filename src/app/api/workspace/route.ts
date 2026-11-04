@@ -13,6 +13,7 @@ const response=(data:unknown,status=200)=>NextResponse.json(data,{status,headers
 export async function GET(req:NextRequest){
  const user=await getCurrentUser(req);if(!user)return response({error:"Autentificare necesară"},401);
  if(req.nextUrl.searchParams.get('view')==='homes')return response({properties:user.role==='client'?db.prepare("SELECT id,name,city,street,postal_code,floor,sqm,space_type,bathroom_count,notes,sensitive_materials,usual_tasks,access_notes FROM workspace_properties WHERE owner_id=? AND archived=0 AND kind='home' ORDER BY created_at DESC").all(user.id):[]});
+ if(user.role==='client'&&db.prepare(`SELECT j.id FROM workspace_property_jobs pj JOIN workspace_properties p ON p.id=pj.property_id JOIN jobs j ON j.id=pj.job_id WHERE p.owner_id=? AND j.client_id=p.owner_id AND p.archived=0 AND (CASE WHEN j.pricing_snapshot IS NULL THEN 1 WHEN json_valid(j.pricing_snapshot) THEN COALESCE(json_extract(j.pricing_snapshot,'$.currency'),'RON')='RON' ELSE 0 END)=0 LIMIT 1`).get(user.id))return response({error:'Bugetele pe proprietăți și exporturile aferente sunt disponibile numai pentru lucrări în RON. Consultă separat lucrările EUR în secțiunea Plăți.'},422);
  const firm=user.role==="firma"?getFirmByUserId(user.id):null;
  const properties=user.role==="client"?db.prepare(`SELECT p.*,
  (SELECT op.organization_id FROM workspace_organization_properties op WHERE op.property_id=p.id) AS organization_id,
