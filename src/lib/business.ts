@@ -1,3 +1,5 @@
+import {ReportError} from './reportArchive';
+import {currencyOfJob} from './jobCurrency';
 import type { Database } from "better-sqlite3";
 
 /**
@@ -99,7 +101,7 @@ export function executionReport(db: Database, userId: string, month?: string | n
   const useMonth = typeof month === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? month : null;
   const scope=filter.scope??'all',propertyId=filter.propertyId??null,organizationId=filter.organizationId??null;
   const rows=db.prepare(`SELECT j.id AS jobId,j.completed_at AS completedAt,j.city,j.street,
-    j.sqm,j.space_type AS spaceType,j.price_gross AS priceGross,u.name AS firmName,
+    j.sqm,j.space_type AS spaceType,j.price_gross AS priceGross,j.pricing_snapshot AS pricingSnapshot,u.name AS firmName,
     p.id AS propertyId,p.name AS propertyName,p.cost_center AS costCenter,
     (SELECT o.name FROM workspace_organization_properties op JOIN workspace_organizations o ON o.id=op.organization_id WHERE op.property_id=p.id AND o.owner_id=j.client_id) AS organizationName,
     (SELECT COUNT(*) FROM job_photos ph WHERE ph.job_id=j.id AND ph.status='VALID') AS photoCount,
@@ -116,9 +118,10 @@ export function executionReport(db: Database, userId: string, month?: string | n
       AND (? IS NULL OR date(j.completed_at)>=?) AND (? IS NULL OR date(j.completed_at)<=?)
       AND (?='all' OR p.kind=?) AND (? IS NULL OR p.id=?)
       AND (? IS NULL OR EXISTS(SELECT 1 FROM workspace_organization_properties op JOIN workspace_organizations o ON o.id=op.organization_id WHERE op.property_id=p.id AND o.id=? AND o.owner_id=j.client_id))
-    ORDER BY j.completed_at DESC,j.id LIMIT 10001`).all(userId,useMonth,useMonth,filter.from??null,filter.from??null,filter.to??null,filter.to??null,scope,scope,propertyId,propertyId,organizationId,organizationId) as ExecutionReportRow[];
+    ORDER BY j.completed_at DESC,j.id LIMIT 10001`).all(userId,useMonth,useMonth,filter.from??null,filter.from??null,filter.to??null,filter.to??null,scope,scope,propertyId,propertyId,organizationId,organizationId) as (ExecutionReportRow&{pricingSnapshot:string|null})[];
   if(rows.length>10000)throw new Error('REPORT_TOO_LARGE');
+  if(rows.some(row=>currencyOfJob(row.pricingSnapshot)!=='RON'))throw new ReportError('Acest raport și exportul CSV sunt disponibile numai pentru lucrări în RON. Lucrările EUR se verifică în secțiunea Plăți.',422);
   const organizationName=organizationId?(db.prepare('SELECT name FROM workspace_organizations WHERE id=? AND owner_id=?').get(organizationId,userId) as {name:string}|undefined)?.name??null:null;
   const totalBani=rows.reduce((sum,r)=>sum+Math.round(r.priceGross*100),0);
-  return {month:useMonth,scope,propertyId,organizationId,organizationName,from:filter.from??null,to:filter.to??null,generatedAt:new Date().toISOString(),currency:'RON',rows,totalJobs:rows.length,totalAmount:totalBani/100};
+  return {month:useMonth,scope,propertyId,organizationId,organizationName,from:filter.from??null,to:filter.to??null,generatedAt:new Date().toISOString(),currency:'RON',rows:rows.map(({pricingSnapshot,...row})=>{void pricingSnapshot;return row;}),totalJobs:rows.length,totalAmount:totalBani/100};
 }

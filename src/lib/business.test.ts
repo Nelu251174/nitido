@@ -79,3 +79,7 @@ describe("business — Nitido Office (cont business + raport execuție)", () => 
     db.close();
   });
 });
+
+it('refuses foreign work in the legacy RON execution export',()=>{
+ const db=makeTestDb();try{seed(db);seedCompleted(db,'foreign',100,'2026-03-05T10:00:00Z');db.prepare("UPDATE jobs SET pricing_snapshot=? WHERE id='foreign'").run('{"currency":"EUR","countryCode":"DE"}');expect(()=>executionReport(db,'client_1')).toThrow(expect.objectContaining({status:422}));}finally{db.close();}
+});

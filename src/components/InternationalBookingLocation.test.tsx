@@ -1,0 +1,22 @@
+// @vitest-environment jsdom
+import React,{act} from 'react';
+import {createRoot,type Root} from 'react-dom/client';
+import {beforeEach,afterEach,it,expect,vi} from 'vitest';
+const m=vi.hoisted(()=>({gps:vi.fn()}));
+vi.mock('@/lib/currentInternationalLocation',()=>({currentInternationalLocation:m.gps}));
+vi.mock('./UiText',()=>({UiText:({text}:{text:string})=><>{text}</>}));
+import {InternationalBookingLocation} from './InternationalBookingLocation';
+import type {InternationalLocation} from '@/lib/internationalBookingLocation';
+const initial={countryCode:'FR',city:'Paris',street:'',postalCode:''};
+const detected={countryCode:'ES',city:'Madrid',street:'Calle Ejemplo 12',postalCode:'28001'};
+let root:Root,el:HTMLDivElement;
+beforeEach(()=>{Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});vi.resetAllMocks();vi.stubGlobal('fetch',vi.fn(async()=>Response.json({configured:true})));el=document.createElement('div');document.body.append(el);root=createRoot(el);});
+afterEach(async()=>{await act(()=>root.unmount());el.remove();vi.unstubAllGlobals();});
+async function render(location:InternationalLocation=initial,onDetected=vi.fn(),onLocate=vi.fn(),contextKey=''){await act(()=>root.render(<InternationalBookingLocation location={location} onDetected={onDetected} onLocate={onLocate} contextKey={contextKey}/>));return {onDetected,onLocate};}
+async function click(text:string){await act(async()=>{[...el.querySelectorAll('button')].find(b=>b.textContent?.includes(text))!.click();await Promise.resolve();});}
+it('asks only after the user action, then waits for explicit address confirmation',async()=>{m.gps.mockResolvedValue(detected);const callbacks=await render();expect(m.gps).not.toHaveBeenCalled();await click('Completează adresa prin GPS');expect(callbacks.onLocate).toHaveBeenCalledTimes(1);expect(callbacks.onDetected).not.toHaveBeenCalled();expect(el.textContent).toContain('Calle Ejemplo 12');await click('Folosește această locație');expect(callbacks.onDetected).toHaveBeenCalledWith(detected);});
+it('preserves manual data edited while GPS is pending',async()=>{let resolve!:(a:InternationalLocation)=>void;m.gps.mockReturnValue(new Promise(r=>{resolve=r;}));const {onDetected}=await render();await click('Completează adresa prin GPS');await render({...initial,street:'Adresa mea'},onDetected);await act(()=>resolve(detected));expect(el.textContent).toContain('Datele introduse au fost păstrate');expect(el.textContent).not.toContain('Calle Ejemplo 12');expect([...el.querySelectorAll('button')].some(b=>b.textContent?.includes('Folosește această locație'))).toBe(false);expect(onDetected).not.toHaveBeenCalled();});
+it('preserves manually edited floor and schedule context while GPS is pending',async()=>{let resolve!:(a:InternationalLocation)=>void;m.gps.mockReturnValue(new Promise(r=>{resolve=r;}));const {onDetected}=await render(initial,vi.fn(),vi.fn(),'floor=1;date=original');await click('Completează adresa prin GPS');await render(initial,onDetected,vi.fn(),'floor=2;date=changed');await act(()=>resolve(detected));expect(el.textContent).toContain('Datele introduse au fost păstrate');expect(onDetected).not.toHaveBeenCalled();});
+it('keeps manual entry available after denied GPS without applying data',async()=>{m.gps.mockRejectedValue(Error('Accesul la locație nu este permis.'));const {onDetected}=await render();await click('Completează adresa prin GPS');expect(el.textContent).toContain('nu este permis');expect(onDetected).not.toHaveBeenCalled();expect(el.querySelector('button')!.disabled).toBe(false);});
+it('explains locality-only fallback and never asks GPS during configuration failure',async()=>{vi.mocked(fetch).mockRejectedValue(Error('offline'));const {onDetected}=await render();expect(el.textContent).toContain('BigDataCloud');expect(m.gps).not.toHaveBeenCalled();m.gps.mockResolvedValue({...initial,street:'',postalCode:''});await click('Folosește locația mea');await click('Folosește această locație');expect(m.gps).toHaveBeenCalledWith(false,expect.any(AbortSignal));expect(onDetected).toHaveBeenCalledWith(initial);});
+it('aborts pending geolocation on unmount without applying a late result',async()=>{let resolve!:(a:InternationalLocation)=>void;m.gps.mockReturnValue(new Promise(r=>{resolve=r;}));const {onDetected}=await render();await click('Completează adresa prin GPS');const signal=m.gps.mock.calls[0][1] as AbortSignal;await act(()=>root.unmount());root=createRoot(el);expect(signal.aborted).toBe(true);await act(()=>resolve(detected));expect(onDetected).not.toHaveBeenCalled();});

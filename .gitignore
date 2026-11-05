@@ -1,10 +1,15 @@
-node_modules/
+node_modules
 .translation-work/
 mobile/node_modules/
 mobile/.expo/
 mobile/.expo-export-check/
 .next/
 data/
+!src/data/
+src/data/*
+!src/data/internationalResearchReview.json
+!src/data/internationalMarketScope.json
+!src/data/internationalLocationAliases.json
 public/uploads/
 *.log
 .env

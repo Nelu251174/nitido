@@ -14,7 +14,7 @@ beforeEach(() => {
     CREATE TABLE jobs(id TEXT PRIMARY KEY,client_id TEXT,city TEXT DEFAULT 'București',street TEXT DEFAULT 'Private street',
       sqm INTEGER DEFAULT 70,duration_minutes INTEGER DEFAULT 120,status TEXT DEFAULT 'waiting',
       scheduled_at TEXT,accepted_firm_id TEXT,created_at TEXT DEFAULT '2026-01-01T00:00:00Z',
-      accepted_at TEXT,arrived_confirmed_at TEXT,completed_at TEXT);
+      accepted_at TEXT,arrived_confirmed_at TEXT,completed_at TEXT,pricing_snapshot TEXT);
     CREATE TABLE offers(job_id TEXT,status TEXT);
     CREATE TABLE workspace_assignments(job_id TEXT,team_id TEXT);
     CREATE TABLE workspace_teams(id TEXT,active INTEGER);

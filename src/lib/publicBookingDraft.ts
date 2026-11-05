@@ -1,5 +1,14 @@
 /** Same-tab session draft. No address, contact, payment or account data. */
 export const BOOKING_DRAFT_KEY = 'nitido.booking-draft.v1';
+/** Preserve existing Romanian intent before considering a new IP suggestion.
+ * Private drafts are checked for presence only, never decoded or changed here. */
+export function hasStoredBookingContext(storage:Pick<Storage,'getItem'>):boolean {
+  try {
+    const saved=storage.getItem(BOOKING_DRAFT_KEY);
+    return Boolean(saved&&Object.keys(cleanBookingDraft(JSON.parse(saved))).length)
+      || Boolean(storage.getItem('nitido:card-booking-draft:v1'));
+  }catch{return true;}
+}
 export const BOOKING_DRAFT_FIELDS = ['cleaningType','flexibleWindows','propertyId','city','sqm','spaceType','bathroomCount','windowsSqm','scheduled','date','hour','mode'] as const;
 export function cleanBookingDraft(value: unknown): Record<string,string> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};

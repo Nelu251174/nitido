@@ -1,3 +1,4 @@
+import {activeAccountSql} from './accountStatus';
 import type {Database} from 'better-sqlite3';
 import {firmCoversCity} from './text';
 import {firmAvailabilityError} from './firmAvailability';
@@ -11,7 +12,7 @@ export class RetentionError extends Error {
 
 export function eligibleFavorite(db:Database,clientId:string,firmId:string){
   const firm=db.prepare(`SELECT f.id,f.user_id,f.verified,f.suspended_until,f.coverage_city,f.coverage_cities_extra,u.name
-    FROM firms f JOIN users u ON u.id=f.user_id WHERE f.id=? AND EXISTS(
+    FROM firms f JOIN users u ON u.id=f.user_id WHERE f.id=? AND ${activeAccountSql(db,'u.id')} AND EXISTS(
     SELECT 1 FROM jobs j WHERE j.client_id=? AND j.accepted_firm_id=f.id AND j.status='completed')`)
     .get(firmId,clientId) as {id:string;user_id:string;verified:number;suspended_until:string|null;coverage_city:string;coverage_cities_extra:string|null;name:string}|undefined;
   if(!firm||firm.verified!==1||firm.suspended_until&&(!Number.isFinite(Date.parse(firm.suspended_until))||Date.parse(firm.suspended_until)>Date.now()))
@@ -23,7 +24,7 @@ export function favoriteFirms(db:Database,clientId:string){
   return db.prepare(`SELECT f.id,u.name,f.coverage_city,f.verified,f.suspended_until,
     CASE WHEN p.firm_id IS NOT NULL THEN 1 ELSE 0 END saved
     FROM firms f JOIN users u ON u.id=f.user_id LEFT JOIN client_favorite_firms p ON p.firm_id=f.id AND p.client_id=?
-    WHERE p.firm_id IS NOT NULL OR EXISTS(SELECT 1 FROM jobs j WHERE j.client_id=? AND j.accepted_firm_id=f.id AND j.status='completed')
+    WHERE ${activeAccountSql(db,'u.id')} AND (p.firm_id IS NOT NULL OR EXISTS(SELECT 1 FROM jobs j WHERE j.client_id=? AND j.accepted_firm_id=f.id AND j.status='completed'))
     ORDER BY saved DESC,u.name,f.id`).all(clientId,clientId) as {id:string;name:string;coverage_city:string;verified:number;suspended_until:string|null;saved:number}[];
 }
 

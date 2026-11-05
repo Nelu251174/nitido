@@ -10,6 +10,7 @@ import { firmCoversCity } from "@/lib/text";
 import { acceptJobAtomic, type AcceptResult } from "@/lib/acceptJob";
 import { computeQualityScore } from "@/lib/qualityIndex";
 import { firmAvailabilityError, type JobTiming } from "@/lib/firmAvailability";
+import {providerMarketError} from './publishedPrice';
 
 /**
  * Motorul „selecției pe calitate" (repoziționare Etapa 2) — pandantul lui
@@ -30,6 +31,7 @@ type FirmRow = {
   verified: number;
   coverage_city: string;
   coverage_cities_extra: string | null;
+  stripe_identity_country?:string|null;stripe_default_currency?:string|null;stripe_account_id?:string|null;stripe_account_status?:string;stripe_transfers_capability?:string;
 };
 
 type JobRow = JobTiming & {
@@ -38,6 +40,7 @@ type JobRow = JobTiming & {
   city: string;
   status: string;
   mode: string;
+  pricing_snapshot?:string|null;price_gross?:number;credit_applied?:number;
 };
 
 export type OfferResult =
@@ -78,7 +81,7 @@ export function createOffer(
 function createOfferLocked(db: Database, jobId: string, firmId: string, message?: string | null,flexible?:{teamId:string;startsAt:string}): OfferResult {
   const firm = db
     .prepare(
-      "SELECT id, suspended_until, verified, coverage_city, coverage_cities_extra FROM firms WHERE id = ?"
+      "SELECT * FROM firms WHERE id = ?"
     )
     .get(firmId) as FirmRow | undefined;
   if (!firm) return { ok: false, error: "Firmă inexistentă", status: 404 };
@@ -91,6 +94,7 @@ function createOfferLocked(db: Database, jobId: string, firmId: string, message?
     .prepare("SELECT * FROM jobs WHERE id = ?")
     .get(jobId) as JobRow | undefined;
   if (!job) return { ok: false, error: "Lucrare inexistentă", status: 404 };
+  const marketError=providerMarketError(job,firm,true,db);if(marketError)return {ok:false,error:marketError,status:403};
   if (job.mode !== "standard") {
     return { ok: false, error: "Lucrarea nu primește oferte (nu este în mod standard)", status: 409 };
   }
@@ -150,6 +154,7 @@ function createOfferLocked(db: Database, jobId: string, firmId: string, message?
 
 /** Ofertele active pentru o lucrare, cu semnalele de calitate + Quality Index, sortate pe scor. */
 export function listOffersForJob(db: Database, jobId: string): OfferSummary[] {
+  const job=db.prepare('SELECT * FROM jobs WHERE id=?').get(jobId) as JobRow|undefined;if(!job)return [];
   const rows = db
     .prepare(
       `SELECT o.id AS offerId, o.firm_id AS firmId, o.message AS message, o.status AS status,
@@ -163,6 +168,7 @@ export function listOffersForJob(db: Database, jobId: string): OfferSummary[] {
     .all(jobId) as (Omit<OfferSummary, "qualityScore" | "ratingAvg" | "ratingCount"> & { strikes90d: number })[];
 
   return rows
+    .filter(row=>{const firm=db.prepare('SELECT * FROM firms WHERE id=?').get(row.firmId) as FirmRow|undefined;return !!firm&&!providerMarketError(job,firm,false,db);})
     .map(({ strikes90d, ...r }) => {
       const rating=verifiedFirmRating(db,r.firmId),ratingAvg=rating.average===null?null:Math.round(rating.average*100)/100;
       return { ...r,ratingAvg,ratingCount:rating.count,

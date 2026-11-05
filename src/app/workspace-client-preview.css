@@ -1,0 +1,331 @@
+/* CLIENT workspace styles. Scoped to the client layout; no partner or public styles. */
+.client-preview {
+  --client-canvas: #f4f6f5;
+  --client-surface: #fff;
+  --client-rail: #102c25;
+  --client-ink: #1e302a;
+  --client-muted: #5e7065;
+  --client-line: #e0e7e2;
+  --client-accent: #007a4a;
+  --client-mint: #d7f4e3;
+  min-width: 0;
+  background: var(--client-canvas);
+  color: var(--client-ink);
+}
+.client-preview .workspace-redesign.workspace-redesign-client {
+  --ws-bg: var(--client-canvas);
+  --ws-surface: #fff;
+  --ws-rail: var(--client-rail);
+  --ws-ink: var(--client-ink);
+  --ws-muted: var(--client-muted);
+  --ws-line: var(--client-line);
+  --ws-brand: var(--client-accent);
+  --ws-brand-soft: #e8f5ed;
+  --ws-radius: 12px;
+  --ink: var(--client-ink);
+  --muted: var(--client-muted);
+  --line: var(--client-line);
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  align-items: start;
+  background: var(--client-canvas);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.client-preview .workspace-redesign.workspace-redesign-client > .client-workspace-sidebar {
+  position: sticky;
+  top: var(--app-safe-top, 0px);
+  width: 248px;
+  height: calc(100dvh - var(--app-safe-top, 0px));
+  max-height: calc(100dvh - var(--app-safe-top, 0px));
+  gap: 0;
+  padding: 24px 16px 18px;
+  overflow: hidden;
+  border: 0;
+  background: var(--client-rail);
+  color: #eaf3ee;
+}
+.client-preview .client-sidebar-brand { display: flex; align-items: center; justify-content: space-between; padding: 0 10px; }
+.client-preview .client-sidebar-brand-mark { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid #3c6153; border-radius: 9px; color: #85c9a6; }
+.client-preview .workspace-redesign-client > aside :is(.design-wordmark, a.font-display),
+.client-preview .operations-sidebar > a.font-display {
+  margin: 0;
+  min-height: 32px;
+  color: #f4faf6;
+  font-size: 26px;
+  line-height: 1.2;
+  letter-spacing: -1px;
+}
+.client-preview .workspace-redesign-client > aside a.font-display span,
+.client-preview .operations-sidebar > a.font-display span { color: #8bd8ae; }
+.client-preview .workspace-redesign-client > aside .client-workspace-role { margin: 8px 10px 27px; color: #93afa0; font-size: 10px; letter-spacing: 1.6px; }
+.client-preview .workspace-redesign-client > aside > .workspace-nav { flex: 1 1 auto; min-height: 0; margin: 0; padding: 0 3px; gap: 0; overflow-y: auto; scrollbar-color: #527766 transparent; }
+.client-preview .workspace-redesign-client .workspace-nav-primary { display: grid; gap: 5px; }
+.client-preview .workspace-redesign.workspace-redesign-client .workspace-nav a.workspace-nav-item { min-height: 44px; margin: 0; padding: 10px 12px; gap: 12px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: #c9dbd0; font-size: 13px; font-weight: 500; }
+.client-preview .workspace-redesign.workspace-redesign-client .workspace-nav a.workspace-nav-item svg { width: 19px; height: 19px; color: #9dbda9; }
+.client-preview .workspace-redesign.workspace-redesign-client .workspace-nav a.workspace-nav-item:hover { border-color: #315547; background: #1c3b30; color: #fff; }
+.client-preview .workspace-redesign.workspace-redesign-client .workspace-nav a.workspace-nav-item[aria-current=page] { border-color: transparent; background: var(--client-mint); color: #103a28; font-weight: 650; }
+.client-preview .workspace-redesign.workspace-redesign-client .workspace-nav a.workspace-nav-item[aria-current=page] svg { color: #116a45; }
+.client-preview .workspace-redesign-client .workspace-nav-secondary { border-color: #315146; margin-top: 18px; padding-top: 12px; }
+.client-preview .workspace-redesign-client .workspace-nav-secondary summary { color: #a8c0b1; font-size: 12px; }
+.client-preview .workspace-redesign-client .workspace-nav-secondary summary:hover { background: #1c3b30; }
+.client-preview .workspace-redesign-client .workspace-nav-secondary a { min-height: 39px; font-size: 12px; }
+.client-preview .workspace-redesign.workspace-redesign-client .workspace-nav .workspace-booking-action { min-height: 42px; margin-top: 16px; padding: 10px 12px; border: 1px solid #49735c; border-radius: 8px; background: #1b3e30; color: #eff9f2; font-size: 12px; }
+.client-preview .workspace-redesign.workspace-redesign-client .workspace-nav .workspace-booking-action:hover { background: #2b5541; }
+.client-preview .client-sidebar-account { flex: none; margin-top: 18px; padding: 17px 7px 0; border-top: 1px solid #315146; }
+.client-preview .client-sidebar-person { display: flex; align-items: center; gap: 10px; min-width: 0; color: #f4faf6; }
+.client-preview .client-sidebar-avatar { display: grid; flex: 0 0 34px; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: #315b46; color: #dcf5e5; font-size: 14px; font-weight: 700; }
+.client-preview .client-sidebar-person > span:last-child { min-width: 0; }
+.client-preview .client-sidebar-person strong, .client-preview .client-sidebar-person small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.client-preview .client-sidebar-person strong { color: #edf7f0; font-size: 12px; font-weight: 600; }
+.client-preview .client-sidebar-person small { max-width: 162px; margin-top: 2px; color: #9ab9a6; font-size: 11px; }
+.client-preview .client-sidebar-account > button { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 36px; margin-top: 10px; color: #a3c1af; font-size: 11px; text-align: left; }
+.client-preview .workspace-redesign.workspace-redesign-client > .client-workspace-main {
+  width: 100%;
+  min-width: 0;
+  max-width: 1480px;
+  padding: 0 34px 52px;
+  background: var(--client-canvas);
+}
+.client-preview .workspace-redesign-client .board-topbar,
+.client-preview .workspace-redesign-client .operations-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 76px;
+  margin: 0 0 25px;
+  padding: 0;
+  gap: 16px;
+  border-bottom: 1px solid var(--client-line);
+  background: transparent;
+  font-size: 12px;
+  color: #607568;
+}
+.client-preview .client-topbar-context { display: flex; align-items: center; gap: 9px; font-size: 12px; font-weight: 500; color: #607568; }
+.client-preview .board-topbar > div { display: flex; align-items: center; gap: 17px; }
+.client-preview .board-topbar > div > a[href="/client/mesaje"] { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--client-line); border-radius: 9px; background: #fff; color: #5f786a; }
+.client-preview .workspace-redesign-client .account-profile-link { display: inline-flex; align-items: center; gap: 9px; max-width: 220px; color: #3a5346; font-size: 12px; font-weight: 600; }
+.client-preview .workspace-redesign-client .board-avatar { width: 33px; height: 33px; border-radius: 10px; background: #e2efe6; color: #26704b; font-size: 13px; }
+.client-preview .workspace-redesign-client .account-profile-link b { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.client-preview .workspace-redesign-client .client-workspace-header { align-items: center; min-height: 0; margin: 0 0 23px; padding: 0; border: 0; gap: 14px; }
+.client-preview .workspace-redesign-client .client-workspace-header h1,
+.client-preview .workspace-redesign-client .workspace-title { margin: 0 0 6px; font-size: 28px; line-height: 1.25; font-weight: 700; letter-spacing: -1px; }
+.client-preview .workspace-redesign-client .client-workspace-header p { font-size: 13px; color: #607568; line-height: 1.65; }
+.client-preview .workspace-redesign-client :is(.design-panel, .v2-card, .property-card) { border-color: var(--client-line); border-radius: 12px; background: #fff; box-shadow: 0 2px 4px #19352a02; }
+.client-preview .workspace-redesign-client :is(.design-button, .v2-btn) { min-height: 42px; padding: 10px 15px; border-radius: 8px; font-size: 12px; font-weight: 650; }
+.client-preview .workspace-redesign-client :is(.design-button, .v2-btn-primary) { border-color: var(--client-accent); background: var(--client-accent); color: #fff; }
+.client-preview .workspace-redesign-client :is(.design-button, .v2-btn-primary):hover { background: #00623c; border-color: #00623c; }
+.client-preview .workspace-redesign-client .v2-btn-secondary { border: 1px solid #dce5de; background: #fff; color: #345743; }
+.client-preview .workspace-redesign-client .client-workspace-home { display: grid; gap: 20px; max-width: 1300px; }
+.client-preview .workspace-redesign-client .client-workspace-stats { display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 0; margin: 0; border: 1px solid var(--client-line); border-radius: 12px; overflow: hidden; background: #fff; }
+.client-preview .workspace-redesign-client .client-workspace-stat { display: flex; flex-flow: row nowrap; align-items: center; justify-content: flex-start; min-height: 84px; gap: 12px; margin: 0; padding: 15px 20px; border: 0; border-right: 1px solid var(--client-line); border-radius: 0; background: #fff; box-shadow: none; }
+.client-preview .workspace-redesign-client .client-workspace-stat:last-child { border-right: 0; }
+.client-preview .workspace-redesign-client .client-workspace-stat:hover { background: #f9fbf9; }
+.client-preview .client-workspace-stat > span:nth-child(2) { display: grid; gap: 3px; min-width: 0; }
+.client-preview .client-workspace-stat > svg:last-child { margin-left: auto; color: #92a49a; }
+.client-preview .client-workspace-stat .client-stat-icon { display: grid; flex: none; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: #eff6f0; color: #4b8263; }
+.client-preview .client-workspace-stat strong { display: block; color: #273f31; font-size: 24px; line-height: 1.15; font-weight: 700; letter-spacing: -.65px; }
+.client-preview .client-workspace-stat b { color: #314e3c; font-size: 13px; font-weight: 650; }
+.client-preview .client-workspace-stat small { display: block; color: #607568; font-size: 11px; line-height: 1.5; }
+.client-preview .workspace-redesign-client .client-home-focus { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(250px, 1fr); gap: 20px; }
+.client-preview .client-home-focus > :only-child { grid-column: 1 / -1; }
+.client-preview .workspace-redesign-client .client-next-booking { display: flex; flex-direction: column; min-height: 218px; padding: 22px; border-color: #d4e4d9; background: #fff; }
+.client-preview .workspace-redesign-client .client-next-booking > .board-card-heading { margin: 0 0 23px; }
+.client-preview .workspace-redesign-client .board-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.client-preview .workspace-redesign-client .board-card-heading h2 { margin: 0; font-size: 14px; font-weight: 650; line-height: 1.5; letter-spacing: -.2px; }
+.client-preview .workspace-redesign-client .board-card-heading a { display: inline-flex; align-items: center; gap: 5px; color: #438665; font-size: 11px; font-weight: 600; }
+.client-preview .workspace-redesign-client .client-next-booking > .board-card-heading .v2-eyebrow { font-size: 10px; letter-spacing: 1.1px; color: #698372; }
+.client-preview .workspace-redesign-client .client-next-booking-content { display: grid; grid-template-columns: 46px minmax(0, 1fr); flex: 1; align-items: center; gap: 16px; }
+.client-preview .workspace-redesign-client .client-next-booking-symbol { width: 46px; height: 46px; border: 0; border-radius: 12px; background: #edf6ef; color: #5e9672; }
+.client-preview .workspace-redesign-client .client-next-booking-symbol svg { width: 25px; height: 25px; }
+.client-preview .workspace-redesign-client .client-next-booking-copy h2 { margin: 8px 0; color: #223f2e; font-size: 21px; letter-spacing: -.6px; line-height: 1.35; }
+.client-preview .workspace-redesign-client .client-next-booking-copy p { margin: 5px 0 0; font-size: 12px; line-height: 1.6; color: #607568; }
+.client-preview .workspace-redesign-client .client-next-booking-content > .design-button { justify-self: start; grid-column: 2; width: auto; max-width: none; margin: 0; padding: 8px 12px; min-height: 36px; border-color: #d5e7da; background: #f3f9f4; color: #317049; }
+.client-preview .workspace-redesign-client .client-next-booking-content > .design-button:hover { background: #e6f2e9; }
+.client-preview .workspace-redesign-client .client-next-booking-content.client-empty-state { display: grid; grid-template-columns: 46px minmax(0, 1fr); min-height: 0; margin: 0; padding: 0; border: 0; background: transparent; }
+.client-preview .workspace-redesign-client .client-next-booking-content.client-empty-state > .design-button { background: var(--client-accent); border-color: var(--client-accent); color: #fff; }
+.client-preview .client-start-booking { position: relative; display: flex; flex-direction: column; align-items: flex-start; padding: 22px; overflow: hidden; border: 1px solid #d7e9dc; border-radius: 12px; background: #eaf5eb; }
+.client-preview .client-start-symbol { position: absolute; top: 20px; right: 20px; color: #89b69a; }
+.client-preview .client-start-booking h2 { max-width: 190px; margin: 20px 0 8px; color: #294f37; font-size: 22px; letter-spacing: -.5px; line-height: 1.3; }
+.client-preview .client-start-booking p { max-width: 32ch; margin: 0 0 18px; color: #526d5a; font-size: 12px; line-height: 1.7; }
+.client-preview .client-start-booking .design-button { margin-top: auto; }
+.client-preview .workspace-redesign-client .client-home-grid { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(250px, 1fr); align-items: start; gap: 20px; }
+.client-preview .workspace-redesign-client .client-home-aside { display: block; }
+.client-preview .workspace-redesign-client .client-bookings-list { padding: 20px 22px 0; }
+.client-preview .workspace-redesign-client .client-reservation-rows { margin: 0 -22px; }
+.client-preview .workspace-redesign-client .client-reservation-row { padding: 0; border-color: #edf1ed; }
+.client-preview .workspace-redesign-client .client-reservation-open { gap: 12px; min-height: 82px; padding: 15px 22px; }
+.client-preview .workspace-redesign-client .client-reservation-open:hover { background: #fafcf9; }
+.client-preview .workspace-redesign-client .client-reservation-icon { width: 35px; height: 35px; border: 1px solid #e4ece5; border-radius: 9px; background: #f8fbf8; color: #64866d; }
+.client-preview .workspace-redesign-client .client-reservation-copy b { color: #35513c; font-size: 12px; font-weight: 650; }
+.client-preview .workspace-redesign-client .client-reservation-copy small { color: #63756a; font-size: 11px; line-height: 1.6; }
+.client-preview .workspace-redesign-client .client-reservation-state b { font-size: 13px; color: #3f5545; }
+.client-preview .workspace-redesign-client .client-reservation-state .board-status { font-size: 10px; padding: 3px 7px; border-radius: 5px; }
+.client-preview .workspace-redesign-client .client-context-links { padding: 20px; }
+.client-preview .workspace-redesign-client .client-context-links > a { display: flex; align-items: center; gap: 11px; min-height: 65px; margin: 0; padding: 12px 0; border: 0; border-bottom: 1px solid #edf1ed; border-radius: 0; background: #fff; color: #3f7351; }
+.client-preview .workspace-redesign-client .client-context-links > a:last-child { border-bottom: 0; }
+.client-preview .workspace-redesign-client .client-context-links > a > span { flex: 1; min-width: 0; }
+.client-preview .workspace-redesign-client .client-context-links b { color: #35513c; font-size: 12px; font-weight: 650; }
+.client-preview .workspace-redesign-client .client-context-links small { display: block; margin-top: 3px; color: #607568; font-size: 11px; }
+.client-preview .workspace-redesign-client .client-context-options { margin-top: 20px; }
+.client-preview .workspace-redesign-client .client-discover-options { margin: 0; padding: 0 20px; border: 1px solid var(--client-line); border-radius: 12px; background: #fff; }
+.client-preview .client-discover-options > summary { display: flex; align-items: center; justify-content: space-between; min-height: 56px; gap: 12px; color: #506e58; font-size: 12px; font-weight: 650; list-style: none; cursor: pointer; }
+.client-preview .client-discover-options > summary > span { display: flex; align-items: center; gap: 9px; }
+.client-preview .client-discover-options[open] > summary { border-bottom: 1px solid var(--client-line); }
+.client-preview .client-discover-options[open] > summary > svg { transform: rotate(45deg); }
+.client-preview .workspace-redesign-client .client-empty-state { margin: 0; padding: 26px 20px; border: 0; border-radius: 0; background: #fff; }
+.client-preview .workspace-redesign-client .client-empty-state h3 { margin: 10px 0 7px; font-size: 15px; font-weight: 650; }
+.client-preview .workspace-redesign-client .client-empty-state p { margin: 6px 0 15px; max-width: 44ch; font-size: 12px; line-height: 1.7; text-align: left; }
+.client-preview .workspace-redesign-client .board-status { border-radius: 5px; font-size: 10px; font-weight: 600; padding: 4px 7px; }
+.client-preview .workspace-redesign-client .client-content-grid { max-width: 1300px; margin-inline: auto; }
+.client-preview .workspace-redesign-client .client-content-grid.with-detail { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(240px, 1fr); gap: 22px; }
+.client-preview .workspace-redesign-client .client-section-tabs { min-height: 44px; margin-bottom: 18px; gap: 7px; border-color: var(--client-line); }
+.client-preview .workspace-redesign-client .client-section-tabs a { min-height: 37px; padding: 8px 12px; border-radius: 7px; font-size: 12px; }
+.client-preview .workspace-redesign-client .client-section-tabs a[aria-current=page] { background: #e5f3e9; color: #2c7147; }
+.client-preview .workspace-redesign-client .client-bookings-search { display: flex; align-items: center; gap: 14px; margin: 0 0 16px; padding: 0; }
+.client-preview .workspace-redesign-client .client-bookings-search > span { font-size: 12px; white-space: nowrap; }
+.client-preview .workspace-redesign-client .client-bookings-search input { max-width: 420px; }
+.client-preview .workspace-redesign-client :is(input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea) { min-height: 42px; border-color: #d7e1d9; border-radius: 8px; background: #fff; font-size: 13px; }
+.client-preview .workspace-redesign-client label { font-size: 12px; }
+.client-preview .workspace-redesign-client main[data-client-view=booking] .v2-card { padding: 23px; }
+.client-preview .workspace-redesign-client main[data-client-view=booking] :is(h1, h2) { font-size: 20px; letter-spacing: -.5px; }
+.client-preview .workspace-redesign-client main[data-client-view=booking] .client-content-grid > aside > * { padding: 20px; border-radius: 12px; }
+.client-preview .workspace-redesign-client main[data-client-view=account] .client-content-grid > div:first-child { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 18px; }
+.client-preview .workspace-redesign-client main[data-client-view=account] .client-content-grid > div:first-child > * { min-width: 0; margin: 0; }
+.client-preview .workspace-redesign-client main[data-client-view=account] #sec-cont { grid-column: 1 / -1; padding: 23px; }
+.client-preview .workspace-redesign-client main[data-client-view=account] .client-context-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; margin-top: 14px; padding: 0; }
+.client-preview .workspace-redesign-client .client-payments-history { padding: 22px 22px 0; }
+.client-preview .workspace-redesign-client .client-payments-history > .booking-muted { margin-bottom: 16px; color: #607568; font-size: 12px; }
+/* Older client child pages receive the same rail, cards and type, without touching FIRMA. */
+.client-preview .operations-layout:not(.workspace-redesign) { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; background: var(--client-canvas); }
+.client-preview .operations-layout:not(.workspace-redesign) > .operations-sidebar { position: sticky; top: var(--app-safe-top, 0); width: 248px; height: calc(100dvh - var(--app-safe-top, 0px)); padding: 24px 19px; overflow-y: auto; border: 0; background: var(--client-rail); color: #d8eadd; }
+.client-preview .operations-layout:not(.workspace-redesign) .workspace-nav-item { color: #c4dacb; border-radius: 8px; font-size: 13px; }
+.client-preview .operations-layout:not(.workspace-redesign) .workspace-nav-item[aria-current=page] { background: var(--client-mint); color: #103a28; }
+.client-preview .operations-layout:not(.workspace-redesign) > .operations-sidebar :is(summary, .workspace-nav-group-label) { color: #adcbba; }
+.client-preview .operations-layout:not(.workspace-redesign) .workspace-booking-action { border: 1px solid #49735c; background: #1b3e30; color: #eff9f2; }
+.client-preview .operations-layout:not(.workspace-redesign) > .operations-main { width: 100%; max-width: 1390px; min-width: 0; margin: 0; padding: 32px 34px 96px; }
+.client-preview .operations-layout:not(.workspace-redesign) :is(.v2-card, .design-panel) { padding: 22px; border: 1px solid var(--client-line); border-radius: 12px; background: #fff; }
+.client-preview .operations-layout:not(.workspace-redesign) h1 { margin: 0 0 20px; color: var(--client-ink); font-size: 28px; line-height: 1.3; }
+.client-preview .operations-layout:not(.workspace-redesign) h2 { color: #294535; font-size: 17px; }
+.client-preview .operations-layout:not(.workspace-redesign) p { color: #607568; font-size: 13px; line-height: 1.7; }
+.client-preview .operations-layout:not(.workspace-redesign) .workspace-menu-toggle { display: none; }
+@media (min-width: 1900px) {
+  .client-preview .workspace-redesign.workspace-redesign-client > .client-workspace-main { padding-inline: 48px; }
+}
+@media (max-width: 1200px) and (min-width: 761px) {
+  .client-preview .workspace-redesign.workspace-redesign-client { grid-template-columns: 220px minmax(0, 1fr); }
+  .client-preview .workspace-redesign.workspace-redesign-client > .client-workspace-sidebar { width: 220px; padding-inline: 12px; }
+  .client-preview .workspace-redesign.workspace-redesign-client > .client-workspace-main { padding-inline: 24px; }
+  .client-preview .workspace-redesign-client .client-home-focus,
+  .client-preview .workspace-redesign-client .client-home-grid { grid-template-columns: 1fr; }
+  .client-preview .client-start-booking { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 20px; padding: 20px; }
+  .client-preview .client-start-booking h2 { margin: 0; max-width: none; font-size: 19px; }
+  .client-preview .client-start-booking p { max-width: none; margin: 0; }
+  .client-preview .client-start-booking .design-button { grid-column: 2; grid-row: 1 / 3; align-self: center; }
+  .client-preview .client-start-symbol { display: none; }
+  .client-preview .workspace-redesign-client .client-workspace-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .client-preview .workspace-redesign-client .client-workspace-utility { grid-column: 1 / -1; border-top: 1px solid var(--client-line); min-height: 65px; }
+  .client-preview .workspace-redesign-client .client-workspace-stat:nth-child(2) { border-right: 0; }
+}
+@media (max-width: 760px) {
+  .client-preview .workspace-redesign.workspace-redesign-client { display: block; }
+  .client-preview .workspace-redesign.workspace-redesign-client > .client-workspace-sidebar { position: sticky; top: var(--app-safe-top, 0px); z-index: 55; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; width: 100%; height: auto; max-height: none; padding: 14px 18px; overflow: visible; border: 0; }
+  .client-preview .client-sidebar-brand { padding: 0; }
+  .client-preview .client-sidebar-brand-mark { display: none; }
+  .client-preview .workspace-redesign-client > aside a.font-display { min-height: 30px; margin: 0; font-size: 24px; }
+  .client-preview .workspace-redesign-client > aside .client-workspace-role,
+  .client-preview .client-sidebar-account { display: none; }
+  .client-preview .workspace-redesign-client > aside .workspace-menu-toggle { display: inline-flex; grid-column: 2; grid-row: 1; align-items: center; gap: 7px; min-height: 34px; margin: 0; padding: 6px 10px; border: 1px solid #446451; border-radius: 7px; background: #1d4032; color: #dceee2; font-size: 12px; }
+  .client-preview .workspace-redesign.workspace-redesign-client > aside > .workspace-nav { display: none; position: absolute; top: calc(100% + 7px); left: 12px; right: 12px; width: auto; max-height: calc(100dvh - 160px); margin: 0; padding: 13px 10px; overflow-y: auto; border: 1px solid #375b49; border-radius: 12px; background: var(--client-rail); box-shadow: 0 12px 30px #102c2529; }
+  .client-preview .workspace-redesign.workspace-redesign-client > aside > .workspace-nav.workspace-nav-open { display: flex; }
+  .client-preview .workspace-redesign-client .workspace-nav-primary { display: grid; }
+  .client-preview .workspace-redesign.workspace-redesign-client .workspace-nav a.workspace-nav-item { min-height: 42px; }
+  .client-preview .workspace-redesign.workspace-redesign-client > .client-workspace-main { width: 100%; padding: 0 18px 102px; }
+  .client-preview .workspace-redesign-client .board-topbar,
+  .client-preview .workspace-redesign-client .operations-topbar { min-height: 60px; margin: 0 0 22px; gap: 10px; }
+  .client-preview .client-topbar-context { font-size: 10px; gap: 6px; }
+  .client-preview .client-topbar-context svg { width: 14px; }
+  .client-preview .workspace-redesign-client .account-profile-link b { display: none; }
+  .client-preview .board-topbar > div { gap: 9px; }
+  .client-preview .workspace-redesign-client .account-profile-link { max-width: 35px; }
+  .client-preview .workspace-redesign-client .client-workspace-header { margin-bottom: 20px; gap: 12px; }
+  .client-preview .workspace-redesign-client .client-workspace-header h1,
+  .client-preview .workspace-redesign-client .workspace-title { margin-bottom: 5px; font-size: 25px; letter-spacing: -.8px; }
+  .client-preview .workspace-redesign-client .client-workspace-header p { font-size: 12px; line-height: 1.65; }
+  .client-preview .workspace-redesign-client .client-workspace-actions { width: 100%; }
+  .client-preview .workspace-redesign-client .client-workspace-actions .design-button { width: 100%; }
+  .client-preview .workspace-redesign-client .client-workspace-home { gap: 16px; }
+  .client-preview .workspace-redesign-client .client-workspace-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .client-preview .workspace-redesign-client .client-workspace-stat { min-height: 80px; padding: 13px 12px; gap: 9px; }
+  .client-preview .workspace-redesign-client .client-workspace-stat:nth-child(2) { border-right: 0; }
+  .client-preview .client-workspace-stat .client-stat-icon { width: 30px; height: 30px; border-radius: 8px; }
+  .client-preview .client-workspace-stat .client-stat-icon svg { width: 17px; height: 17px; }
+  .client-preview .client-workspace-stat strong { font-size: 21px; }
+  .client-preview .client-workspace-stat small { font-size: 10px; }
+  .client-preview .client-workspace-stat > svg:last-child { display: none; }
+  .client-preview .workspace-redesign-client .client-workspace-utility { grid-column: 1 / -1; min-height: 65px; border-top: 1px solid var(--client-line); }
+  .client-preview .client-workspace-utility > svg:last-child { display: block; }
+  .client-preview .workspace-redesign-client .client-home-focus,
+  .client-preview .workspace-redesign-client .client-home-grid { grid-template-columns: 1fr; gap: 16px; }
+  .client-preview .workspace-redesign-client .client-next-booking { min-height: 0; padding: 20px; }
+  .client-preview .workspace-redesign-client .client-next-booking > .board-card-heading { margin-bottom: 20px; }
+  .client-preview .workspace-redesign-client .client-next-booking-content { grid-template-columns: 38px minmax(0, 1fr); gap: 12px; }
+  .client-preview .workspace-redesign-client .client-next-booking-symbol { width: 38px; height: 38px; border-radius: 9px; }
+  .client-preview .workspace-redesign-client .client-next-booking-copy h2 { font-size: 18px; margin-top: 7px; }
+  .client-preview .workspace-redesign-client .client-next-booking-copy p { font-size: 11px; }
+  .client-preview .workspace-redesign-client .client-next-booking-content > .design-button { grid-column: 1 / -1; width: 100%; min-height: 40px; margin: 7px 0 0; }
+  .client-preview .client-start-booking { padding: 21px; }
+  .client-preview .client-start-booking h2 { margin-top: 0; max-width: 220px; font-size: 21px; }
+  .client-preview .client-start-booking p { max-width: 34ch; margin-bottom: 18px; }
+  .client-preview .workspace-redesign-client .client-bookings-list { padding: 19px 18px 0; }
+  .client-preview .workspace-redesign-client .client-reservation-rows { margin-inline: -18px; }
+  .client-preview .workspace-redesign-client .client-reservation-open { min-height: 88px; padding: 15px 18px; gap: 10px; }
+  .client-preview .workspace-redesign-client .client-reservation-icon { display: none; }
+  .client-preview .workspace-redesign-client .client-reservation-copy b { font-size: 11px; }
+  .client-preview .workspace-redesign-client .client-reservation-state b { font-size: 12px; }
+  .client-preview .workspace-redesign-client .client-context-links { padding: 19px 18px; }
+  .client-preview .workspace-redesign-client .client-content-grid.with-detail { grid-template-columns: 1fr; gap: 16px; }
+  .client-preview .workspace-redesign-client main[data-client-view=account] .client-content-grid > div:first-child,
+  .client-preview .workspace-redesign-client main[data-client-view=account] .client-context-links { grid-template-columns: 1fr; }
+  .client-preview .workspace-redesign-client main[data-client-view=account] #sec-cont { padding: 20px; }
+  .client-preview .workspace-redesign-client .client-bookings-search { display: block; }
+  .client-preview .workspace-redesign-client .client-bookings-search > span { display: block; margin-bottom: 8px; }
+  .client-preview .client-mobile-navigation { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); min-height: 65px; gap: 4px; padding: 7px 10px calc(7px + env(safe-area-inset-bottom)); border-top: 1px solid #d9e3dc; background: #fff; box-shadow: 0 -5px 20px #263f2e05; }
+  .client-preview .client-mobile-navigation a { min-height: 46px; padding: 10px 5px; border: 0; border-radius: 9px; color: #607568; font-size: 11px; font-weight: 600; }
+  .client-preview .client-mobile-navigation a[aria-current=page] { border: 0; background: #e7f4eb; color: #23704a; }
+  .client-preview .operations-layout:not(.workspace-redesign) { display: block; }
+  .client-preview .operations-layout:not(.workspace-redesign) > .operations-sidebar { position: sticky; top: var(--app-safe-top,0); z-index: 55; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; width: 100%; height: auto; margin: 0; padding: 14px 18px; overflow: visible; }
+  .client-preview .operations-layout:not(.workspace-redesign) .workspace-menu-toggle { display: inline-flex; min-height: 34px; margin: 0; padding: 6px 10px; border: 1px solid #446451; border-radius: 7px; background: #1d4032; color: #dceee2; font-size: 12px; }
+  .client-preview .operations-layout:not(.workspace-redesign) .workspace-nav { display: none; position: absolute; top: calc(100% + 7px); left: 12px; right: 12px; width: auto; max-height: calc(100dvh - 160px); margin: 0; padding: 13px 10px; overflow-y: auto; border: 1px solid #375b49; border-radius: 12px; background: var(--client-rail); }
+  .client-preview .operations-layout:not(.workspace-redesign) .workspace-nav-open { display: flex; }
+  .client-preview .operations-layout:not(.workspace-redesign) > .operations-main { padding: 25px 18px 100px; }
+}
+
+.client-preview :is(.client-workspace-sidebar, .operations-sidebar) :is(a, button, summary):focus-visible { outline: 3px solid #d7f4e3; outline-offset: 3px; }
+
+.client-preview .client-sidebar-account-link { display: block; margin-top: 11px; color: #abcab6; font-size: 11px; line-height: 1.5; }
+.client-preview .client-secondary-shell .client-workspace-main > main { width: 100%; max-width: none; min-width: 0; margin: 0; padding: 0 0 30px; background: transparent; }
+.client-preview .client-secondary-shell .client-workspace-main > main > a:first-child { display: inline-flex; align-items: center; min-height: 32px; margin-bottom: 10px; color: #587561; font-size: 12px; }
+.client-preview .client-secondary-shell .client-workspace-main h1 { margin: 0 0 23px; color: #1e302a; font-size: 28px; line-height: 1.3; font-weight: 700; letter-spacing: -.8px; }
+.client-preview .client-secondary-shell .client-workspace-main > main > p { max-width: 75ch; color: #607568; font-size: 13px; line-height: 1.75; }
+@media(max-width:760px) { .client-preview .client-secondary-shell .client-workspace-main h1 { font-size: 25px; margin-bottom: 20px; } }
+
+/* Use the authenticated client header for language selection, without another full-width row. */
+body:has(.client-preview .client-preview-language) .nitido-language-bar { display:none; }
+.client-preview .client-preview-language { display:none; flex:none; }
+body:has(.nitido-language-bar) .client-preview .client-preview-language { display:flex; align-items:center; }
+.client-preview .client-preview-language .nitido-language-selector { gap:6px; }
+.client-preview .client-preview-language select { width:132px; max-width:132px; min-height:36px; margin:0; padding:6px 9px; border:1px solid #d4dfd8; border-radius:8px; background:#fff; color:#2c4438; font-size:12px; outline:none; }
+.client-preview .client-preview-language select:focus-visible { outline:2px solid #007a4a; outline-offset:2px; }
+.client-preview :is(.board-topbar,.operations-topbar) > span { flex:1 1 auto; min-width:0; overflow:hidden; white-space:nowrap; }
+.client-preview .client-topbar-tools { display:flex; align-items:center; gap:17px; flex:none; }
+.client-preview .client-settings-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; }
+.client-preview .operations-layout.role-client .client-settings-heading > h1 { margin:0; }
+@media (min-width:761px) and (max-width:1020px) {
+ .client-preview .client-topbar-tools .account-profile-link b { max-width:90px; }
+}
+@media (max-width:760px) {
+ .client-preview .client-topbar-tools { gap:9px; }
+ .client-preview .client-preview-language .nitido-language-selector > span { display:none; }
+ .client-preview .client-preview-language select { width:116px; max-width:116px; min-height:34px; padding:5px 7px; font-size:16px; }
+}

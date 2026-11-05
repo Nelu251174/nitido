@@ -1,3 +1,5 @@
+import {providerNotificationMarketError} from './providerNotificationEligibility';
+import {isAccountRemoved} from './accountStatus';
 import {openInvitationCampaign,trackInvitationDelivery} from './providerInvitations';
 import {claimNotification,startNotificationDispatch,finishNotification,recoverNotificationClaims,retryableNotificationSql} from "./notificationClaims";
 import type {Database} from "better-sqlite3";
@@ -17,9 +19,10 @@ const preferenceColumn:Record<PushEventType,string>={JOB_CREATED_FIRM_PUSH:"new_
 export const PUSH_RETRYABLE_SQL=retryableNotificationSql(3);
 type DeliveryRecipient={event_type:PushEventType;job_id:string;recipient_user_id:string;data_json?:string};
 function deliveryBlock(db:Database,row:DeliveryRecipient):string|null{
+  if(isAccountRemoved(db,row.recipient_user_id))return "SUPPRESSED_ACCOUNT_REMOVED";
   const preference=db.prepare(`SELECT ${preferenceColumn[row.event_type]} enabled FROM notification_preferences WHERE user_id=?`).get(row.recipient_user_id) as {enabled:number}|undefined;
   if(preference?.enabled===0)return "SUPPRESSED_PREFERENCE";
-  const job=db.prepare("SELECT client_id,city,status,accepted_firm_id FROM jobs WHERE id=?").get(row.job_id) as {client_id:string;city:string;status:string;accepted_firm_id:string|null}|undefined;
+  const job=db.prepare("SELECT * FROM jobs WHERE id=?").get(row.job_id) as (Parameters<typeof providerNotificationMarketError>[1]&{client_id:string;city:string;status:string;accepted_firm_id:string|null})|undefined;
   if(!job)return "SUPPRESSED_JOB_UNAVAILABLE";
   if(row.event_type==="MESSAGE_RECEIVED_PUSH"){
     const data=JSON.parse(row.data_json??"{}");
@@ -30,13 +33,14 @@ function deliveryBlock(db:Database,row:DeliveryRecipient):string|null{
   }
   if(row.event_type!=="JOB_CREATED_FIRM_PUSH")return job.client_id===row.recipient_user_id?null:"SUPPRESSED_RECIPIENT";
   if(job.status!=="waiting"||job.accepted_firm_id)return "SUPPRESSED_JOB_UNAVAILABLE";
-  const firm=db.prepare("SELECT verified,coverage_city,coverage_cities_extra,suspended_until FROM firms WHERE user_id=?").get(row.recipient_user_id) as {verified:number;coverage_city:string;coverage_cities_extra:string|null;suspended_until:string|null}|undefined;
+  const firm=db.prepare("SELECT * FROM firms WHERE user_id=?").get(row.recipient_user_id) as (Parameters<typeof providerNotificationMarketError>[2]&{verified:number;coverage_city:string;coverage_cities_extra:string|null;suspended_until:string|null})|undefined;
   if(!firm||firm.verified!==1||!firmCoversCity(firm.coverage_city,firm.coverage_cities_extra,job.city))return "SUPPRESSED_FIRM_INELIGIBLE";
   if(firm.suspended_until){const until=Date.parse(firm.suspended_until);if(!Number.isFinite(until)||until>Date.now())return "SUPPRESSED_FIRM_INELIGIBLE";}
-  return null;
+  return providerNotificationMarketError(db,job,firm);
 }
 
 function enqueueUser(db:Database,eventType:PushEventType,jobId:string,userId:string,title:string,body:string,path:string,messageId?:string):string[]{
+ if(isAccountRemoved(db,userId))return [];
   const preference=db.prepare(`SELECT ${preferenceColumn[eventType]} enabled FROM notification_preferences WHERE user_id=?`).get(userId) as {enabled:number}|undefined;if(preference?.enabled===0)return [];
   const devices=db.prepare("SELECT id FROM push_devices WHERE user_id=? AND push_enabled=1 AND revoked_at IS NULL").all(userId) as {id:string}[];
   const targets=devices.length?devices:[{id:"none"}];const ids:string[]=[];
@@ -53,9 +57,11 @@ export function queueMessagePush(db:Database,messageId:string){
 
 export function queueNewJobFirmPushes(db:Database,job:{id:string;city:string;spaceType:string;sqm:number;targetFirmId?:string}):string[]{
   return db.transaction(()=>{
+  const persisted=db.prepare('SELECT * FROM jobs WHERE id=?').get(job.id) as Parameters<typeof providerNotificationMarketError>[1]|undefined;
+  if(!persisted)return [];
   openInvitationCampaign(db,job.id);
-  const firms=db.prepare(`SELECT f.id,f.user_id,f.coverage_city,f.coverage_cities_extra,f.suspended_until FROM firms f WHERE f.verified=1`).all() as {id:string;user_id:string;coverage_city:string;coverage_cities_extra:string|null;suspended_until:string|null}[];
-  const now=new Date();return firms.filter(f=>(!job.targetFirmId||job.targetFirmId===f.id)&&firmCoversCity(f.coverage_city,f.coverage_cities_extra,job.city)&&!(f.suspended_until&&new Date(f.suspended_until)>now)).flatMap(f=>{const ids=enqueueUser(db,"JOB_CREATED_FIRM_PUSH",job.id,f.user_id,"Lucrare nouă disponibilă",`Curățenie ${labels[job.spaceType]??"serviciu"} · ${job.city} · ${job.sqm} m². Deschide NITIDO pentru detalii.`,`/firma?job=${encodeURIComponent(job.id)}`);for(const id of ids)trackInvitationDelivery(db,'push',id,job.id,f.user_id);return ids;});
+  const firms=db.prepare(`SELECT f.* FROM firms f WHERE f.verified=1`).all() as (Parameters<typeof providerNotificationMarketError>[2]&{id:string;user_id:string;coverage_city:string;coverage_cities_extra:string|null;suspended_until:string|null})[];
+  const now=new Date();return firms.filter(f=>(!job.targetFirmId||job.targetFirmId===f.id)&&firmCoversCity(f.coverage_city,f.coverage_cities_extra,job.city)&&!(f.suspended_until&&new Date(f.suspended_until)>now)&&!providerNotificationMarketError(db,persisted,f)).flatMap(f=>{const ids=enqueueUser(db,"JOB_CREATED_FIRM_PUSH",job.id,f.user_id,"Lucrare nouă disponibilă",`Curățenie ${labels[job.spaceType]??"serviciu"} · ${job.city} · ${job.sqm} m². Deschide NITIDO pentru detalii.`,`/firma?job=${encodeURIComponent(job.id)}`);for(const id of ids)trackInvitationDelivery(db,'push',id,job.id,f.user_id);return ids;});
   }).immediate();
 }
 

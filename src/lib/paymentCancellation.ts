@@ -1,3 +1,4 @@
+import {ensurePaymentMoneySchema,moneyFromAuthorizationRequest,moneyFromPayment} from './paymentMoney';
 import type {Database} from 'better-sqlite3';
 import type Stripe from 'stripe';
 import {createHash,randomUUID} from 'node:crypto';
@@ -30,9 +31,10 @@ export function authorizationMustStop(db:Database,jobId:string):boolean{
 
 /** Never creates a PaymentIntent. Unknown identities stay pending for reconciliation. */
 export async function reconcilePaymentCancellation(db:Database,jobId:string,stripe:Stripe|null,options:{sandboxOnly?:boolean;beforeMutation?:()=>void}={}){
+ ensurePaymentMoneySchema(db);
  requestPaymentCancellation(db,jobId);
  try{
-   const rows=db.prepare('SELECT id,status,amount_gross,stripe_payment_intent_id FROM payments WHERE job_id=?').all(jobId) as {id:string;status:string;amount_gross:number;stripe_payment_intent_id:string|null}[];
+   const rows=db.prepare('SELECT * FROM payments WHERE job_id=?').all(jobId) as (Record<string,unknown>&{id:string;status:string;amount_gross:number;stripe_payment_intent_id:string|null})[];
    if(rows.length>1)throw Error('PAYMENT_CANCELLATION_RECONCILIATION_REQUIRED');
    const payment=rows[0];
    const attempt=db.prepare('SELECT request_json,provider_key_hash,stripe_payment_intent_id FROM payment_authorization_attempts WHERE job_id=?').get(jobId) as {request_json:string;provider_key_hash:string;stripe_payment_intent_id:string|null}|undefined;
@@ -43,11 +45,15 @@ export async function reconcilePaymentCancellation(db:Database,jobId:string,stri
    if(payment&&attempt?.stripe_payment_intent_id&&payment.stripe_payment_intent_id!==attempt.stripe_payment_intent_id)throw Error('PAYMENT_DETAILS_MISMATCH');
    if(!payment&&!intentId)return; // An in-flight/unknown authorization is not evidence of cancellation.
    const params=attempt?JSON.parse(attempt.request_json) as Stripe.PaymentIntentCreateParams:null;
-   const amount=payment?payment.amount_gross*100:params?.amount;
+   const storedMoney=payment?moneyFromPayment(payment):null;
+   const requestMoney=params?moneyFromAuthorizationRequest(params):null;
+   const amount=storedMoney?.clientAmountMinor??requestMoney?.amountMinor;
+   const currency=storedMoney?.stripeCurrency??requestMoney?.stripeCurrency;
+   if(storedMoney&&requestMoney&&(storedMoney.stripeCurrency!==requestMoney.stripeCurrency||storedMoney.clientAmountMinor!==requestMoney.amountMinor))throw Error('PAYMENT_DETAILS_MISMATCH');
    const paymentId=payment?.id??params?.metadata?.paymentId;
    if(intentId){
      if(!stripe)throw Error('STRIPE_NOT_CONFIGURED');
-     const matches=(intent:Stripe.PaymentIntent)=>intent.id===intentId&&(!options.sandboxOnly||intent.livemode===false)&&intent.currency==='ron'&&Number.isSafeInteger(amount)&&Number(amount)>0&&intent.amount===amount&&intent.metadata?.jobId===jobId&&typeof paymentId==='string'&&intent.metadata?.paymentId===paymentId;
+     const matches=(intent:Stripe.PaymentIntent)=>intent.id===intentId&&(!options.sandboxOnly||intent.livemode===false)&&intent.currency===currency&&Number.isSafeInteger(amount)&&Number(amount)>0&&intent.amount===amount&&intent.metadata?.jobId===jobId&&typeof paymentId==='string'&&intent.metadata?.paymentId===paymentId;
      let intent=await stripe.paymentIntents.retrieve(intentId);
      if(!matches(intent))throw Error('PAYMENT_DETAILS_MISMATCH');
      if(intent.status!=='canceled'){
@@ -60,8 +66,8 @@ export async function reconcilePaymentCancellation(db:Database,jobId:string,stri
    db.transaction(()=>{
      options.beforeMutation?.();
      if(db.prepare("SELECT 1 FROM payments WHERE job_id=? AND status NOT IN ('authorized','cancelled')").get(jobId))throw Error('PAYMENT_CANCELLATION_RECONCILIATION_REQUIRED');
-     const current=db.prepare('SELECT id,amount_gross,stripe_payment_intent_id FROM payments WHERE job_id=?').all(jobId) as typeof rows;
-     if(current.length>1||current.some(row=>row.id!==paymentId||row.amount_gross*100!==amount||row.stripe_payment_intent_id!==(intentId??null)))throw Error('PAYMENT_DETAILS_MISMATCH');
+     const current=db.prepare('SELECT * FROM payments WHERE job_id=?').all(jobId) as typeof rows;
+     if(current.length>1||current.some(row=>row.id!==paymentId||moneyFromPayment(row).clientAmountMinor!==amount||moneyFromPayment(row).stripeCurrency!==currency||row.stripe_payment_intent_id!==(intentId??null)))throw Error('PAYMENT_DETAILS_MISMATCH');
      const currentAttempt=db.prepare('SELECT stripe_payment_intent_id FROM payment_authorization_attempts WHERE job_id=?').get(jobId) as {stripe_payment_intent_id:string|null}|undefined;
      if(currentAttempt?.stripe_payment_intent_id&&currentAttempt.stripe_payment_intent_id!==intentId)throw Error('PAYMENT_DETAILS_MISMATCH');
      db.prepare("UPDATE payments SET status='cancelled' WHERE job_id=? AND status='authorized'").run(jobId);
