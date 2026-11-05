@@ -18,6 +18,7 @@ import {LanguageSelector} from '@/components/LanguageSelector';
 import {catalogsReady} from '@/i18n/catalogs';
 import {clientMessages} from '@/i18n/clientMessages';
 import {NexusCounter} from '@/components/NexusCounter';
+import {SiteMobileNavigation} from '@/components/SiteMobileNavigation';
 
 const sora = localFont({
   src: [
@@ -117,6 +118,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <CurrencyNotice/>
         <GoogleAdsConsent conversionLabel={process.env.GOOGLE_ADS_COMPANY_SIGNUP_LABEL} />
         {children}
+        <SiteMobileNavigation/>
         <PwaProvider />
         <WebAlerts />
         </NextIntlClientProvider>
