@@ -161,7 +161,6 @@ input,select,textarea,button,a { scroll-margin-block: 28px 120px; }
  .nitido-cookie-consent { font-size:12px; }
  .nitido-cookie-consent > div { display:grid; grid-template-columns:1fr 1fr; }
  .nitido-cookie-consent button { font-size:12px; padding:7px; }
- body:has(input:focus,select:focus,textarea:focus) .design-home-bottom { display:none; }
 }
 @media(max-width:360px) {
  .design-hero-image { display:none; }
@@ -172,3 +171,13 @@ input,select,textarea,button,a { scroll-margin-block: 28px 120px; }
 @media (min-width:361px) and (max-width:760px) {
  .design-hero-copy { width:calc(60vw - 48px); }
 }
+
+/* The shared public bar stays outside page layouts and clears every form/footer. */
+body:has(> .site-mobile-navigation) { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
+body:has(> .site-mobile-navigation) .approved-home { padding-bottom: 0; }
+body:has(> .site-mobile-navigation) .public-mobile-menu { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+.site-mobile-navigation { display: flex; position: fixed; inset: auto 0 0; z-index: 110; justify-content: space-around; padding: 9px max(10px, env(safe-area-inset-right, 0px)) calc(9px + env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px)); background: #fffffffa; border-top: 1px solid #e5edf5; }
+.site-mobile-navigation a { display: grid; justify-items: center; align-content: center; gap: 5px; min-width: 62px; min-height: 48px; font-size: 12px; color: #53647e; touch-action: manipulation; }
+.site-mobile-navigation a:first-child { color: #53647e; }
+.site-mobile-navigation a[aria-current=page] { color: #007a4a; font-weight: 700; }
+.site-mobile-navigation a:focus-visible { outline: 2px solid #007a4a; outline-offset: 2px; border-radius: 8px; }

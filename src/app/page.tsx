@@ -6,7 +6,6 @@ import { publicPageMetadata } from "@/lib/publicSeo";
 const sourceMetadata = publicPageMetadata("/");
 import {PublicSiteStructuredData} from "@/components/PublicSiteStructuredData";
 import {LivePriceEstimator} from "@/components/LivePriceEstimator";
-import {getCurrentUser} from "@/lib/auth";
 import {PaymentBenefits} from "@/components/PaymentBenefits";
 import Image from "next/image";
 import Link from "next/link";
@@ -26,7 +25,6 @@ const services=[
 ];
 export default async function Home(){
  const [t,locale]=await Promise.all([getUiText(),getLocale()]);
- const user=await getCurrentUser(undefined,{readOnly:true});
  const trust=getPublicTrustSnapshot(db);
  const reviewCount=trust.summary.count;
  const average=trust.summary.average;
@@ -50,7 +48,7 @@ export default async function Home(){
   <section className="v2-container v2-section" id="firme"><div className="partner-banner"><div><div className="text-sm text-[var(--nitido-brand-on-dark)]"><UiText text={"NITIDO PENTRU PROFESIONIȘTI"}/></div><h2 className="v2-h2 mt-3"><UiText text={"Mai multă ordine."}/><br/><UiText text={"În lucrări și în afacere."}/></h2><p className="mt-4 text-slate-300 max-w-lg"><UiText text={"Oportunități, programări, echipe și istoricul lucrărilor. Un loc pentru organizarea activității firmei tale."}/></p></div><Link href="/signup?role=firma" className="v2-btn bg-white text-ink"><UiText text={"Înscrie-ți firma ↗"}/></Link></div></section>
   {process.env.NEXT_PUBLIC_NITIDO_PRO_PUBLIC==='true'&&<section className="design-container home-pro"><h2><UiText text={"NITIDO Pro"}/></h2><p><UiText text="Curățenie și mentenanță pentru portofolii eligibile de minimum 5 proprietăți. Condițiile pilotului se stabilesc înainte de activare."/></p><Link href="/nitido-pro"><UiText text="Vezi NITIDO Pro"/></Link></section>}
   <section className="v2-container pb-16" id="preturi"><h2 className="v2-h2 mb-6"><UiText text={"Bine de știut."}/></h2><div className="faq-list">{[["Cum rezerv?","Introduci localitatea, tipul spațiului și suprafața. Alegi programarea, verifici rezumatul și continui în cont. Cererea se publică numai după confirmarea ta."],["Ce este inclus?","Curățenia include suprafețe, podele, o baie și o bucătărie. Băile suplimentare și geamurile au cost separat, afișat înainte de publicare. Pentru renovări sau cerințe speciale, solicită evaluare."],["Când se confirmă disponibilitatea?","Pentru fiecare cerere, după alegerea și acceptarea validă a unei firme eligibile. Pagina unui oraș nu garantează o echipă disponibilă."],["Când plătesc?","Banii se rezervă pe card la acceptarea validă a lucrării și se încasează la finalizarea validă. Publicarea cererii nu înseamnă că lucrarea a fost deja alocată."],["Cum anulez?","Deschizi cererea din cont și verifici acțiunile și condițiile disponibile pentru starea ei. Condițiile de anulare și incidente sunt în Termeni și condiții."],["Cum cer ajutor?","Din pagina Contact poți consulta ghidul complet, folosi asistentul sau scrie echipei la support@nitido.ro. Pentru lucrări speciale, folosește Solicită evaluare."]].map(([q,a])=><details key={q}><summary>{<UiText text={q}/>}</summary><p>{<UiText text={a}/>}</p></details>)}</div></section>
- <section className="design-container home-help-links"><h2><UiText text="Ai nevoie de ajutor?"/></h2><Link href="/contact"><UiText text="Contact și ghidul complet"/></Link> · <Link href="/termeni"><UiText text="Termeni și condiții"/></Link></section></main><SiteFooter/><UiElement as="nav" className="design-home-bottom" aria-label="Navigare mobilă">{[["home","Acasă","/"],["calendar",user?"Lucrări":"Rezervă",user?.role==="firma"?"/firma":user?"/client#sec-lucrari":"/rezervare"],["chat",user?"Mesaje":"Ajutor",user?.role==="firma"?"/firma/mesaje":user?"/client/mesaje":"/contact"],["user","Cont",user?.role==="firma"?"/firma":"/client#sec-cont"]].map(([icon,label,href])=><Link key={href} href={href}><DesignIcon name={icon as DesignIconName}/>{<UiText text={label}/>}</Link>)}</UiElement></div>;
+ <section className="design-container home-help-links"><h2><UiText text="Ai nevoie de ajutor?"/></h2><Link href="/contact"><UiText text="Contact și ghidul complet"/></Link> · <Link href="/termeni"><UiText text="Termeni și condiții"/></Link></section></main><SiteFooter/></div>;
 }
 
 export async function generateMetadata() { return localizeMetadata(sourceMetadata); }
