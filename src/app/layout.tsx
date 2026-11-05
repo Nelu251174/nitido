@@ -16,6 +16,7 @@ import {getLocale, getMessages} from 'next-intl/server';
 import {RouteCurrencyNotice as CurrencyNotice} from '@/components/RouteCurrencyNotice';
 import {LanguageSelector} from '@/components/LanguageSelector';
 import {catalogsReady} from '@/i18n/catalogs';
+import {clientMessages} from '@/i18n/clientMessages';
 import {NexusCounter} from '@/components/NexusCounter';
 
 const sora = localFont({
@@ -111,7 +112,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <NexusCounter/>
       </head>
       <body className="min-h-full flex flex-col">
-        <NextIntlClientProvider locale={locale} messages={messages} timeZone="Europe/Bucharest">
+        <NextIntlClientProvider locale={locale} messages={clientMessages(locale, messages)} timeZone="Europe/Bucharest">
         {catalogsReady() && <div className="nitido-language-bar"><LanguageSelector/></div>}
         <CurrencyNotice/>
         <GoogleAdsConsent conversionLabel={process.env.GOOGLE_ADS_COMPANY_SIGNUP_LABEL} />
