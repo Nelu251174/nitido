@@ -61,16 +61,14 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const DB_PATH = path.join(DATA_DIR, "nitido.db");
 
-// Singleton connection (dev server hot-reloads reuse the same instance)
+// Next production route bundles must share the connection and completed initialization too.
 declare global {
   var __nitidoDb: Database.Database | undefined;
+  var __nitidoInitializedDb: Database.Database | undefined;
 }
 
-export const db: Database.Database = global.__nitidoDb ?? new Database(DB_PATH);
-if (process.env.NODE_ENV !== "production") global.__nitidoDb = db;
-
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
+export const db: Database.Database = global.__nitidoDb?.open ? global.__nitidoDb : new Database(DB_PATH);
+global.__nitidoDb = db;
 
 // Exportată separat ca teste (vitest) să poată crea o bază de date in-memory
 // cu aceeași schemă, izolată de fișierul de date reale.
@@ -672,7 +670,14 @@ db.exec(JOB_ACTUAL_COSTS_SCHEMA);
 
 }
 
-initializeDatabase(db);
+// Re-running migration checks acquires write locks even when no schema changes are needed.
+// Keep development hot reload migrations, and cache only successful production initialization.
+if (process.env.NODE_ENV !== 'production' || global.__nitidoInitializedDb !== db) {
+  db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = ON');
+  initializeDatabase(db);
+  global.__nitidoInitializedDb = db;
+}
 
 
 // --- Seed date demo (idempotent) ---------------------------------------
