@@ -1,0 +1,15 @@
+{
+  "AT": {"Wien": ["Vienna"]},
+  "BE": {"Bruxelles": ["Brussels", "Brussel"], "Antwerpen": ["Antwerp"], "Gent": ["Ghent"]},
+  "BG": {"София": ["Sofia"], "Пловдив": ["Plovdiv"], "Варна": ["Varna"]},
+  "CY": {"Nicosia": ["Lefkosia", "Λευκωσία"], "Limassol": ["Lemesos", "Λεμεσός"], "Larnaca": ["Larnaka", "Λάρνακα"]},
+  "CZ": {"Praha": ["Prague"]},
+  "DK": {"København": ["Copenhagen", "Kobenhavn"]},
+  "DE": {"München": ["Munich", "Muenchen"]},
+  "GR": {"Αθήνα": ["Athens", "Athina"], "Θεσσαλονίκη": ["Thessaloniki"], "Πάτρα": ["Patras", "Patra"]},
+  "IT": {"Roma": ["Rome"], "Milano": ["Milan"], "Napoli": ["Naples"]},
+  "NL": {"Den Haag": ["The Hague", "'s-Gravenhage"]},
+  "PL": {"Warszawa": ["Warsaw"], "Kraków": ["Krakow"], "Wrocław": ["Wroclaw"]},
+  "PT": {"Lisboa": ["Lisbon"]},
+  "SE": {"Göteborg": ["Gothenburg"]}
+}

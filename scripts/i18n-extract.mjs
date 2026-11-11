@@ -7,7 +7,7 @@ const checkOnly = process.argv.includes('--check');
 const all = [];
 function walk(dir) { for (const entry of fs.readdirSync(dir, {withFileTypes:true})) {
   const file=path.join(dir,entry.name);
-  if (entry.isDirectory()) walk(file);
+  if (entry.isDirectory() && entry.name!=='testFixtures') walk(file);
   else if (/\.tsx?$/.test(file) && !/\.(test|spec)\./.test(file) && !file.includes('/i18n/')) all.push(file);
 }}
 walk(path.join(root,'src'));

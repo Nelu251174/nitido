@@ -1,9 +1,11 @@
+import {moneyFromAuthorizationRequest} from './paymentMoney';
 import type {Database} from 'better-sqlite3';
 import type Stripe from 'stripe';
 import {createHash} from 'node:crypto';
 
 /** Persist before contacting Stripe. Unknown outcomes are retried only inside a conservative 20-hour window. */
 export async function obtainAuthorization(db:Database,stripe:Stripe,jobId:string,params:Stripe.PaymentIntentCreateParams):Promise<Stripe.PaymentIntent>{
+ moneyFromAuthorizationRequest(params);
  const request=JSON.stringify(params),keyHash=createHash('sha256').update(process.env.STRIPE_SECRET_KEY??'').digest('hex');
  db.prepare('INSERT OR IGNORE INTO payment_authorization_attempts(job_id,request_json,provider_key_hash,created_ms) VALUES(?,?,?,?)').run(jobId,request,keyHash,Date.now());
  const attempt=db.prepare('SELECT * FROM payment_authorization_attempts WHERE job_id=?').get(jobId) as {request_json:string;provider_key_hash:string;created_ms:number;stripe_payment_intent_id:string|null};

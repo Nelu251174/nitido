@@ -29,6 +29,7 @@ export function customerRecordView(record: CustomerRecord, role: AdminRole) {
     payments: permissions.financial ? record.payments : { rows: [], hasMore: false },
     value: {
       ...record.value,
+      monetaryByCurrency: permissions.value ? record.value.monetaryByCurrency : null,
       completedServiceValueBani: permissions.value ? record.value.completedServiceValueBani : null,
       margin: permissions.value ? record.value.margin : null,
     },

@@ -1,3 +1,6 @@
+import {currencyOfJob} from './jobCurrency';
+import {financialReadMoney} from './financialReadMoney';
+import {activeAccountSql} from './accountStatus';
 import type {Database} from 'better-sqlite3';
 import {hasAdminPermission, type AdminRole} from './adminRolesShared';
 import {proReportPeriod} from './pro/reportPeriod';
@@ -48,17 +51,19 @@ export function adminWorkbench(db: Database, role: AdminRole, params: URLSearchP
   const from = ` FROM jobs j LEFT JOIN users client ON client.id=j.client_id
     LEFT JOIN firms firm ON firm.id=j.accepted_firm_id LEFT JOIN users provider ON provider.id=firm.user_id`;
   const financial = hasAdminPermission(role, 'finance');
+  const paymentColumns=new Set((db.prepare('PRAGMA table_info(payments)').all() as {name:string}[]).map(c=>c.name));
+  const moneyColumns=['currency','amount_gross_minor','commission_amount_minor','amount_net_minor'].filter(column=>paymentColumns.has(column)).map(column=>'p.'+column).join(',');
   return db.transaction(() => {
     const total = (db.prepare('SELECT COUNT(*) AS n' + from + where).get(...args) as {n: number}).n;
-    const rows = db.prepare(`SELECT j.id,j.city,${role === 'super_admin' ? 'j.street' : 'NULL'} AS street,j.client_id,j.sqm,j.duration_minutes,
+    const rows = db.prepare(`SELECT j.id,j.city,j.pricing_snapshot,${role === 'super_admin' ? 'j.street' : 'NULL'} AS street,j.client_id,j.sqm,j.duration_minutes,
       j.status,j.scheduled_at,j.accepted_firm_id,j.created_at,j.accepted_at,j.arrived_confirmed_at,j.completed_at,
       client.name AS client_name,provider.name AS firm_name`
       + from + where + ' ORDER BY j.created_at DESC,j.id LIMIT ? OFFSET ?')
       .all(...args, LIMIT, pageOffset) as {id: string; [key: string]: unknown}[];
-    const jobs = rows.map(job => ({...job, ...(financial ? {
+    const jobs = rows.map(({pricing_snapshot,...job}) => ({...job,currency:currencyOfJob(pricing_snapshot as string|null), ...(financial ? {
       payments: db.prepare(`SELECT p.id,p.status,p.amount_gross,p.refund_status,p.transfer_status,
-        p.payout_status,p.dispute_status,p.stripe_payment_intent_id,r.stripe_refund_id
-        FROM payments p LEFT JOIN payment_refunds r ON r.payment_id=p.id WHERE p.job_id=?`).all(job.id),
+        p.payout_status,p.dispute_status,p.stripe_payment_intent_id,r.stripe_refund_id${moneyColumns?','+moneyColumns:''}
+        FROM payments p LEFT JOIN payment_refunds r ON r.payment_id=p.id WHERE p.job_id=?`).all(job.id).map(row=>financialReadMoney(row as Record<string,unknown>)),
     } : {})}));
     return {jobs, hasMore: pageOffset + jobs.length < total, financial, total, offset: pageOffset, limit: LIMIT};
   })();
@@ -69,7 +74,7 @@ export function adminFirms(db: Database, params: URLSearchParams) {
   const q = term(params.get('q'), 150), city = term(params.get('city'), 100);
   const verified = term(params.get('verified'), 5);
   if (verified && !['0', '1', 'all'].includes(verified)) throw new AdminQueryError('Filtrul de verificare este invalid.');
-  const conditions: string[] = [], args: unknown[] = [];
+  const conditions: string[] = [activeAccountSql(db,'u.id')], args: unknown[] = [];
   if (q) {
     conditions.push(`(f.id LIKE ? ESCAPE '\\' OR u.name LIKE ? ESCAPE '\\' OR f.cui LIKE ? ESCAPE '\\' OR f.coverage_city LIKE ? ESCAPE '\\')`);
     args.push(...Array(4).fill(like(q)));

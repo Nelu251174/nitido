@@ -13,10 +13,12 @@ import { WebAlerts } from "@/components/WebAlerts";
 import { PwaProvider } from "@/components/PwaProvider";
 import {NextIntlClientProvider} from 'next-intl';
 import {getLocale, getMessages} from 'next-intl/server';
-import {CurrencyNotice} from '@/components/CurrencyNotice';
+import {RouteCurrencyNotice as CurrencyNotice} from '@/components/RouteCurrencyNotice';
 import {LanguageSelector} from '@/components/LanguageSelector';
 import {catalogsReady} from '@/i18n/catalogs';
+import {clientMessages} from '@/i18n/clientMessages';
 import {NexusCounter} from '@/components/NexusCounter';
+import {SiteMobileNavigation} from '@/components/SiteMobileNavigation';
 
 const sora = localFont({
   src: [
@@ -111,11 +113,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <NexusCounter/>
       </head>
       <body className="min-h-full flex flex-col">
-        <NextIntlClientProvider locale={locale} messages={messages} timeZone="Europe/Bucharest">
+        <NextIntlClientProvider locale={locale} messages={clientMessages(locale, messages)} timeZone="Europe/Bucharest">
         {catalogsReady() && <div className="nitido-language-bar"><LanguageSelector/></div>}
         <CurrencyNotice/>
         <GoogleAdsConsent conversionLabel={process.env.GOOGLE_ADS_COMPANY_SIGNUP_LABEL} />
         {children}
+        <SiteMobileNavigation/>
         <PwaProvider />
         <WebAlerts />
         </NextIntlClientProvider>

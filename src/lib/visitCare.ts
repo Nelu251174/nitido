@@ -1,3 +1,4 @@
+import {currencyOfJob} from './jobCurrency';
 import {INCIDENT_RESOLUTION_SCHEMA} from './operationsSchema';
 import type {Database} from 'better-sqlite3';
 import {randomUUID} from 'node:crypto';
@@ -31,7 +32,7 @@ export function snapshotInstructions(db:Database,jobId:string,propertyId:string,
 }
 type Actor={id:string;role:string};
 function access(db:Database,jobId:string,user:Actor){
- const j=db.prepare('SELECT j.*,f.user_id firm_user_id FROM jobs j LEFT JOIN firms f ON f.id=j.accepted_firm_id WHERE j.id=?').get(jobId) as {id:string;client_id:string;firm_user_id:string|null;status:string;accepted_firm_id:string|null;guarantee_of:string|null;completed_at:string|null;duration_minutes:number;buffer_minutes:number;windows_sqm?:number}|undefined;
+ const j=db.prepare('SELECT j.*,f.user_id firm_user_id FROM jobs j LEFT JOIN firms f ON f.id=j.accepted_firm_id WHERE j.id=?').get(jobId) as {pricing_snapshot?:string|null;id:string;client_id:string;firm_user_id:string|null;status:string;accepted_firm_id:string|null;guarantee_of:string|null;completed_at:string|null;duration_minutes:number;buffer_minutes:number;windows_sqm?:number}|undefined;
  if(!j)throw new WorkspaceError('Lucrare inexistentă.',404);
  const owner=j.client_id===user.id,firm=j.firm_user_id===user.id,admin=user.role==='admin';
  const worker=!owner&&!firm&&!admin&&['accepted','arrived'].includes(j.status)&&!!executionAccess(db,user.id,jobId);
@@ -84,6 +85,7 @@ export function changeVisitCare(db:Database,jobId:string,user:Actor,b:Record<str
   if(b.action==='reply'){event(db,id,user.id,'reply',note);return {ok:true};}
   if(['resolved','closed'].includes(c.status))throw new WorkspaceError('Dosarul este închis.',409);
   if(b.action==='propose'||b.action==='accept'){
+   if(currencyOfJob(j)!=='RON')throw new WorkspaceError('Garanția internațională necesită evaluarea echipei de suport; nu se generează o lucrare RON.',422);
    const eligible=j.accepted_firm_id?db.prepare('SELECT suspended_until FROM firms WHERE id=? AND verified=1').get(j.accepted_firm_id) as {suspended_until:string|null}|undefined:undefined;
    if(!eligible||(eligible.suspended_until&&(!Number.isFinite(Date.parse(eligible.suspended_until))||Date.parse(eligible.suspended_until)>Date.now())))throw new WorkspaceError('Firma inițială nu mai este disponibilă pentru alocare.',409);
   }

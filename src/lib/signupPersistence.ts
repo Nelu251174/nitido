@@ -1,20 +1,26 @@
 import type {Database} from 'better-sqlite3';
 import {queueOwnerRegistration} from './adminOwnerEvents';
+import {activeAccountSql,releaseRemovedAccountEmail} from './accountStatus';
 export interface SignupRecords {
  userId:string;role:'client'|'firma';name:string;email:string;phone:string;passwordHash:string;referralCode:string;
  referrer:{id:string;code:string}|null;bonus:number;
  firm?:{id:string;cui:string;city:string;citiesExtra:string|null;verified:boolean};
  connectionCountry?:string|null;
 }
+/** Only an active identity reserves an email; removed contacts are archived atomically below. */
+export function signupEmailInUse(db:Database,email:string):boolean {
+ return !!db.prepare(`SELECT 1 FROM users WHERE email = ? COLLATE NOCASE AND ${activeAccountSql(db,'users.id')}`).get(email.trim());
+}
 export function persistSignup(db:Database,input:SignupRecords){
  if((input.role==='firma')!==Boolean(input.firm))throw new Error('Date firmă incomplete');
  if(!Number.isSafeInteger(input.bonus)||input.bonus<0)throw new Error('Bonus invalid');
  return db.transaction(()=>{
+  releaseRemovedAccountEmail(db,input.email);
   db.prepare('INSERT INTO users(id,role,name,email,phone,password_hash,referral_code,referred_by_code,credit_balance) VALUES(?,?,?,?,?,?,?,?,?)').run(input.userId,input.role,input.name,input.email,input.phone,input.passwordHash,input.referralCode,input.referrer?.code??null,input.referrer?input.bonus:0);
   if(input.referrer){const changed=db.prepare('UPDATE users SET credit_balance=credit_balance+? WHERE id=? AND referral_code=?').run(input.bonus,input.referrer.id,input.referrer.code);if(changed.changes!==1)throw new Error('Recomandare indisponibilă');}
   if(input.firm){const f=input.firm;db.prepare('INSERT INTO firms(id,user_id,cui,coverage_city,coverage_cities_extra,verified) VALUES(?,?,?,?,?,?)').run(f.id,input.userId,f.cui,f.city,f.citiesExtra,f.verified?1:0)}
   return queueOwnerRegistration(db,input.userId,input.role,input.connectionCountry??null);
- })();
+ }).immediate();
 }
 export function signupInputError(body:unknown):string|null{
  if(!body||typeof body!=='object'||Array.isArray(body))return 'Date de înregistrare invalide';

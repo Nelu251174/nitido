@@ -25,7 +25,7 @@ import {useAdminWorkspaceResource} from './AdminWorkspaceResource';
 
 export function AdminWorkspaceClients({identity}:{identity:AdminIdentity}){
  const params=useSearchParams(),requested=params.get('tab'),tab=requested==='inscrieri'&&identity.role==='super_admin'?'inscrieri':requested==='conturi'&&hasAdminPermission(identity.role,'operations')?'conturi':'clienti';
- return <><AdminWorkspaceTabs active={tab} items={[{key:'clienti',label:'Clienți',href:'/admin/clienti'},...(identity.role==='super_admin'?[{key:'inscrieri',label:'Înregistrări și descărcări',href:'/admin/clienti?tab=inscrieri'}]:[]),...(hasAdminPermission(identity.role,'operations')?[{key:'conturi',label:'Cereri privind conturile',href:'/admin/clienti?tab=conturi'}]:[])]}/>{tab==='clienti'?<AdminCustomers key={params.get('clientId')??'directory'} initialClientId={params.get('clientId')??undefined} loadDirectory/>:tab==='inscrieri'?<AdminOwnerNotifications/>:<AdminAccountDeletion/>}</>;
+ return <><AdminWorkspaceTabs active={tab} items={[{key:'clienti',label:'Clienți',href:'/admin/clienti'},...(identity.role==='super_admin'?[{key:'inscrieri',label:'Înregistrări și descărcări',href:'/admin/clienti?tab=inscrieri'}]:[]),...(hasAdminPermission(identity.role,'operations')?[{key:'conturi',label:'Cereri privind conturile',href:'/admin/clienti?tab=conturi'}]:[])]}/>{tab==='clienti'?<AdminCustomers key={params.get('clientId')??'directory'} initialClientId={params.get('clientId')??undefined} loadDirectory canDelete={identity.role==='super_admin'}/>:tab==='inscrieri'?<AdminOwnerNotifications/>:<AdminAccountDeletion/>}</>;
 }
 
 export function AdminWorkspaceSupport({identity}:{identity:AdminIdentity}){

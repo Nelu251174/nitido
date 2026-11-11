@@ -1,4 +1,11 @@
 import {AUTHORIZATION_COVERAGE_SCHEMA} from './authorizationCoverage';
+import {ensurePaymentMoneySchema} from './paymentMoney';
+import {INTERNATIONAL_TARIFF_SCHEMA} from './internationalTariffs';
+import {INTERNATIONAL_BOOKING_QUOTES_SCHEMA} from './internationalBooking';
+import {EMAIL_DELIVERY_DIAGNOSTIC_SCHEMA} from './emailDeliveryDiagnostics';
+import {INTERNATIONAL_JOB_SCHEMA} from './internationalJobSchema';
+import {INTERNATIONAL_CREW_CAPACITY_SCHEMA} from './internationalCrewCapacity';
+import {ensureSelectionMoneySchema} from './selectionRecovery';
 import {ADMIN_PASSWORD_RECOVERY_SCHEMA} from './adminPasswordCredentials';
 import {ADMIN_OWNER_SCHEMA} from './adminOwnerSchema';
 import {PROVIDER_SCORE_SCHEMA} from './providerScoreSchema';
@@ -42,6 +49,7 @@ import {AVAILABILITY_ALERTS_SCHEMA} from './availabilityAlertsSchema';
 import {FLEXIBLE_SCHEMA} from "./flexibleSchema";
 import { WORKSPACE_SCHEMA } from "@/lib/workspace";
 import Database from "better-sqlite3";
+import {activeAccountSql} from "./accountStatus";
 import path from "path";
 import fs from "fs";
 import { newId } from "./ids";
@@ -53,16 +61,14 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const DB_PATH = path.join(DATA_DIR, "nitido.db");
 
-// Singleton connection (dev server hot-reloads reuse the same instance)
+// Next production route bundles must share the connection and completed initialization too.
 declare global {
   var __nitidoDb: Database.Database | undefined;
+  var __nitidoInitializedDb: Database.Database | undefined;
 }
 
-export const db: Database.Database = global.__nitidoDb ?? new Database(DB_PATH);
-if (process.env.NODE_ENV !== "production") global.__nitidoDb = db;
-
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
+export const db: Database.Database = global.__nitidoDb?.open ? global.__nitidoDb : new Database(DB_PATH);
+global.__nitidoDb = db;
 
 // Exportată separat ca teste (vitest) să poată crea o bază de date in-memory
 // cu aceeași schemă, izolată de fișierul de date reale.
@@ -83,6 +89,11 @@ ${PAYMENT_RECOVERY_SCHEMA}
 ${AUTHORIZATION_COVERAGE_SCHEMA}
 ${PAYOUT_RECONCILIATION_SCHEMA}
 ${STRIPE_INBOX_SCHEMA}
+${INTERNATIONAL_TARIFF_SCHEMA}
+${INTERNATIONAL_BOOKING_QUOTES_SCHEMA}
+${EMAIL_DELIVERY_DIAGNOSTIC_SCHEMA}
+${INTERNATIONAL_JOB_SCHEMA}
+${INTERNATIONAL_CREW_CAPACITY_SCHEMA}
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   role TEXT NOT NULL CHECK (role IN ('client','firma')),
@@ -608,6 +619,10 @@ db.exec(JOB_ACTUAL_COSTS_SCHEMA);
   ensureColumn("payments", "stripe_transfer_id", "TEXT");
   ensureColumn("payments", "payout_status", "TEXT NOT NULL DEFAULT 'unknown'");
   ensureColumn("payments", "refund_status", "TEXT NOT NULL DEFAULT 'none'");
+  // Additive currency metadata only. Existing RON records/snapshots are not rewritten.
+  // Next build workers can share a DB: serialize the PRAGMA/check/ALTER sequence.
+  db.transaction(() => ensurePaymentMoneySchema(db)).immediate();
+  db.transaction(() => ensureSelectionMoneySchema(db)).immediate();
   ensureColumn("workspace_teams", "minimum_duration_minutes", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn("workspace_teams", "travel_minutes", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn("recurring_plans", "schedule_generation", "INTEGER NOT NULL DEFAULT 0");
@@ -655,7 +670,14 @@ db.exec(JOB_ACTUAL_COSTS_SCHEMA);
 
 }
 
-initializeDatabase(db);
+// Re-running migration checks acquires write locks even when no schema changes are needed.
+// Keep development hot reload migrations, and cache only successful production initialization.
+if (process.env.NODE_ENV !== 'production' || global.__nitidoInitializedDb !== db) {
+  db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = ON');
+  initializeDatabase(db);
+  global.__nitidoInitializedDb = db;
+}
 
 
 // --- Seed date demo (idempotent) ---------------------------------------
@@ -697,7 +719,7 @@ export function listFirms(): { id: string; name: string; coverage_city: string }
     .prepare(
       `SELECT firms.id as id, users.name as name, firms.coverage_city as coverage_city
        FROM firms JOIN users ON users.id = firms.user_id
-       ORDER BY users.name`
+       WHERE ${activeAccountSql(db,"users.id")} ORDER BY users.name`
     )
     .all() as { id: string; name: string; coverage_city: string }[];
 }
@@ -721,7 +743,7 @@ export function listAlertableFirms(): {
               firms.coverage_cities_extra as coverage_cities_extra, users.phone as phone,
               firms.suspended_until as suspended_until
        FROM firms JOIN users ON users.id = firms.user_id
-       WHERE firms.verified = 1`
+       WHERE firms.verified = 1 AND ${activeAccountSql(db,"firms.user_id")}`
     )
     .all() as {
     id: string;
@@ -746,24 +768,24 @@ export interface UserRow {
 }
 
 export function getUserByEmail(email: string): UserRow | undefined {
-  return db.prepare("SELECT * FROM users WHERE email = ?").get(email) as UserRow | undefined;
+  return db.prepare(`SELECT * FROM users WHERE email = ? AND ${activeAccountSql(db,"users.id")}`).get(email) as UserRow | undefined;
 }
 
 export function getUserByReferralCode(code: string): UserRow | undefined {
-  return db.prepare("SELECT * FROM users WHERE referral_code = ?").get(code) as
+  return db.prepare(`SELECT * FROM users WHERE referral_code = ? AND ${activeAccountSql(db,"users.id")}`).get(code) as
     | UserRow
     | undefined;
 }
 
 export function getUserById(id: string): UserRow | undefined {
-  return db.prepare("SELECT * FROM users WHERE id = ?").get(id) as UserRow | undefined;
+  return db.prepare(`SELECT * FROM users WHERE id = ? AND ${activeAccountSql(db,"users.id")}`).get(id) as UserRow | undefined;
 }
 
 export function getFirmByUserId(
   userId: string
 ): { id: string; coverage_city: string; coverage_cities_extra: string | null; verified:number; stripe_account_status:string; stripe_transfers_capability:string; description:string|null; working_hours:string|null; services:string|null; website:string|null } | undefined {
   return db
-    .prepare("SELECT id, coverage_city, coverage_cities_extra, verified, stripe_account_status, stripe_transfers_capability, description, working_hours, services, website FROM firms WHERE user_id = ?")
+    .prepare(`SELECT id, coverage_city, coverage_cities_extra, verified, stripe_account_status, stripe_transfers_capability, description, working_hours, services, website FROM firms WHERE user_id = ? AND ${activeAccountSql(db,"firms.user_id")}`)
     .get(userId) as
     | { id: string; coverage_city: string; coverage_cities_extra: string | null; verified:number; stripe_account_status:string; stripe_transfers_capability:string; description:string|null; working_hours:string|null; services:string|null; website:string|null }
     | undefined;
@@ -773,7 +795,7 @@ export function getFirmById(
   firmId: string
 ): { id: string; coverage_city: string; coverage_cities_extra: string | null } | undefined {
   return db
-    .prepare("SELECT id, coverage_city, coverage_cities_extra FROM firms WHERE id = ?")
+    .prepare(`SELECT id, coverage_city, coverage_cities_extra FROM firms WHERE id = ? AND ${activeAccountSql(db,"firms.user_id")}`)
     .get(firmId) as
     | { id: string; coverage_city: string; coverage_cities_extra: string | null }
     | undefined;

@@ -1,6 +1,7 @@
 "use client";
 
 import {UiText} from '@/components/UiText';
+import {LanguageSelector} from '@/components/LanguageSelector';
 import { ReactNode } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/ui";
@@ -52,10 +53,11 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         <p className="relative text-white/30 text-xs"><UiText text={"© 2026 Nitido"}/></p>
       </div>
 
-      <div className="auth-content flex-1 flex flex-col mesh-light">
-        <div className="p-6 md:hidden">
+      <div className="auth-content relative flex-1 flex flex-col mesh-light">
+        <div className="auth-mobile-brand p-6 md:hidden">
           <Logo />
         </div>
+        <div className="auth-language"><LanguageSelector/></div>
         <div className="auth-form-wrap flex-1 flex items-center justify-center px-6 py-10">
           <div className="auth-form-card w-full max-w-md bg-white/90 backdrop-blur-sm border border-white rounded-3xl p-8 shadow-[0_8px_40px_-12px_rgba(20,37,48,0.18)]">
             {children}

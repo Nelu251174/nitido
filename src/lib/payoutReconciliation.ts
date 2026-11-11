@@ -1,6 +1,7 @@
 import type {Database} from 'better-sqlite3';
 import type Stripe from 'stripe';
 import {randomUUID} from 'node:crypto';
+import {moneyFromPayment} from './paymentMoney';
 
 export const PAYOUT_RECONCILIATION_SCHEMA = `
 CREATE TABLE IF NOT EXISTS payout_reconciliation_runs (
@@ -17,6 +18,7 @@ CREATE INDEX IF NOT EXISTS idx_payout_reconciliation ON payout_reconciliation_ru
 export type PayoutLine = {
  balanceId:string; sourceId:string|null; transferId:string|null; sourceChargeId:string|null; jobId:string|null;
  amountMinor:number; feeMinor:number; netMinor:number; issue:string|null;
+ transferAmountMinor?:number; transferCurrency?:string; settlementCurrency?:string;
 };
 export type PayoutReport = {
  id:string; accountId:string; payoutId:string; currency:string; payoutStatus:string;
@@ -25,7 +27,7 @@ export type PayoutReport = {
 };
 const idOf=(value:unknown):string|null=>typeof value==='string'?value:value&&typeof value==='object'&&'id' in value&&typeof value.id==='string'?value.id:null;
 function requireDetail(ok:unknown){if(!ok)throw Error('PAYOUT_RECONCILIATION_DETAILS_MISMATCH');}
-type LocalPayment={id:string;job_id:string;amount_net:number;status:string;transfer_status:string;refund_status:string;stripe_charge_id:string|null;stripe_account_id:string};
+type LocalPayment=Record<string,unknown>&{id:string;job_id:string;amount_net:number;status:string;transfer_status:string;refund_status:string;stripe_charge_id:string|null;stripe_account_id:string};
 
 /** Sandbox-only, provider GETs only. Never changes payment, transfer or bank-payout status. */
 export async function reconcileSandboxPayout(db:Database,stripe:Stripe,accountId:string,payoutId:string):Promise<PayoutReport>{
@@ -40,9 +42,9 @@ export async function reconcileSandboxPayout(db:Database,stripe:Stripe,accountId
  if(!payout.automatic)report.issues.push('MANUAL_PAYOUT_REQUIRES_EXTERNAL_RECONCILIATION');
  if(payout.reconciliation_status!=='completed')report.issues.push('PROVIDER_RECONCILIATION_NOT_READY');
  if(payout.status!=='paid')report.issues.push('PAYOUT_NOT_PAID');
- if(payout.currency!=='ron')report.issues.push('UNSUPPORTED_CURRENCY');
+ if(!['ron','eur'].includes(payout.currency))report.issues.push('UNSUPPORTED_CURRENCY');
  // Stripe's payout filter only supports automatic payouts. Never infer membership by dates or amount.
- if(!payout.automatic||payout.reconciliation_status!=='completed'||payout.currency!=='ron')return save(db,report);
+ if(!payout.automatic||payout.reconciliation_status!=='completed'||!['ron','eur'].includes(payout.currency))return save(db,report);
  let cursor:string|undefined;
  const seen=new Set<string>(),transfers=new Set<string>();
  for(let page=0;page<10;page++){
@@ -57,19 +59,23 @@ export async function reconcileSandboxPayout(db:Database,stripe:Stripe,accountId
      // Other adjustments remain explicit exceptions, even if the overall totals happen to match.
      if(!['payment','charge'].includes(balance.type)||!line.sourceId){line.issue='UNMAPPED_BALANCE_TRANSACTION';report.lines.push(line);continue;}
      const charge=await stripe.charges.retrieve(line.sourceId,{},context);
-     requireDetail(charge.id===line.sourceId&&charge.livemode===false&&idOf(charge.balance_transaction)===balance.id&&charge.currency===balance.currency&&charge.amount===balance.amount);
+     requireDetail(charge.id===line.sourceId&&charge.livemode===false&&idOf(charge.balance_transaction)===balance.id&&['ron','eur'].includes(charge.currency)&&Number.isSafeInteger(charge.amount)&&charge.amount>0);
      line.transferId=idOf(charge.source_transfer);
      if(!line.transferId){line.issue='SOURCE_TRANSFER_MISSING';report.lines.push(line);continue;}
      withinDeadline();
      const transfer=await stripe.transfers.retrieve(line.transferId);
      line.sourceChargeId=idOf(transfer.source_transaction);
-     requireDetail(transfer.id===line.transferId&&transfer.livemode===false&&idOf(transfer.destination)===accountId&&idOf(transfer.destination_payment)===charge.id&&transfer.currency===balance.currency&&transfer.amount===balance.amount);
-     const local=db.prepare(`SELECT p.id,p.job_id,p.amount_net,p.status,p.transfer_status,p.refund_status,p.stripe_charge_id,f.stripe_account_id
+     requireDetail(transfer.id===line.transferId&&transfer.livemode===false&&idOf(transfer.destination)===accountId&&idOf(transfer.destination_payment)===charge.id&&transfer.currency===charge.currency&&transfer.amount===charge.amount);
+     line.transferAmountMinor=transfer.amount;line.transferCurrency=transfer.currency;line.settlementCurrency=balance.currency;
+     // A balance conversion is settlement evidence, never a guessed exchange rate.
+     if(charge.currency===balance.currency)requireDetail(charge.amount===balance.amount);
+     else line.issue='FX_RECONCILIATION_REQUIRED';
+     const local=db.prepare(`SELECT p.*,f.stripe_account_id
        FROM payments p JOIN jobs j ON j.id=p.job_id JOIN firms f ON f.id=j.accepted_firm_id WHERE p.stripe_transfer_id=?`).all(transfer.id) as LocalPayment[];
      if(local.length!==1){line.issue='LOCAL_TRANSFER_MISSING_OR_AMBIGUOUS';}
      else {
        const payment=local[0];
-       if(payment.stripe_account_id!==accountId||!Number.isSafeInteger(payment.amount_net*100)||payment.amount_net*100!==transfer.amount||!payment.stripe_charge_id||idOf(transfer.source_transaction)!==payment.stripe_charge_id){line.issue='LOCAL_PAYMENT_MISMATCH';}
+       if(!localMatches(payment,transfer.amount,transfer.currency,accountId,line.sourceChargeId)){line.issue='LOCAL_PAYMENT_MISMATCH';}
        else {line.jobId=payment.job_id;if(transfer.reversed||transfer.amount_reversed!==0||payment.status!=='captured'||payment.transfer_status!=='processed'||payment.refund_status!=='none')line.issue='PAYMENT_REQUIRES_REVIEW';}
      }
      if(transfers.has(transfer.id))line.issue='DUPLICATE_TRANSFER';
@@ -94,14 +100,18 @@ export async function reconcileSandboxPayout(db:Database,stripe:Stripe,accountId
  return save(db,report);
 }
 
+function localMatches(p:LocalPayment,amount:number,currency:string,account:string,source:string|null){
+ try{const money=moneyFromPayment(p);return p.stripe_account_id===account&&!!p.stripe_charge_id&&p.stripe_charge_id===source&&money.firmAmountMinor===amount&&money.stripeCurrency===currency;}catch{return false;}
+}
+
 function save(db:Database,report:PayoutReport):PayoutReport{
  db.transaction(()=>{
    if(db.prepare('SELECT id FROM firms WHERE stripe_account_id=?').all(report.accountId).length!==1)throw Error('PAYOUT_RECONCILIATION_ACCOUNT_CHANGED');
    // Recheck every mapped local row after the external reads, inside the recording transaction.
    for(const line of report.lines.filter(line=>line.jobId)){
-     const rows=db.prepare(`SELECT p.job_id,p.amount_net,p.status,p.transfer_status,p.refund_status,p.stripe_charge_id,f.stripe_account_id FROM payments p JOIN jobs j ON j.id=p.job_id JOIN firms f ON f.id=j.accepted_firm_id WHERE p.stripe_transfer_id=?`).all(line.transferId) as LocalPayment[];
+     const rows=db.prepare(`SELECT p.*,f.stripe_account_id FROM payments p JOIN jobs j ON j.id=p.job_id JOIN firms f ON f.id=j.accepted_firm_id WHERE p.stripe_transfer_id=?`).all(line.transferId) as LocalPayment[];
      const p=rows[0];
-     if(rows.length!==1||p.job_id!==line.jobId||p.stripe_account_id!==report.accountId||p.stripe_charge_id!==line.sourceChargeId||p.amount_net*100!==line.amountMinor||p.status!=='captured'||p.transfer_status!=='processed'||p.refund_status!=='none'){
+     if(rows.length!==1||p.job_id!==line.jobId||!localMatches(p,line.transferAmountMinor!,line.transferCurrency!,report.accountId,line.sourceChargeId)||p.status!=='captured'||p.transfer_status!=='processed'||p.refund_status!=='none'){
        line.issue='LOCAL_STATE_CHANGED';report.status='needs_review';if(!report.issues.includes('LOCAL_STATE_CHANGED'))report.issues.push('LOCAL_STATE_CHANGED');
      }
    }

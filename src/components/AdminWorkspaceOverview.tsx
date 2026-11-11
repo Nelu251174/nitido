@@ -8,7 +8,7 @@ import {Card,Button} from './ui';
 import {FinancialRecoveryStatus,type RecoveryRun,type RecoveryParked} from './FinancialRecoveryStatus';
 import {CancellationRecovery} from './CancellationRecovery';
 import {PayoutReconciliation} from './PayoutReconciliation';
-type Payment={id:string;job_id:string;amount_gross:number;commission_amount:number;amount_net:number;status:string;stripe_fee_amount:number|null;transfer_status:string;payout_status:string;refund_status:string;dispute_status:string};
+type Payment={currency?:'RON'|'EUR'|null;stripe_fee_currency?:'RON'|'EUR'|null;id:string;job_id:string;amount_gross:number;commission_amount:number;amount_net:number;status:string;stripe_fee_amount:number|null;transfer_status:string;payout_status:string;refund_status:string;dispute_status:string};
 type Coverage={job_id:string;state:string;required_until_ms:number;capture_before_ms:number|null};
 type Authorization={job_id:string;status:string;created_ms:number;stripe_payment_intent_id:string|null};
 type Cancellation={job_id:string;status:string;created_at:string};
@@ -20,6 +20,7 @@ type Overview={payments:Payment[];coverageIssues:Coverage[];authorizationIssues:
 const authorizationLabels:Record<string,string>={reconciliation_required:'Reconciliere obligatorie',pending:'Verificare în curs',unknown:'Rezultat neconfirmat',requires_action:'Confirmare necesară de la client',requires_payment_method:'Card necesar',canceled:'Autorizare anulată sau expirată',processing:'Procesare Stripe'};
 const payoutLabels:Record<string,string>={paid:'Confirmat de Stripe',failed:'Eșuat',pending:'În așteptare',in_transit:'În curs',canceled:'Anulat'};
 const financialStatus:Record<string,string>={authorized:'Sumă autorizată',captured:'Încasată',refunded:'Rambursată',cancelled:'Anulată',canceled:'Anulată',pending:'În așteptare',failed:'Eșuat',blocked:'Blocat',unknown:'Neconfirmat',none:'Neînregistrat',succeeded:'Confirmat',paid:'Confirmat de Stripe',in_transit:'În curs către bancă',processing:'În procesare',needs_response:'Răspuns necesar',under_review:'În analiză',warning_needs_response:'Avertizare: răspuns necesar',warning_under_review:'Avertizare în analiză',won:'Câștigată',lost:'Pierdută'};
+function paymentAmount(amount:number|null|undefined,currency:'RON'|'EUR'|null|undefined){if(amount==null||currency===null)return '—';return currency==='EUR'?new Intl.NumberFormat('ro-RO',{style:'currency',currency:'EUR'}).format(amount):`${amount} lei`;}
 function payoutAmount(p:BankPayoutRow){const formatter=new Intl.NumberFormat('ro-RO',{style:'currency',currency:p.currency.toUpperCase()});return formatter.format(p.amount_minor/10**(formatter.resolvedOptions().maximumFractionDigits??2));}
 export function AdminWorkspaceOverview({section}:{section:'plati'|'exceptii'|'viramente'|'dovezi'|'recenzii'}){
  const {data,error,busy,refresh}=useAdminWorkspaceResource<Overview>('/api/admin/overview',false),params=useSearchParams(),jobId=params.get('jobId');
@@ -50,11 +51,11 @@ export function AdminWorkspaceOverview({section}:{section:'plati'|'exceptii'|'vi
                 {payments.map((p) => (
                   <tr key={p.id} className="border-t border-line">
                     <td className="px-3 py-2"><Link href={'/admin/lucrari?jobId='+encodeURIComponent(p.job_id)+'&detail=plata'}>#{p.job_id.slice(0,12)}</Link></td>
-                    <td className="px-3 py-2">{p.amount_gross}<UiText text={" lei"}/></td>
-                    <td className="px-3 py-2">{p.commission_amount}<UiText text={" lei"}/></td>
-                    <td className="px-3 py-2">{p.amount_net}<UiText text={" lei"}/></td>
+                    <td className="px-3 py-2">{paymentAmount(p.amount_gross,p.currency)}</td>
+                    <td className="px-3 py-2">{paymentAmount(p.commission_amount,p.currency)}</td>
+                    <td className="px-3 py-2">{paymentAmount(p.amount_net,p.currency)}</td>
                     <td className="px-3 py-2"><UiText text={financialStatus[p.status]??p.status}/></td>
-                    <td className="px-3 py-2">{p.stripe_fee_amount == null ? <UiText text={"Necunoscută"}/> : `${(p.stripe_fee_amount/100).toFixed(2)} lei`}</td>
+                    <td className="px-3 py-2">{p.stripe_fee_amount == null || !p.stripe_fee_currency ? <UiText text={"Necunoscută"}/> : new Intl.NumberFormat('ro-RO',{style:'currency',currency:p.stripe_fee_currency}).format(p.stripe_fee_amount/100)}</td>
                     <td className="px-3 py-2"><UiText text={financialStatus[p.transfer_status]??p.transfer_status}/></td>
                     <td className="px-3 py-2"><UiText text={financialStatus[p.payout_status]??p.payout_status}/></td>
                     <td className="px-3 py-2"><UiText text={financialStatus[p.refund_status]??p.refund_status}/> / <UiText text={financialStatus[p.dispute_status]??p.dispute_status}/></td>

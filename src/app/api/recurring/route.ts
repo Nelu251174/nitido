@@ -30,6 +30,11 @@ export async function POST(req: NextRequest) {
   try{b=JSON.parse(raw)}catch{return NextResponse.json({error:"Cerere JSON invalidă"},{status:400})}
   if(!b||typeof b!=="object"||Array.isArray(b))return NextResponse.json({error:"Cerere invalidă"},{status:400});
 
+  // This endpoint only creates legacy Romanian visits; never discard an explicit foreign market.
+  if ((b.countryCode !== undefined && b.countryCode !== "RO") || (b.currency !== undefined && b.currency !== "RON")) {
+    return NextResponse.json({error:"Abonamentele recurente sunt disponibile numai pentru lucrări în România, în RON."},{status:422});
+  }
+
   if(b.action==="generate"){
     const result=await generateDueRecurringJobs(db,new Date(),user.id);
     return NextResponse.json({ok:true,created:result.created.length,blocked:result.blocked},{headers:{"Cache-Control":"private, no-store"}});

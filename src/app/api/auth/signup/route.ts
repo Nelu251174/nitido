@@ -1,16 +1,15 @@
-import {persistSignup,signupInputError} from "@/lib/signupPersistence";
+import {persistSignup,signupInputError,signupEmailInUse} from "@/lib/signupPersistence";
 import { after, NextRequest, NextResponse } from "next/server";
 import {lookup} from 'geoip-country';
 import {processOwnerEmails} from '@/lib/adminOwnerEvents';
-import { db, newId, getUserByEmail, getUserByReferralCode } from "@/lib/db";
+import { db, newId, getUserByReferralCode } from "@/lib/db";
 import { hashPassword, createSession } from "@/lib/auth";
 import { toE164Romania } from "@/lib/sms";
 import { isPlausibleCui, sanitizeCui, verifyCuiWithAnaf } from "@/lib/cui";
 import { sanitizeCoverageCitiesInput } from "@/lib/text";
 import { generateReferralCode, REFERRAL_BONUS_LEI } from "@/lib/referral";
 import { consumeRateLimit, requestIp } from "@/lib/security";
-import {sendVerificationEmail} from "@/lib/emailVerification";
-import { emailConfigured } from "@/lib/email";
+import {sendVerificationEmailResult} from "@/lib/emailVerification";
 
 // Înregistrare — spec secțiunea 4.1 (client) și secțiunea 4, punct 1 (firmă:
 // "date firmă, zonă de acoperire, tipuri de lucrări acceptate").
@@ -91,7 +90,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const existing = getUserByEmail(email);
+  const existing = signupEmailInUse(db,email);
   if (existing) {
     return NextResponse.json({ error: "Există deja un cont cu acest email" }, { status: 409 });
   }
@@ -119,15 +118,16 @@ export async function POST(req: NextRequest) {
       ...(role==='firma'?{firm:{id:newId('firm'),cui:sanitizeCui(cui!),city:coverageCity!.trim(),citiesExtra:coverageCitiesExtra?sanitizeCoverageCitiesInput(coverageCitiesExtra)||null:null,verified:cuiVerification?.status==='valid'}}:{})
     });
   } catch (error) {
-    if(getUserByEmail(email))return NextResponse.json({error:"Există deja un cont cu acest email"},{status:409});
-    console.error('signup_persistence_failed', {code:error instanceof Error?error.name:'unknown'});
+    if(signupEmailInUse(db,email))return NextResponse.json({error:"Există deja un cont cu acest email"},{status:409});
+    const sqliteCode=typeof error==='object'&&error!==null&&'code' in error&&typeof error.code==='string'&&/^SQLITE_[A-Z_]+$/.test(error.code)?error.code:'unknown';
+    console.error('signup_persistence_failed', {type:error instanceof Error?error.name:'unknown',code:sqliteCode});
     return NextResponse.json({error:"Contul nu a putut fi creat. Nu au fost salvate date parțiale. Reîncearcă."},{status:500});
   }
 
   after(async()=>{try{await processOwnerEmails(db,{ids:[ownerEventId]});}catch{console.error('owner_notification_deferred');}});
 
-  const welcomeEmailSent = await sendVerificationEmail(db, userId);
-  if (!welcomeEmailSent) console.error("signup_welcome_email_failed", { configured: emailConfigured(), userId });
+  const welcomeEmailResult = await sendVerificationEmailResult(db, userId);
+  const welcomeEmailSent = welcomeEmailResult.accepted;
 
   const sessionToken = await createSession(userId);
 

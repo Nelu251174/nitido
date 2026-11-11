@@ -1,0 +1,11 @@
+import {beforeEach,it,expect,vi} from 'vitest';
+import {NextRequest} from 'next/server';
+const state=vi.hoisted(()=>({identity:vi.fn(),read:vi.fn()}));
+vi.mock('@/lib/db',()=>({db:{}}));vi.mock('@/lib/adminAuth',()=>({getAdminIdentity:state.identity}));vi.mock('@/lib/emailDeliveryDiagnostics',()=>({emailDiagnostics:state.read}));
+import {GET} from './route';
+const req=(suffix='')=>new NextRequest('https://nitido.example.test/api/admin/email-diagnostics'+suffix);
+beforeEach(()=>{vi.clearAllMocks();state.identity.mockResolvedValue(null);state.read.mockReturnValue({items:[],providerAcceptanceOnly:true,deliveryConfirmed:false})});
+it('rejects anonymous and client-role access before reading any metadata',async()=>{expect((await GET(req())).status).toBe(401);state.identity.mockResolvedValue({id:'synthetic-client',role:'client'});expect((await GET(req())).status).toBe(403);expect(state.read).not.toHaveBeenCalled()});
+it.each(['operator','manager','finance'])('does not grant%s operational role access to owner diagnostics',async(role)=>{state.identity.mockResolvedValue({id:'staff',role});expect((await GET(req())).status).toBe(403);expect(state.read).not.toHaveBeenCalled()});
+it('allows only an authenticated super administrator and never caches metadata',async()=>{state.identity.mockResolvedValue({id:'admin',role:'super_admin'});const r=await GET(req('?limit=25'));expect(r.status).toBe(200);expect(r.headers.get('cache-control')).toBe('private, no-store');expect(state.read).toHaveBeenCalledWith({},25);expect(await r.json()).toMatchObject({deliveryConfirmed:false})});
+it('bounds the read and hides database exception text',async()=>{state.identity.mockResolvedValue({id:'admin',role:'super_admin'});expect((await GET(req('?limit=1000'))).status).toBe(400);state.read.mockImplementation(()=>{throw Error('PRIVATE_DB_BODY')});const r=await GET(req());expect(r.status).toBe(503);expect(await r.json()).toEqual({error:'EMAIL_DIAGNOSTICS_UNAVAILABLE'});expect(r.headers.get('cache-control')).toBe('private, no-store')});

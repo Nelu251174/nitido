@@ -1,3 +1,4 @@
+import {currencyOfJob} from '@/lib/jobCurrency';
 import {freezeExecutionRules} from '@/lib/executionTemplates';
 import type { Database } from "better-sqlite3";
 import { randomUUID } from "node:crypto";
@@ -29,6 +30,10 @@ export async function rescueAcceptedJob(
   }
   if (job.status !== "accepted") {
     return { ok: false, error: "Doar lucrările acceptate (neîncepute) pot fi renunțate", status: 409 };
+  }
+
+  if (currencyOfJob(job) !== "RON") {
+    return { ok: false, error: "Repunerea automată nu este disponibilă pentru această monedă. Lucrarea și plata nu au fost modificate.", status: 422 };
   }
 
   const outcome=db.transaction(():RescueResult=>{

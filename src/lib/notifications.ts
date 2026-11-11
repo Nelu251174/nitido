@@ -1,3 +1,5 @@
+import {currencyOfJob} from './jobCurrency';
+import {isAccountRemoved} from './accountStatus';
 import {trackInvitationDelivery} from './providerInvitations';
 import {claimNotification,startNotificationDispatch,finishNotification,recoverNotificationClaims,retryableNotificationSql} from "./notificationClaims";
 import type { Database } from "better-sqlite3";
@@ -25,6 +27,7 @@ function enqueue(db: Database, eventType: SmsEventType, jobId: string, recipient
   const users=db.prepare("SELECT id,phone FROM users WHERE phone IS NOT NULL").all() as {id:string;phone:string}[];
   const matches=users.filter(user=>toE164Romania(user.phone)===recipient);
   const recipientUserId=matches.length===1?matches[0].id:null;
+  if(recipientUserId&&isAccountRemoved(db,recipientUserId))return null;
   const id = newId("sms");
   db.prepare(`INSERT OR IGNORE INTO notification_outbox
     (id,idempotency_key,event_type,job_id,recipient,message_body,recipient_user_id) VALUES (?,?,?,?,?,?,?)`)
@@ -35,6 +38,9 @@ function enqueue(db: Database, eventType: SmsEventType, jobId: string, recipient
 
 export function queueJobCreatedFirmAlerts(db: Database, job: {id:string;city:string;spaceType:string;sqm:number;scheduledAt:string|null}, phones:(string|null)[]): string[] {
   return db.transaction(()=>{
+  // International phone routing and SMS transport are not configured; never infer a Romanian prefix.
+  const market=db.prepare('SELECT * FROM jobs WHERE id=?').get(job.id) as Parameters<typeof currencyOfJob>[0];
+  if(!market||currencyOfJob(market)!=='RON')return [];
   const body = `NITIDO.RO: Lucrare nouă disponibilă în ${job.city}. Tip: ${labels[job.spaceType]??"curățenie"}, suprafață: ${job.sqm} m², data/ora: ${scheduledLabel(job.scheduledAt)}. Deschide NITIDO pentru detalii și Accept.`;
   return [...new Set(phones.map(p=>p&&toE164Romania(p)).filter((p):p is string=>Boolean(p)))]
     .map(phone=>{const id=enqueue(db,"JOB_CREATED_FIRM_ALERT",job.id,phone,body,"recipient");if(id){const row=db.prepare("SELECT recipient_user_id FROM notification_outbox WHERE id=?").get(id) as {recipient_user_id:string|null};trackInvitationDelivery(db,"sms",id,job.id,row.recipient_user_id);}return id;}).filter((id):id is string=>Boolean(id));
@@ -61,14 +67,16 @@ export function queueJobArrivedClientSms(db: Database, jobId:string): string[] {
 
 function smsDeliveryBlock(db:Database,row:{job_id:string;event_type:SmsEventType;recipient:string;recipient_user_id:string|null}):string|null{
   if(!row.recipient_user_id)return "SUPPRESSED_RECIPIENT_UNBOUND";
+  if(isAccountRemoved(db,row.recipient_user_id))return "SUPPRESSED_ACCOUNT_REMOVED";
   const user=db.prepare("SELECT phone FROM users WHERE id=?").get(row.recipient_user_id) as {phone:string|null}|undefined;
   if(!user?.phone||toE164Romania(user.phone)!==row.recipient)return "SUPPRESSED_RECIPIENT";
   const field=row.event_type==="JOB_CREATED_FIRM_ALERT"?"new_job_alerts":row.event_type==="JOB_ACCEPTED_CLIENT_CONFIRMATION"?"job_status_notifications":"arrival_notifications";
   const preference=db.prepare(`SELECT ${field} enabled FROM notification_preferences WHERE user_id=?`).get(row.recipient_user_id) as {enabled:number}|undefined;
   if(preference?.enabled===0)return "SUPPRESSED_PREFERENCE";
-  const job=db.prepare("SELECT client_id,city,status,accepted_firm_id FROM jobs WHERE id=?").get(row.job_id) as {client_id:string;city:string;status:string;accepted_firm_id:string|null}|undefined;
+  const job=db.prepare("SELECT * FROM jobs WHERE id=?").get(row.job_id) as ({pricing_snapshot?:string|null;client_id:string;city:string;status:string;accepted_firm_id:string|null})|undefined;
   if(!job)return "SUPPRESSED_JOB_UNAVAILABLE";
   if(row.event_type==="JOB_CREATED_FIRM_ALERT"){
+    if(currencyOfJob(job)!=="RON")return "SUPPRESSED_SMS_MARKET_UNSUPPORTED";
     if(job.status!=="waiting"||job.accepted_firm_id)return "SUPPRESSED_JOB_UNAVAILABLE";
     const firm=db.prepare("SELECT verified,coverage_city,coverage_cities_extra,suspended_until FROM firms WHERE user_id=?").get(row.recipient_user_id) as {verified:number;coverage_city:string;coverage_cities_extra:string|null;suspended_until:string|null}|undefined;
     if(!firm||firm.verified!==1||!firmCoversCity(firm.coverage_city,firm.coverage_cities_extra,job.city)||(firm.suspended_until&&(!Number.isFinite(Date.parse(firm.suspended_until))||Date.parse(firm.suspended_until)>Date.now())))return "SUPPRESSED_FIRM_INELIGIBLE";

@@ -4,6 +4,7 @@ import { CITIES } from './cities';
 import { marketingKey, MarketingError, normalizeMarketingInput } from './adminMarketing';
 import type { MarketingInput } from './adminMarketingShared';
 import { publicWebsite, readPublicPage, type PublicReader } from './adminMarketingPublicWeb';
+import { publicEmailCandidates } from './publicEmailCandidates';
 
 // OSM's public instance list documents this service as available for any project.
 export const MARKETING_PUBLIC_SOURCE = 'https://overpass.private.coffee/api/interpreter';
@@ -11,21 +12,35 @@ const sectors: Record<string, string[]> = {
   all: ['[office]', '[shop]', '[tourism~"^(hotel|guest_house|hostel)$"]', '[amenity~"^(restaurant|cafe|clinic|bank)$"]'],
   hotels: ['[tourism~"^(hotel|guest_house|hostel)$"]'], restaurants: ['[amenity~"^(restaurant|cafe)$"]'], offices: ['[office]'], shops: ['[shop]'],
 };
-const emailPattern = /[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+/gi;
 export function publicEmails(text: string): string[] {
-  return [...new Set((text.match(emailPattern) ?? []).map(value => value.toLowerCase().replace(/[.,;:]+$/, '')).filter(value => value.length <= 254 && !/\.(png|jpe?g|svg|webp|gif|css|js)$/i.test(value) && !/^(example|test|noreply|no-reply)@/.test(value)))].sort((a, b) => Number(!/^(contact|office|info|hello|rezervari)@/.test(a)) - Number(!/^(contact|office|info|hello|rezervari)@/.test(b)) || a.localeCompare(b));
+  return [...new Set(publicEmailCandidates(text).map(value => value.toLowerCase().replace(/[.,;:]+$/, '')).filter(value => value.length <= 254 && !/\.(png|jpe?g|svg|webp|gif|css|js)$/i.test(value) && !/^(example|test|noreply|no-reply)@/.test(value)))].sort((a, b) => Number(!/^(contact|office|info|hello|rezervari)@/.test(a)) - Number(!/^(contact|office|info|hello|rezervari)@/.test(b)) || a.localeCompare(b));
 }
 /** Keep adjacent DOM nodes separated; concatenating text can invent an email address. */
-export function marketingVisibleText($:CheerioAPI,selector:string){return $(selector).find('*').addBack().contents().filter((_,node)=>node.type==='text').map((_,node)=>node.type==='text'?node.data:'').get().join(' ');}
+export function marketingVisibleText($:CheerioAPI,selector:string){
+  const stack=$(selector).toArray().reverse(),seen=new Set<(typeof stack)[number]>(),text:string[]=[];
+  while(stack.length){
+    const node=stack.pop()!;
+    if(seen.has(node)||!('children' in node))continue;
+    seen.add(node);
+    // Match the existing parent-first order of direct text nodes without
+    // Cheerio's document-order sort, which repeatedly scans wide sibling lists.
+    for(const child of node.children)if(child.type==='text')text.push(child.data);
+    for(let i=node.children.length-1;i>=0;i--){
+      const child=node.children[i];
+      if(child.type==='tag'||child.type==='script'||child.type==='style')stack.push(child);
+    }
+  }
+  return text.join(' ');
+}
 export function extractBusinessPage(html: string, base: string, maxLinks = 2) {
   const $ = load(html); $('script,style,noscript,template').remove();
   const emails = publicEmails($('a[href^="mailto:"]').map((_, node) => $(node).attr('href')?.slice(7).split('?')[0] ?? '').get().join(' ') + ' ' + marketingVisibleText($,'body'));
-  const url = new URL(base), links: string[] = [], hrefs:string[]=[];let resolution=url;
+  const url = new URL(base), links: string[] = [], seenLinks = new Set<string>(), hrefs:string[]=[];let resolution=url;
   try{const declared=$('base[href]').first().attr('href');if(declared)resolution=publicWebsite(new URL(declared,url).href);}catch{ /* An invalid base is not a public destination. */ }
   $('a[href]').each((_, node) => {
     const href = $(node).attr('href') ?? '', text = $(node).text();
     if (!/contact|despre|about/i.test(href + ' ' + text)) return;
-    try { const link = publicWebsite(new URL(href, resolution).href); if (link.origin === url.origin){hrefs.push(href.trim());if(!links.includes(link.href))links.push(link.href);} } catch { /* Ignore non-public links. */ }
+    try { const link = publicWebsite(new URL(href, resolution).href); if (link.origin === url.origin){hrefs.push(href.trim());if(!seenLinks.has(link.href)){seenLinks.add(link.href);links.push(link.href);}} } catch { /* Ignore non-public links. */ }
   });
   const name=($('meta[property="og:site_name"]').attr('content') || $('title').text() || url.hostname).replace(/\s+/g, ' ').trim().slice(0,180);
   const fingerprint=createHash('sha256').update(JSON.stringify({name,text:marketingVisibleText($,'body').replace(/\s+/g,' ').trim(),emails,hrefs:[...new Set(hrefs)].sort(),base:$('base[href]').first().attr('href')??''})).digest('hex');

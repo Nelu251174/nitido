@@ -105,3 +105,51 @@ describe('atomic webhook delivery and bank payout isolation',()=>{
  it('does not mark a partial transfer reversal as fully reversed',async()=>{firm();event('transfer.reversed',{id:'tr_test',reversed:false,amount_reversed:100});expect((await POST(request())).status).toBe(200);expect(db.prepare('SELECT transfer_status FROM payments').get()).toEqual({transfer_status:'processed'});});
  it('matches a dispute to the charge and reads its current status',async()=>{db.exec("UPDATE payments SET stripe_charge_id='ch_test'");event('charge.dispute.created',{id:'dp_test',charge:'ch_test'});state.dispute.mockResolvedValue({id:'dp_test',charge:'ch_test',status:'won'});expect((await POST(request())).status).toBe(200);expect(db.prepare('SELECT dispute_status FROM payments').get()).toEqual({dispute_status:'won'});});
 });
+
+describe('EUR money and separate settlement-currency reconciliation',()=>{
+ beforeEach(async()=>{
+  const {ensurePaymentMoneySchema}=await import('@/lib/paymentMoney');ensurePaymentMoneySchema(db);
+  db.exec("UPDATE payments SET currency='EUR',amount_gross=123.45,commission_amount=22.22,amount_net=101.23,amount_gross_minor=12345,commission_amount_minor=2222,amount_net_minor=10123;UPDATE payment_refunds SET currency='EUR',amount=123.45,amount_minor=12345");
+ });
+ const eurRefund={id:'re_test',payment_intent:'pi_test',currency:'eur',amount:12345,status:'succeeded'};
+ it('reconciles and deduplicates the original EUR refund using stored cents',async()=>{
+  state.retrieve.mockResolvedValue(eurRefund);
+  expect((await POST(request())).status).toBe(200);expect((await POST(request())).status).toBe(200);
+  expect(state.retrieve).toHaveBeenCalledTimes(1);expect(db.prepare('SELECT status,currency,amount_gross_minor FROM payments').get()).toEqual({status:'refunded',currency:'EUR',amount_gross_minor:12345});
+ });
+ it('leaves a wrong-currency refund retryable and never marks it successful',async()=>{
+  state.retrieve.mockResolvedValueOnce({...eurRefund,currency:'ron'}).mockResolvedValueOnce(eurRefund);
+  expect((await POST(request())).status).toBe(500);expect(db.prepare('SELECT status FROM payments').get()).toEqual({status:'captured'});
+  expect((await POST(request())).status).toBe(200);expect(db.prepare('SELECT status FROM payments').get()).toEqual({status:'refunded'});
+ });
+ it('stores the processor fee in EUR settlement currency for a RON charge without inventing an FX conversion',async()=>{
+  db.exec("UPDATE payments SET currency='RON',amount_gross=500,commission_amount=90,amount_net=410,amount_gross_minor=50000,commission_amount_minor=9000,amount_net_minor=41000");
+  event('charge.succeeded',{id:'ch_test',payment_intent:'pi_test',balance_transaction:'txn_test',currency:'ron',amount:50000});
+  state.balance.mockResolvedValue({fee:123,currency:'eur',source:'ch_test',amount:9362});
+  expect((await POST(request())).status).toBe(200);expect(db.prepare('SELECT currency,stripe_fee_amount,stripe_fee_currency FROM payments').get()).toEqual({currency:'RON',stripe_fee_amount:123,stripe_fee_currency:'EUR'});
+ });
+ it('validates the EUR charge amount and keeps its fee denomination separate',async()=>{
+  event('charge.succeeded',{id:'ch_test',payment_intent:'pi_test',balance_transaction:'txn_test',currency:'eur',amount:12345});
+  state.balance.mockResolvedValue({fee:174,currency:'eur',source:'ch_test',amount:12345});
+  expect((await POST(request())).status).toBe(200);expect(db.prepare('SELECT stripe_fee_amount,stripe_fee_currency FROM payments').get()).toEqual({stripe_fee_amount:174,stripe_fee_currency:'EUR'});
+ });
+ it.each([{currency:'ron',amount:12345},{currency:'eur',amount:12344}])('rejects an unrelated charge denomination before fee synchronization: %j',async patch=>{
+  event('charge.succeeded',{id:'ch_test',payment_intent:'pi_test',balance_transaction:'txn_test',...patch});
+  expect((await POST(request())).status).toBe(500);expect(state.balance).not.toHaveBeenCalled();expect(db.prepare('SELECT stripe_fee_amount FROM payments').get()).toEqual({stripe_fee_amount:null});
+ });
+ it.each([{fee:-1,currency:'eur'},{fee:174,currency:'usd'},{fee:12346,currency:'eur'}])('rejects invalid settlement metadata: %j',async patch=>{
+  event('charge.succeeded',{id:'ch_test',payment_intent:'pi_test',balance_transaction:'txn_test',currency:'eur',amount:12345});state.balance.mockResolvedValue({source:'ch_test',amount:12345,...patch});
+  expect((await POST(request())).status).toBe(500);expect(db.prepare('SELECT stripe_fee_amount FROM payments').get()).toEqual({stripe_fee_amount:null});
+ });
+ it('refuses a wrong-currency cancellation event without cancelling the EUR booking locally',async()=>{
+  db.exec("UPDATE payments SET status='authorized'");event('payment_intent.canceled',{id:'pi_test',currency:'ron',amount:12345});
+  expect((await POST(request())).status).toBe(500);expect(db.prepare('SELECT status FROM payments').get()).toEqual({status:'authorized'});
+  event('payment_intent.canceled',{id:'pi_test',currency:'eur',amount:12345});expect((await POST(request())).status).toBe(200);expect(db.prepare('SELECT status FROM payments').get()).toEqual({status:'cancelled'});
+ });
+ it('marks only a full matching EUR transfer as reversed',async()=>{
+  firm();event('transfer.reversed',{id:'tr_test',reversed:true,amount:10123,amount_reversed:10122,currency:'eur'});
+  expect((await POST(request())).status).toBe(500);expect(db.prepare('SELECT transfer_status FROM payments').get()).toEqual({transfer_status:'processed'});
+  event('transfer.reversed',{id:'tr_test',reversed:true,amount:10123,amount_reversed:10123,currency:'eur'});
+  expect((await POST(request())).status).toBe(200);expect(db.prepare('SELECT transfer_status FROM payments').get()).toEqual({transfer_status:'reversed'});
+ });
+});
