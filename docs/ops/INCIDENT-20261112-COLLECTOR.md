@@ -52,21 +52,33 @@ read-only checks. A successful trigger or one HTTP200 is not stable recovery.
 
 ## Validation and limits
 
-The full suite passed 3320 tests, with one external smoke test intentionally
+The full suite passed 3321 tests, with one external smoke test intentionally
 skipped. Lint passed. In a synthetic 330000 completed-page fixture, the original
-collector step delayed a timer by 339 ms; the final suite measured 33 ms after the
+collector step delayed a timer by 339 ms; the final suite measured 29 ms after the
 compatible first-start index upgrade. These are local measurements, not LIVE
 latency promises.
 
 The actual compiled collector resumed a synthetic 330002-page SQLite frontier
 with external requests blocked. During an artificial two-second CPU stall in
-that child, five parent HTTP health requests remained under 24 ms. The fixture's
+that child, five parent HTTP health requests remained under 23 ms. The fixture's
 retry deadline and persisted page count were preserved, with database integrity
 confirmed. This proves process isolation for that workload; shared SQLite write
 contention, native-memory pressure and host resource exhaustion still require
 operational observation.
 
-Production build, standalone runtime and desktop/mobile acceptance results are
-recorded with the release evidence before publication. No physical-device,
-push/email-receipt, payment-settlement or full historical root-cause claim is
-made by these isolated checks.
+The final production Next.js build and targeted lint passed. Desktop/mobile
+browser acceptance covered 72 workspace navigation transitions, without missing
+workspace frames, document reloads or JavaScript page errors. A separate smoke
+of the actual standalone output passed nine checks: health and collector process
+readiness, anonymous and synthetic-client administrative API refusal, client data
+isolation, desktop/mobile workspace logo navigation, mobile bottom navigation and
+browser logout with server-side session revocation. No provider transports were
+enabled. These checks ran on local Node 24.19.0; the Docker image's Node 22 runtime
+and physical Android/iPhone devices have not been executed in this environment.
+
+The correction is prepared in PR #187 and is not deployed. Current Coolify API
+access returns 401, so the current deployment state, lack of concurrent deploys
+and resulting LIVE revision cannot be independently verified. Public checks
+continue separately; no successful build or local test is presented as LIVE
+recovery. No push/email-receipt, payment-settlement or full historical root-cause
+claim is made by these isolated checks.
