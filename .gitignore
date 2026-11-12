@@ -54,3 +54,4 @@ mobile/.eas/
 next-env.d.ts
 __pycache__/
 *.py[cod]
+/scripts/runtime/

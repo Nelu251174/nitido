@@ -10,6 +10,7 @@ type Host={origin:string;robots_state:string;robots:string;robots_url:string;rob
 export const MARKETING_COUNTY_WEB_SCHEMA=`
 CREATE TABLE IF NOT EXISTS marketing_county_web_pages(job_id TEXT NOT NULL,website TEXT NOT NULL,url TEXT NOT NULL,state TEXT NOT NULL DEFAULT 'pending',attempts INTEGER NOT NULL DEFAULT 0,hops INTEGER NOT NULL DEFAULT 0,next_attempt_at TEXT,reason TEXT NOT NULL DEFAULT '',found TEXT NOT NULL DEFAULT '[]',redirect_to TEXT NOT NULL DEFAULT '',checked_at TEXT,PRIMARY KEY(job_id,website,url));
 CREATE INDEX IF NOT EXISTS marketing_county_web_pending ON marketing_county_web_pages(job_id,website,state,next_attempt_at);
+CREATE INDEX IF NOT EXISTS marketing_county_web_evidence ON marketing_county_web_pages(job_id,website) WHERE found<>'[]';
 CREATE TABLE IF NOT EXISTS marketing_county_web_hosts(origin TEXT PRIMARY KEY,robots_state TEXT NOT NULL DEFAULT 'pending',robots TEXT NOT NULL DEFAULT '',robots_url TEXT NOT NULL,robots_hops INTEGER NOT NULL DEFAULT 0,robots_attempts INTEGER NOT NULL DEFAULT 0,robots_next_at TEXT,robots_at TEXT,reason TEXT NOT NULL DEFAULT '',next_request_at TEXT,delay_ms INTEGER NOT NULL DEFAULT 2000);
 `;
 export function initializeMarketingCountyWeb(db:Database){db.exec(MARKETING_COUNTY_WEB_SCHEMA);
@@ -56,14 +57,18 @@ async function robotsStep(db:Database,origin:string,reader:PublicReader,active:(
  }catch(error){if(active()){const reason=safeReason(error);fail('ROBOTS_'+reason,retryable(reason));}}
 }
 function summary(db:Database,jobId:string,website:string){
- const pages=db.prepare('SELECT state,reason,found,next_attempt_at FROM marketing_county_web_pages WHERE job_id=? AND website=?').all(jobId,website) as {state:string;reason:string;found:string;next_attempt_at:string|null}[];
+ // Completed pages without evidence must not be copied into the HTTP process on every tick.
+ // The existing pending index and the small evidence-only index keep this independent of
+ // the number of completed, empty pages. Retain all evidence and persisted retry deadlines.
+ const pending=db.prepare("SELECT COUNT(*) count,COALESCE(SUM(next_attempt_at IS NULL OR next_attempt_at='' OR next_attempt_at<=?),0) ready,MIN(NULLIF(next_attempt_at,'')) next FROM marketing_county_web_pages WHERE job_id=? AND website=? AND state='pending'").get(now(),jobId,website) as {count:number;ready:number;next:string|null};
+ const reasons=(db.prepare("SELECT DISTINCT reason FROM marketing_county_web_pages WHERE job_id=? AND website=? AND state='blocked'").all(jobId,website) as {reason:string}[]).map(p=>p.reason);
  const found=new Map<string,Found>();
  const previous=db.prepare('SELECT result FROM marketing_county_sites WHERE job_id=? AND website=?').get(jobId,website) as {result:string}|undefined;
  for(const f of previous?JSON.parse(previous.result) as Found[]:[])found.set(f.email,f);
- for(const page of pages)for(const f of JSON.parse(page.found) as Found[])found.set(f.email,f);
- const pending=pages.filter(p=>p.state==='pending'),reasons=[...new Set(pages.filter(p=>p.state==='blocked').map(p=>p.reason))];
+ const evidence=db.prepare("SELECT found FROM marketing_county_web_pages WHERE job_id=? AND website=? AND found<>'[]'").iterate(jobId,website) as IterableIterator<{found:string}>;
+ for(const page of evidence)for(const f of JSON.parse(page.found) as Found[])found.set(f.email,f);
  const warning=reasons.length?'Verificarea site-ului este incompletă ['+reasons.join(', ')+'].':'';
- return {complete:pending.length===0,found:[...found.values()],warning,nextAttemptAt:pending.some(p=>due(p.next_attempt_at))?null:pending.map(p=>p.next_attempt_at).filter((v):v is string=>!!v).sort()[0]??null};
+ return {complete:pending.count===0,found:[...found.values()],warning,nextAttemptAt:pending.ready?null:pending.next};
 }
 /** Persistent contact-page frontier. Limits bound each read/tick, never the site's or county's total. */
 export async function collectMarketingCountyWebsite(db:Database,jobId:string,website:string,reader:PublicReader,active:()=>boolean){
