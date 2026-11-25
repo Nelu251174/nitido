@@ -858,7 +858,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
           pro.text(b.note, "Notă", 2000),
           id,
         );
-        if (!update.changes) pro.fail("Candidatură inexistentă.", 404);
+        if (!update.changes) pro.fail("Solicitare inexistentă.", 404);
         pro.audit(db, p, null, id, "lead.review");
         return { id };
       }
