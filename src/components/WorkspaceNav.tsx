@@ -40,7 +40,7 @@ const firmItems: readonly NavItem[] = [
   {label:'Mesaje',href:'/firma/mesaje',icon:'chat'},
   {label:'Câștiguri',href:'/firma#castiguri',icon:'chart'},
   {label:'Echipe',href:'/firma/echipe',icon:'users'},
-  {label:'Angajați',href:'/echipa',icon:'users'},
+  {label:'Angajați',href:'/firma/angajati',icon:'users'},
   {label:'Profil',href:'/firma#profil',icon:'user'},
   {label:'Setări',href:'/firma/setari',icon:'settings'},
   {label:'Dosarele mele',href:'/dosare',icon:'briefcase'},

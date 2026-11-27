@@ -10,6 +10,7 @@ import {DesignIcon} from '@/components/DesignIcon';
 import {UiElement,UiText} from '@/components/UiText';
 
 const secondaryPartnerRoutes=new Set([
+  '/firma/angajati',
   '/firma/programari',
   '/firma/intervale-libere',
   '/firma/planificare',

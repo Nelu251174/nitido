@@ -33,6 +33,14 @@ describe('workspace navigation redesign',()=>{
     }
     expect(container.querySelector('a[href="/client#sec-form"]')).not.toBeNull();
   });
+  it('keeps Angajați inside the partner workspace and highlights it',async()=>{
+    route.pathname='/firma/angajati';
+    await render(<WorkspaceNav role="firma"/>);
+    const active=container.querySelector('a[aria-current="page"]');
+    expect(active?.textContent).toBe('Angajați');
+    expect(active?.getAttribute('href')).toBe('/firma/angajati');
+    expect(container.querySelector('a[href="/echipa"]')).toBeNull();
+  });
   it('marks only payments active on its page, rather than also marking home',async()=>{
     route.pathname='/client/plati';await render(<WorkspaceNav/>);
     const selected=[...container.querySelectorAll('a[aria-current="page"]')];
