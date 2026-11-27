@@ -372,7 +372,9 @@ export async function POST(req: NextRequest, ctx: Ctx) {
         kind,name:pro.text(b.name,"Nume",150),email:email.toLowerCase(),
         phone:pro.text(b.phone,"Telefon",40),city:pro.text(b.city,"Zonă",120),property_count:count,
         company:typeof b.company==='string'?b.company.trim().slice(0,150):'',
-        legal_id:typeof b.legal_id==='string'?b.legal_id.trim().slice(0,40):'',
+        legal_id: kind === "partner"
+          ? pro.text(b.legal_id, "CUI", 40)
+          : typeof b.legal_id === "string" ? b.legal_id.trim().slice(0, 40) : "",
         property_type:typeof b.property_type==='string'?b.property_type.slice(0,80):'',
         usage:typeof b.usage==='string'?b.usage.slice(0,80):'',
         monthly_volume:b.monthly_volume?pro.int(Number(b.monthly_volume),'Frecvență estimată',1,100000):null,
@@ -851,11 +853,12 @@ export async function POST(req: NextRequest, ctx: Ctx) {
           )
         )
           pro.fail("Stare invalidă.");
-        db.prepare("UPDATE pro_leads SET status=?,note=? WHERE id=?").run(
+        const update = db.prepare("UPDATE pro_leads SET status=?,note=? WHERE id=?").run(
           b.status,
           pro.text(b.note, "Notă", 2000),
           id,
         );
+        if (!update.changes) pro.fail("Solicitare inexistentă.", 404);
         pro.audit(db, p, null, id, "lead.review");
         return { id };
       }

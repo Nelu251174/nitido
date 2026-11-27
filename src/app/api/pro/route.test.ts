@@ -524,3 +524,28 @@ it('deduplicates public lead retries atomically and rejects key reuse with chang
  expect(state.db.prepare("SELECT count(*) n FROM pro_idempotency WHERE actor='pro-lead-email-v1'").get()).toEqual({n:1});
  expect(sendEmail).not.toHaveBeenCalled();
 });
+
+it("requires a partner CUI before recording or queueing a lead", async () => {
+  state.user = null;
+  const partner = {kind:"partner", name:"Test", company:"Test", city:"Constanța", consent:true,
+    email:"pro@example.test", phone:"TEST"};
+  for (const legal_id of [undefined, "", "   ", "X".repeat(41)]) {
+    expect((await post("leads", {...partner, legal_id})).status).toBe(422);
+  }
+  expect(state.db.prepare("SELECT COUNT(*) AS n FROM pro_leads").get()).toEqual({n:0});
+  expect(state.db.prepare("SELECT COUNT(*) AS n FROM pro_idempotency").get()).toEqual({n:0});
+  const accepted = await post("leads", {...partner, legal_id:" TEST-CUI "});
+  expect(accepted.status).toBe(201);
+  const {id} = await accepted.json();
+  const row = state.db.prepare("SELECT payload_json FROM pro_leads WHERE id=?").get(id) as {payload_json:string};
+  expect(JSON.parse(row.payload_json).legal_id).toBe("TEST-CUI");
+});
+
+it("does not record a successful review for a missing application", async () => {
+  state.user = null;
+  state.admin = true;
+  const count = () => state.db.prepare("SELECT COUNT(*) AS n FROM pro_audit_logs WHERE action='lead.review'").get();
+  const before = count();
+  expect((await post("leads/missing-test", {status:"in_review", note:"Test"})).status).toBe(404);
+  expect(count()).toEqual(before);
+});

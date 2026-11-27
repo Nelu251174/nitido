@@ -1,9 +1,10 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 import Database from 'better-sqlite3';
-const mocks=vi.hoisted(()=>({enabled:vi.fn(()=>true),collect:vi.fn(async()=>{}),deliver:vi.fn()}));
+const mocks=vi.hoisted(()=>({enabled:vi.fn(()=>true),collect:vi.fn(async()=>{}),deliver:vi.fn(),externalCollector:vi.fn()}));
 vi.mock('./adminMarketing',()=>({marketingEnabled:mocks.enabled}));
 vi.mock('./adminMarketingCity',()=>({processMarketingCollections:mocks.collect}));
 vi.mock('./adminMarketingDelivery',()=>({processMarketingDelivery:mocks.deliver}));
+vi.mock('./adminMarketingCollectorProcess',()=>({startMarketingCollectorProcess:mocks.externalCollector}));
 import {startMarketingScheduler,requestMarketingDeliveryProcessing} from './adminMarketingScheduler';
 const state=globalThis as typeof globalThis & {marketingTimer?:ReturnType<typeof setTimeout>;marketingTick?:boolean;marketingDeliveryTimer?:ReturnType<typeof setTimeout>;marketingDeliveryTick?:boolean;marketingDeliveryWake?:()=>void};
 let db:Database.Database;
@@ -14,6 +15,11 @@ function county(stateValue='collecting',at:string|null=null){
   db.prepare("INSERT INTO marketing_county_jobs VALUES('CT',?,0,'2026-10-25',?)").run(stateValue,at);
 }
 describe('serial Marketing scheduler pacing',()=>{
+  it('delegates production collection to a separate process while preserving the independent delivery scheduler',async()=>{
+    vi.stubEnv('NODE_ENV','production');mocks.externalCollector.mockClear();
+    try{startMarketingScheduler(db);await vi.advanceTimersByTimeAsync(0);expect(mocks.externalCollector).toHaveBeenCalledWith(db.name);expect(mocks.collect).not.toHaveBeenCalled();expect(mocks.deliver).toHaveBeenCalledOnce();}
+    finally{vi.unstubAllEnvs();}
+  });
   it('waits for a slow collection to finish, then restarts within one second without overlapping either worker',async()=>{
     county();let finish!:()=>void;let active=0,maxActive=0;
     mocks.collect.mockImplementationOnce(async()=>{active++;maxActive=Math.max(maxActive,active);await new Promise<void>(resolve=>{finish=resolve;});active--;});
